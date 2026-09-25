@@ -37,9 +37,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'kcaj',
     name: 'kcaj',
-    blurb: 'Double Park: two ice cream cones per shot.',
+    blurb: 'Ice cream volleys, a fixating laser and a pill storm.',
     colours: ['#ffc53d', '#c77dff', '#e2e8f0'],
-    loadout: ['double-park', 'heavy-shell', 'mega-shell'],
+    loadout: ['double-park', 'hyperfixate', 'unmedicated'],
   },
 ];
 

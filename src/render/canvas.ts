@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, muzzle, tankCentre } from '../game/game';
+import { currentPlayer, isAimless, muzzle, tankCentre } from '../game/game';
 import type { GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
@@ -87,9 +87,11 @@ export class Renderer {
     }
 
     for (const p of state.players) this.drawTank(p, state);
-    if (state.phase === 'aiming') this.drawAimGuide(currentPlayer(state));
+    if (state.phase === 'aiming' && !isAimless(state)) this.drawAimGuide(currentPlayer(state));
     this.drawProjectiles(state);
+    this.drawBeams(state);
     this.drawExplosions(state);
+    this.drawFloaters(state);
 
     // Bedrock strip below the world when the screen is taller than 2.2:1.
     if (this.offsetY > 0) {
@@ -110,6 +112,18 @@ export class Renderer {
     const { ctx } = this;
     const c = tankCentre(p);
     const isCurrent = state.players[state.current] === p && state.phase !== 'gameover';
+
+    if (p.burn && p.alive) {
+      // Pulsing glow while a Hyperfixate burn is still ticking.
+      const pulse = 0.55 + 0.45 * Math.sin(this.time * 8);
+      const g = ctx.createRadialGradient(c.x, c.y, 2, c.x, c.y, 22);
+      g.addColorStop(0, withAlpha(p.burn.colour, 0.55 * pulse));
+      g.addColorStop(1, withAlpha(p.burn.colour, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 22, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     ctx.save();
     ctx.globalAlpha = p.alive ? 1 : 0.35;
@@ -201,6 +215,68 @@ export class Renderer {
     return true;
   }
 
+  private drawBeams(state: GameState): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const b of state.beams) {
+      const k = b.age / b.duration;
+      const fade = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      const flicker = 0.85 + 0.15 * Math.sin(this.time * 90);
+      ctx.globalAlpha = fade * flicker;
+      ctx.strokeStyle = withAlpha(b.colour, 0.35);
+      ctx.lineWidth = 9;
+      this.line(b.x1, b.y1, b.x2, b.y2);
+      ctx.strokeStyle = b.colour;
+      ctx.lineWidth = 3.5;
+      this.line(b.x1, b.y1, b.x2, b.y2);
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.2;
+      this.line(b.x1, b.y1, b.x2, b.y2);
+      // Impact flare
+      const g = ctx.createRadialGradient(b.x2, b.y2, 0, b.x2, b.y2, b.hitTank ? 16 : 10);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(0.4, withAlpha(b.colour, 0.8));
+      g.addColorStop(1, withAlpha(b.colour, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(b.x2, b.y2, b.hitTank ? 16 : 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  private line(x1: number, y1: number, x2: number, y2: number): void {
+    this.ctx.beginPath();
+    this.ctx.moveTo(x1, y1);
+    this.ctx.lineTo(x2, y2);
+    this.ctx.stroke();
+  }
+
+  private drawFloaters(state: GameState): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.font = '800 15px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    for (const f of state.floaters) {
+      const k = f.age / f.duration;
+      ctx.globalAlpha = k < 0.35 ? 1 : Math.max(0, 1 - (k - 0.35) / 0.65);
+      const scale = 0.8 + 0.4 * Math.min(1, k * 6); // quick pop-in
+      ctx.save();
+      ctx.translate(f.x, f.y);
+      ctx.scale(scale, scale);
+      ctx.strokeStyle = 'rgba(10,12,24,0.85)';
+      ctx.lineWidth = 3.5;
+      ctx.strokeText(f.text, 0, 0);
+      ctx.fillStyle = f.colour;
+      ctx.fillText(f.text, 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   private drawExplosions(state: GameState): void {
     const { ctx } = this;
     for (const e of state.explosions) {
@@ -216,4 +292,10 @@ export class Renderer {
       ctx.fill();
     }
   }
+}
+
+/** '#rrggbb' + alpha → rgba() */
+function withAlpha(hex: string, a: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }

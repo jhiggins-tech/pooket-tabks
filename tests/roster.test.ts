@@ -28,9 +28,9 @@ describe('roster', () => {
     }
   });
 
-  it("kcaj's base weapon is Double Park", () => {
-    expect(getCharacter('kcaj').loadout).toEqual(['double-park', 'heavy-shell', 'mega-shell']);
-    expect(loadoutSummary(getCharacter('kcaj'))).toBe('Double Park ×5 · Heavy ×3 · Mega ×1');
+  it("kcaj's loadout is Double Park, Hyperfixate, Unmedicated", () => {
+    expect(getCharacter('kcaj').loadout).toEqual(['double-park', 'hyperfixate', 'unmedicated']);
+    expect(loadoutSummary(getCharacter('kcaj'))).toBe('Double Park ×5 · Hyperfixate ×3 · Unmedicated ×1');
   });
 
   it('each character has its own signature colour', () => {

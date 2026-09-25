@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="16" viewBox="0 0 32 16">
+  <!-- Capsule pointing along +x; the renderer rotates it along its flight path. -->
+  <path d="M16 1.5 H8.5 a6.5 6.5 0 0 0 0 13 H16 Z" fill="#ff4d6d"/>
+  <path d="M16 1.5 H23.5 a6.5 6.5 0 0 1 0 13 H16 Z" fill="#f8f9ff"/>
+  <rect x="2" y="1.5" width="28" height="13" rx="6.5" fill="none" stroke="#3a1020" stroke-width="1.4"/>
+  <line x1="16" y1="1.8" x2="16" y2="14.2" stroke="#3a1020" stroke-width="1"/>
+  <path d="M6 5 H24" stroke="#fff" stroke-opacity="0.65" stroke-width="2" stroke-linecap="round"/>
+</svg>

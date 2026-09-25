@@ -1,3 +1,4 @@
+import type { Rng } from '../core/rng';
 import type { Terrain } from '../core/terrain';
 
 export interface PlayerConfig {
@@ -26,6 +27,8 @@ export interface Player {
   /** Rounds left per tier. */
   ammo: number[];
   selectedTier: number;
+  /** Active burn from a beam hit: ticks at the start of this player's next turns. */
+  burn: { damagePerTurn: number; turnsLeft: number; colour: string } | null;
 }
 
 export interface Projectile {
@@ -36,6 +39,33 @@ export interface Projectile {
   weaponId: string;
   ownerId: number;
   trail: { x: number; y: number }[];
+  /** Ground bounces so far. */
+  bounces: number;
+  /** Seconds in flight (stray projectiles detonate after a while). */
+  age: number;
+}
+
+export interface Beam {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  colour: string;
+  hitTank: boolean;
+  age: number;
+  duration: number;
+}
+
+/** Floating damage number drifting up and away from a tank. */
+export interface Floater {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  text: string;
+  colour: string;
+  age: number;
+  duration: number;
 }
 
 export interface Explosion {
@@ -56,7 +86,13 @@ export interface GameState {
   turn: number;
   phase: Phase;
   projectiles: Projectile[];
+  beams: Beam[];
   explosions: Explosion[];
+  floaters: Floater[];
+  /** Seeded gameplay randomness (e.g. where rain falls), continuing from terrain generation. */
+  rng: Rng;
+  /** Counter for cosmetic variation that must not consume gameplay randomness. */
+  fxSeq: number;
   settleTimer: number;
   winner: Player | null;
 }

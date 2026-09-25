@@ -89,6 +89,14 @@ button:disabled {
 .chip .name {
   color: var(--c);
 }
+.chip .burn {
+  font-size: 12px;
+  animation: burn-pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes burn-pulse {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
 .chip .hp {
   height: 5px;
   border-radius: 3px;
@@ -223,6 +231,21 @@ button:disabled {
 body:not([data-phase='aiming']) .hint,
 body:not([data-phase='aiming']) .pad {
   opacity: 0.35;
+}
+/* Rain weapons ignore aiming: grey out the aim controls and swap the hint. */
+body[data-aimless='true'] .pad.left {
+  opacity: 0.3;
+  pointer-events: none;
+}
+body[data-aimless='true'] .pad.left button {
+  pointer-events: none;
+}
+body[data-aimless='true'] .hint {
+  font-size: 0;
+}
+body[data-aimless='true'] .hint::after {
+  content: 'No aiming needed. Just FIRE';
+  font-size: 12px;
 }
 
 /* ---------- Overlays ---------- */

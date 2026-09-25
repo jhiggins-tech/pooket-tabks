@@ -68,6 +68,26 @@ export class Terrain {
     return this.height;
   }
 
+  /**
+   * Approximate outward surface normal near (x, y): the average direction from nearby
+   * solid pixels towards open air. Straight up if the area is uniformly solid.
+   */
+  normalAt(x: number, y: number, r = 4): { x: number; y: number } {
+    let nx = 0;
+    let ny = 0;
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy > r * r) continue;
+        if (this.isSolid(x + dx, y + dy)) {
+          nx -= dx;
+          ny -= dy;
+        }
+      }
+    }
+    const len = Math.hypot(nx, ny);
+    return len < 1e-6 ? { x: 0, y: -1 } : { x: nx / len, y: ny / len };
+  }
+
   /** Remove all solid pixels within radius r of (cx, cy). Returns pixels removed. */
   carveCircle(cx: number, cy: number, r: number): number {
     const x0 = Math.max(0, Math.floor(cx - r));

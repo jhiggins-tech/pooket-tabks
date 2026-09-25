@@ -67,9 +67,10 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   await expect(page.locator('.chip.active .name')).toHaveText('kcaj');
-  // Player 2 (kcaj) has their own full inventory, led by Double Park.
+  // Player 2 (kcaj) has their own full inventory.
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Double Park, 5 left');
-  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Mega Shell, 1 left');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Hyperfixate, 3 left');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Unmedicated, 1 left');
   await expect(weapons.nth(2)).toBeEnabled();
 
   await page.waitForTimeout(1700); // let the turn banner fade for a clean screenshot
@@ -81,6 +82,44 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.screenshot({ path: 'test-results/double-park.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
   await expect(page.locator('.chip.active .name')).toHaveText('Jack');
+  expect(errors).toEqual([]);
+});
+
+test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=4242');
+  await page.getByLabel('Player 1 character').selectOption('kcaj');
+  await page.locator('#start').tap();
+
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Hyperfixate, 3 left');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Unmedicated, 1 left');
+
+  // Hyperfixate: fire the beam at a low angle and catch it on screen.
+  await weapons.nth(1).tap();
+  for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Aim right' }).tap();
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: 'test-results/hyperfixate.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+
+  // Player 2 lobs a shell back.
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
+
+  // Unmedicated: aim controls are greyed out and no aim needed.
+  await weapons.nth(2).tap();
+  await expect(page.locator('body')).toHaveAttribute('data-aimless', 'true');
+  await expect(page.locator('.hint')).toBeVisible();
+  const angle = await page.locator('#angle').textContent();
+  await page.getByRole('button', { name: 'Aim left' }).tap({ force: true });
+  await expect(page.locator('#angle')).toHaveText(angle!);
+
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(1600);
+  await page.screenshot({ path: 'test-results/unmedicated.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 30_000 });
   expect(errors).toEqual([]);
 });
 

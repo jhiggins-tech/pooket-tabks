@@ -35,7 +35,35 @@ export const doublePark: WeaponDef = {
   sprite: 'ice-cream-cone',
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark];
+/** kcaj's tier 2: a straight laser from the barrel; a direct hit keeps burning for 3 turns. */
+export const hyperfixate: WeaponDef = {
+  id: 'hyperfixate',
+  name: 'Hyperfixate',
+  shortName: 'Hyperfixate',
+  kind: 'beam',
+  blastRadius: 7,
+  damage: 15,
+  dot: { damagePerTurn: 8, turns: 3 },
+  colour: '#ff3df2',
+};
+
+/** kcaj's tier 3: pills rain over the whole stage, bounce twice, then pop. Never hurts kcaj. */
+export const unmedicated: WeaponDef = {
+  id: 'unmedicated',
+  name: 'Unmedicated',
+  shortName: 'Unmedicated',
+  kind: 'rain',
+  rainCount: 120,
+  blastRadius: 11,
+  damage: 7, // ~33 total on average across random maps (5–70 range): the volume does the work
+  bounces: 2,
+  restitution: 0.55,
+  friendlyFire: false,
+  sprite: 'pill',
+  trail: false,
+};
+
+const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

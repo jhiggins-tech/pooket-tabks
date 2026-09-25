@@ -27,11 +27,15 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
-  Optional fields: `volley` (several projectiles fanned across ±spreadDeg) and `sprite` (drawn rotated along
-  the flight path; sprites are SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`).
+  `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn) or `rain` (falls across the
+  stage, ignores aim). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
+  (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `trail`.
+- All damage goes through `damagePlayer()` in `game.ts`, which spawns the floating damage numbers.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
-  signature colours and a 3-tier loadout. tones and kie use the default Shell / Heavy / Mega; kcaj's tier 1
-  is Double Park (two ice cream cones at aim ±2°, small blast). Ammo is
+  signature colours and a 3-tier loadout. tones and kie use the default Shell / Heavy / Mega. kcaj has
+  Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
+  at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
+  micro-detonate; ignores aiming and never hurts kcaj). Ammo is
   5 / 3 / 1 rounds for tiers 1–3 (`AMMO_PER_TIER`). Duplicate picks get distinct alternate colours.
 - `src/ui/setup.ts` + `src/ui/seats.ts`: setup screen. PoC matches are exactly 2 players (`PLAYER_COUNT`),
   each picking a character; the name field pre-fills with the character name and stays editable.

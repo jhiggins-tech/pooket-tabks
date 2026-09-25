@@ -1,6 +1,6 @@
 import { MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { currentPlayer, weaponForTier } from '../game/game';
+import { currentPlayer, isAimless, weaponForTier } from '../game/game';
 import type { GameState } from '../game/state';
 
 /** Keeps the DOM overlay in sync with game state, touching the DOM only on change. */
@@ -26,12 +26,13 @@ export class Hud {
       p.power,
       p.selectedTier,
       p.ammo.join(','),
-      ...state.players.map((pl) => `${pl.hp}${pl.name}`),
+      ...state.players.map((pl) => `${pl.hp}${pl.name}${pl.burn?.turnsLeft ?? ''}`),
     ].join('|');
     if (key === this.last) return;
     this.last = key;
 
     document.body.dataset.phase = state.phase;
+    document.body.dataset.aimless = String(isAimless(state));
     document.body.dataset.turn = String(state.turn);
     document.body.style.setProperty('--player-colour', p.colour);
 
@@ -50,6 +51,14 @@ export class Hud {
         const fill = document.createElement('span');
         fill.style.width = `${(pl.hp / MAX_HP) * 100}%`;
         bar.append(fill);
+        if (pl.burn && pl.alive) {
+          const burn = document.createElement('span');
+          burn.className = 'burn';
+          burn.style.color = pl.burn.colour;
+          burn.textContent = ` ✦${pl.burn.turnsLeft}`;
+          burn.title = `Burning: ${pl.burn.damagePerTurn} damage for ${pl.burn.turnsLeft} more turns`;
+          name.append(burn);
+        }
         el.append(name, bar);
         return el;
       }),
