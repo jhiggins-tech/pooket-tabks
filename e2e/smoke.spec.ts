@@ -204,6 +204,42 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("tones' ten-2 jetpack", async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.locator('#start').tap();
+  type Debug = { state: { players: { x: number; y: number }[] } };
+  const tonesPos = () => page.evaluate(() => {
+    const p = (window as unknown as { __pooket: Debug }).__pooket.state.players[0]!;
+    return { x: p.x, y: p.y };
+  });
+
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'ten-2, 3 left');
+  await weapons.nth(1).tap();
+  const start = await tonesPos();
+  await page.locator('#fire').tap();
+  await expect(page.locator('#hint')).toHaveText(/ten-2 charging… (10|9)/);
+
+  await page.waitForTimeout(8500);
+  await expect(page.locator('#hint')).toHaveText(/ten-2 charging… [12]/);
+  await page.screenshot({ path: 'test-results/ten-2-charging.png' });
+  await page.waitForFunction(() => {
+    const s = (window as unknown as { __pooket: { state: { jets: { launched: boolean }[] } } }).__pooket.state;
+    return s.jets[0]?.launched === true;
+  }, undefined, { timeout: 5_000, polling: 16 });
+  await page.waitForTimeout(380);
+  await page.screenshot({ path: 'test-results/ten-2-blastoff.png' });
+
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 20_000 });
+  const end = await tonesPos();
+  expect(Math.abs(end.x - start.x)).toBeGreaterThan(40);
+  await page.screenshot({ path: 'test-results/ten-2-landed.png' });
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');

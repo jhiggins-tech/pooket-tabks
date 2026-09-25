@@ -114,6 +114,36 @@ export class Terrain {
     if (changed) this.markDirty({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
   }
 
+  /** Fill empty pixels within radius r with new dirt of roughly the given colour. Returns pixels added. */
+  addDirt(cx: number, cy: number, r: number, rgb: readonly [number, number, number]): number {
+    const x0 = Math.max(0, Math.floor(cx - r));
+    const x1 = Math.min(this.width - 1, Math.ceil(cx + r));
+    const y0 = Math.max(0, Math.floor(cy - r));
+    const y1 = Math.min(this.height - 1, Math.ceil(cy + r));
+    let added = 0;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r) continue;
+        const i = y * this.width + x;
+        if (this.solid[i] === 1) continue;
+        this.solid[i] = 1;
+        this.wet[i] = 1; // new dirt is already its own colour
+        // Deterministic speckle so piles look granular.
+        const n = (((x * 73856093) ^ (y * 19349663)) >>> 0) % 29;
+        const k = 0.65 + n / 55;
+        const glow = n === 0; // the odd glowing speck
+        const p = i * 4;
+        this.pixels[p] = glow ? 200 : rgb[0] * k;
+        this.pixels[p + 1] = glow ? 255 : rgb[1] * k;
+        this.pixels[p + 2] = glow ? 90 : rgb[2] * k;
+        this.pixels[p + 3] = 255;
+        added++;
+      }
+    }
+    if (added > 0) this.markDirty({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    return added;
+  }
+
   isWet(x: number, y: number): boolean {
     const xi = Math.floor(x);
     const yi = Math.floor(y);

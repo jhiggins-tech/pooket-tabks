@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, muzzle, tankCentre } from '../game/game';
+import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, jetCharge, muzzle, tankCentre } from '../game/game';
 import type { Droplet, GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
@@ -102,6 +102,7 @@ export class Renderer {
       ctx.drawImage(this.terrainCanvas, this.worldW - 1, 0, 1, h, this.worldW, 0, side + 1, h);
     }
 
+    this.drawSludge(state); // behind the tanks so the jet flame stays visible
     for (const p of state.players) {
       // Holograms are drawn exactly like the real tank, so there is no visual tell. The shared
       // shimmer glitches every copy (real one included) at the same moment.
@@ -112,7 +113,7 @@ export class Renderer {
         this.drawGlitchedTank(p, state, h, Math.max(shimmerAmt, 1 - phaseIn), phaseIn, 1);
         if (state.swapTargetId === h.id && state.phase === 'aiming' && currentPlayer(state) === p) this.drawSwapMarker(h);
       }
-      this.drawGlitchedTank(p, state, undefined, shimmerAmt, 1, 1);
+      this.drawJet(p, state, () => this.drawGlitchedTank(p, state, undefined, shimmerAmt, 1, 1));
     }
     for (const g of state.ghosts) {
       const owner = state.players[g.ownerId];
@@ -252,6 +253,79 @@ export class Renderer {
         ctx.fillRect(pos.x - 13 + (noise(y + tick) - 0.5) * 6 * glitch, y, 26, 1);
       }
     }
+    ctx.restore();
+  }
+
+  /**
+   * ten-2: while charging the tank shakes harder and harder over a growing glow; once airborne it
+   * trails a toxic flame. `draw` renders the tank itself.
+   */
+  private drawJet(p: Player, state: GameState, draw: () => void): void {
+    const { ctx } = this;
+    const jet = state.jets.find((j) => j.playerId === p.id);
+    if (!jet) return draw();
+    const colour = '#9be22d';
+    const c = tankCentre(p);
+    const charge = jetCharge(state, p.id);
+    if (charge !== null) {
+      const amp = 0.4 + 3.6 * charge * charge;
+      const t = Math.floor(this.time * 45);
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 10 + 18 * charge);
+      g.addColorStop(0, withAlpha(colour, 0.15 + 0.5 * charge));
+      g.addColorStop(1, withAlpha(colour, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 10 + 18 * charge, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.translate((noise(t) - 0.5) * 2 * amp, (noise(t * 1.7 + 3) - 0.5) * amp);
+      draw();
+      ctx.restore();
+      return;
+    }
+    if (jet.burnLeft > 0) {
+      // Flame out of the back, flickering, pointing against the launch direction.
+      const back = jet.heading + Math.PI;
+      const len = 18 + 12 * noise(Math.floor(this.time * 40));
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(-back);
+      // Teardrop reaching well past the hull (half-width 11) so it isn't hidden behind the tank.
+      const tip = len + 8;
+      const g = ctx.createLinearGradient(6, 0, tip, 0);
+      g.addColorStop(0, 'rgba(255,255,220,0.95)');
+      g.addColorStop(0.3, withAlpha(colour, 0.9));
+      g.addColorStop(1, withAlpha(colour, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(6, -5.5);
+      ctx.quadraticCurveTo(tip * 0.6, -4.5, tip, 0);
+      ctx.quadraticCurveTo(tip * 0.6, 4.5, 6, 5.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    draw();
+  }
+
+  private drawSludge(state: GameState): void {
+    if (state.sludge.length === 0) return;
+    const { ctx } = this;
+    ctx.save();
+    ctx.fillStyle = '#4a6b12';
+    ctx.beginPath();
+    for (const s of state.sludge) {
+      ctx.moveTo(s.x + 2.2, s.y);
+      ctx.arc(s.x, s.y, 2.2, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.fillStyle = '#9be22d';
+    ctx.beginPath();
+    for (const s of state.sludge) {
+      ctx.moveTo(s.x + 1.4, s.y - 0.3);
+      ctx.arc(s.x, s.y - 0.3, 1.4, 0, Math.PI * 2);
+    }
+    ctx.fill();
     ctx.restore();
   }
 

@@ -16,7 +16,7 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { Droplet, GameState, Hologram, Player, PlayerConfig, Projectile, Stream } from './state';
+import type { Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Sludge, Stream } from './state';
 
 /** Something a shot can hit: a real tank or a hologram of one. */
 export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
@@ -76,6 +76,8 @@ export function createGame(cfg: GameConfig): GameState {
       burn: null,
       soak: 0,
       soakColour: '#ffffff',
+      toxin: 0,
+      toxinRate: 0,
     };
   });
 
@@ -93,6 +95,8 @@ export function createGame(cfg: GameConfig): GameState {
     shimmers: [],
     ghosts: [],
     streams: [],
+    jets: [],
+    sludge: [],
     droplets: [],
     splashes: [],
     soakTimer: 0,
@@ -179,6 +183,20 @@ export function fire(state: GameState): boolean {
       break;
     case 'decoy':
       fireDecoys(state, p, weapon);
+      break;
+    case 'jetpack':
+      state.jets.push({
+        playerId: p.id,
+        weaponId: weapon.id,
+        elapsed: 0,
+        launched: false,
+        vx: 0,
+        vy: 0,
+        burnLeft: 0,
+        emitCarry: 0,
+        flightTime: 0,
+        heading: (p.angle * Math.PI) / 180,
+      });
       break;
     case 'ballistic':
       fireBallistic(state, p, weapon);
@@ -421,7 +439,17 @@ export function step(state: GameState, dt: number): void {
     state.streams = state.streams.filter((st) => !stepStream(state, st, dt));
     state.droplets = state.droplets.filter((d) => !stepDroplet(state, d, dt));
     stepSoak(state, dt, false);
-    const busy = state.projectiles.length + state.beams.length + state.streams.length + state.droplets.length;
+    state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
+    state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
+    drainToxin(state, dt);
+    const busy =
+      state.projectiles.length +
+      state.beams.length +
+      state.streams.length +
+      state.droplets.length +
+      state.jets.length +
+      state.sludge.length +
+      state.players.filter((p) => p.toxin > 0).length;
     if (busy === 0) {
       stepSoak(state, dt, true);
       state.phase = 'settling';
@@ -539,6 +567,200 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
   d.x = nx;
   d.y = ny;
   return d.x < -50 || d.x > terrain.width + 50;
+}
+
+// ---- Jetpack -------------------------------------------------------------------------------------
+
+/** Radius of the circle used for a flying tank's collisions (centred on the body). */
+const JET_BODY_RADIUS = 7.5;
+const JET_MAX_FLIGHT = 8; // s
+/** Murky olive-yellow, clearly not grass. */
+const TOXIC_DIRT: [number, number, number] = [150, 158, 36];
+
+/** How far through its charge-up a player's jet is (0–1), or null if they aren't charging. */
+export function jetCharge(state: GameState, playerId: number): number | null {
+  const j = state.jets.find((x) => x.playerId === playerId);
+  if (!j || j.launched) return null;
+  return Math.min(1, j.elapsed / getWeapon(j.weaponId).jetpack!.chargeTime);
+}
+
+function jetBodyHits(state: GameState, x: number, y: number, self: Player): boolean {
+  const cy = y - TANK_BODY_HEIGHT;
+  for (let k = 0; k < 8; k++) {
+    const a = (k * Math.PI) / 4;
+    if (state.terrain.isSolid(x + Math.cos(a) * JET_BODY_RADIUS, cy + Math.sin(a) * JET_BODY_RADIUS)) return true;
+  }
+  return state.players.some((q) => q !== self && q.alive && Math.hypot(q.x - x, q.y - y) < TANK_HALF_WIDTH * 2);
+}
+
+/** Charge, launch, fly, land. Returns true once the tank has landed. */
+function stepJet(state: GameState, j: Jet, dt: number): boolean {
+  const p = state.players[j.playerId]!;
+  const spec = getWeapon(j.weaponId).jetpack!;
+  const { terrain } = state;
+  j.elapsed += dt;
+
+  if (!j.launched) {
+    if (j.elapsed < spec.chargeTime) {
+      // Dust shaken loose, more and more as the charge builds.
+      const k = j.elapsed / spec.chargeTime;
+      if (hash(j.elapsed * 97.13) < k * k * 0.6) spawnDust(state, p.x, p.y, k);
+      return false;
+    }
+    const a = (p.angle * Math.PI) / 180;
+    const speed = (p.power / 100) * MAX_SPEED * spec.thrust;
+    j.vx = Math.cos(a) * speed;
+    j.vy = -Math.sin(a) * speed;
+    j.heading = a;
+    j.launched = true;
+    j.burnLeft = spec.burnTime;
+    // Lift clear of the ground it's sitting on (a few px) so it can leave.
+    for (let lift = 0; lift < 14 && jetBodyHits(state, p.x, p.y, p); lift++) p.y -= 1;
+  }
+
+  // Exhaust
+  if (j.burnLeft > 0) {
+    j.burnLeft -= dt;
+    j.emitCarry += spec.particlesPerSecond * dt;
+    const back = j.heading + Math.PI;
+    while (j.emitCarry >= 1) {
+      j.emitCarry -= 1;
+      const a = back + randRange(state.rng, -0.45, 0.45);
+      const v = spec.exhaustSpeed * randRange(state.rng, 0.55, 1.1);
+      state.sludge.push({
+        x: p.x - Math.cos(j.heading) * 9,
+        y: p.y - TANK_BODY_HEIGHT + Math.sin(j.heading) * 9,
+        vx: j.vx * 0.25 + Math.cos(a) * v,
+        vy: j.vy * 0.25 - Math.sin(a) * v,
+        ownerId: p.id,
+        weaponId: j.weaponId,
+      });
+    }
+  }
+
+  // Flight
+  j.flightTime += dt;
+  j.vy += GRAVITY * dt;
+  const nx = p.x + j.vx * dt;
+  const ny = p.y + j.vy * dt;
+  const steps = Math.max(1, Math.ceil(Math.hypot(nx - p.x, ny - p.y)));
+  const x0 = p.x;
+  const y0 = p.y;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    let x = x0 + (nx - x0) * t;
+    const y = y0 + (ny - y0) * t;
+    // Invisible walls at the map edges.
+    const minX = TANK_HALF_WIDTH;
+    const maxX = terrain.width - TANK_HALF_WIDTH;
+    if (x < minX || x > maxX) {
+      x = Math.min(maxX, Math.max(minX, x));
+      j.vx = 0;
+    }
+    if (jetBodyHits(state, x, y, p)) {
+      if (j.vy > 0 || j.flightTime > JET_MAX_FLIGHT) {
+        land(state, p);
+        return true;
+      }
+      // Hit a wall or overhang on the way up: lose the sideways push and drop.
+      j.vx = 0;
+      j.vy = Math.max(0, j.vy);
+      return false;
+    }
+    p.x = x;
+    p.y = y;
+  }
+  if (j.flightTime > JET_MAX_FLIGHT) {
+    land(state, p);
+    return true;
+  }
+  return false;
+}
+
+/** Settle a jetpacking tank onto the ground and nudge it off any tank it came down beside. */
+function land(state: GameState, p: Player): void {
+  const { terrain } = state;
+  for (let guard = 0; guard < 60; guard++) {
+    const other = state.players.find((q) => q !== p && q.alive && Math.abs(q.x - p.x) < TANK_HALF_WIDTH * 2);
+    if (!other) break;
+    const dir = p.x >= other.x ? 1 : -1;
+    const nx = p.x + dir;
+    p.x = nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH ? p.x - dir * 2 * TANK_HALF_WIDTH : nx;
+  }
+  p.x = Math.round(p.x);
+  // Rest on the highest supporting column under the hull.
+  let ground = terrain.height;
+  const top = Math.max(0, p.y - TANK_BODY_HEIGHT * 2);
+  for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
+    ground = Math.min(ground, terrain.groundBelow(p.x + dx, top));
+  }
+  p.y = ground;
+  spawnDust(state, p.x, p.y, 1);
+}
+
+/** Moves one propellant particle. Returns true when it has landed (as dirt) or hit a tank. */
+function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
+  const { terrain } = state;
+  const spec = getWeapon(sl.weaponId).jetpack!;
+  sl.vy += GRAVITY * dt;
+  const nx = sl.x + sl.vx * dt;
+  const ny = sl.y + sl.vy * dt;
+  const steps = Math.max(1, Math.ceil(Math.hypot(nx - sl.x, ny - sl.y)));
+  let freeX = sl.x;
+  let freeY = sl.y;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = sl.x + (nx - sl.x) * t;
+    const y = sl.y + (ny - sl.y) * t;
+    const target = targetAt(state, x, y);
+    if (target && targetOwner(target) !== sl.ownerId) {
+      if (target.kind === 'player') {
+        target.player.toxin += spec.dosePerParticle;
+        target.player.toxinRate = spec.dosePerSecond;
+        target.player.soakColour = getWeapon(sl.weaponId).colour ?? '#9be22d';
+      } else {
+        target.holo.soak += spec.dosePerParticle;
+        target.holo.soakShooterId = sl.ownerId;
+        target.holo.soakColour = getWeapon(sl.weaponId).colour ?? '#9be22d';
+      }
+      return true;
+    }
+    if (!target && terrain.isSolid(x, y)) {
+      terrain.addDirt(freeX, freeY, 1.6, TOXIC_DIRT);
+      return true;
+    }
+    freeX = x;
+    freeY = y;
+  }
+  sl.x = nx;
+  sl.y = ny;
+  return sl.x < -50 || sl.x > terrain.width + 50;
+}
+
+/** Toxin on a tank drains into (batched, trickling) damage over a couple of seconds. */
+function drainToxin(state: GameState, dt: number): void {
+  for (const p of state.players) {
+    if (p.toxin <= 0) continue;
+    const d = Math.min(p.toxin, p.toxinRate * dt);
+    p.toxin = p.toxin - d < 1e-6 ? 0 : p.toxin - d;
+    p.soak += d;
+  }
+}
+
+function spawnDust(state: GameState, x: number, y: number, strength: number): void {
+  const n = strength >= 1 ? 10 : 1;
+  for (let i = 0; i < n; i++) {
+    const h = hash(state.fxSeq++);
+    state.splashes.push({
+      x: x + (h - 0.5) * 24,
+      y: y - 1,
+      vx: (hash(h * 17) - 0.5) * 80 * (0.4 + strength),
+      vy: -(20 + hash(h * 29) * 70) * (0.4 + strength),
+      age: 0,
+      life: 0.4 + hash(h * 5) * 0.3,
+      colour: '#b08850',
+    });
+  }
 }
 
 /** Apply soaked-up stream damage in small batches so the numbers trickle rather than spam. */

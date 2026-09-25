@@ -8,8 +8,27 @@ export type SpriteId = 'ice-cream-cone' | 'pill';
  * - `rain`: projectiles fall across the whole stage; aiming is ignored.
  * - `stream`: a jet of liquid whose pressure ramps up, holds, then eases off (see `stream`).
  * - `decoy`: no shot; spawns hologram copies of the firer's tank (see `decoys`). Ignores aiming.
+ * - `jetpack`: the firer's own tank charges up, then launches along the aim (see `jetpack`).
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy';
+export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack';
+
+/**
+ * Jetpack weapons: the tank shakes while it charges for `chargeTime`, then gets one launch impulse
+ * along the aim at power × `thrust` × MAX_SPEED and flies ballistically until it lands. For
+ * `burnTime` after launch it sprays propellant particles backwards; they fall, pile up as dirt, and
+ * dose any enemy tank they land on with toxin that drains as damage at `dosePerSecond`.
+ */
+export interface JetpackSpec {
+  chargeTime: number;
+  thrust: number;
+  burnTime: number;
+  particlesPerSecond: number;
+  /** Exhaust speed relative to the tank (px/s). */
+  exhaustSpeed: number;
+  /** Toxin each particle that lands on an enemy adds (damage points). */
+  dosePerParticle: number;
+  dosePerSecond: number;
+}
 
 /**
  * Pressure profile for stream weapons. Pressure eases 0 → 1 over `rampUp`, holds at 1 for `hold`,
@@ -57,6 +76,8 @@ export interface WeaponDef {
   trail?: boolean;
   /** Decoy weapons: how many hologram copies to spawn. */
   decoys?: number;
+  /** Jetpack weapons: charge, launch and propellant. */
+  jetpack?: JetpackSpec;
   /** Stream weapons: pressure profile and flow. */
   stream?: StreamSpec;
   /** Beam / liquid colour. */

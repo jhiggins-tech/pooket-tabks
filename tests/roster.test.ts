@@ -28,8 +28,8 @@ describe('roster', () => {
     expect(radii[1]!).toBeLessThan(radii[2]!);
   });
 
-  it("tones' base weapon is ten-1", () => {
-    expect(getCharacter('tones').loadout).toEqual(['ten-1', 'heavy-shell', 'mega-shell']);
+  it("tones' loadout is ten-1, ten-2, Mega Shell", () => {
+    expect(getCharacter('tones').loadout).toEqual(['ten-1', 'ten-2', 'mega-shell']);
   });
 
   it("kcaj's loadout is Double Park, Hyperfixate, Unmedicated", () => {
@@ -51,6 +51,6 @@ describe('roster', () => {
 
   it('summarises a loadout for the setup screen', () => {
     expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Heavy ×3 · Trollogram ×1');
-    expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · Heavy ×3 · Mega ×1');
+    expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · ten-2 ×3 · Mega ×1');
   });
 });

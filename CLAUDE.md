@@ -30,8 +30,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
   stage, ignores aim), `stream` (liquid jet with a `stream` pressure profile; droplets trickle damage
-  via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering) or `decoy`
-  (spawns `Hologram`s of the firer's tank; ignores aim). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
+  via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering), `decoy`
+  (spawns `Hologram`s of the firer's tank; ignores aim) or `jetpack` (the firer's tank charges, then
+  launches once along the aim; its `Sludge` propellant piles up as new dirt via `Terrain.addDirt` and
+  doses enemies with `Player.toxin`, which drains into soak damage). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `trail`.
 - Hit-testing goes through `targetAt()` / `Target` (a real tank or a hologram). Damage goes through
   `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
@@ -44,7 +46,7 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   signature colours and a 3-tier loadout. kie: Shell / Heavy / Trollogram (2 holograms; on later turns tap
   one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)
-  / Heavy / Mega. kcaj has
+  / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; toxic propellant) / Mega. kcaj has
   Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
   at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
   micro-detonate; ignores aiming and never hurts kcaj). Ammo is

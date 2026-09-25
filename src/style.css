@@ -232,6 +232,11 @@ body:not([data-phase='aiming']) .hint,
 body:not([data-phase='aiming']) .pad {
   opacity: 0.35;
 }
+body[data-charging='true'] .hint {
+  opacity: 1;
+  color: #9be22d;
+  font-size: 14px;
+}
 /* Rain weapons ignore aiming: grey out the aim controls and swap the hint. */
 body[data-aimless='true'] .pad.left {
   opacity: 0.3;

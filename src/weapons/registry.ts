@@ -95,7 +95,32 @@ export const trollogram: WeaponDef = {
   colour: '#7cf7d4',
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1, trollogram];
+/**
+ * tones' tier 2: the tank shakes for 10s, then blasts off jetpack-style along the aim (power sets
+ * thrust) and flies to a new spot. Its exhaust is toxic dirt that piles up where it lands and
+ * poisons enemy tanks it falls on.
+ */
+export const ten2: WeaponDef = {
+  id: 'ten-2',
+  name: 'ten-2',
+  shortName: 'ten-2',
+  kind: 'jetpack',
+  blastRadius: 0,
+  damage: 0,
+  jetpack: {
+    chargeTime: 10,
+    thrust: 0.85,
+    burnTime: 0.7,
+    particlesPerSecond: 320,
+    exhaustSpeed: 260,
+    dosePerParticle: 0.35,
+    dosePerSecond: 6,
+  },
+  friendlyFire: false,
+  colour: '#9be22d',
+};
+
+const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1, trollogram, ten2];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

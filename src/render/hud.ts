@@ -1,6 +1,7 @@
 import { MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { currentPlayer, hologramsOf, isAimless, weaponForTier } from '../game/game';
+import { currentPlayer, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
+import { getWeapon } from '../weapons/registry';
 import type { GameState } from '../game/state';
 
 /** Keeps the DOM overlay in sync with game state, touching the DOM only on change. */
@@ -28,6 +29,7 @@ export class Hud {
       p.selectedTier,
       state.holograms.length,
       state.swapTargetId,
+      jetCountdown(state),
       p.ammo.join(','),
       ...state.players.map((pl) => `${pl.hp}${pl.name}${pl.burn?.turnsLeft ?? ''}`),
     ].join('|');
@@ -38,7 +40,11 @@ export class Hud {
     const aimless = isAimless(state);
     document.body.dataset.aimless = String(aimless);
     const decoys = hologramsOf(state, p.id).length;
-    this.hintEl.textContent = aimless
+    const countdown = jetCountdown(state);
+    document.body.dataset.charging = String(countdown !== null);
+    this.hintEl.textContent = countdown !== null
+      ? `ten-2 charging… ${countdown}`
+      : aimless
       ? 'No aiming needed. Just FIRE'
       : decoys > 0
         ? state.swapTargetId !== null
@@ -124,6 +130,14 @@ export class Hud {
     this.last = '';
     this.lastTurnKey = '';
   }
+}
+
+/** Whole seconds left on the current player's ten-2 charge, or null. */
+function jetCountdown(state: GameState): number | null {
+  const p = currentPlayer(state);
+  const jet = state.jets.find((j) => j.playerId === p.id);
+  if (jetCharge(state, p.id) === null || !jet) return null;
+  return Math.max(1, Math.ceil(getWeapon(jet.weaponId).jetpack!.chargeTime - jet.elapsed));
 }
 
 /**

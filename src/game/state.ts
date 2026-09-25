@@ -33,6 +33,9 @@ export interface Player {
   soak: number;
   /** Colour for the soak damage numbers (the liquid's colour). */
   soakColour: string;
+  /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
+  toxin: number;
+  toxinRate: number;
 }
 
 export interface Projectile {
@@ -127,6 +130,34 @@ export interface Droplet {
   colour: string;
 }
 
+/** A tank charging up and then flying under its own one-off thrust. */
+export interface Jet {
+  playerId: number;
+  weaponId: string;
+  /** Seconds since firing (charge counts from 0 to chargeTime). */
+  elapsed: number;
+  launched: boolean;
+  vx: number;
+  vy: number;
+  /** Seconds of exhaust left after launch. */
+  burnLeft: number;
+  emitCarry: number;
+  /** Seconds in the air. */
+  flightTime: number;
+  /** Launch direction (radians), for drawing the flame. */
+  heading: number;
+}
+
+/** Toxic propellant: falls, piles up as dirt, doses enemies it lands on. */
+export interface Sludge {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  ownerId: number;
+  weaponId: string;
+}
+
 /** Cosmetic spray where water lands. */
 export interface Splash {
   x: number;
@@ -177,6 +208,8 @@ export interface GameState {
   shimmers: PhaseShimmer[];
   ghosts: HologramGhost[];
   streams: Stream[];
+  jets: Jet[];
+  sludge: Sludge[];
   droplets: Droplet[];
   splashes: Splash[];
   /** Seconds since stream damage was last applied. */
