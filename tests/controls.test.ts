@@ -20,9 +20,11 @@ describe('slingshot drag', () => {
     expect(dragToAim(0, 50, full)!.angle).toBeCloseTo(90); // pull straight down -> straight up
   });
 
-  it('clamps to the horizon when pulled upward', () => {
-    expect(dragToAim(-50, -20, full)!.angle).toBe(0);
-    expect(dragToAim(50, -20, full)!.angle).toBe(180);
+  it('aims all the way round: pulling up aims down', () => {
+    expect(dragToAim(-50, -50, full)!.angle).toBeCloseTo(315); // pull up-left -> down-right
+    expect(dragToAim(50, -50, full)!.angle).toBeCloseTo(225); // pull up-right -> down-left
+    expect(dragToAim(0, -50, full)!.angle).toBeCloseTo(270); // pull straight up -> straight down
+    expect(dragToAim(-50, 0, full)!.angle).toBeCloseTo(0);
   });
 
   it('scales power linearly past the deadzone and caps at 100', () => {

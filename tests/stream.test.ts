@@ -41,27 +41,46 @@ function runTurn(g: GameState, onTick?: (g: GameState) => void): void {
 }
 
 describe('ten-1 pressure profile', () => {
-  it('ramps from zero to full over a couple of seconds, holds briefly, then eases back to zero', () => {
-    const d = streamDuration(spec);
-    expect(spec.rampUp).toBeGreaterThanOrEqual(1.5);
-    expect(spec.hold).toBeLessThan(spec.rampUp);
-    expect(streamPressure(spec, 0)).toBe(0);
-    expect(streamPressure(spec, spec.rampUp / 2)).toBeCloseTo(0.5);
-    expect(streamPressure(spec, spec.rampUp + spec.hold / 2)).toBe(1);
-    expect(streamPressure(spec, d)).toBe(0);
-    // Monotonic up, then down: no sudden cut-off.
-    let prev = 0;
-    for (let t = 0; t <= spec.rampUp + spec.hold; t += 0.05) {
-      const p = streamPressure(spec, t);
-      expect(p).toBeGreaterThanOrEqual(prev - 1e-9);
-      prev = p;
+  const sample = (seed: number, from: number, to: number, dt = 0.01) => {
+    const out: number[] = [];
+    for (let t = from; t <= to; t += dt) out.push(streamPressure(spec, t, seed));
+    return out;
+  };
+
+  it('starts empty, holds at exactly full, and ends empty', () => {
+    for (const seed of [0, 1, 2, 12345]) {
+      expect(streamPressure(spec, 0, seed)).toBe(0);
+      expect(streamPressure(spec, spec.rampUp + spec.hold / 2, seed)).toBe(1);
+      expect(streamPressure(spec, streamDuration(spec), seed)).toBe(0);
+      for (const p of sample(seed, 0, streamDuration(spec))) {
+        expect(p).toBeGreaterThanOrEqual(0);
+        expect(p).toBeLessThanOrEqual(1);
+      }
     }
-    for (let t = spec.rampUp + spec.hold; t <= d; t += 0.05) {
-      const p = streamPressure(spec, t);
-      expect(p).toBeLessThanOrEqual(prev + 1e-9);
-      expect(prev - p).toBeLessThan(0.1);
-      prev = p;
+  });
+
+  it('builds up and winds down overall, starting as a dribble', () => {
+    for (const seed of [0, 7, 99]) {
+      const at = (t: number) => streamPressure(spec, t, seed);
+      expect(at(0.05)).toBeLessThan(0.1);
+      expect(at(spec.rampUp * 0.8)).toBeGreaterThan(at(spec.rampUp * 0.3));
+      const down = spec.rampUp + spec.hold;
+      expect(at(down + spec.rampDown * 0.8)).toBeLessThan(at(down + spec.rampDown * 0.3));
     }
+  });
+
+  it('comes in spurts: surges and lulls, not a steady ramp', () => {
+    for (const seed of [0, 3, 42]) {
+      const ps = sample(seed, 0, spec.rampUp - 0.01);
+      const slopes = ps.slice(1).map((p, i) => (p - ps[i]!) / 0.01);
+      const steady = 1 / spec.rampUp;
+      expect(Math.max(...slopes)).toBeGreaterThan(2.5 * steady); // surges
+      expect(slopes.filter((s) => Math.abs(s) < 0.3 * steady).length).toBeGreaterThan(20); // lulls
+    }
+  });
+
+  it('every stream spurts differently', () => {
+    expect(sample(1, 0, spec.rampUp)).not.toEqual(sample(2, 0, spec.rampUp));
   });
 });
 
@@ -86,7 +105,7 @@ describe('ten-1 stream', () => {
       for (const d of s.droplets.slice(seen)) speeds.push({ t, v: d.pressure * full });
       seen = s.droplets.length;
     });
-    const early = speeds.filter((s) => s.t < 0.3).map((s) => s.v);
+    const early = speeds.filter((s) => s.t < 0.1).map((s) => s.v);
     const held = speeds.filter((s) => s.t > spec.rampUp + 0.1 && s.t < spec.rampUp + spec.hold - 0.1).map((s) => s.v);
     expect(Math.max(...early)).toBeLessThan(full * 0.1);
     expect(Math.min(...held)).toBeCloseTo(full, 0);

@@ -24,8 +24,8 @@ export function dragToAim(
 ): { angle: number; power: number } | null {
   const len = Math.hypot(dx, dy);
   if (len < DRAG_DEADZONE_PX) return null;
-  let angle = (Math.atan2(dy, -dx) * 180) / Math.PI;
-  if (angle < 0) angle = angle < -90 ? 180 : 0; // pulled upward: clamp to horizon
+  // Full 360°: pulling up aims down, e.g. at a tank below you.
+  const angle = (((Math.atan2(dy, -dx) * 180) / Math.PI) + 360) % 360;
   const power = Math.min(100, ((len - DRAG_DEADZONE_PX) / fullPowerPx) * 100);
   return { angle, power };
 }

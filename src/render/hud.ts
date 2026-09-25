@@ -126,9 +126,18 @@ export class Hud {
   }
 }
 
-/** Show angle as degrees from horizontal on the side the barrel points. */
-function angleLabel(angle: number): string {
-  return angle <= 90 ? `${angle}° ▸` : `◂ ${180 - angle}°`;
+/**
+ * Show aim as elevation above (+) or below (−) the horizon, on the side the barrel points:
+ * 45 → "45° ▸", 135 → "◂ 45°", 330 → "−30° ▸", 210 → "◂ −30°", 90 → "90° ▴", 270 → "90° ▾".
+ */
+export function angleLabel(angle: number): string {
+  const a = ((Math.round(angle) % 360) + 360) % 360;
+  if (a === 90) return '90° ▴';
+  if (a === 270) return '90° ▾';
+  const fmt = (e: number) => (e < 0 ? `−${-e}°` : `${e}°`);
+  if (a < 90) return `${fmt(a)} ▸`;
+  if (a > 270) return `${fmt(a - 360)} ▸`;
+  return `◂ ${fmt(180 - a)}`;
 }
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T {

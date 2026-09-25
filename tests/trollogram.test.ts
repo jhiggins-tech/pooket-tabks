@@ -208,4 +208,34 @@ describe('Trollogram', () => {
     expect(kie.x).toBe(x0);
     expect(kie.hp).toBe(MAX_HP - Math.round(shell.damage * 0.5)); // same penalty applies to kie
   });
+
+  it('all of kie’s copies shimmer together at the end of his turn, whether or not he swaps', () => {
+    for (const swap of [false, true]) {
+      const g = withDecoys();
+      if (swap) toggleSwapTarget(g, hologramsOf(g, 0)[0]!.id);
+      g.shimmers = [];
+      passTurn(g);
+      expect(g.shimmers.map((s) => s.ownerId)).toEqual([0]);
+    }
+  });
+
+  it('new holograms phase in; exposed ones leave a dissolving ghost', () => {
+    const g = flatGame();
+    selectTier(g, 2);
+    fire(g);
+    expect(hologramsOf(g, 0).every((h) => h.age === 0)).toBe(true);
+    step(g, 0.5);
+    expect(hologramsOf(g, 0)[0]!.age).toBeCloseTo(0.5);
+
+    finishTurn(g);
+    const h = hologramsOf(g, 0)[0]!;
+    fire(g);
+    g.projectiles = [];
+    explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, 1);
+    finishTurn(g);
+    expect(g.ghosts).toHaveLength(1);
+    expect(g.ghosts[0]).toMatchObject({ x: h.x, y: h.y, ownerId: 0 });
+    step(g, 1);
+    expect(g.ghosts).toHaveLength(0);
+  });
 });

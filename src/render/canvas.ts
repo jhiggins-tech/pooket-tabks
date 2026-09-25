@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, hologramsOf, isAimless, muzzle, tankCentre } from '../game/game';
+import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, muzzle, tankCentre } from '../game/game';
 import type { Droplet, GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
@@ -103,12 +103,23 @@ export class Renderer {
     }
 
     for (const p of state.players) {
-      // Holograms are drawn exactly like the real tank, so there is no visual tell.
+      // Holograms are drawn exactly like the real tank, so there is no visual tell. The shared
+      // shimmer glitches every copy (real one included) at the same moment.
+      const shimmer = state.shimmers.find((s) => s.ownerId === p.id);
+      const shimmerAmt = shimmer ? Math.sin(Math.PI * (shimmer.age / shimmer.duration)) : 0;
       for (const h of hologramsOf(state, p.id)) {
-        this.drawTank(p, state, h);
+        const phaseIn = Math.min(1, h.age / HOLOGRAM_PHASE_IN);
+        this.drawGlitchedTank(p, state, h, Math.max(shimmerAmt, 1 - phaseIn), phaseIn, 1);
         if (state.swapTargetId === h.id && state.phase === 'aiming' && currentPlayer(state) === p) this.drawSwapMarker(h);
       }
-      this.drawTank(p, state);
+      this.drawGlitchedTank(p, state, undefined, shimmerAmt, 1, 1);
+    }
+    for (const g of state.ghosts) {
+      const owner = state.players[g.ownerId];
+      if (!owner) continue;
+      // Phasing out: tears apart, flattens to a line and fades.
+      const k = g.age / g.duration;
+      this.drawGlitchedTank(owner, state, g, 0.4 + k, 1, 1 - k, 1 - k * 0.9);
     }
     if (state.phase === 'aiming' && !isAimless(state)) this.drawAimGuide(currentPlayer(state));
     this.drawProjectiles(state);
@@ -152,7 +163,7 @@ export class Renderer {
     }
 
     ctx.save();
-    ctx.globalAlpha = p.alive ? 1 : 0.35;
+    ctx.globalAlpha *= p.alive ? 1 : 0.35;
 
     // Barrel
     const m = muzzle(p);
@@ -189,6 +200,59 @@ export class Renderer {
       ctx.closePath();
       ctx.fill();
     }
+  }
+
+  /**
+   * Draws a tank through a hologram glitch: horizontal slices jitter sideways, it flickers and
+   * gets cyan scan lines. `build` (0–1) reveals it from the ground up; `squash` flattens it.
+   */
+  private drawGlitchedTank(
+    owner: Player,
+    state: GameState,
+    at: { x: number; y: number } | undefined,
+    glitch: number,
+    build: number,
+    alpha: number,
+    squash = 1,
+  ): void {
+    const { ctx } = this;
+    const pos = at ?? owner;
+    if (glitch < 0.02 && build >= 1 && alpha >= 1 && squash >= 1) {
+      this.drawTank(owner, state, at);
+      return;
+    }
+    const top = pos.y - 34;
+    const height = 36;
+    const slices = 7;
+    const tick = Math.floor(this.time * 24);
+    ctx.save();
+    // Squash towards the ground line.
+    ctx.translate(pos.x, pos.y);
+    ctx.scale(1 + (1 - squash) * 0.6, squash);
+    ctx.translate(-pos.x, -pos.y);
+    for (let i = 0; i < slices; i++) {
+      const y0 = top + (i * height) / slices;
+      if (y0 + height / slices < pos.y + 2 - height * build) continue; // not built yet
+      const jitter = (noise(i * 13.1 + tick) - 0.5) * 10 * glitch;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pos.x - 40, Math.max(y0, pos.y + 2 - height * build), 80, height / slices + 0.5);
+      ctx.clip();
+      ctx.translate(jitter, 0);
+      ctx.globalAlpha = alpha * (1 - glitch * 0.45 * noise(i * 5.7 + tick * 3.3));
+      this.drawTank(owner, state, at);
+      ctx.restore();
+    }
+    if (glitch > 0.02) {
+      ctx.globalAlpha = alpha * Math.min(1, glitch) * 0.55;
+      ctx.fillStyle = '#7cf7d4';
+      const off = (this.time * 30) % 3;
+      for (let y = top + off; y < pos.y + 2; y += 3) {
+        if (y < pos.y + 2 - height * build) continue;
+        ctx.fillRect(pos.x - 13 + (noise(y + tick) - 0.5) * 6 * glitch, y, 26, 1);
+      }
+    }
+    ctx.restore();
   }
 
   /** Subtle dashed ring on the hologram the current player will swap to. */
@@ -444,4 +508,10 @@ function tint(hex: string, k: number): string {
   const n = parseInt(hex.slice(1), 16);
   const mix = (c: number) => Math.round(c + (255 - c) * k);
   return `rgb(${mix((n >> 16) & 255)},${mix((n >> 8) & 255)},${mix(n & 255)})`;
+}
+
+/** Cheap 0–1 hash for cosmetic jitter. */
+function noise(n: number): number {
+  const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
 }

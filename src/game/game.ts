@@ -90,6 +90,8 @@ export function createGame(cfg: GameConfig): GameState {
     beams: [],
     holograms: [],
     swapTargetId: null,
+    shimmers: [],
+    ghosts: [],
     streams: [],
     droplets: [],
     splashes: [],
@@ -127,7 +129,7 @@ export function isAimless(state: GameState): boolean {
 export function setAim(state: GameState, angle: number, power: number): void {
   if (state.phase !== 'aiming' || isAimless(state)) return;
   const p = currentPlayer(state);
-  p.angle = clamp(Math.round(angle), 0, 180);
+  p.angle = normalizeAngle(Math.round(angle));
   p.power = clamp(Math.round(power), 0, 100);
 }
 
@@ -254,6 +256,7 @@ function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void {
   state.swapTargetId = null;
   const colour = weapon.colour ?? HOLOGRAM_COLOUR;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, colour);
+  shimmer(state, p.id);
   for (let n = 0; n < (weapon.decoys ?? 2); n++) {
     const taken = [...state.players.filter((q) => q.alive).map((q) => q.x), ...state.holograms.map((h) => h.x)];
     let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
@@ -270,10 +273,28 @@ function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void {
       soak: 0,
       soakShooterId: -1,
       soakColour: '#ffffff',
+      age: 0,
     };
     state.holograms.push(holo);
     ring(state, holo.x, holo.y - TANK_BODY_HEIGHT, colour);
   }
+}
+
+const SHIMMER_DURATION = 0.7;
+const GHOST_DURATION = 0.8;
+/** How long a new hologram takes to phase in (cosmetic). */
+export const HOLOGRAM_PHASE_IN = 0.8;
+
+function shimmer(state: GameState, ownerId: number): void {
+  state.shimmers.push({ ownerId, age: 0, duration: SHIMMER_DURATION });
+}
+
+function stepPhaseFx(state: GameState, dt: number): void {
+  for (const h of state.holograms) h.age += dt;
+  for (const s of state.shimmers) s.age += dt;
+  for (const g of state.ghosts) g.age += dt;
+  state.shimmers = state.shimmers.filter((s) => s.age < s.duration);
+  state.ghosts = state.ghosts.filter((g) => g.age < g.duration);
 }
 
 function ring(state: GameState, x: number, y: number, colour: string): void {
@@ -321,6 +342,7 @@ function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
     fullSpeed: (p.power / 100) * MAX_SPEED,
     elapsed: 0,
     emitCarry: 0,
+    seed: Math.floor(state.rng() * 1e6),
     colour: weapon.colour ?? '#3fb6ff',
   });
 }
@@ -330,14 +352,49 @@ export function streamDuration(spec: StreamSpec): number {
   return spec.rampUp + spec.hold + spec.rampDown;
 }
 
-/** Pressure 0–1 at time t: smooth ramp up, hold at full, smooth ramp back down. */
-export function streamPressure(spec: StreamSpec, t: number): number {
-  const smooth = (x: number) => x * x * (3 - 2 * x);
+/**
+ * Pressure 0–1 at time t. It builds in uneven spurts (each surges quickly, then plateaus) with a
+ * slight flutter, holds at exactly full so the jet completes the aimed arc, then sputters back
+ * down the same way. `seed` makes every stream's spurts different.
+ */
+export function streamPressure(spec: StreamSpec, t: number, seed = 0): number {
   if (t <= 0) return 0;
-  if (t < spec.rampUp) return smooth(t / spec.rampUp);
-  if (t < spec.rampUp + spec.hold) return 1;
-  const down = (t - spec.rampUp - spec.hold) / spec.rampDown;
-  return down >= 1 ? 0 : smooth(1 - down);
+  const up = spec.rampUp;
+  const holdEnd = up + spec.hold;
+  let base: number;
+  if (t < up) base = spurts(t / up, seed);
+  else if (t < holdEnd) return 1;
+  else if (t < holdEnd + spec.rampDown) base = 1 - spurts((t - holdEnd) / spec.rampDown, seed + 101);
+  else return 0;
+  // Flutter fades out at empty and at full, so the endpoints stay exact.
+  const flutter = 0.05 * Math.sin(t * 29 + seed) * Math.sin(t * 11.3 + seed * 1.7) * 4 * base * (1 - base);
+  return Math.min(1, Math.max(0, base + flutter));
+}
+
+const SPURTS = 5;
+
+/**
+ * Monotonic 0→1 staircase with uneven step lengths and heights. Each step surges fast then
+ * flattens (1 − (1 − f)^4). Later steps tend to be bigger, so it starts as a dribble.
+ */
+function spurts(u: number, seed: number): number {
+  const widths = Array.from({ length: SPURTS }, (_, i) => 0.6 + hash(seed + i * 7.13) * 0.8);
+  const rises = Array.from({ length: SPURTS }, (_, i) => (0.5 + hash(seed + i * 3.37 + 50)) * (i + 1));
+  const wSum = widths.reduce((a, b) => a + b);
+  const rSum = rises.reduce((a, b) => a + b);
+  let b0 = 0;
+  let h0 = 0;
+  for (let i = 0; i < SPURTS; i++) {
+    const b1 = b0 + widths[i]! / wSum;
+    const h1 = h0 + rises[i]! / rSum;
+    if (u < b1 || i === SPURTS - 1) {
+      const f = Math.min(1, Math.max(0, (u - b0) / (b1 - b0)));
+      return h0 + (h1 - h0) * (1 - (1 - f) ** 4);
+    }
+    b0 = b1;
+    h0 = h1;
+  }
+  return 1;
 }
 
 /** Angle offsets (degrees) for each projectile in a round, spread evenly across ±spreadDeg. */
@@ -353,6 +410,7 @@ export function step(state: GameState, dt: number): void {
   for (const e of state.explosions) e.age += dt;
   state.explosions = state.explosions.filter((e) => e.age < e.duration);
   stepFloaters(state, dt);
+  stepPhaseFx(state, dt);
 
   stepSplashes(state, dt);
 
@@ -428,7 +486,7 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
 function stepStream(state: GameState, st: Stream, dt: number): boolean {
   const spec = getWeapon(st.weaponId).stream!;
   st.elapsed += dt;
-  const pressure = streamPressure(spec, st.elapsed);
+  const pressure = streamPressure(spec, st.elapsed, st.seed);
   // Flow scales with pressure: a sparse dribble at first, a solid jet at full.
   st.emitCarry += spec.dropsPerSecond * (0.2 + 0.8 * pressure) * dt;
   while (st.emitCarry >= 1) {
@@ -671,6 +729,7 @@ function resolveHolograms(state: GameState): void {
       if (shooter) damagePlayer(state, shooter, Math.max(1, Math.round(dealt * HOLOGRAM_PENALTY)), HOLOGRAM_COLOUR);
     }
     ring(state, h.x, h.y - TANK_BODY_HEIGHT, HOLOGRAM_COLOUR);
+    state.ghosts.push({ ownerId: h.ownerId, x: h.x, y: h.y, age: 0, duration: GHOST_DURATION });
   }
   state.holograms = state.holograms.filter((h) => !exposed.includes(h));
 
@@ -681,6 +740,8 @@ function resolveHolograms(state: GameState): void {
     [me.y, target.y] = [target.y, me.y];
   }
   state.swapTargetId = null;
+  // Every one of my copies shimmers at the end of my turn, swap or no swap, so it gives nothing away.
+  if (me.alive && state.holograms.some((h) => h.ownerId === me.id)) shimmer(state, me.id);
 }
 
 function endTurn(state: GameState): void {
@@ -725,6 +786,11 @@ function tickBurn(state: GameState, p: Player): void {
   p.burn.turnsLeft--;
   if (p.burn.turnsLeft <= 0) p.burn = null;
   damagePlayer(state, p, damagePerTurn, colour);
+}
+
+/** Aim wraps all the way round: any angle maps to [0, 360). 0 = right, 90 = up, 270 = straight down. */
+export function normalizeAngle(deg: number): number {
+  return ((deg % 360) + 360) % 360;
 }
 
 function clamp(v: number, lo: number, hi: number): number {

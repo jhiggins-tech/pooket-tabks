@@ -98,7 +98,7 @@ test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
 
   // Hyperfixate: fire the beam at a low angle and catch it on screen.
   await weapons.nth(1).tap();
-  for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Aim right' }).tap();
+  for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Rotate barrel clockwise' }).tap();
   await page.locator('#fire').tap();
   await page.waitForTimeout(150);
   await page.screenshot({ path: 'test-results/hyperfixate.png' });
@@ -113,7 +113,7 @@ test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-aimless', 'true');
   await expect(page.locator('.hint')).toBeVisible();
   const angle = await page.locator('#angle').textContent();
-  await page.getByRole('button', { name: 'Aim left' }).tap({ force: true });
+  await page.getByRole('button', { name: 'Rotate barrel anticlockwise' }).tap({ force: true });
   await expect(page.locator('#angle')).toHaveText(angle!);
 
   await page.locator('#fire').tap();
@@ -167,15 +167,15 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   await weapons.nth(2).tap();
   await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
   await page.locator('#fire').tap();
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(350);
   await page.screenshot({ path: 'test-results/trollogram-deploy.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   expect(await holos()).toHaveLength(2);
 
   // Turn 2: kcaj fires a laser straight up, missing everything.
   await weapons.nth(1).tap();
-  for (let i = 0; i < 45; i++) await page.getByRole('button', { name: 'Aim right' }).tap();
-  await expect(page.locator('#angle')).toHaveText('90° ▸');
+  for (let i = 0; i < 45; i++) await page.getByRole('button', { name: 'Rotate barrel clockwise' }).tap();
+  await expect(page.locator('#angle')).toHaveText('90° ▴');
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
 
@@ -193,6 +193,10 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
 
   const before = await kiePos();
   await page.locator('#fire').tap();
+  // Catch the end-of-turn shimmer that hides the swap.
+  await page.waitForFunction(() => (window as unknown as { __pooket: { state: { shimmers: unknown[] } } }).__pooket.state.shimmers.length > 0, undefined, { timeout: 15_000, polling: 16 });
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'test-results/trollogram-shimmer.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 15_000 });
   const after = await kiePos();
   expect(after.x).toBe(target!.x);

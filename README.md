@@ -8,7 +8,8 @@ Pass-and-play artillery (Worms / Pocket Tanks style) for **phone browsers**, hos
 - **Setup:** two players each pick a character (tones, kie or kcaj); the name pre-fills and can be
   changed. Each character has a three-tier loadout: 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3.
 - **Weapon:** tap a weapon above FIRE; the dots show rounds left.
-- **Aim:** drag anywhere on the battlefield and pull back like a slingshot — direction sets the angle, pull length sets power.
+- **Aim:** drag anywhere on the battlefield and pull back like a slingshot — direction sets the angle
+  (a full 360°, so you can fire down at a tank below you), pull length sets power.
 - **Fine-tune:** ↺ / ↻ for angle, − / + for power (hold to repeat).
 - **Decoys:** after kie deploys Trollogram, tap one of his holograms on his turn to secretly swap
   places with it once the shot lands. Hitting a hologram costs the shooter half the damage.

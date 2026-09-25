@@ -25,6 +25,7 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/core/`: seeded RNG, `Terrain` (per-pixel solid mask + RGBA buffer with dirty-rect tracking), terrain generation.
 - `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`)
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
+  Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
@@ -36,11 +37,14 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
   damage, and at the end of the turn (`resolveHolograms()`) any hit hologram vanishes and the shooter takes
   `HOLOGRAM_PENALTY` (50%) of it; then the current player's chosen swap (`swapTargetId`) happens.
-  Holograms must stay visually identical to the real tank.
+  Holograms must stay visually identical to the real tank. Cosmetic phase effects: holograms phase in
+  (`Hologram.age`), exposed ones dissolve (`ghosts`), and all of a player's copies shimmer together at the
+  end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
   signature colours and a 3-tier loadout. kie: Shell / Heavy / Trollogram (2 holograms; on later turns tap
-  one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure ramps 0→full over 2s,
-  holds 0.7s, eases off over 1.2s) / Heavy / Mega. kcaj has
+  one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
+  in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)
+  / Heavy / Mega. kcaj has
   Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
   at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
   micro-detonate; ignores aiming and never hurts kcaj). Ammo is

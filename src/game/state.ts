@@ -16,7 +16,7 @@ export interface Player {
   /** Ground contact y (bottom of the tank). */
   y: number;
   hp: number;
-  /** Degrees: 0 = right, 90 = straight up, 180 = left. */
+  /** Degrees in [0, 360): 0 = right, 90 = straight up, 180 = left, 270 = straight down. */
   angle: number;
   /** 0–100. */
   power: number;
@@ -75,6 +75,24 @@ export interface Hologram {
   soak: number;
   soakShooterId: number;
   soakColour: string;
+  /** Seconds since it phased in (cosmetic: drives the materialise animation). */
+  age: number;
+}
+
+/** Cosmetic: a player's tanks (real and holograms) all glitch together, e.g. to hide a swap. */
+export interface PhaseShimmer {
+  ownerId: number;
+  age: number;
+  duration: number;
+}
+
+/** Cosmetic: an exposed hologram dissolving where it stood. */
+export interface HologramGhost {
+  ownerId: number;
+  x: number;
+  y: number;
+  age: number;
+  duration: number;
 }
 
 /** A liquid jet in progress (emits droplets while its pressure profile runs). */
@@ -91,6 +109,8 @@ export interface Stream {
   elapsed: number;
   /** Fractional droplets owed from the flow rate. */
   emitCarry: number;
+  /** Shapes this stream's uneven surges (from the gameplay RNG, so replays match). */
+  seed: number;
   colour: string;
 }
 
@@ -154,6 +174,8 @@ export interface GameState {
   holograms: Hologram[];
   /** Hologram the current player will swap with once their shot has resolved. */
   swapTargetId: number | null;
+  shimmers: PhaseShimmer[];
+  ghosts: HologramGhost[];
   streams: Stream[];
   droplets: Droplet[];
   splashes: Splash[];
