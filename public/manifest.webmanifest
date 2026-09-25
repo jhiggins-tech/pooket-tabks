@@ -1,0 +1,14 @@
+{
+  "name": "Pooket Tabks",
+  "short_name": "Pooket Tabks",
+  "description": "Pass-and-play artillery for your phone.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1b2440",
+  "theme_color": "#1b2440",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

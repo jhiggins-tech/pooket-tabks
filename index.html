@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#1b2440" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Pooket Tabks" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon.svg" />
+    <title>Pooket Tabks</title>
+  </head>
+  <body data-phase="aiming">
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <div id="players" class="top"></div>
+      <div id="turn-banner" aria-live="polite"></div>
+
+      <div class="pad left">
+        <div class="control">
+          <button data-adjust="1,0" aria-label="Aim left">↺</button>
+          <div class="readout"><small>ANGLE</small><span id="angle">45°</span></div>
+          <button data-adjust="-1,0" aria-label="Aim right">↻</button>
+        </div>
+        <div class="control">
+          <button data-adjust="0,-1" aria-label="Less power">−</button>
+          <div class="readout"><small>POWER</small><span id="power">60</span></div>
+          <button data-adjust="0,1" aria-label="More power">+</button>
+        </div>
+      </div>
+
+      <div class="pad right">
+        <button id="fire">FIRE</button>
+      </div>
+
+      <p class="hint">Drag &amp; pull back to aim</p>
+    </div>
+
+    <div id="title" class="overlay">
+      <h1>Pooket Tabks</h1>
+      <p>Pass-and-play artillery</p>
+      <button id="start" class="big">Tap to play</button>
+    </div>
+
+    <div id="gameover" class="overlay" hidden>
+      <h1 id="winner"></h1>
+      <button id="again" class="big">Play again</button>
+    </div>
+
+    <div id="rotate" class="overlay">
+      <div class="phone-icon"></div>
+      <p>Rotate your phone to landscape</p>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

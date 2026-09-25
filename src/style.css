@@ -1,0 +1,257 @@
+:root {
+  --player-colour: #ff5a5f;
+  --panel: rgba(12, 16, 32, 0.62);
+  --text: #f3f5ff;
+  --safe-l: max(10px, env(safe-area-inset-left));
+  --safe-r: max(10px, env(safe-area-inset-right));
+  --safe-b: max(10px, env(safe-area-inset-bottom));
+  --safe-t: max(6px, env(safe-area-inset-top));
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #1b2440;
+  color: var(--text);
+  font: 600 14px/1.2 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+canvas#game {
+  position: fixed;
+  inset: 0;
+  display: block;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  touch-action: none;
+  cursor: pointer;
+}
+button:active {
+  transform: scale(0.94);
+}
+button:disabled {
+  opacity: 0.4;
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+#hud button {
+  pointer-events: auto;
+}
+
+.top {
+  position: absolute;
+  top: var(--safe-t);
+  left: var(--safe-l);
+  right: var(--safe-r);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 2px solid transparent;
+}
+.chip.active {
+  border-color: var(--c);
+}
+.chip.dead {
+  opacity: 0.4;
+}
+.chip .name {
+  color: var(--c);
+}
+.chip .hp {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.chip .hp span {
+  display: block;
+  height: 100%;
+  background: var(--c);
+  transition: width 0.3s;
+}
+
+#turn-banner {
+  position: absolute;
+  top: 22%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 800;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  opacity: 0;
+}
+#turn-banner.show {
+  animation: banner 1.6s ease-out forwards;
+}
+@keyframes banner {
+  0% { opacity: 0; transform: scale(0.8); }
+  15% { opacity: 1; transform: scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.pad {
+  position: absolute;
+  bottom: var(--safe-b);
+  display: flex;
+  gap: 8px;
+}
+.pad.left {
+  left: var(--safe-l);
+  flex-direction: column;
+}
+.pad.right {
+  right: var(--safe-r);
+}
+.control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.control button {
+  width: 46px;
+  height: 46px;
+  font-size: 22px;
+}
+.readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 62px;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: var(--panel);
+}
+.readout small {
+  font-size: 9px;
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+}
+.readout span {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+#fire {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  background: var(--player-colour);
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.hint {
+  position: absolute;
+  bottom: var(--safe-b);
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.55;
+}
+body:not([data-phase='aiming']) .hint,
+body:not([data-phase='aiming']) .pad {
+  opacity: 0.35;
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  text-align: center;
+  background: rgba(10, 14, 30, 0.82);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+.overlay[hidden] {
+  display: none;
+}
+.overlay h1 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 900;
+}
+.overlay p {
+  margin: 0;
+  opacity: 0.75;
+}
+button.big {
+  padding: 14px 34px;
+  font-size: 20px;
+  font-weight: 800;
+  border-radius: 999px;
+  background: #ff5a5f;
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+#rotate {
+  display: none;
+  z-index: 20;
+}
+.phone-icon {
+  width: 38px;
+  height: 64px;
+  border: 4px solid var(--text);
+  border-radius: 8px;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+@keyframes rotate-hint {
+  0%, 20% { transform: rotate(0); }
+  60%, 100% { transform: rotate(-90deg); }
+}
+@media (orientation: portrait) {
+  #rotate {
+    display: flex;
+  }
+}
+
+/* Short landscape phones (e.g. iPhone SE with browser chrome) */
+@media (max-height: 340px) {
+  .control button { width: 40px; height: 40px; }
+  #fire { width: 80px; height: 80px; font-size: 19px; }
+  .readout span { font-size: 15px; }
+}
