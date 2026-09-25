@@ -5,8 +5,8 @@ Pass-and-play artillery (Worms / Pocket Tanks style) for **phone browsers**, hos
 **Play:** https://jhiggins-tech.github.io/pooket-tabks/ — hold your phone in landscape. On iOS, *Share → Add to Home Screen* gives true fullscreen.
 
 ## How to play
-- **Setup:** 2–4 players each enter a name and pick a character. Each character has a three-tier
-  loadout: 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3.
+- **Setup:** two players each pick a character (tones, kie or kcaj); the name pre-fills and can be
+  changed. Each character has a three-tier loadout: 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3.
 - **Weapon:** tap a weapon above FIRE; the dots show rounds left.
 - **Aim:** drag anywhere on the battlefield and pull back like a slingshot — direction sets the angle, pull length sets power.
 - **Fine-tune:** ↺ / ↻ for angle, − / + for power (hold to repeat).

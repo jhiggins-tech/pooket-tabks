@@ -27,9 +27,12 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
-- `src/characters/roster.ts`: preset characters (name, colours, 3-tier loadout). Ammo is 5 / 3 / 1 rounds for
-  tiers 1–3 (`AMMO_PER_TIER`). Players who pick the same character get distinct alternate colours.
-- `src/ui/setup.ts`: pre-battle setup screen (2–4 players, name + character), remembered in localStorage.
+- `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
+  signature colours and a 3-tier loadout (all share the PoC default Shell / Heavy / Mega for now). Ammo is
+  5 / 3 / 1 rounds for tiers 1–3 (`AMMO_PER_TIER`). Duplicate picks get distinct alternate colours.
+- `src/ui/setup.ts` + `src/ui/seats.ts`: setup screen. PoC matches are exactly 2 players (`PLAYER_COUNT`),
+  each picking a character; the name field pre-fills with the character name and stays editable.
+  Remembered in localStorage. The engine itself supports more players.
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together.

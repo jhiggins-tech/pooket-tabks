@@ -7,20 +7,27 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.goto('./?seed=12345');
   await expect(page.locator('#rotate')).toBeHidden();
 
-  // --- Setup screen ---
+  // --- Setup screen: two players, three characters, names pre-filled ---
   const rows = page.locator('.setup-row');
   await expect(rows).toHaveCount(2);
-  await expect(page.getByLabel('Player 1 character')).toHaveValue('rookie');
-  await page.getByLabel('Player 1 name').fill('Jack');
-  await page.getByLabel('Player 2 name').fill('Sam');
+  const p1Char = page.getByLabel('Player 1 character');
+  const p2Char = page.getByLabel('Player 2 character');
+  const p1Name = page.getByLabel('Player 1 name');
+  const p2Name = page.getByLabel('Player 2 name');
+  await expect(p1Char.locator('option')).toHaveText(['tones', 'kie', 'kcaj']);
+  await expect(p1Char).toHaveValue('tones');
+  await expect(p2Char).toHaveValue('kie');
+  await expect(p1Name).toHaveValue('tones');
+  await expect(p2Name).toHaveValue('kie');
 
-  // Same character for everyone, but colours stay distinct.
-  await page.locator('#add-player').tap();
-  await expect(rows).toHaveCount(3);
+  // Picking a character pre-fills its name; a typed name sticks.
+  await p2Char.selectOption('kcaj');
+  await expect(p2Name).toHaveValue('kcaj');
+  await p1Name.fill('Jack');
+  await p1Char.selectOption('kie');
+  await expect(p1Name).toHaveValue('Jack');
   const swatches = await rows.evaluateAll((els) => els.map((el) => getComputedStyle(el).getPropertyValue('--c')));
-  expect(new Set(swatches).size).toBe(3);
-  await page.getByLabel('Remove player 3').tap();
-  await expect(rows).toHaveCount(2);
+  expect(new Set(swatches).size).toBe(2);
 
   await page.screenshot({ path: 'test-results/setup.png' });
   await page.locator('#start').tap();
@@ -29,6 +36,7 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   // --- Battle ---
   await expect(page.locator('#players .chip')).toHaveCount(2);
   await expect(page.locator('.chip.active .name')).toHaveText('Jack');
+  await expect(page.locator('#players .chip .name').nth(1)).toHaveText('kcaj');
   await expect(page.locator('body')).toHaveAttribute('data-turn', '1');
 
   const weapons = page.locator('#weapons .weapon');
@@ -58,8 +66,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.locator('#fire').tap();
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
-  await expect(page.locator('.chip.active .name')).toHaveText('Sam');
-  // Sam has his own full inventory.
+  await expect(page.locator('.chip.active .name')).toHaveText('kcaj');
+  // Player 2 has their own full inventory.
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Mega Shell, 1 left');
   await expect(weapons.nth(2)).toBeEnabled();
 
@@ -71,9 +79,11 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');
+  await page.getByLabel('Player 2 character').selectOption('kcaj');
   await page.locator('#start').tap();
   await page.reload();
   await expect(page.getByLabel('Player 1 name')).toHaveValue('Remembered');
+  await expect(page.getByLabel('Player 2 character')).toHaveValue('kcaj');
 });
 
 test('asks to rotate when held in portrait', async ({ page }) => {

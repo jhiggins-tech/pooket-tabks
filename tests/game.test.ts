@@ -5,8 +5,8 @@ import type { GameState } from '../src/game/state';
 import { shell } from '../src/weapons/registry';
 
 const players = [
-  { name: 'Alice', colour: '#e5484d', characterId: 'rookie' },
-  { name: 'Bob', colour: '#3e8ef7', characterId: 'rookie' },
+  { name: 'Alice', colour: '#e5484d', characterId: 'tones' },
+  { name: 'Bob', colour: '#3e8ef7', characterId: 'kie' },
 ];
 
 function runUntil(state: GameState, done: (s: GameState) => boolean, maxSeconds = 20): void {
@@ -114,7 +114,7 @@ describe('game', () => {
   });
 
   it('skips players who are out of ammo', () => {
-    const three = [...players, { name: 'Cat', colour: '#46d27a', characterId: 'rookie' }];
+    const three = [...players, { name: 'Cat', colour: '#46d27a', characterId: 'kcaj' }];
     const g = createGame({ seed: 2, players: three });
     g.players[1]!.ammo = [0, 0, 0];
     setAim(g, 90, 10);

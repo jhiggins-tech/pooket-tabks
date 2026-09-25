@@ -330,7 +330,8 @@ button.big {
   -webkit-user-select: text;
 }
 .setup-row select {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  min-width: 110px;
 }
 .setup-row .loadout {
   flex: 1 1 auto;
@@ -340,11 +341,10 @@ button.big {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.setup-row .remove {
+.setup-row .seat {
   flex: none;
-  width: 38px;
-  height: 38px;
-  font-size: 20px;
+  font-size: 13px;
+  opacity: 0.6;
 }
 .setup-actions {
   display: flex;

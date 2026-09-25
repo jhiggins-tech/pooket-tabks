@@ -16,13 +16,30 @@ export interface CharacterDef {
   loadout: Loadout;
 }
 
+/** Proof-of-concept loadout shared by everyone until characters get their own weapons. */
+const DEFAULT_LOADOUT: Loadout = ['shell', 'heavy-shell', 'mega-shell'];
+
 export const ROSTER: readonly CharacterDef[] = [
   {
-    id: 'rookie',
-    name: 'Rookie',
+    id: 'tones',
+    name: 'tones',
     blurb: 'Standard-issue shells in three sizes.',
-    colours: ['#ff5a5f', '#4ea8ff', '#ffc53d', '#46d27a', '#c77dff', '#ff8c42'],
-    loadout: ['shell', 'heavy-shell', 'mega-shell'],
+    colours: ['#ff5a5f', '#ff8c42', '#ff7eb6'],
+    loadout: DEFAULT_LOADOUT,
+  },
+  {
+    id: 'kie',
+    name: 'kie',
+    blurb: 'Standard-issue shells in three sizes.',
+    colours: ['#4ea8ff', '#46d27a', '#2dd4bf'],
+    loadout: DEFAULT_LOADOUT,
+  },
+  {
+    id: 'kcaj',
+    name: 'kcaj',
+    blurb: 'Standard-issue shells in three sizes.',
+    colours: ['#ffc53d', '#c77dff', '#e2e8f0'],
+    loadout: DEFAULT_LOADOUT,
   },
 ];
 
