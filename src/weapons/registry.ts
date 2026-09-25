@@ -63,7 +63,23 @@ export const unmedicated: WeaponDef = {
   trail: false,
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated];
+/**
+ * tones' tier 1: a pressurised water jet. Builds from a dribble to the full aimed arc over 2s,
+ * holds briefly, then eases off. Water doesn't dig; it trickles damage onto whatever it soaks.
+ */
+export const ten1: WeaponDef = {
+  id: 'ten-1',
+  name: 'ten-1',
+  shortName: 'ten-1',
+  kind: 'stream',
+  blastRadius: 0,
+  damage: 0,
+  stream: { rampUp: 2, hold: 0.7, rampDown: 1.2, dropsPerSecond: 110, damagePerDrop: 0.35 },
+  friendlyFire: false,
+  colour: '#3fb6ff',
+};
+
+const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

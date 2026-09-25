@@ -123,6 +123,29 @@ test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("tones' ten-1 water jet", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777');
+  await expect(page.getByLabel('Player 1 character')).toHaveValue('tones');
+  await page.locator('#start').tap();
+
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'ten-1, 5 left');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('#fire').tap();
+
+  // Pressure is still building early on, then the jet reaches full arc.
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: 'test-results/ten-1-building.png' });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: 'test-results/ten-1-full.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-phase', 'flying');
+
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 20_000 });
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');

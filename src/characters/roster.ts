@@ -23,9 +23,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'tones',
     name: 'tones',
-    blurb: 'Standard-issue shells in three sizes.',
+    blurb: 'ten-1: a pressurised water jet.',
     colours: ['#ff5a5f', '#ff8c42', '#ff7eb6'],
-    loadout: DEFAULT_LOADOUT,
+    loadout: ['ten-1', 'heavy-shell', 'mega-shell'],
   },
   {
     id: 'kie',

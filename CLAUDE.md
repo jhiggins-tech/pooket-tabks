@@ -27,12 +27,14 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
-  `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn) or `rain` (falls across the
-  stage, ignores aim). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
+  `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
+  stage, ignores aim) or `stream` (liquid jet with a `stream` pressure profile; droplets trickle damage
+  via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `trail`.
 - All damage goes through `damagePlayer()` in `game.ts`, which spawns the floating damage numbers.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
-  signature colours and a 3-tier loadout. tones and kie use the default Shell / Heavy / Mega. kcaj has
+  signature colours and a 3-tier loadout. kie uses the default Shell / Heavy / Mega. tones' tier 1 is ten-1
+  (water jet: pressure ramps 0→full over 2s, holds 0.7s, eases off over 1.2s). kcaj has
   Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
   at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
   micro-detonate; ignores aiming and never hurts kcaj). Ammo is
@@ -48,5 +50,6 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - Mobile first: touch/pointer events only, landscape layout, respect safe-area insets, keep tanks and
   key action clear of the bottom-corner thumb controls. Big tap targets.
 - Deterministic: all randomness in game logic goes through the seeded RNG (`?seed=N` reproduces a map).
+  Cosmetic-only effects (splashes, floater drift) use `fxSeq`, never the gameplay RNG.
 - Vite `base` is `'./'`, so use relative asset paths; Pages serves under `/pooket-tabks/`.
 - Add unit tests for game logic changes and extend `e2e/smoke.spec.ts` for new UI flows.

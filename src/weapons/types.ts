@@ -6,8 +6,24 @@ export type SpriteId = 'ice-cream-cone' | 'pill';
  * - `ballistic` (default): projectiles launched from the barrel, pulled by gravity.
  * - `beam`: instant straight line from the barrel, no gravity (ignores power).
  * - `rain`: projectiles fall across the whole stage; aiming is ignored.
+ * - `stream`: a jet of liquid whose pressure ramps up, holds, then eases off (see `stream`).
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain';
+export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream';
+
+/**
+ * Pressure profile for stream weapons. Pressure eases 0 → 1 over `rampUp`, holds at 1 for `hold`,
+ * then eases back to 0 over `rampDown`. Droplets leave at pressure × the aimed shot speed, so at
+ * full pressure the jet follows the whole aimed trajectory.
+ */
+export interface StreamSpec {
+  rampUp: number;
+  hold: number;
+  rampDown: number;
+  /** Droplets per second at full pressure (flow scales with pressure). */
+  dropsPerSecond: number;
+  /** Damage each droplet adds when it hits a tank (accumulated and shown in small batches). */
+  damagePerDrop: number;
+}
 
 export interface WeaponDef {
   id: string;
@@ -38,6 +54,8 @@ export interface WeaponDef {
   sprite?: SpriteId;
   /** Draw a dotted trail behind projectiles. Default true. */
   trail?: boolean;
-  /** Beam colour. */
+  /** Stream weapons: pressure profile and flow. */
+  stream?: StreamSpec;
+  /** Beam / liquid colour. */
   colour?: string;
 }

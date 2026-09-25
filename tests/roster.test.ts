@@ -18,14 +18,16 @@ describe('roster', () => {
     }
   });
 
-  it('tones and kie use the default shells, growing in blast radius', () => {
-    for (const id of ['tones', 'kie']) {
-      const c = getCharacter(id);
-      expect(c.loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
-      const radii = c.loadout.map((w) => getWeapon(w).blastRadius);
-      expect(radii[0]!).toBeLessThan(radii[1]!);
-      expect(radii[1]!).toBeLessThan(radii[2]!);
-    }
+  it('kie uses the default shells, growing in blast radius', () => {
+    const c = getCharacter('kie');
+    expect(c.loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
+    const radii = c.loadout.map((w) => getWeapon(w).blastRadius);
+    expect(radii[0]!).toBeLessThan(radii[1]!);
+    expect(radii[1]!).toBeLessThan(radii[2]!);
+  });
+
+  it("tones' base weapon is ten-1", () => {
+    expect(getCharacter('tones').loadout).toEqual(['ten-1', 'heavy-shell', 'mega-shell']);
   });
 
   it("kcaj's loadout is Double Park, Hyperfixate, Unmedicated", () => {
@@ -46,6 +48,7 @@ describe('roster', () => {
   });
 
   it('summarises a loadout for the setup screen', () => {
-    expect(loadoutSummary(getCharacter('tones'))).toBe('Shell ×5 · Heavy ×3 · Mega ×1');
+    expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Heavy ×3 · Mega ×1');
+    expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · Heavy ×3 · Mega ×1');
   });
 });

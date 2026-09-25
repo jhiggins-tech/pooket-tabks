@@ -5,7 +5,7 @@ import type { GameState } from '../src/game/state';
 import { shell } from '../src/weapons/registry';
 
 const players = [
-  { name: 'Alice', colour: '#e5484d', characterId: 'tones' },
+  { name: 'Alice', colour: '#e5484d', characterId: 'kie' },
   { name: 'Bob', colour: '#3e8ef7', characterId: 'kie' },
 ];
 

@@ -29,6 +29,8 @@ export interface Player {
   selectedTier: number;
   /** Active burn from a beam hit: ticks at the start of this player's next turns. */
   burn: { damagePerTurn: number; turnsLeft: number; colour: string } | null;
+  /** Fractional stream damage soaked up but not yet applied (applied in small batches). */
+  soak: number;
 }
 
 export interface Projectile {
@@ -54,6 +56,47 @@ export interface Beam {
   hitTank: boolean;
   age: number;
   duration: number;
+}
+
+/** A liquid jet in progress (emits droplets while its pressure profile runs). */
+export interface Stream {
+  id: number;
+  weaponId: string;
+  ownerId: number;
+  x: number;
+  y: number;
+  /** Degrees, as Player.angle. */
+  angle: number;
+  /** Launch speed at full pressure (px/s). */
+  fullSpeed: number;
+  elapsed: number;
+  /** Fractional droplets owed from the flow rate. */
+  emitCarry: number;
+  colour: string;
+}
+
+export interface Droplet {
+  streamId: number;
+  weaponId: string;
+  ownerId: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  /** Pressure when emitted (0–1): drives how thick the jet is drawn. */
+  pressure: number;
+  colour: string;
+}
+
+/** Cosmetic spray where water lands. */
+export interface Splash {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  age: number;
+  life: number;
+  colour: string;
 }
 
 /** Floating damage number drifting up and away from a tank. */
@@ -87,6 +130,11 @@ export interface GameState {
   phase: Phase;
   projectiles: Projectile[];
   beams: Beam[];
+  streams: Stream[];
+  droplets: Droplet[];
+  splashes: Splash[];
+  /** Seconds since stream damage was last applied. */
+  soakTimer: number;
   explosions: Explosion[];
   floaters: Floater[];
   /** Seeded gameplay randomness (e.g. where rain falls), continuing from terrain generation. */

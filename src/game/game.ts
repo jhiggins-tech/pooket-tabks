@@ -3,7 +3,7 @@ import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
 import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import type { StreamSpec, WeaponDef } from '../weapons/types';
 import {
   BARREL_LENGTH,
   GRAVITY,
@@ -16,13 +16,15 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { GameState, Player, PlayerConfig, Projectile } from './state';
+import type { Droplet, GameState, Player, PlayerConfig, Projectile, Stream } from './state';
 
 const BEAM_DURATION = 0.6;
 const FLOATER_DURATION = 1.6;
 const MAX_FLOATERS = 40;
 const PROJECTILE_MAX_AGE = 12; // s; anything still bouncing around by then just pops
 const DEFAULT_BEAM_COLOUR = '#ff3df2';
+const SOAK_FLUSH_INTERVAL = 0.18; // s between batched stream-damage numbers
+const MAX_SPLASHES = 220;
 
 export interface GameConfig {
   seed: number;
@@ -65,6 +67,7 @@ export function createGame(cfg: GameConfig): GameState {
       ammo: [...AMMO_PER_TIER],
       selectedTier: 0,
       burn: null,
+      soak: 0,
     };
   });
 
@@ -77,6 +80,10 @@ export function createGame(cfg: GameConfig): GameState {
     phase: 'aiming',
     projectiles: [],
     beams: [],
+    streams: [],
+    droplets: [],
+    splashes: [],
+    soakTimer: 0,
     explosions: [],
     floaters: [],
     rng,
@@ -154,6 +161,9 @@ export function fire(state: GameState): boolean {
     case 'rain':
       fireRain(state, p, weapon);
       break;
+    case 'stream':
+      fireStream(state, p, weapon);
+      break;
     case 'ballistic':
       fireBallistic(state, p, weapon);
       break;
@@ -223,6 +233,37 @@ function fireRain(state: GameState, p: Player, weapon: WeaponDef): void {
   }
 }
 
+function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
+  const m = muzzle(p);
+  state.streams.push({
+    id: state.fxSeq++,
+    weaponId: weapon.id,
+    ownerId: p.id,
+    x: m.x,
+    y: m.y,
+    angle: p.angle,
+    fullSpeed: (p.power / 100) * MAX_SPEED,
+    elapsed: 0,
+    emitCarry: 0,
+    colour: weapon.colour ?? '#3fb6ff',
+  });
+}
+
+/** Total time a stream runs for. */
+export function streamDuration(spec: StreamSpec): number {
+  return spec.rampUp + spec.hold + spec.rampDown;
+}
+
+/** Pressure 0–1 at time t: smooth ramp up, hold at full, smooth ramp back down. */
+export function streamPressure(spec: StreamSpec, t: number): number {
+  const smooth = (x: number) => x * x * (3 - 2 * x);
+  if (t <= 0) return 0;
+  if (t < spec.rampUp) return smooth(t / spec.rampUp);
+  if (t < spec.rampUp + spec.hold) return 1;
+  const down = (t - spec.rampUp - spec.hold) / spec.rampDown;
+  return down >= 1 ? 0 : smooth(1 - down);
+}
+
 /** Angle offsets (degrees) for each projectile in a round, spread evenly across ±spreadDeg. */
 export function volleyOffsets(weapon: WeaponDef): number[] {
   const count = weapon.volley?.count ?? 1;
@@ -237,11 +278,18 @@ export function step(state: GameState, dt: number): void {
   state.explosions = state.explosions.filter((e) => e.age < e.duration);
   stepFloaters(state, dt);
 
+  stepSplashes(state, dt);
+
   if (state.phase === 'flying') {
     state.projectiles = state.projectiles.filter((pr) => !stepProjectile(state, pr, dt));
     for (const b of state.beams) b.age += dt;
     state.beams = state.beams.filter((b) => b.age < b.duration);
-    if (state.projectiles.length === 0 && state.beams.length === 0) {
+    state.streams = state.streams.filter((st) => !stepStream(state, st, dt));
+    state.droplets = state.droplets.filter((d) => !stepDroplet(state, d, dt));
+    stepSoak(state, dt, false);
+    const busy = state.projectiles.length + state.beams.length + state.streams.length + state.droplets.length;
+    if (busy === 0) {
+      stepSoak(state, dt, true);
       state.phase = 'settling';
       state.settleTimer = SETTLE_TIME;
     }
@@ -298,6 +346,108 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
 
   const margin = 200;
   return pr.x < -margin || pr.x > terrain.width + margin;
+}
+
+/** Emits droplets for one stream. Returns true once its pressure profile has finished. */
+function stepStream(state: GameState, st: Stream, dt: number): boolean {
+  const spec = getWeapon(st.weaponId).stream!;
+  st.elapsed += dt;
+  const pressure = streamPressure(spec, st.elapsed);
+  // Flow scales with pressure: a sparse dribble at first, a solid jet at full.
+  st.emitCarry += spec.dropsPerSecond * (0.2 + 0.8 * pressure) * dt;
+  while (st.emitCarry >= 1) {
+    st.emitCarry -= 1;
+    // Just enough jitter that it isn't a laser; more than this and the drawn ribbon zigzags.
+    const a = ((st.angle + randRange(state.rng, -0.12, 0.12)) * Math.PI) / 180;
+    const speed = st.fullSpeed * pressure * randRange(state.rng, 0.998, 1.002);
+    state.droplets.push({
+      streamId: st.id,
+      weaponId: st.weaponId,
+      ownerId: st.ownerId,
+      x: st.x,
+      y: st.y,
+      vx: Math.cos(a) * speed,
+      vy: -Math.sin(a) * speed,
+      pressure,
+      colour: st.colour,
+    });
+  }
+  return st.elapsed >= streamDuration(spec);
+}
+
+/** Moves one droplet. Returns true when it has landed, soaked a tank or left the map. */
+function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
+  const { terrain } = state;
+  const weapon = getWeapon(d.weaponId);
+  d.vy += GRAVITY * dt;
+  const nx = d.x + d.vx * dt;
+  const ny = d.y + d.vy * dt;
+  const steps = Math.max(1, Math.ceil(Math.hypot(nx - d.x, ny - d.y) / 1.5));
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const x = d.x + (nx - d.x) * t;
+    const y = d.y + (ny - d.y) * t;
+    const tank = tankAt(state, x, y);
+    if (tank && !(weapon.friendlyFire === false && tank.id === d.ownerId)) {
+      tank.soak += weapon.stream?.damagePerDrop ?? 0;
+      spawnSplash(state, x, y, d, 3);
+      return true;
+    }
+    if (terrain.isSolid(x, y)) {
+      terrain.wetCircle(x, y, 2.5 + d.pressure * 2);
+      spawnSplash(state, x, y, d, 2);
+      return true;
+    }
+  }
+  d.x = nx;
+  d.y = ny;
+  return d.x < -50 || d.x > terrain.width + 50;
+}
+
+/** Apply soaked-up stream damage in small batches so the numbers trickle rather than spam. */
+function stepSoak(state: GameState, dt: number, final: boolean): void {
+  state.soakTimer += dt;
+  if (!final && state.soakTimer < SOAK_FLUSH_INTERVAL) return;
+  state.soakTimer = 0;
+  for (const p of state.players) {
+    const whole = final ? Math.round(p.soak) : Math.floor(p.soak);
+    if (whole > 0) damagePlayer(state, p, whole, '#7fd3ff');
+    p.soak = final ? 0 : p.soak - whole;
+  }
+}
+
+/** Cosmetic spray. Uses the fx counter, not the gameplay RNG, so visuals can't change outcomes. */
+function spawnSplash(state: GameState, x: number, y: number, d: Droplet, count: number): void {
+  for (let i = 0; i < count; i++) {
+    const h = hash(state.fxSeq++);
+    const back = -Math.sign(d.vx || 1) * (20 + h * 50);
+    state.splashes.push({
+      x,
+      y: y - 1,
+      vx: back * (0.3 + hash(h * 97) * 0.9) + (hash(h * 13) - 0.5) * 40,
+      vy: -(40 + hash(h * 31) * 90) * (0.4 + d.pressure * 0.6),
+      age: 0,
+      life: 0.35 + hash(h * 7) * 0.3,
+      colour: d.colour,
+    });
+  }
+  if (state.splashes.length > MAX_SPLASHES) state.splashes.splice(0, state.splashes.length - MAX_SPLASHES);
+}
+
+function stepSplashes(state: GameState, dt: number): void {
+  for (const sp of state.splashes) {
+    sp.age += dt;
+    sp.vy += GRAVITY * dt;
+    sp.x += sp.vx * dt;
+    sp.y += sp.vy * dt;
+  }
+  state.splashes = state.splashes.filter((sp) => sp.age < sp.life && !state.terrain.isSolid(sp.x, sp.y));
+}
+
+/** Cheap deterministic 0–1 hash. */
+function hash(n: number): number {
+  const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
 }
 
 /** Reflect off the ground at the contact point and back up to the last free position. */

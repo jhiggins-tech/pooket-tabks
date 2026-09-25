@@ -15,6 +15,8 @@ export interface Rect {
 export class Terrain {
   readonly solid: Uint8Array;
   readonly pixels: Uint8ClampedArray<ArrayBuffer>;
+  /** Soil darkened by water (cosmetic). */
+  private readonly wet: Uint8Array;
   private dirty: Rect | null = null;
 
   constructor(
@@ -23,6 +25,7 @@ export class Terrain {
   ) {
     this.solid = new Uint8Array(width * height);
     this.pixels = new Uint8ClampedArray(width * height * 4);
+    this.wet = new Uint8Array(width * height);
   }
 
   /** Build terrain from surface heights (y of the topmost solid pixel per column). */
@@ -86,6 +89,36 @@ export class Terrain {
     }
     const len = Math.hypot(nx, ny);
     return len < 1e-6 ? { x: 0, y: -1 } : { x: nx / len, y: ny / len };
+  }
+
+  /** Darken and cool the soil within radius r where water lands. Cosmetic only; each pixel wets once. */
+  wetCircle(cx: number, cy: number, r: number): void {
+    const x0 = Math.max(0, Math.floor(cx - r));
+    const x1 = Math.min(this.width - 1, Math.ceil(cx + r));
+    const y0 = Math.max(0, Math.floor(cy - r));
+    const y1 = Math.min(this.height - 1, Math.ceil(cy + r));
+    let changed = false;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r) continue;
+        const i = y * this.width + x;
+        if (this.solid[i] === 0 || this.wet[i] === 1) continue;
+        this.wet[i] = 1;
+        const p = i * 4;
+        this.pixels[p] = this.pixels[p]! * 0.6;
+        this.pixels[p + 1] = this.pixels[p + 1]! * 0.62 + 6;
+        this.pixels[p + 2] = this.pixels[p + 2]! * 0.7 + 22;
+        changed = true;
+      }
+    }
+    if (changed) this.markDirty({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+  }
+
+  isWet(x: number, y: number): boolean {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    if (xi < 0 || xi >= this.width || yi < 0 || yi >= this.height) return false;
+    return this.wet[yi * this.width + xi] === 1;
   }
 
   /** Remove all solid pixels within radius r of (cx, cy). Returns pixels removed. */
