@@ -574,8 +574,8 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
 /** Radius of the circle used for a flying tank's collisions (centred on the body). */
 const JET_BODY_RADIUS = 7.5;
 const JET_MAX_FLIGHT = 8; // s
-/** Murky olive-yellow, clearly not grass. */
-const TOXIC_DIRT: [number, number, number] = [150, 158, 36];
+/** Dark, wet mud: clearly different from the dry soil and grass it lands on. */
+const MUD: [number, number, number] = [92, 62, 36];
 
 /** How far through its charge-up a player's jet is (0–1), or null if they aren't charging. */
 export function jetCharge(state: GameState, playerId: number): number | null {
@@ -634,6 +634,7 @@ function stepJet(state: GameState, j: Jet, dt: number): boolean {
         vy: j.vy * 0.25 - Math.sin(a) * v,
         ownerId: p.id,
         weaponId: j.weaponId,
+        look: hash(state.fxSeq++ * 1.618),
       });
     }
   }
@@ -726,7 +727,17 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
       return true;
     }
     if (!target && terrain.isSolid(x, y)) {
-      terrain.addDirt(freeX, freeY, 1.6, TOXIC_DIRT);
+      // Mud slumps: slide down and off the top of piles before settling, so it builds mounds, not spikes.
+      let mx = Math.round(freeX);
+      let my = Math.round(freeY);
+      for (let k = 0; k < 16; k++) {
+        const side = k % 2 === 0 ? 1 : -1;
+        if (!terrain.isSolid(mx, my + 1)) my++;
+        else if (!terrain.isSolid(mx + side, my + 1)) (mx += side), my++;
+        else if (!terrain.isSolid(mx - side, my + 1)) (mx -= side), my++;
+        else break;
+      }
+      terrain.addDirt(mx, my - 0.5, 2.2, MUD);
       return true;
     }
     freeX = x;

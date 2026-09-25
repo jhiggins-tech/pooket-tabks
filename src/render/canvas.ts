@@ -257,22 +257,22 @@ export class Renderer {
   }
 
   /**
-   * ten-2: while charging the tank shakes harder and harder over a growing glow; once airborne it
-   * trails a toxic flame. `draw` renders the tank itself.
+   * ten-2: while charging the tank shakes harder and harder in a growing dust haze; once airborne it
+   * blasts a plume of mud out of the back. `draw` renders the tank itself.
    */
   private drawJet(p: Player, state: GameState, draw: () => void): void {
     const { ctx } = this;
     const jet = state.jets.find((j) => j.playerId === p.id);
     if (!jet) return draw();
-    const colour = '#9be22d';
     const c = tankCentre(p);
     const charge = jetCharge(state, p.id);
     if (charge !== null) {
       const amp = 0.4 + 3.6 * charge * charge;
       const t = Math.floor(this.time * 45);
+      // Dusty haze kicked up around the tracks.
       const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 10 + 18 * charge);
-      g.addColorStop(0, withAlpha(colour, 0.15 + 0.5 * charge));
-      g.addColorStop(1, withAlpha(colour, 0));
+      g.addColorStop(0, withAlpha('#8a6440', 0.1 + 0.45 * charge));
+      g.addColorStop(1, withAlpha('#8a6440', 0));
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(p.x, p.y, 10 + 18 * charge, 0, Math.PI * 2);
@@ -284,7 +284,7 @@ export class Renderer {
       return;
     }
     if (jet.burnLeft > 0) {
-      // Flame out of the back, flickering, pointing against the launch direction.
+      // Exhaust out of the back, flickering, pointing against the launch direction.
       const back = jet.heading + Math.PI;
       const len = 18 + 12 * noise(Math.floor(this.time * 40));
       ctx.save();
@@ -292,10 +292,12 @@ export class Renderer {
       ctx.rotate(-back);
       // Teardrop reaching well past the hull (half-width 11) so it isn't hidden behind the tank.
       const tip = len + 8;
+      // A mud blast: a small hot core at the nozzle, then a plume of brown dirt.
       const g = ctx.createLinearGradient(6, 0, tip, 0);
-      g.addColorStop(0, 'rgba(255,255,220,0.95)');
-      g.addColorStop(0.3, withAlpha(colour, 0.9));
-      g.addColorStop(1, withAlpha(colour, 0));
+      g.addColorStop(0, 'rgba(255,214,150,0.95)');
+      g.addColorStop(0.14, 'rgba(150,104,62,0.95)');
+      g.addColorStop(0.55, 'rgba(96,64,36,0.8)');
+      g.addColorStop(1, 'rgba(70,46,26,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(6, -5.5);
@@ -308,24 +310,35 @@ export class Renderer {
     draw();
   }
 
+  /** Flying mud: irregular clumps in a few earthy shades, darker rims and the odd wet highlight. */
   private drawSludge(state: GameState): void {
     if (state.sludge.length === 0) return;
     const { ctx } = this;
+    const shades = ['#5c3d22', '#6e4a2a', '#7d5632', '#4d321c'];
     ctx.save();
-    ctx.fillStyle = '#4a6b12';
-    ctx.beginPath();
-    for (const s of state.sludge) {
-      ctx.moveTo(s.x + 2.2, s.y);
-      ctx.arc(s.x, s.y, 2.2, 0, Math.PI * 2);
+    for (let pass = 0; pass < 3; pass++) {
+      for (const [idx, shade] of shades.entries()) {
+        ctx.beginPath();
+        for (const s of state.sludge) {
+          if (Math.floor(s.look * shades.length) !== idx) continue;
+          const r = 1.5 + s.look * 1.9;
+          // Squash clumps along their motion a little so they read as flung mud, not dots.
+          const a = Math.atan2(s.vy, s.vx);
+          if (pass === 0) {
+            ctx.moveTo(s.x + r + 0.8, s.y);
+            ctx.ellipse(s.x, s.y, r * 1.3 + 0.8, r + 0.8, a, 0, Math.PI * 2);
+          } else if (pass === 1) {
+            ctx.moveTo(s.x + r, s.y);
+            ctx.ellipse(s.x, s.y, r * 1.3, r, a, 0, Math.PI * 2);
+          } else if (s.look > 0.7) {
+            ctx.moveTo(s.x + 0.7, s.y - r * 0.4);
+            ctx.arc(s.x - r * 0.3, s.y - r * 0.4, 0.7, 0, Math.PI * 2);
+          }
+        }
+        ctx.fillStyle = pass === 0 ? '#2e1d10' : pass === 1 ? shade : 'rgba(220,190,150,0.7)';
+        ctx.fill();
+      }
     }
-    ctx.fill();
-    ctx.fillStyle = '#9be22d';
-    ctx.beginPath();
-    for (const s of state.sludge) {
-      ctx.moveTo(s.x + 1.4, s.y - 0.3);
-      ctx.arc(s.x, s.y - 0.3, 1.4, 0, Math.PI * 2);
-    }
-    ctx.fill();
     ctx.restore();
   }
 

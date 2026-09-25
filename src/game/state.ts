@@ -156,6 +156,8 @@ export interface Sludge {
   vy: number;
   ownerId: number;
   weaponId: string;
+  /** Cosmetic 0–1 variety (clump size and shade); never affects gameplay. */
+  look: number;
 }
 
 /** Cosmetic spray where water lands. */

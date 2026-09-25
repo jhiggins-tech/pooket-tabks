@@ -130,12 +130,11 @@ export class Terrain {
         this.wet[i] = 1; // new dirt is already its own colour
         // Deterministic speckle so piles look granular.
         const n = (((x * 73856093) ^ (y * 19349663)) >>> 0) % 29;
-        const k = 0.65 + n / 55;
-        const glow = n === 0; // the odd glowing speck
+        const k = n < 3 ? 1.45 : 0.7 + n / 60; // granular, with the odd wet glint
         const p = i * 4;
-        this.pixels[p] = glow ? 200 : rgb[0] * k;
-        this.pixels[p + 1] = glow ? 255 : rgb[1] * k;
-        this.pixels[p + 2] = glow ? 90 : rgb[2] * k;
+        this.pixels[p] = rgb[0] * k;
+        this.pixels[p + 1] = rgb[1] * k;
+        this.pixels[p + 2] = rgb[2] * k;
         this.pixels[p + 3] = 255;
         added++;
       }
