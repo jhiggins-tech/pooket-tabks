@@ -24,8 +24,12 @@ In cloud containers, Playwright uses the preinstalled Chromium at `/opt/pw-brows
 TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/core/`: seeded RNG, `Terrain` (per-pixel solid mask + RGBA buffer with dirty-rect tracking), terrain generation.
 - `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`)
-  and physics. Keep it pure and DOM-free so it stays unit-testable.
+  and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
+  Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
+- `src/characters/roster.ts`: preset characters (name, colours, 3-tier loadout). Ammo is 5 / 3 / 1 rounds for
+  tiers 1–3 (`AMMO_PER_TIER`). Players who pick the same character get distinct alternate colours.
+- `src/ui/setup.ts`: pre-battle setup screen (2–4 players, name + character), remembered in localStorage.
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together.

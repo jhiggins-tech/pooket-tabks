@@ -3,6 +3,7 @@ import type { Terrain } from '../core/terrain';
 export interface PlayerConfig {
   name: string;
   colour: string;
+  characterId: string;
 }
 
 export interface Player {
@@ -19,6 +20,12 @@ export interface Player {
   /** 0–100. */
   power: number;
   alive: boolean;
+  characterId: string;
+  /** Weapon ids by tier (index 0 = tier 1). */
+  loadout: string[];
+  /** Rounds left per tier. */
+  ammo: number[];
+  selectedTier: number;
 }
 
 export interface Projectile {
@@ -48,7 +55,6 @@ export interface GameState {
   current: number;
   turn: number;
   phase: Phase;
-  weaponId: string;
   projectiles: Projectile[];
   explosions: Explosion[];
   settleTimer: number;

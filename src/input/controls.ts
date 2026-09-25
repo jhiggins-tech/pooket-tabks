@@ -2,6 +2,7 @@ export interface ControlHandlers {
   canAim(): boolean;
   setAim(angle: number, power: number): void;
   adjust(dAngle: number, dPower: number): void;
+  selectTier(tier: number): void;
   fire(): void;
 }
 
@@ -36,6 +37,7 @@ export function fullPowerDragPx(viewportW: number, viewportH: number): number {
  * - Slingshot: drag anywhere on the playfield and pull back; the shot goes the
  *   opposite way to the drag, and drag length sets power.
  * - Hold-to-repeat +/- buttons for fine adjustment.
+ * - Weapon tier buttons.
  * - A big FIRE button (release never fires, so hotseat mis-taps are harmless).
  */
 export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): void {
@@ -69,6 +71,12 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
       if (h.canAim()) h.adjust(da, dp);
     });
   }
+
+  // Weapon buttons are re-rendered by the HUD, so listen on their container.
+  document.getElementById('weapons')?.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-tier]');
+    if (btn && !btn.disabled && h.canAim()) h.selectTier(Number(btn.dataset.tier));
+  });
 
   document.getElementById('fire')?.addEventListener('click', () => {
     if (h.canAim()) h.fire();

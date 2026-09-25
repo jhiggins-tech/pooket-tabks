@@ -1,31 +1,43 @@
 import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
-import { adjustAim, createGame, fire, setAim, step } from './game/game';
+import { adjustAim, createGame, fire, selectTier, setAim, step } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
-
-const PLAYERS: PlayerConfig[] = [
-  { name: 'Player 1', colour: '#ff5a5f' },
-  { name: 'Player 2', colour: '#4ea8ff' },
-];
+import { SetupScreen } from './ui/setup';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const renderer = new Renderer(canvas, WORLD_W, WORLD_H);
 const hud = new Hud();
 
+// `?seed=N` fixes the first map (handy for tests and sharing a layout).
 const seedParam = Number(new URLSearchParams(location.search).get('seed'));
-let state: GameState = createGame({
-  seed: Number.isFinite(seedParam) && seedParam > 0 ? seedParam : randomSeed(),
-  players: PLAYERS,
+let nextSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : randomSeed();
+let players: PlayerConfig[] = [];
+
+const setup = new SetupScreen((chosen) => {
+  players = chosen;
+  setup.hide();
+  newGame();
+  void goFullscreen();
 });
+
+// A live battlefield sits behind the setup screen until the real match starts.
+let state: GameState = createGame({ seed: nextSeed, players: setup.players() });
+
+function newGame(): void {
+  state = createGame({ seed: nextSeed, players });
+  nextSeed = randomSeed();
+  hud.reset();
+}
 
 bindControls(canvas, {
   canAim: () => state.phase === 'aiming',
   setAim: (a, p) => setAim(state, a, p),
   adjust: (da, dp) => adjustAim(state, da, dp),
+  selectTier: (t) => selectTier(state, t),
   fire: () => fire(state),
 });
 
@@ -33,14 +45,10 @@ const onResize = () => renderer.resize();
 window.addEventListener('resize', onResize);
 window.visualViewport?.addEventListener('resize', onResize);
 
-document.getElementById('start')!.addEventListener('click', () => {
-  document.getElementById('title')!.hidden = true;
-  void goFullscreen();
-});
-
-document.getElementById('again')!.addEventListener('click', () => {
-  state = createGame({ seed: randomSeed(), players: PLAYERS });
-  hud.reset();
+document.getElementById('rematch')!.addEventListener('click', newGame);
+document.getElementById('change-players')!.addEventListener('click', () => {
+  document.getElementById('gameover')!.hidden = true;
+  setup.show();
 });
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { createGame, currentPlayer, explode, fire, setAim, step } from '../src/game/game';
+import { createGame, currentPlayer, explode, fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { basicShell } from '../src/weapons/registry';
+import { shell } from '../src/weapons/registry';
 
 const players = [
-  { name: 'Alice', colour: '#e5484d' },
-  { name: 'Bob', colour: '#3e8ef7' },
+  { name: 'Alice', colour: '#e5484d', characterId: 'rookie' },
+  { name: 'Bob', colour: '#3e8ef7', characterId: 'rookie' },
 ];
 
 function runUntil(state: GameState, done: (s: GameState) => boolean, maxSeconds = 20): void {
@@ -66,7 +66,7 @@ describe('game', () => {
     const g = createGame({ seed: 5, players });
     const bob = g.players[1]!;
     const yBefore = bob.y;
-    explode(g, bob.x, bob.y, basicShell);
+    explode(g, bob.x, bob.y, shell);
     expect(bob.hp).toBeLessThan(MAX_HP);
     expect(bob.y).toBeGreaterThan(yBefore);
     expect(g.players[0]!.hp).toBe(MAX_HP);
@@ -78,8 +78,70 @@ describe('game', () => {
     fire(g);
     // Replace the in-flight shell with a direct hit on Bob.
     g.projectiles = [];
-    explode(g, g.players[1]!.x, g.players[1]!.y - 8, basicShell);
+    explode(g, g.players[1]!.x, g.players[1]!.y - 8, shell);
     runUntil(g, (s) => s.phase === 'gameover');
     expect(g.winner?.name).toBe('Alice');
+  });
+
+  it('gives each player the character loadout with 5/3/1 rounds', () => {
+    const g = createGame({ seed: 1, players });
+    for (const p of g.players) {
+      expect(p.loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
+      expect(p.ammo).toEqual([5, 3, 1]);
+      expect(p.selectedTier).toBe(0);
+    }
+  });
+
+  it('spends a round of the selected tier and keeps ammo per player', () => {
+    const g = createGame({ seed: 1, players });
+    expect(selectTier(g, 2)).toBe(true);
+    fire(g);
+    expect(g.projectiles[0]!.weaponId).toBe('mega-shell');
+    const alice = g.players[0]!;
+    expect(alice.ammo).toEqual([5, 3, 0]);
+    expect(alice.selectedTier).toBe(0); // tier 3 empty -> falls back to tier 1
+    expect(g.players[1]!.ammo).toEqual([5, 3, 1]);
+  });
+
+  it('refuses to select or fire an empty tier', () => {
+    const g = createGame({ seed: 1, players });
+    const alice = g.players[0]!;
+    alice.ammo = [0, 3, 1];
+    alice.selectedTier = 0;
+    expect(selectTier(g, 0)).toBe(false);
+    expect(fire(g)).toBe(false);
+    expect(g.phase).toBe('aiming');
+  });
+
+  it('skips players who are out of ammo', () => {
+    const three = [...players, { name: 'Cat', colour: '#46d27a', characterId: 'rookie' }];
+    const g = createGame({ seed: 2, players: three });
+    g.players[1]!.ammo = [0, 0, 0];
+    setAim(g, 90, 10);
+    fire(g);
+    runUntil(g, (s) => s.phase === 'aiming');
+    expect(currentPlayer(g).name).toBe('Cat');
+  });
+
+  it('ends on highest HP when nobody has ammo left', () => {
+    const g = createGame({ seed: 2, players });
+    g.players[0]!.ammo = [1, 0, 0];
+    g.players[1]!.ammo = [0, 0, 0];
+    g.players[1]!.hp = 40;
+    setAim(g, 90, 10);
+    fire(g);
+    runUntil(g, (s) => s.phase === 'gameover');
+    expect(g.winner?.name).toBe('Alice');
+  });
+
+  it('calls a draw when out of ammo with equal HP', () => {
+    const g = createGame({ seed: 2, players });
+    g.players[0]!.ammo = [1, 0, 0];
+    g.players[1]!.ammo = [0, 0, 0];
+    fire(g);
+    runUntil(g, (s) => s.phase === 'settling');
+    g.players[0]!.hp = g.players[1]!.hp = 50; // equalise after the blast lands
+    runUntil(g, (s) => s.phase === 'gameover');
+    expect(g.winner).toBeNull();
   });
 });

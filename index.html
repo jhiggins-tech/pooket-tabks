@@ -37,21 +37,28 @@
       </div>
 
       <div class="pad right">
+        <div id="weapons" role="group" aria-label="Weapon"></div>
         <button id="fire">FIRE</button>
       </div>
 
       <p class="hint">Drag &amp; pull back to aim</p>
     </div>
 
-    <div id="title" class="overlay">
+    <div id="setup" class="overlay">
       <h1>Pooket Tabks</h1>
-      <p>Pass-and-play artillery</p>
-      <button id="start" class="big">Tap to play</button>
+      <div id="setup-players"></div>
+      <div class="setup-actions">
+        <button id="add-player">+ Add player</button>
+        <button id="start" class="big">Start battle</button>
+      </div>
     </div>
 
     <div id="gameover" class="overlay" hidden>
       <h1 id="winner"></h1>
-      <button id="again" class="big">Play again</button>
+      <div class="setup-actions">
+        <button id="change-players">Change players</button>
+        <button id="rematch" class="big">Rematch</button>
+      </div>
     </div>
 
     <div id="rotate" class="overlay">

@@ -135,6 +135,35 @@ button:disabled {
 }
 .pad.right {
   right: var(--safe-r);
+  flex-direction: column;
+  align-items: flex-end;
+}
+#weapons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.weapon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 44px;
+  padding: 0;
+  gap: 1px;
+}
+.weapon.selected {
+  border: 2.5px solid var(--player-colour);
+  background: rgba(12, 16, 32, 0.85);
+}
+.weapon .wname {
+  font-size: 13px;
+}
+.weapon .pips {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--player-colour);
 }
 .control {
   display: flex;
@@ -249,9 +278,95 @@ button.big {
   }
 }
 
+/* ---------- Setup ---------- */
+#setup {
+  justify-content: safe center;
+  overflow-y: auto;
+  touch-action: pan-y;
+  gap: 10px;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+}
+#setup h1 {
+  font-size: 28px;
+}
+#setup-players {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(640px, 100%);
+}
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 12px;
+  background: var(--panel);
+  border-left: 5px solid var(--c);
+}
+.setup-row .swatch {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+.setup-row input,
+.setup-row select {
+  height: 38px;
+  padding: 0 10px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font: 600 16px system-ui, -apple-system, sans-serif; /* >=16px stops iOS zooming on focus */
+  touch-action: manipulation;
+}
+.setup-row input {
+  flex: 1 1 110px;
+  min-width: 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.setup-row select {
+  flex: 0 1 auto;
+}
+.setup-row .loadout {
+  flex: 1 1 auto;
+  font-size: 11px;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.setup-row .remove {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  font-size: 20px;
+}
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.setup-actions button:not(.big) {
+  height: 44px;
+  padding: 0 16px;
+}
+.overlay [hidden] {
+  display: none;
+}
+
 /* Short landscape phones (e.g. iPhone SE with browser chrome) */
 @media (max-height: 340px) {
   .control button { width: 40px; height: 40px; }
   #fire { width: 80px; height: 80px; font-size: 19px; }
   .readout span { font-size: 15px; }
+  .weapon { width: 80px; height: 38px; }
+  .weapon .wname { font-size: 12px; }
+}
+@media (max-width: 700px) {
+  .setup-row .loadout { display: none; }
 }

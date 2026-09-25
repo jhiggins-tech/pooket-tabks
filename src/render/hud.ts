@@ -1,5 +1,6 @@
 import { MAX_HP } from '../game/constants';
-import { currentPlayer } from '../game/game';
+import { AMMO_PER_TIER } from '../characters/roster';
+import { currentPlayer, weaponForTier } from '../game/game';
 import type { GameState } from '../game/state';
 
 /** Keeps the DOM overlay in sync with game state, touching the DOM only on change. */
@@ -9,6 +10,7 @@ export class Hud {
   private readonly powerEl = byId('power');
   private readonly bannerEl = byId('turn-banner');
   private readonly fireEl = byId<HTMLButtonElement>('fire');
+  private readonly weaponsEl = byId('weapons');
   private readonly gameOverEl = byId('gameover');
   private readonly winnerEl = byId('winner');
   private last = '';
@@ -22,6 +24,8 @@ export class Hud {
       state.turn,
       p.angle,
       p.power,
+      p.selectedTier,
+      p.ammo.join(','),
       ...state.players.map((pl) => `${pl.hp}${pl.name}`),
     ].join('|');
     if (key === this.last) return;
@@ -53,7 +57,29 @@ export class Hud {
 
     this.angleEl.textContent = `${angleLabel(p.angle)}`;
     this.powerEl.textContent = `${p.power}`;
-    this.fireEl.disabled = state.phase !== 'aiming';
+    this.fireEl.disabled = state.phase !== 'aiming' || (p.ammo[p.selectedTier] ?? 0) <= 0;
+    this.weaponsEl.replaceChildren(
+      ...p.loadout.map((_, tier) => {
+        const w = weaponForTier(p, tier);
+        const left = p.ammo[tier] ?? 0;
+        const btn = document.createElement('button');
+        btn.className = 'weapon';
+        btn.dataset.tier = String(tier);
+        btn.classList.toggle('selected', tier === p.selectedTier);
+        btn.disabled = left <= 0 || state.phase !== 'aiming';
+        btn.setAttribute('aria-label', `${w.name}, ${left} left`);
+        btn.setAttribute('aria-pressed', String(tier === p.selectedTier));
+        const name = document.createElement('span');
+        name.className = 'wname';
+        name.textContent = w.shortName;
+        const pips = document.createElement('span');
+        pips.className = 'pips';
+        const max = AMMO_PER_TIER[tier] ?? left;
+        pips.textContent = '●'.repeat(left) + '○'.repeat(Math.max(0, max - left));
+        btn.append(name, pips);
+        return btn;
+      }),
+    );
 
     const turnKey = `${state.turn}:${state.phase === 'gameover'}`;
     if (turnKey !== this.lastTurnKey && state.phase === 'aiming') {

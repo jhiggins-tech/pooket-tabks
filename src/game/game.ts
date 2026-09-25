@@ -1,7 +1,8 @@
 import { createRng, randRange } from '../core/rng';
 import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
-import { basicShell, getWeapon } from '../weapons/registry';
+import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
+import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import {
   BARREL_LENGTH,
@@ -42,6 +43,7 @@ export function createGame(cfg: GameConfig): GameState {
 
   const players: Player[] = cfg.players.map((p, i) => {
     const x = xs[i]!;
+    const character = getCharacter(p.characterId);
     return {
       id: i,
       name: p.name,
@@ -52,6 +54,10 @@ export function createGame(cfg: GameConfig): GameState {
       angle: x < width / 2 ? 45 : 135,
       power: 60,
       alive: true,
+      characterId: character.id,
+      loadout: [...character.loadout],
+      ammo: [...AMMO_PER_TIER],
+      selectedTier: 0,
     };
   });
 
@@ -62,7 +68,6 @@ export function createGame(cfg: GameConfig): GameState {
     current: 0,
     turn: 1,
     phase: 'aiming',
-    weaponId: basicShell.id,
     projectiles: [],
     explosions: [],
     settleTimer: 0,
@@ -96,9 +101,34 @@ export function adjustAim(state: GameState, dAngle: number, dPower: number): voi
   setAim(state, p.angle + dAngle, p.power + dPower);
 }
 
+export function hasAmmo(p: Player): boolean {
+  return p.ammo.some((n) => n > 0);
+}
+
+export function weaponForTier(p: Player, tier: number): WeaponDef {
+  return getWeapon(p.loadout[tier]!);
+}
+
+/** Choose which tier the current player fires next. Returns false if it has no rounds left. */
+export function selectTier(state: GameState, tier: number): boolean {
+  if (state.phase !== 'aiming') return false;
+  const p = currentPlayer(state);
+  if ((p.ammo[tier] ?? 0) <= 0) return false;
+  p.selectedTier = tier;
+  return true;
+}
+
 export function fire(state: GameState): boolean {
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
+  const tier = p.selectedTier;
+  if ((p.ammo[tier] ?? 0) <= 0) return false;
+  p.ammo[tier]!--;
+  if (p.ammo[tier] === 0) {
+    // Fall back to the lowest tier that still has rounds.
+    const next = p.ammo.findIndex((n) => n > 0);
+    if (next >= 0) p.selectedTier = next;
+  }
   const a = (p.angle * Math.PI) / 180;
   const speed = (p.power / 100) * MAX_SPEED;
   const m = muzzle(p);
@@ -107,7 +137,7 @@ export function fire(state: GameState): boolean {
     y: m.y,
     vx: Math.cos(a) * speed,
     vy: -Math.sin(a) * speed,
-    weaponId: state.weaponId,
+    weaponId: p.loadout[tier]!,
     ownerId: p.id,
     trail: [],
   });
@@ -206,10 +236,20 @@ function endTurn(state: GameState): void {
     state.winner = alive[0] ?? null;
     return;
   }
+  const armed = alive.filter(hasAmmo);
+  if (armed.length === 0) {
+    // Everyone is out of ammo: highest HP wins, a tie is a draw.
+    const best = Math.max(...alive.map((p) => p.hp));
+    const leaders = alive.filter((p) => p.hp === best);
+    state.phase = 'gameover';
+    state.winner = leaders.length === 1 ? leaders[0]! : null;
+    return;
+  }
+  // Next living player who still has rounds; players with no ammo are skipped.
   const n = state.players.length;
   let next = state.current;
   do next = (next + 1) % n;
-  while (!state.players[next]!.alive);
+  while (!state.players[next]!.alive || !hasAmmo(state.players[next]!));
   state.current = next;
   state.turn++;
   state.phase = 'aiming';
