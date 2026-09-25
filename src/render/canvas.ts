@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, isAimless, muzzle, tankCentre } from '../game/game';
+import { currentPlayer, hologramsOf, isAimless, muzzle, tankCentre } from '../game/game';
 import type { Droplet, GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
@@ -49,6 +49,22 @@ export class Renderer {
     this.offsetY = (this.canvas.height - this.worldH * this.scale) / 2;
   }
 
+  /** Converts a screen (CSS pixel) position to world coordinates. */
+  screenToWorld(clientX: number, clientY: number): { x: number; y: number } {
+    return {
+      x: (clientX * this.dpr - this.offsetX) / this.scale,
+      y: (clientY * this.dpr - this.offsetY) / this.scale,
+    };
+  }
+
+  /** Converts world coordinates to a screen (CSS pixel) position. */
+  worldToScreen(x: number, y: number): { x: number; y: number } {
+    return {
+      x: (x * this.scale + this.offsetX) / this.dpr,
+      y: (y * this.scale + this.offsetY) / this.dpr,
+    };
+  }
+
   /** CSS pixels per world pixel, for sizing touch gestures. */
   get cssScale(): number {
     return this.scale / this.dpr;
@@ -86,7 +102,14 @@ export class Renderer {
       ctx.drawImage(this.terrainCanvas, this.worldW - 1, 0, 1, h, this.worldW, 0, side + 1, h);
     }
 
-    for (const p of state.players) this.drawTank(p, state);
+    for (const p of state.players) {
+      // Holograms are drawn exactly like the real tank, so there is no visual tell.
+      for (const h of hologramsOf(state, p.id)) {
+        this.drawTank(p, state, h);
+        if (state.swapTargetId === h.id && state.phase === 'aiming' && currentPlayer(state) === p) this.drawSwapMarker(h);
+      }
+      this.drawTank(p, state);
+    }
     if (state.phase === 'aiming' && !isAimless(state)) this.drawAimGuide(currentPlayer(state));
     this.drawProjectiles(state);
     this.drawLiquid(state);
@@ -109,10 +132,12 @@ export class Renderer {
     }
   }
 
-  private drawTank(p: Player, state: GameState): void {
+  /** Draws player p's tank, or (with `at`) a hologram copy of it at another spot. */
+  private drawTank(owner: Player, state: GameState, at?: { x: number; y: number }): void {
     const { ctx } = this;
+    const p: Player = at ? { ...owner, x: at.x, y: at.y } : owner;
     const c = tankCentre(p);
-    const isCurrent = state.players[state.current] === p && state.phase !== 'gameover';
+    const isCurrent = !at && state.players[state.current] === owner && state.phase !== 'gameover';
 
     if (p.burn && p.alive) {
       // Pulsing glow while a Hyperfixate burn is still ticking.
@@ -164,6 +189,20 @@ export class Renderer {
       ctx.closePath();
       ctx.fill();
     }
+  }
+
+  /** Subtle dashed ring on the hologram the current player will swap to. */
+  private drawSwapMarker(at: { x: number; y: number }): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 4]);
+    ctx.lineDashOffset = -this.time * 12;
+    ctx.beginPath();
+    ctx.arc(at.x, at.y - TANK_BODY_HEIGHT, 17, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawAimGuide(p: Player): void {
@@ -358,6 +397,23 @@ export class Renderer {
     const { ctx } = this;
     for (const e of state.explosions) {
       const k = e.age / e.duration;
+      if (e.ring) {
+        // Hologram shimmer: a couple of expanding, fading rings with scan lines.
+        ctx.save();
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = e.ring;
+        ctx.lineWidth = 2;
+        for (const f of [1, 0.6]) {
+          ctx.beginPath();
+          ctx.arc(e.x, e.y, e.radius * (0.3 + k * f), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 0.5 * (1 - k);
+        ctx.fillStyle = e.ring;
+        for (let yy = -12; yy <= 8; yy += 4) ctx.fillRect(e.x - 14, e.y + yy + ((this.time * 40) % 4), 28, 1);
+        ctx.restore();
+        continue;
+      }
       const r = e.radius * (0.5 + 0.7 * k);
       const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, r);
       g.addColorStop(0, `rgba(255,245,200,${1 - k})`);

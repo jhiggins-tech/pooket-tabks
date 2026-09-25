@@ -86,14 +86,15 @@ describe('game', () => {
   it('gives each player the character loadout with 5/3/1 rounds', () => {
     const g = createGame({ seed: 1, players });
     for (const p of g.players) {
-      expect(p.loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
+      expect(p.loadout).toEqual(['shell', 'heavy-shell', 'trollogram']);
       expect(p.ammo).toEqual([5, 3, 1]);
       expect(p.selectedTier).toBe(0);
     }
   });
 
   it('spends a round of the selected tier and keeps ammo per player', () => {
-    const g = createGame({ seed: 1, players });
+    // tones' tier 3 is the Mega Shell.
+    const g = createGame({ seed: 1, players: [{ ...players[0]!, characterId: 'tones' }, players[1]!] });
     expect(selectTier(g, 2)).toBe(true);
     fire(g);
     expect(g.projectiles[0]!.weaponId).toBe('mega-shell');

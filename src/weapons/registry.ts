@@ -76,10 +76,26 @@ export const ten1: WeaponDef = {
   damage: 0,
   stream: { rampUp: 2, hold: 0.7, rampDown: 1.2, dropsPerSecond: 110, damagePerDrop: 0.35 },
   friendlyFire: false,
-  colour: '#3fb6ff',
+  colour: '#ffcc1f',
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1];
+/**
+ * kie's tier 3: two hologram copies of kie's tank appear across the battlefield. On later turns
+ * kie can tap one to secretly swap places with it once his shot has landed. Anyone who hits a
+ * hologram takes half the damage they would have dealt, and the hologram vanishes at turn end.
+ */
+export const trollogram: WeaponDef = {
+  id: 'trollogram',
+  name: 'Trollogram',
+  shortName: 'Trollogram',
+  kind: 'decoy',
+  decoys: 2,
+  blastRadius: 0,
+  damage: 0,
+  colour: '#7cf7d4',
+};
+
+const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1, trollogram];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

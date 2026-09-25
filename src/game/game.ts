@@ -16,7 +16,10 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { Droplet, GameState, Player, PlayerConfig, Projectile, Stream } from './state';
+import type { Droplet, GameState, Hologram, Player, PlayerConfig, Projectile, Stream } from './state';
+
+/** Something a shot can hit: a real tank or a hologram of one. */
+export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
 
 const BEAM_DURATION = 0.6;
 const FLOATER_DURATION = 1.6;
@@ -25,6 +28,10 @@ const PROJECTILE_MAX_AGE = 12; // s; anything still bouncing around by then just
 const DEFAULT_BEAM_COLOUR = '#ff3df2';
 const SOAK_FLUSH_INTERVAL = 0.18; // s between batched stream-damage numbers
 const MAX_SPLASHES = 220;
+const HOLOGRAM_COLOUR = '#7cf7d4';
+/** Share of the would-be damage a shooter takes for hitting a hologram. */
+export const HOLOGRAM_PENALTY = 0.5;
+const HOLOGRAM_MIN_SPACING = 70;
 
 export interface GameConfig {
   seed: number;
@@ -68,6 +75,7 @@ export function createGame(cfg: GameConfig): GameState {
       selectedTier: 0,
       burn: null,
       soak: 0,
+      soakColour: '#ffffff',
     };
   });
 
@@ -80,6 +88,8 @@ export function createGame(cfg: GameConfig): GameState {
     phase: 'aiming',
     projectiles: [],
     beams: [],
+    holograms: [],
+    swapTargetId: null,
     streams: [],
     droplets: [],
     splashes: [],
@@ -110,7 +120,8 @@ export function muzzle(p: Player): { x: number; y: number } {
 /** True when the current player's selected weapon ignores angle and power. */
 export function isAimless(state: GameState): boolean {
   const p = currentPlayer(state);
-  return (weaponForTier(p, p.selectedTier).kind ?? 'ballistic') === 'rain';
+  const kind = weaponForTier(p, p.selectedTier).kind ?? 'ballistic';
+  return kind === 'rain' || kind === 'decoy';
 }
 
 export function setAim(state: GameState, angle: number, power: number): void {
@@ -164,6 +175,9 @@ export function fire(state: GameState): boolean {
     case 'stream':
       fireStream(state, p, weapon);
       break;
+    case 'decoy':
+      fireDecoys(state, p, weapon);
+      break;
     case 'ballistic':
       fireBallistic(state, p, weapon);
       break;
@@ -186,7 +200,7 @@ function fireBallistic(state: GameState, p: Player, weapon: WeaponDef): void {
 }
 
 /** Straight line from the barrel until it meets ground, a tank or the edge of the map. */
-export function traceBeam(state: GameState, p: Player): { x: number; y: number; hit: Player | 'ground' | null } {
+export function traceBeam(state: GameState, p: Player): { x: number; y: number; hit: Target | 'ground' | null } {
   const { terrain } = state;
   const m = muzzle(p);
   const a = (p.angle * Math.PI) / 180;
@@ -197,8 +211,8 @@ export function traceBeam(state: GameState, p: Player): { x: number; y: number; 
     const x = m.x + dx * d;
     const y = m.y + dy * d;
     if (x < 0 || x >= terrain.width || y < 0) return { x, y, hit: null };
-    const tank = tankAt(state, x, y);
-    if (tank) return { x, y, hit: tank };
+    const target = targetAt(state, x, y);
+    if (target) return { x, y, hit: target };
     if (terrain.isSolid(x, y)) return { x, y: Math.min(y, terrain.height), hit: 'ground' };
   }
   return { x: m.x + dx * maxLen, y: m.y + dy * maxLen, hit: null };
@@ -208,14 +222,14 @@ function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
   const m = muzzle(p);
   const end = traceBeam(state, p);
   const colour = weapon.colour ?? DEFAULT_BEAM_COLOUR;
-  state.beams.push({ x1: m.x, y1: m.y, x2: end.x, y2: end.y, colour, hitTank: typeof end.hit === 'object' && end.hit !== null, age: 0, duration: BEAM_DURATION });
+  state.beams.push({ x1: m.x, y1: m.y, x2: end.x, y2: end.y, colour, hitTank: end.hit !== null && end.hit !== 'ground', age: 0, duration: BEAM_DURATION });
   if (end.hit === 'ground') {
     state.terrain.carveCircle(end.x, end.y, weapon.blastRadius);
     settleTanks(state);
   } else if (end.hit) {
-    const target = end.hit;
-    damagePlayer(state, target, weapon.damage);
-    if (weapon.dot && target.alive) {
+    damageTarget(state, end.hit, weapon.damage, p.id);
+    const target = end.hit.kind === 'player' ? end.hit.player : null;
+    if (weapon.dot && target?.alive) {
       // A fresh hit refreshes the burn rather than stacking it.
       target.burn = { damagePerTurn: weapon.dot.damagePerTurn, turnsLeft: weapon.dot.turns, colour };
     }
@@ -231,6 +245,68 @@ function fireRain(state: GameState, p: Player, weapon: WeaponDef): void {
     const y = -10 - rng() * terrain.height * 0.9;
     spawnProjectile(state, p, weapon, x, y, randRange(rng, -50, 50), randRange(rng, 0, 80));
   }
+}
+
+/** Replace the firer's holograms with fresh ones at random, well-spaced spots on the ground. */
+function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void {
+  const { terrain, rng } = state;
+  state.holograms = state.holograms.filter((h) => h.ownerId !== p.id);
+  state.swapTargetId = null;
+  const colour = weapon.colour ?? HOLOGRAM_COLOUR;
+  ring(state, p.x, p.y - TANK_BODY_HEIGHT, colour);
+  for (let n = 0; n < (weapon.decoys ?? 2); n++) {
+    const taken = [...state.players.filter((q) => q.alive).map((q) => q.x), ...state.holograms.map((h) => h.x)];
+    let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
+    for (let tries = 0; tries < 60 && taken.some((t) => Math.abs(t - x) < HOLOGRAM_MIN_SPACING); tries++) {
+      x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
+    }
+    x = Math.round(x);
+    const holo: Hologram = {
+      id: state.fxSeq++,
+      ownerId: p.id,
+      x,
+      y: terrain.surfaceY(x),
+      hits: [],
+      soak: 0,
+      soakShooterId: -1,
+      soakColour: '#ffffff',
+    };
+    state.holograms.push(holo);
+    ring(state, holo.x, holo.y - TANK_BODY_HEIGHT, colour);
+  }
+}
+
+function ring(state: GameState, x: number, y: number, colour: string): void {
+  state.explosions.push({ x, y, radius: 26, age: 0, duration: 0.7, ring: colour });
+}
+
+/** Holograms belonging to a (living) player. */
+export function hologramsOf(state: GameState, playerId: number): Hologram[] {
+  const owner = state.players[playerId];
+  return owner?.alive ? state.holograms.filter((h) => h.ownerId === playerId) : [];
+}
+
+/** The current player's hologram nearest (x, y) within radius, if any. */
+export function hologramAt(state: GameState, x: number, y: number, radius: number): Hologram | undefined {
+  let best: Hologram | undefined;
+  let bestD = radius;
+  for (const h of hologramsOf(state, currentPlayer(state).id)) {
+    const d = Math.hypot(h.x - x, h.y - TANK_BODY_HEIGHT - y);
+    if (d <= bestD) {
+      best = h;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** Pick (or un-pick) the hologram to swap with after this turn's shot. Only on your own turn, before firing. */
+export function toggleSwapTarget(state: GameState, holoId: number): boolean {
+  if (state.phase !== 'aiming') return false;
+  const h = state.holograms.find((x) => x.id === holoId);
+  if (!h || h.ownerId !== currentPlayer(state).id) return false;
+  state.swapTargetId = state.swapTargetId === holoId ? null : holoId;
+  return true;
 }
 
 function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
@@ -321,7 +397,7 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
     const t = i / steps;
     const x = pr.x + (nx - pr.x) * t;
     const y = pr.y + (ny - pr.y) * t;
-    if (tankAt(state, x, y)) {
+    if (targetAt(state, x, y)) {
       explode(state, x, y, weapon, pr.ownerId);
       return true;
     }
@@ -387,14 +463,17 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const t = i / steps;
     const x = d.x + (nx - d.x) * t;
     const y = d.y + (ny - d.y) * t;
-    const tank = tankAt(state, x, y);
-    if (tank && !(weapon.friendlyFire === false && tank.id === d.ownerId)) {
-      tank.soak += weapon.stream?.damagePerDrop ?? 0;
+    const target = targetAt(state, x, y);
+    if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
+      const soaked = target.kind === 'player' ? target.player : target.holo;
+      soaked.soak += weapon.stream?.damagePerDrop ?? 0;
+      soaked.soakColour = tint(d.colour, 0.35);
+      if (target.kind === 'hologram') target.holo.soakShooterId = d.ownerId;
       spawnSplash(state, x, y, d, 3);
       return true;
     }
     if (terrain.isSolid(x, y)) {
-      terrain.wetCircle(x, y, 2.5 + d.pressure * 2);
+      terrain.wetCircle(x, y, 2.5 + d.pressure * 2, hexToRgb(d.colour));
       spawnSplash(state, x, y, d, 2);
       return true;
     }
@@ -411,8 +490,13 @@ function stepSoak(state: GameState, dt: number, final: boolean): void {
   state.soakTimer = 0;
   for (const p of state.players) {
     const whole = final ? Math.round(p.soak) : Math.floor(p.soak);
-    if (whole > 0) damagePlayer(state, p, whole, '#7fd3ff');
+    if (whole > 0) damagePlayer(state, p, whole, p.soakColour);
     p.soak = final ? 0 : p.soak - whole;
+  }
+  for (const h of state.holograms) {
+    const whole = final ? Math.round(h.soak) : Math.floor(h.soak);
+    if (whole > 0) damageTarget(state, { kind: 'hologram', holo: h }, whole, h.soakShooterId, h.soakColour);
+    h.soak = final ? 0 : h.soak - whole;
   }
 }
 
@@ -444,6 +528,17 @@ function stepSplashes(state: GameState, dt: number): void {
   state.splashes = state.splashes.filter((sp) => sp.age < sp.life && !state.terrain.isSolid(sp.x, sp.y));
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Mix a '#rrggbb' colour towards white by k (0–1), returned as '#rrggbb'. */
+function tint(hex: string, k: number): string {
+  const mix = (c: number) => Math.round(c + (255 - c) * k);
+  return '#' + hexToRgb(hex).map((c) => mix(c).toString(16).padStart(2, '0')).join('');
+}
+
 /** Cheap deterministic 0–1 hash. */
 function hash(n: number): number {
   const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
@@ -467,12 +562,41 @@ function bounce(state: GameState, pr: Projectile, weapon: WeaponDef, hitX: numbe
   pr.bounces++;
 }
 
-function tankAt(state: GameState, x: number, y: number): Player | undefined {
-  return state.players.find((p) => {
-    if (!p.alive) return false;
-    const c = tankCentre(p);
-    return Math.hypot(x - c.x, y - c.y) <= TANK_HIT_RADIUS;
-  });
+/** The real tank or hologram whose hit circle contains (x, y). */
+export function targetAt(state: GameState, x: number, y: number): Target | undefined {
+  for (const p of state.players) {
+    if (p.alive && Math.hypot(x - p.x, y - (p.y - TANK_BODY_HEIGHT)) <= TANK_HIT_RADIUS) return { kind: 'player', player: p };
+  }
+  for (const h of state.holograms) {
+    if (!state.players[h.ownerId]?.alive) continue;
+    if (Math.hypot(x - h.x, y - (h.y - TANK_BODY_HEIGHT)) <= TANK_HIT_RADIUS) return { kind: 'hologram', holo: h };
+  }
+  return undefined;
+}
+
+function targetOwner(t: Target): number {
+  return t.kind === 'player' ? t.player.id : t.holo.ownerId;
+}
+
+function allTargets(state: GameState): Target[] {
+  return [
+    ...state.players.filter((p) => p.alive).map((player): Target => ({ kind: 'player', player })),
+    ...state.holograms.filter((h) => state.players[h.ownerId]?.alive).map((holo): Target => ({ kind: 'hologram', holo })),
+  ];
+}
+
+/**
+ * Real tanks take the damage. Holograms put on a show (same floating number) and record it
+ * against the shooter, who pays the penalty when the hologram is exposed at the end of the turn.
+ */
+function damageTarget(state: GameState, t: Target, amount: number, shooterId: number, colour = '#ffffff'): void {
+  if (amount <= 0) return;
+  if (t.kind === 'player') {
+    damagePlayer(state, t.player, amount, colour);
+    return;
+  }
+  t.holo.hits.push({ shooterId, damage: amount });
+  spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
 }
 
 export function explode(state: GameState, x: number, y: number, weapon: WeaponDef, ownerId?: number): void {
@@ -480,13 +604,13 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
   state.terrain.carveCircle(x, y, r);
   state.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
 
-  for (const p of state.players) {
-    if (!p.alive) continue;
-    if (weapon.friendlyFire === false && p.id === ownerId) continue;
-    const c = tankCentre(p);
+  const shooterId = ownerId ?? currentPlayer(state).id;
+  for (const t of allTargets(state)) {
+    if (weapon.friendlyFire === false && targetOwner(t) === shooterId) continue;
+    const pos = t.kind === 'player' ? t.player : t.holo;
     const reach = r + TANK_HIT_RADIUS;
-    const d = Math.hypot(c.x - x, c.y - y);
-    if (d < reach) damagePlayer(state, p, Math.round(weapon.damage * (1 - d / reach)));
+    const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
+    if (d < reach) damageTarget(state, t, Math.round(weapon.damage * (1 - d / reach)), shooterId);
   }
   settleTanks(state);
 }
@@ -496,11 +620,12 @@ export function damagePlayer(state: GameState, p: Player, amount: number, colour
   if (amount <= 0 || !p.alive) return;
   p.hp = Math.max(0, p.hp - amount);
   if (p.hp === 0) p.alive = false;
-  spawnFloater(state, p, `-${amount}`, colour);
+  const c = tankCentre(p);
+  spawnFloater(state, c.x, c.y, `-${amount}`, colour);
 }
 
-function spawnFloater(state: GameState, p: Player, text: string, colour: string): void {
-  const c = tankCentre(p);
+function spawnFloater(state: GameState, x: number, y: number, text: string, colour: string): void {
+  const c = { x, y };
   const seq = state.fxSeq++;
   // Alternate sides and vary the slope a little so bursts of hits fan out.
   const side = seq % 2 === 0 ? 1 : -1;
@@ -519,19 +644,47 @@ function stepFloaters(state: GameState, dt: number): void {
   state.floaters = state.floaters.filter((f) => f.age < f.duration);
 }
 
-/** Drop tanks onto whatever ground is left beneath them. */
+/** Drop tanks (and holograms) onto whatever ground is left beneath them. */
 function settleTanks(state: GameState): void {
   const { terrain } = state;
-  for (const p of state.players) {
+  for (const t of [...state.players, ...state.holograms]) {
     let ground = terrain.height;
     for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
-      ground = Math.min(ground, terrain.groundBelow(p.x + dx, p.y));
+      ground = Math.min(ground, terrain.groundBelow(t.x + dx, t.y));
     }
-    p.y = ground;
+    t.y = ground;
   }
 }
 
+/**
+ * End-of-turn hologram business: expose any hologram that was hit (the shooter pays
+ * HOLOGRAM_PENALTY of what they'd have dealt), then carry out the current player's secret swap.
+ */
+function resolveHolograms(state: GameState): void {
+  const exposed = state.holograms.filter((h) => h.hits.length > 0 || !state.players[h.ownerId]?.alive);
+  for (const h of exposed) {
+    if (!state.players[h.ownerId]?.alive) continue;
+    const byShooter = new Map<number, number>();
+    for (const hit of h.hits) byShooter.set(hit.shooterId, (byShooter.get(hit.shooterId) ?? 0) + hit.damage);
+    for (const [shooterId, dealt] of byShooter) {
+      const shooter = state.players[shooterId];
+      if (shooter) damagePlayer(state, shooter, Math.max(1, Math.round(dealt * HOLOGRAM_PENALTY)), HOLOGRAM_COLOUR);
+    }
+    ring(state, h.x, h.y - TANK_BODY_HEIGHT, HOLOGRAM_COLOUR);
+  }
+  state.holograms = state.holograms.filter((h) => !exposed.includes(h));
+
+  const me = currentPlayer(state);
+  const target = state.holograms.find((h) => h.id === state.swapTargetId && h.ownerId === me.id);
+  if (target && me.alive) {
+    [me.x, target.x] = [target.x, me.x];
+    [me.y, target.y] = [target.y, me.y];
+  }
+  state.swapTargetId = null;
+}
+
 function endTurn(state: GameState): void {
+  resolveHolograms(state);
   // Hand the turn on. Each player whose turn comes up takes their burn damage first;
   // players who are dead or out of ammo are skipped.
   const n = state.players.length;

@@ -3,6 +3,8 @@ export interface ControlHandlers {
   setAim(angle: number, power: number): void;
   adjust(dAngle: number, dPower: number): void;
   selectTier(tier: number): void;
+  /** A tap (no drag) on the battlefield, in screen CSS pixels. */
+  tap(clientX: number, clientY: number): void;
   fire(): void;
 }
 
@@ -37,15 +39,16 @@ export function fullPowerDragPx(viewportW: number, viewportH: number): number {
  * - Slingshot: drag anywhere on the playfield and pull back; the shot goes the
  *   opposite way to the drag, and drag length sets power.
  * - Hold-to-repeat +/- buttons for fine adjustment.
+ * - Tap (without dragging) on the battlefield, e.g. to pick a hologram to swap with.
  * - Weapon tier buttons.
  * - A big FIRE button (release never fires, so hotseat mis-taps are harmless).
  */
 export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): void {
-  let drag: { id: number; x: number; y: number } | null = null;
+  let drag: { id: number; x: number; y: number; moved: boolean } | null = null;
 
   canvas.addEventListener('pointerdown', (e) => {
     if (!h.canAim() || drag) return;
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     canvas.setPointerCapture(e.pointerId);
   });
 
@@ -56,14 +59,19 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
       e.clientY - drag.y,
       fullPowerDragPx(window.innerWidth, window.innerHeight),
     );
-    if (aim) h.setAim(aim.angle, aim.power);
+    if (!aim) return;
+    drag.moved = true;
+    h.setAim(aim.angle, aim.power);
   });
 
-  const endDrag = (e: PointerEvent) => {
+  canvas.addEventListener('pointerup', (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moved && h.canAim()) h.tap(e.clientX, e.clientY);
+    drag = null;
+  });
+  canvas.addEventListener('pointercancel', (e) => {
     if (drag && e.pointerId === drag.id) drag = null;
-  };
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', endDrag);
+  });
 
   for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-adjust]')) {
     const [da, dp] = (btn.dataset.adjust ?? '0,0').split(',').map(Number) as [number, number];

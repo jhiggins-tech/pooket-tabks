@@ -1,6 +1,6 @@
 import { MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { currentPlayer, isAimless, weaponForTier } from '../game/game';
+import { currentPlayer, hologramsOf, isAimless, weaponForTier } from '../game/game';
 import type { GameState } from '../game/state';
 
 /** Keeps the DOM overlay in sync with game state, touching the DOM only on change. */
@@ -11,6 +11,7 @@ export class Hud {
   private readonly bannerEl = byId('turn-banner');
   private readonly fireEl = byId<HTMLButtonElement>('fire');
   private readonly weaponsEl = byId('weapons');
+  private readonly hintEl = byId('hint');
   private readonly gameOverEl = byId('gameover');
   private readonly winnerEl = byId('winner');
   private last = '';
@@ -25,6 +26,8 @@ export class Hud {
       p.angle,
       p.power,
       p.selectedTier,
+      state.holograms.length,
+      state.swapTargetId,
       p.ammo.join(','),
       ...state.players.map((pl) => `${pl.hp}${pl.name}${pl.burn?.turnsLeft ?? ''}`),
     ].join('|');
@@ -32,7 +35,16 @@ export class Hud {
     this.last = key;
 
     document.body.dataset.phase = state.phase;
-    document.body.dataset.aimless = String(isAimless(state));
+    const aimless = isAimless(state);
+    document.body.dataset.aimless = String(aimless);
+    const decoys = hologramsOf(state, p.id).length;
+    this.hintEl.textContent = aimless
+      ? 'No aiming needed. Just FIRE'
+      : decoys > 0
+        ? state.swapTargetId !== null
+          ? 'Swapping to that decoy after you fire'
+          : 'Drag to aim · tap a decoy to swap after firing'
+        : 'Drag & pull back to aim';
     document.body.dataset.turn = String(state.turn);
     document.body.style.setProperty('--player-colour', p.colour);
 

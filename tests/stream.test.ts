@@ -66,6 +66,10 @@ describe('ten-1 pressure profile', () => {
 });
 
 describe('ten-1 stream', () => {
+  it('is yellow', () => {
+    expect(ten1.colour).toBe('#ffcc1f');
+  });
+
   it('builds from a dribble to the full aimed shot speed, then fades out', () => {
     const g = flatGame();
     const tones = g.players[0]!;
@@ -110,7 +114,7 @@ describe('ten-1 stream', () => {
     aimAtKie(g);
     fire(g);
     const seen = new Set<object>();
-    runTurn(g, (s) => s.floaters.forEach((f) => f.colour === '#7fd3ff' && seen.add(f)));
+    runTurn(g, (s) => s.floaters.forEach((f) => f.colour !== '#ffffff' && seen.add(f)));
     const [tones, kie] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
     const dealt = MAX_HP - kie.hp;
     expect(dealt).toBeGreaterThan(20);

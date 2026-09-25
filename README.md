@@ -10,6 +10,8 @@ Pass-and-play artillery (Worms / Pocket Tanks style) for **phone browsers**, hos
 - **Weapon:** tap a weapon above FIRE; the dots show rounds left.
 - **Aim:** drag anywhere on the battlefield and pull back like a slingshot — direction sets the angle, pull length sets power.
 - **Fine-tune:** ↺ / ↻ for angle, − / + for power (hold to repeat).
+- **Decoys:** after kie deploys Trollogram, tap one of his holograms on his turn to secretly swap
+  places with it once the shot lands. Hitting a hologram costs the shooter half the damage.
 - **FIRE**, then pass the phone.
 
 ## Architecture

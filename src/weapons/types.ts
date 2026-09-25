@@ -7,8 +7,9 @@ export type SpriteId = 'ice-cream-cone' | 'pill';
  * - `beam`: instant straight line from the barrel, no gravity (ignores power).
  * - `rain`: projectiles fall across the whole stage; aiming is ignored.
  * - `stream`: a jet of liquid whose pressure ramps up, holds, then eases off (see `stream`).
+ * - `decoy`: no shot; spawns hologram copies of the firer's tank (see `decoys`). Ignores aiming.
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream';
+export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy';
 
 /**
  * Pressure profile for stream weapons. Pressure eases 0 → 1 over `rampUp`, holds at 1 for `hold`,
@@ -54,6 +55,8 @@ export interface WeaponDef {
   sprite?: SpriteId;
   /** Draw a dotted trail behind projectiles. Default true. */
   trail?: boolean;
+  /** Decoy weapons: how many hologram copies to spawn. */
+  decoys?: number;
   /** Stream weapons: pressure profile and flow. */
   stream?: StreamSpec;
   /** Beam / liquid colour. */

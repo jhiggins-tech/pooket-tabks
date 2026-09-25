@@ -28,13 +28,19 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
-  stage, ignores aim) or `stream` (liquid jet with a `stream` pressure profile; droplets trickle damage
-  via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
+  stage, ignores aim), `stream` (liquid jet with a `stream` pressure profile; droplets trickle damage
+  via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering) or `decoy`
+  (spawns `Hologram`s of the firer's tank; ignores aim). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `trail`.
-- All damage goes through `damagePlayer()` in `game.ts`, which spawns the floating damage numbers.
+- Hit-testing goes through `targetAt()` / `Target` (a real tank or a hologram). Damage goes through
+  `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
+  damage, and at the end of the turn (`resolveHolograms()`) any hit hologram vanishes and the shooter takes
+  `HOLOGRAM_PENALTY` (50%) of it; then the current player's chosen swap (`swapTargetId`) happens.
+  Holograms must stay visually identical to the real tank.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
-  signature colours and a 3-tier loadout. kie uses the default Shell / Heavy / Mega. tones' tier 1 is ten-1
-  (water jet: pressure ramps 0→full over 2s, holds 0.7s, eases off over 1.2s). kcaj has
+  signature colours and a 3-tier loadout. kie: Shell / Heavy / Trollogram (2 holograms; on later turns tap
+  one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure ramps 0→full over 2s,
+  holds 0.7s, eases off over 1.2s) / Heavy / Mega. kcaj has
   Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
   at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
   micro-detonate; ignores aiming and never hurts kcaj). Ammo is
@@ -44,7 +50,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   Remembered in localStorage. The engine itself supports more players.
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, FIRE button).
-- `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together.
+- `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`
+  (live state + renderer) for e2e tests that need world positions.
 
 ## Conventions
 - Mobile first: touch/pointer events only, landscape layout, respect safe-area insets, keep tanks and

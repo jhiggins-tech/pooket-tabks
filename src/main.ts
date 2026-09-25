@@ -1,7 +1,7 @@
 import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
-import { adjustAim, createGame, fire, selectTier, setAim, step } from './game/game';
+import { adjustAim, createGame, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -38,6 +38,12 @@ bindControls(canvas, {
   setAim: (a, p) => setAim(state, a, p),
   adjust: (da, dp) => adjustAim(state, da, dp),
   selectTier: (t) => selectTier(state, t),
+  tap: (x, y) => {
+    const w = renderer.screenToWorld(x, y);
+    // Generous finger-sized radius (~30 CSS px).
+    const holo = hologramAt(state, w.x, w.y, 30 / renderer.cssScale);
+    if (holo) toggleSwapTarget(state, holo.id);
+  },
   fire: () => fire(state),
 });
 
@@ -50,6 +56,11 @@ document.getElementById('change-players')!.addEventListener('click', () => {
   document.getElementById('gameover')!.hidden = true;
   setup.show();
 });
+
+// `?debug` exposes the live game to automated tests (read it, don't write it).
+if (new URLSearchParams(location.search).has('debug')) {
+  Object.assign(window, { __pooket: { get state() { return state; }, renderer } });
+}
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */
 async function goFullscreen(): Promise<void> {

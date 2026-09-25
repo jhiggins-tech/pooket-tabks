@@ -18,10 +18,12 @@ describe('roster', () => {
     }
   });
 
-  it('kie uses the default shells, growing in blast radius', () => {
-    const c = getCharacter('kie');
-    expect(c.loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
-    const radii = c.loadout.map((w) => getWeapon(w).blastRadius);
+  it("kie's loadout is Shell, Heavy Shell, Trollogram", () => {
+    expect(getCharacter('kie').loadout).toEqual(['shell', 'heavy-shell', 'trollogram']);
+  });
+
+  it('the shell tiers grow in blast radius', () => {
+    const radii = ['shell', 'heavy-shell', 'mega-shell'].map((w) => getWeapon(w).blastRadius);
     expect(radii[0]!).toBeLessThan(radii[1]!);
     expect(radii[1]!).toBeLessThan(radii[2]!);
   });
@@ -48,7 +50,7 @@ describe('roster', () => {
   });
 
   it('summarises a loadout for the setup screen', () => {
-    expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Heavy ×3 · Mega ×1');
+    expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Heavy ×3 · Trollogram ×1');
     expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · Heavy ×3 · Mega ×1');
   });
 });

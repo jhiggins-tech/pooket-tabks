@@ -43,7 +43,7 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await expect(weapons).toHaveCount(3);
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Shell, 5 left');
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Heavy Shell, 3 left');
-  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Mega Shell, 1 left');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Trollogram, 1 left');
   await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
 
   // Slingshot: pull down-left from the middle of the screen => aim up-right.
@@ -60,9 +60,9 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.getByRole('button', { name: 'More power' }).tap();
   await expect(page.locator('#power')).toHaveText(String(Math.min(100, powerBefore + 1)));
 
-  // Fire the one-and-only tier 3 round.
-  await weapons.nth(2).tap();
-  await expect(weapons.nth(2)).toHaveAttribute('aria-pressed', 'true');
+  // Fire a tier 2 Heavy Shell.
+  await weapons.nth(1).tap();
+  await expect(weapons.nth(1)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#fire').tap();
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
@@ -143,6 +143,60 @@ test("tones' ten-1 water jet", async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-phase', 'flying');
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 20_000 });
+  expect(errors).toEqual([]);
+});
+
+test("kie's Trollogram decoys and secret swap", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=31&debug');
+  await page.getByLabel('Player 1 character').selectOption('kie');
+  await page.getByLabel('Player 2 character').selectOption('kcaj');
+  await page.locator('#start').tap();
+
+  type Debug = { state: { holograms: { id: number; x: number; y: number }[]; players: { x: number; y: number }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } };
+  const holos = () => page.evaluate(() => (window as unknown as { __pooket: Debug }).__pooket.state.holograms.map((h) => ({ ...h })));
+  const kiePos = () => page.evaluate(() => {
+    const p = (window as unknown as { __pooket: Debug }).__pooket.state.players[0]!;
+    return { x: p.x, y: p.y };
+  });
+
+  // Turn 1: kie deploys Trollogram. No aiming needed.
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Trollogram, 1 left');
+  await weapons.nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'test-results/trollogram-deploy.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  expect(await holos()).toHaveLength(2);
+
+  // Turn 2: kcaj fires a laser straight up, missing everything.
+  await weapons.nth(1).tap();
+  for (let i = 0; i < 45; i++) await page.getByRole('button', { name: 'Aim right' }).tap();
+  await expect(page.locator('#angle')).toHaveText('90° ▸');
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
+
+  // Turn 3: kie taps a decoy to swap with it after firing.
+  await expect(page.locator('#hint')).toHaveText('Drag to aim · tap a decoy to swap after firing');
+  const [target] = await holos();
+  const screen = await page.evaluate(
+    ([x, y]) => (window as unknown as { __pooket: Debug }).__pooket.renderer.worldToScreen(x, y),
+    [target!.x, target!.y - 8] as const,
+  );
+  await page.touchscreen.tap(screen.x, screen.y);
+  await expect(page.locator('#hint')).toHaveText('Swapping to that decoy after you fire');
+  await page.waitForTimeout(1600);
+  await page.screenshot({ path: 'test-results/trollogram-pick.png' });
+
+  const before = await kiePos();
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 15_000 });
+  const after = await kiePos();
+  expect(after.x).toBe(target!.x);
+  expect((await holos()).some((h) => h.x === before.x)).toBe(true);
   expect(errors).toEqual([]);
 });
 

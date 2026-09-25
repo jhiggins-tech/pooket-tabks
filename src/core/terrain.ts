@@ -91,8 +91,8 @@ export class Terrain {
     return len < 1e-6 ? { x: 0, y: -1 } : { x: nx / len, y: ny / len };
   }
 
-  /** Darken and cool the soil within radius r where water lands. Cosmetic only; each pixel wets once. */
-  wetCircle(cx: number, cy: number, r: number): void {
+  /** Darken the soil within radius r where liquid lands, tinted towards its colour. Cosmetic; each pixel wets once. */
+  wetCircle(cx: number, cy: number, r: number, tint: readonly [number, number, number] = [60, 140, 220]): void {
     const x0 = Math.max(0, Math.floor(cx - r));
     const x1 = Math.min(this.width - 1, Math.ceil(cx + r));
     const y0 = Math.max(0, Math.floor(cy - r));
@@ -105,9 +105,9 @@ export class Terrain {
         if (this.solid[i] === 0 || this.wet[i] === 1) continue;
         this.wet[i] = 1;
         const p = i * 4;
-        this.pixels[p] = this.pixels[p]! * 0.6;
-        this.pixels[p + 1] = this.pixels[p + 1]! * 0.62 + 6;
-        this.pixels[p + 2] = this.pixels[p + 2]! * 0.7 + 22;
+        this.pixels[p] = this.pixels[p]! * 0.6 + tint[0] * 0.14;
+        this.pixels[p + 1] = this.pixels[p + 1]! * 0.6 + tint[1] * 0.14;
+        this.pixels[p + 2] = this.pixels[p + 2]! * 0.6 + tint[2] * 0.14;
         changed = true;
       }
     }

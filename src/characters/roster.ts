@@ -16,9 +16,6 @@ export interface CharacterDef {
   loadout: Loadout;
 }
 
-/** Proof-of-concept loadout for characters that don't have their own weapons yet. */
-const DEFAULT_LOADOUT: Loadout = ['shell', 'heavy-shell', 'mega-shell'];
-
 export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'tones',
@@ -30,9 +27,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'kie',
     name: 'kie',
-    blurb: 'Standard-issue shells in three sizes.',
+    blurb: 'Trollogram: hologram decoys he can secretly swap with.',
     colours: ['#4ea8ff', '#46d27a', '#2dd4bf'],
-    loadout: DEFAULT_LOADOUT,
+    loadout: ['shell', 'heavy-shell', 'trollogram'],
   },
   {
     id: 'kcaj',

@@ -240,13 +240,7 @@ body[data-aimless='true'] .pad.left {
 body[data-aimless='true'] .pad.left button {
   pointer-events: none;
 }
-body[data-aimless='true'] .hint {
-  font-size: 0;
-}
-body[data-aimless='true'] .hint::after {
-  content: 'No aiming needed. Just FIRE';
-  font-size: 12px;
-}
+
 
 /* ---------- Overlays ---------- */
 .overlay {

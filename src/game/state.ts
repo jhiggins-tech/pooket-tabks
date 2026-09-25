@@ -31,6 +31,8 @@ export interface Player {
   burn: { damagePerTurn: number; turnsLeft: number; colour: string } | null;
   /** Fractional stream damage soaked up but not yet applied (applied in small batches). */
   soak: number;
+  /** Colour for the soak damage numbers (the liquid's colour). */
+  soakColour: string;
 }
 
 export interface Projectile {
@@ -56,6 +58,23 @@ export interface Beam {
   hitTank: boolean;
   age: number;
   duration: number;
+}
+
+/**
+ * A hologram copy of a player's tank. Drawn identically to the real tank and hit-tested like one.
+ * Damage it "takes" is recorded against whoever dealt it; they pay half at the end of the turn.
+ */
+export interface Hologram {
+  id: number;
+  ownerId: number;
+  x: number;
+  y: number;
+  /** Would-be damage dealt to this hologram this turn, by shooter. */
+  hits: { shooterId: number; damage: number }[];
+  /** Fractional stream damage soaked this turn, and who is spraying it. */
+  soak: number;
+  soakShooterId: number;
+  soakColour: string;
 }
 
 /** A liquid jet in progress (emits droplets while its pressure profile runs). */
@@ -117,6 +136,8 @@ export interface Explosion {
   radius: number;
   age: number;
   duration: number;
+  /** Cosmetic ring (e.g. holograms appearing / vanishing) instead of a fireball. */
+  ring?: string;
 }
 
 export type Phase = 'aiming' | 'flying' | 'settling' | 'gameover';
@@ -130,6 +151,9 @@ export interface GameState {
   phase: Phase;
   projectiles: Projectile[];
   beams: Beam[];
+  holograms: Hologram[];
+  /** Hologram the current player will swap with once their shot has resolved. */
+  swapTargetId: number | null;
   streams: Stream[];
   droplets: Droplet[];
   splashes: Splash[];
