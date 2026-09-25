@@ -27,8 +27,11 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
+  Optional fields: `volley` (several projectiles fanned across ±spreadDeg) and `sprite` (drawn rotated along
+  the flight path; sprites are SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`).
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
-  signature colours and a 3-tier loadout (all share the PoC default Shell / Heavy / Mega for now). Ammo is
+  signature colours and a 3-tier loadout. tones and kie use the default Shell / Heavy / Mega; kcaj's tier 1
+  is Double Park (two ice cream cones at aim ±2°, small blast). Ammo is
   5 / 3 / 1 rounds for tiers 1–3 (`AMMO_PER_TIER`). Duplicate picks get distinct alternate colours.
 - `src/ui/setup.ts` + `src/ui/seats.ts`: setup screen. PoC matches are exactly 2 players (`PLAYER_COUNT`),
   each picking a character; the name field pre-fills with the character name and stays editable.

@@ -159,6 +159,10 @@ button:disabled {
 }
 .weapon .wname {
   font-size: 13px;
+  white-space: nowrap;
+}
+.weapon .wname.long {
+  font-size: 11px;
 }
 .weapon .pips {
   font-size: 9px;
@@ -366,6 +370,7 @@ button.big {
   .readout span { font-size: 15px; }
   .weapon { width: 80px; height: 38px; }
   .weapon .wname { font-size: 12px; }
+  .weapon .wname.long { font-size: 10px; }
 }
 @media (max-width: 700px) {
   .setup-row .loadout { display: none; }

@@ -72,6 +72,7 @@ export class Hud {
         const name = document.createElement('span');
         name.className = 'wname';
         name.textContent = w.shortName;
+        name.classList.toggle('long', w.shortName.length > 8);
         const pips = document.createElement('span');
         pips.className = 'pips';
         const max = AMMO_PER_TIER[tier] ?? left;

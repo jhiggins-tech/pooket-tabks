@@ -129,20 +129,31 @@ export function fire(state: GameState): boolean {
     const next = p.ammo.findIndex((n) => n > 0);
     if (next >= 0) p.selectedTier = next;
   }
-  const a = (p.angle * Math.PI) / 180;
+  const weapon = weaponForTier(p, tier);
   const speed = (p.power / 100) * MAX_SPEED;
   const m = muzzle(p);
-  state.projectiles.push({
-    x: m.x,
-    y: m.y,
-    vx: Math.cos(a) * speed,
-    vy: -Math.sin(a) * speed,
-    weaponId: p.loadout[tier]!,
-    ownerId: p.id,
-    trail: [],
-  });
+  for (const offset of volleyOffsets(weapon)) {
+    const a = ((p.angle + offset) * Math.PI) / 180;
+    state.projectiles.push({
+      x: m.x,
+      y: m.y,
+      vx: Math.cos(a) * speed,
+      vy: -Math.sin(a) * speed,
+      weaponId: weapon.id,
+      ownerId: p.id,
+      trail: [],
+    });
+  }
   state.phase = 'flying';
   return true;
+}
+
+/** Angle offsets (degrees) for each projectile in a round, spread evenly across ±spreadDeg. */
+export function volleyOffsets(weapon: WeaponDef): number[] {
+  const count = weapon.volley?.count ?? 1;
+  const spread = weapon.volley?.spreadDeg ?? 0;
+  if (count <= 1) return [0];
+  return Array.from({ length: count }, (_, i) => -spread + (2 * spread * i) / (count - 1));
 }
 
 /** Advance the simulation by dt seconds. Pure logic: no DOM, safe to run in tests. */

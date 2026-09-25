@@ -24,7 +24,18 @@ export const megaShell: WeaponDef = {
   damage: 45,
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell];
+/** kcaj's tier 1: two ice cream cones fanned ±2° either side of the aim. */
+export const doublePark: WeaponDef = {
+  id: 'double-park',
+  name: 'Double Park',
+  shortName: 'Double Park',
+  blastRadius: 16,
+  damage: 25,
+  volley: { count: 2, spreadDeg: 2 },
+  sprite: 'ice-cream-cone',
+};
+
+const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

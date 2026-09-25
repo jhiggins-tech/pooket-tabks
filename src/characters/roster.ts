@@ -16,7 +16,7 @@ export interface CharacterDef {
   loadout: Loadout;
 }
 
-/** Proof-of-concept loadout shared by everyone until characters get their own weapons. */
+/** Proof-of-concept loadout for characters that don't have their own weapons yet. */
 const DEFAULT_LOADOUT: Loadout = ['shell', 'heavy-shell', 'mega-shell'];
 
 export const ROSTER: readonly CharacterDef[] = [
@@ -37,9 +37,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'kcaj',
     name: 'kcaj',
-    blurb: 'Standard-issue shells in three sizes.',
+    blurb: 'Double Park: two ice cream cones per shot.',
     colours: ['#ffc53d', '#c77dff', '#e2e8f0'],
-    loadout: DEFAULT_LOADOUT,
+    loadout: ['double-park', 'heavy-shell', 'mega-shell'],
   },
 ];
 

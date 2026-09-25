@@ -1,7 +1,9 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
 import { currentPlayer, muzzle, tankCentre } from '../game/game';
-import type { GameState, Player } from '../game/state';
+import type { GameState, Player, Projectile } from '../game/state';
+import { getWeapon } from '../weapons/registry';
+import { loadSprites } from './sprites';
 
 const MAX_DPR = 2; // Cap backing-store size so older phones keep 60fps.
 
@@ -20,6 +22,7 @@ export class Renderer {
   private offsetY = 0;
   private dpr = 1;
   private time = 0;
+  private readonly sprites = loadSprites();
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -174,11 +177,28 @@ export class Renderer {
         ctx.arc(t.x, t.y, 1.5, 0, Math.PI * 2);
         ctx.fill();
       });
-      ctx.fillStyle = '#111';
-      ctx.beginPath();
-      ctx.arc(pr.x, pr.y, 3.5, 0, Math.PI * 2);
-      ctx.fill();
+      if (!this.drawSprite(pr)) {
+        ctx.fillStyle = '#111';
+        ctx.beginPath();
+        ctx.arc(pr.x, pr.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
+  }
+
+  /** Draws the weapon's sprite rotated along the velocity. Returns false if there isn't one (yet). */
+  private drawSprite(pr: Projectile): boolean {
+    const id = getWeapon(pr.weaponId).sprite;
+    const sprite = id && this.sprites[id];
+    if (!sprite || !sprite.image.complete || sprite.image.naturalWidth === 0) return false;
+    const { ctx } = this;
+    ctx.save();
+    ctx.translate(pr.x, pr.y);
+    ctx.rotate(Math.atan2(pr.vy, pr.vx));
+    // Anchor near the tip so the sprite's nose sits on the collision point.
+    ctx.drawImage(sprite.image, -sprite.width * 0.85, -sprite.height / 2, sprite.width, sprite.height);
+    ctx.restore();
+    return true;
   }
 
   private drawExplosions(state: GameState): void {

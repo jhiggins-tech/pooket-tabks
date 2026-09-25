@@ -11,13 +11,26 @@ describe('roster', () => {
     expect(AMMO_PER_TIER).toEqual([5, 3, 1]);
   });
 
-  it('every character has a valid three-tier loadout of growing blast radius', () => {
+  it('every character has a valid three-tier loadout', () => {
     for (const c of ROSTER) {
+      expect(c.loadout).toHaveLength(3);
+      for (const id of c.loadout) expect(() => getWeapon(id)).not.toThrow();
+    }
+  });
+
+  it('tones and kie use the default shells, growing in blast radius', () => {
+    for (const id of ['tones', 'kie']) {
+      const c = getCharacter(id);
       expect(c.loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
-      const radii = c.loadout.map((id) => getWeapon(id).blastRadius);
+      const radii = c.loadout.map((w) => getWeapon(w).blastRadius);
       expect(radii[0]!).toBeLessThan(radii[1]!);
       expect(radii[1]!).toBeLessThan(radii[2]!);
     }
+  });
+
+  it("kcaj's base weapon is Double Park", () => {
+    expect(getCharacter('kcaj').loadout).toEqual(['double-park', 'heavy-shell', 'mega-shell']);
+    expect(loadoutSummary(getCharacter('kcaj'))).toBe('Double Park ×5 · Heavy ×3 · Mega ×1');
   });
 
   it('each character has its own signature colour', () => {

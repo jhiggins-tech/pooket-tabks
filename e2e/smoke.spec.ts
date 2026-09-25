@@ -67,12 +67,20 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   await expect(page.locator('.chip.active .name')).toHaveText('kcaj');
-  // Player 2 has their own full inventory.
+  // Player 2 (kcaj) has their own full inventory, led by Double Park.
+  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Double Park, 5 left');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Mega Shell, 1 left');
   await expect(weapons.nth(2)).toBeEnabled();
 
   await page.waitForTimeout(1700); // let the turn banner fade for a clean screenshot
   await page.screenshot({ path: 'test-results/phone-landscape.png' });
+
+  // kcaj fires Double Park: a volley of two ice cream cones.
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(450);
+  await page.screenshot({ path: 'test-results/double-park.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
+  await expect(page.locator('.chip.active .name')).toHaveText('Jack');
   expect(errors).toEqual([]);
 });
 
