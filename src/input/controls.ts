@@ -6,6 +6,30 @@ export interface ControlHandlers {
 }
 
 const DRAG_DEADZONE_PX = 10;
+/** Pull length for 100% power, as a fraction of the screen's short side (~110px on a phone). */
+const FULL_POWER_DRAG_FRACTION = 0.3;
+const MIN_FULL_POWER_DRAG_PX = 80;
+
+/**
+ * Slingshot maths: a pull of (dx, dy) screen px from the touch start (screen y down)
+ * aims the opposite way. Returns null inside the deadzone.
+ */
+export function dragToAim(
+  dx: number,
+  dy: number,
+  fullPowerPx: number,
+): { angle: number; power: number } | null {
+  const len = Math.hypot(dx, dy);
+  if (len < DRAG_DEADZONE_PX) return null;
+  let angle = (Math.atan2(dy, -dx) * 180) / Math.PI;
+  if (angle < 0) angle = angle < -90 ? 180 : 0; // pulled upward: clamp to horizon
+  const power = Math.min(100, ((len - DRAG_DEADZONE_PX) / fullPowerPx) * 100);
+  return { angle, power };
+}
+
+export function fullPowerDragPx(viewportW: number, viewportH: number): number {
+  return Math.max(MIN_FULL_POWER_DRAG_PX, Math.min(viewportW, viewportH) * FULL_POWER_DRAG_FRACTION);
+}
 
 /**
  * Touch-first controls.
@@ -17,8 +41,6 @@ const DRAG_DEADZONE_PX = 10;
 export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): void {
   let drag: { id: number; x: number; y: number } | null = null;
 
-  const fullPowerDragPx = () => Math.max(120, Math.min(window.innerWidth, window.innerHeight) * 0.55);
-
   canvas.addEventListener('pointerdown', (e) => {
     if (!h.canAim() || drag) return;
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
@@ -27,14 +49,12 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
 
   canvas.addEventListener('pointermove', (e) => {
     if (!drag || e.pointerId !== drag.id || !h.canAim()) return;
-    const dx = drag.x - e.clientX;
-    const dy = drag.y - e.clientY;
-    const len = Math.hypot(dx, dy);
-    if (len < DRAG_DEADZONE_PX) return;
-    let angle = (Math.atan2(-dy, dx) * 180) / Math.PI; // screen y is down
-    if (angle < 0) angle = angle < -90 ? 180 : 0; // pulled upward: clamp to horizon
-    const power = Math.min(100, ((len - DRAG_DEADZONE_PX) / fullPowerDragPx()) * 100);
-    h.setAim(angle, power);
+    const aim = dragToAim(
+      e.clientX - drag.x,
+      e.clientY - drag.y,
+      fullPowerDragPx(window.innerWidth, window.innerHeight),
+    );
+    if (aim) h.setAim(aim.angle, aim.power);
   });
 
   const endDrag = (e: PointerEvent) => {
