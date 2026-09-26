@@ -7,10 +7,11 @@ describe('roster', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
   });
 
-  it('the new characters use placeholder shells, apart from torikloud’s Sonic Boom', () => {
+  it('torikloud has Sonic Boom, ciarra is still on placeholders, larinovsky has his own kit', () => {
     expect(getCharacter('torikloud').loadout).toEqual(['shell', 'sonic-boom', 'mega-shell']);
     expect(getCharacter('ciarra').loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
-    expect(getCharacter('larinovsky').loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
+    expect(getCharacter('larinovsky').loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap']);
+    expect(loadoutSummary(getCharacter('larinovsky'))).toBe('Pill Pusher ×5 · the Rizzler ×3 · Take a Nap ×1');
   });
 
   it('uses 5 / 3 / 1 rounds for tiers 1-3', () => {

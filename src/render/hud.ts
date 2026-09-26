@@ -34,7 +34,7 @@ export class Hud {
       state.swapTargetId,
       jetCountdown(state),
       p.ammo.join(','),
-      ...state.players.map((pl) => `${pl.hp}${pl.name}${pl.burn?.turnsLeft ?? ''}`),
+      ...state.players.map((pl) => `${pl.hp}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}`),
     ].join('|');
     if (key === this.last) return;
     this.last = key;
@@ -72,6 +72,13 @@ export class Hud {
         const fill = document.createElement('span');
         fill.style.width = `${(pl.hp / MAX_HP) * 100}%`;
         bar.append(fill);
+        if (pl.cooked && pl.alive) {
+          const cooked = document.createElement('span');
+          cooked.className = 'cooked';
+          cooked.textContent = ' 🍳';
+          cooked.title = pl.cooked.active ? 'Cooked: half damage this turn' : 'Cooked: half damage next turn';
+          name.append(cooked);
+        }
         if (pl.burn && pl.alive) {
           const burn = document.createElement('span');
           burn.className = 'burn';

@@ -2,6 +2,7 @@ import iceCreamConeUrl from '../assets/sprites/ice-cream-cone.svg';
 import pillUrl from '../assets/sprites/pill.svg';
 import weaselUrl from '../assets/sprites/weasel.svg';
 import kookaburraUrl from '../assets/sprites/kookaburra.svg';
+import rizzUrl from '../assets/sprites/rizz.svg';
 import type { SpriteId } from '../weapons/types';
 
 interface SpriteDef {
@@ -16,6 +17,7 @@ const SPRITES: Record<SpriteId, SpriteDef> = {
   pill: { url: pillUrl, width: 14, height: 7 },
   weasel: { url: weaselUrl, width: 32, height: 16 },
   kookaburra: { url: kookaburraUrl, width: 46, height: 40 },
+  rizz: { url: rizzUrl, width: 20, height: 18 },
 };
 
 export interface LoadedSprite extends SpriteDef {

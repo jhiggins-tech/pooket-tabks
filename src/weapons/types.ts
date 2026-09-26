@@ -1,5 +1,5 @@
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra';
+export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'rizz';
 
 /**
  * How a weapon is delivered:
@@ -11,8 +11,9 @@ export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra';
  * - `jetpack`: the firer's own tank charges up, then launches along the aim (see `jetpack`).
  * - `spew`: a short-range gush of chunky gunk from the barrel (see `spew`).
  * - `sonic`: expanding arcs of sound that pass through terrain (see `sonic`).
+ * - `heal`: no shot; the firer naps and wakes at full health (see `heal`). Ignores aiming.
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack' | 'spew' | 'sonic';
+export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack' | 'spew' | 'sonic' | 'heal';
 
 /**
  * Sonic weapons: `waves` arcs, `interval` s apart, expand from the barrel at `speed` px/s across
@@ -139,6 +140,18 @@ export interface WeaponDef {
   spew?: SpewSpec;
   /** Particles from jetpack/spew weapons. */
   gunk?: GunkSpec;
+  /**
+   * Ballistic weapons can fire a series of rounds: `count` shots `interval` s apart along the aim, each
+   * with its power varied by up to ±`powerJitter` (a fraction), so they walk across the target area.
+   */
+  burst?: { count: number; interval: number; powerJitter: number };
+  /**
+   * "Cook" debuff: any enemy tank caught in the blast deals `offenceMultiplier` × damage with everything
+   * it fires on its next turn.
+   */
+  debuff?: { offenceMultiplier: number };
+  /** Heal weapons: nap for `napTime` s, then wake at full health. */
+  heal?: { napTime: number };
   /** Sonic weapons: the waves. */
   sonic?: SonicSpec;
   /** Something that appears in the sky above the tank when fired (cosmetic). */

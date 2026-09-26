@@ -282,8 +282,8 @@ test("torikloud's Sonic Boom and the kookaburra in the sky", async ({ page }) =>
   await page.waitForTimeout(700);
   await page.screenshot({ path: 'test-results/sonic-boom-2.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
-  // larinovsky has the placeholder shells for now.
-  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Heavy Shell, 3 left');
+  // larinovsky's own kit.
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'the Rizzler, 3 left');
   expect(errors).toEqual([]);
 });
 
@@ -317,6 +317,27 @@ test('drive with fuel before firing', async ({ page }) => {
   // After firing, driving does nothing.
   await page.locator('#fire').tap();
   await expect(right).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
+test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777');
+  await page.getByLabel('Player 1 character').selectOption('larinovsky');
+  await page.locator('#start').tap();
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Pill Pusher, 5 left');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'the Rizzler, 3 left');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Take a Nap, 1 left');
+
+  await weapons.nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
+  await weapons.nth(0).tap();
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: 'test-results/pill-pusher.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   expect(errors).toEqual([]);
 });
 

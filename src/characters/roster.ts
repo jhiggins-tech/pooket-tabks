@@ -58,9 +58,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'larinovsky',
     name: 'larinovsky',
-    blurb: 'Standard-issue shells (for now).',
+    blurb: 'Pill Pusher, the Rizzler, and a well-earned nap.',
     colours: ['#34d399', '#a3e635', '#22d3ee'],
-    loadout: PLACEHOLDER_LOADOUT,
+    loadout: ['pill-pusher', 'the-rizzler', 'take-a-nap'],
   },
 ];
 

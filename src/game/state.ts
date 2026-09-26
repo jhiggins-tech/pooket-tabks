@@ -33,6 +33,11 @@ export interface Player {
   soak: number;
   /** Colour for the soak damage numbers (the liquid's colour). */
   soakColour: string;
+  /**
+   * The Rizzler's "cook" debuff: pending until this player's next turn starts, active during that turn
+   * (everything they fire deals `multiplier` × damage), then gone.
+   */
+  cooked: { active: boolean; multiplier: number } | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
   /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
@@ -154,6 +159,25 @@ export interface Jet {
   heading: number;
 }
 
+/** A series of rounds being fired one after another (Pill Pusher). */
+export interface Burst {
+  playerId: number;
+  weaponId: string;
+  angle: number;
+  power: number;
+  fired: number;
+  elapsed: number;
+}
+
+/** A player napping (Take a Nap); wakes at full health. */
+export interface Nap {
+  playerId: number;
+  weaponId: string;
+  elapsed: number;
+  /** Seconds until the next "z" floats up (cosmetic). */
+  nextZ: number;
+}
+
 /** A spew weapon gushing from a player's barrel. */
 export interface Spew {
   playerId: number;
@@ -263,6 +287,8 @@ export interface GameState {
   streams: Stream[];
   jets: Jet[];
   spews: Spew[];
+  bursts: Burst[];
+  naps: Nap[];
   booms: Boom[];
   apparitions: Apparition[];
   sludge: Sludge[];

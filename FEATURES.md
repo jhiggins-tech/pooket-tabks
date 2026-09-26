@@ -5,11 +5,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Queue
 
 1. ✅ **Fuel meter**: shipped (see below).
-2. _(empty; next requests go here)_
+2. ✅ **larinovsky's kit**: Pill Pusher / the Rizzler / Take a Nap, shipped (see below).
+3. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
-- Weapons for **ciarra** and **larinovsky** (currently placeholder Shell / Heavy / Mega).
+- Weapons for **ciarra** (currently placeholder Shell / Heavy / Mega).
 - **torikloud** tier 1 and tier 3 (currently placeholder Shell / Mega).
 - Hide the Trollogram "flat pad" tell: decoys spawn on natural slopes while the real tank starts on a
   flattened pad.
@@ -47,4 +48,4 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Shell (placeholder) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky | Mega (placeholder) |
 | **ciarra** | Shell (placeholder) | Heavy (placeholder) | Mega (placeholder) |
-| **larinovsky** | Shell (placeholder) | Heavy (placeholder) | Mega (placeholder) |
+| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target | the Rizzler: blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |

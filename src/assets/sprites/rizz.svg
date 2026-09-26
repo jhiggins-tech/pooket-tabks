@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="36" viewBox="0 0 40 36">
+  <!-- the Rizzler: a smug pink heart in shades -->
+  <path d="M20 34 C9 26 2 19 2 11.5 C2 5.5 6.5 2 11.5 2 C15.2 2 18.2 4 20 7 C21.8 4 24.8 2 28.5 2 C33.5 2 38 5.5 38 11.5 C38 19 31 26 20 34 Z" fill="#ff6fb5" stroke="#7a1d4f" stroke-width="1.6"/>
+  <path d="M8 8 C9.5 5.5 12.5 4.8 14.5 5.8" fill="none" stroke="#ffd6ea" stroke-width="2" stroke-linecap="round"/>
+  <!-- shades -->
+  <path d="M6.5 13 H33.5" stroke="#111" stroke-width="1.8"/>
+  <path d="M7.5 13 H18 L17 18 C16.5 20 14.5 21 12.5 21 C10 21 8 19.5 7.8 17 Z" fill="#111"/>
+  <path d="M22 13 H32.5 L32.2 17 C32 19.5 30 21 27.5 21 C25.5 21 23.5 20 23 18 Z" fill="#111"/>
+  <path d="M9.5 14.5 L12 14.5 M24 14.5 L26.5 14.5" stroke="#8fd3ff" stroke-width="1.2" stroke-linecap="round"/>
+  <!-- smirk -->
+  <path d="M15 25 C18 27 22.5 26.5 25.5 23.5" fill="none" stroke="#7a1d4f" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- sparkle -->
+  <path d="M35 24 L36 27 L39 28 L36 29 L35 32 L34 29 L31 28 L34 27 Z" fill="#fff6a8"/>
+</svg>

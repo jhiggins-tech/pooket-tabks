@@ -50,6 +50,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `spin` (tumble the sprite in
   flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
   small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`), `trail`.
+- Outgoing damage is scaled by the shooter's `offence()` (1, or 0.5 while cooked) at every source: blasts,
+  beams, burns, sonic waves, stream soak, gunk doses and puddles.
 - Hit-testing goes through `targetAt()` / `Target` (a real tank or a hologram). Damage goes through
   `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
   damage, and at the end of the turn (`resolveHolograms()`) any hit hologram vanishes and the shooter takes
@@ -58,8 +60,11 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   (`Hologram.age`), exposed ones dissolve (`ghosts`), and all of a player's copies shimmer together at the
   end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj`, `torikloud`, `ciarra`,
-  `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout. ciarra and
-  larinovsky use the placeholder Shell / Heavy / Mega for now; torikloud has Shell / Sonic Boom / Mega. kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that
+  `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout. ciarra uses the
+  placeholder Shell / Heavy / Mega for now; torikloud has Shell / Sonic Boom / Mega. larinovsky: Pill
+  Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`debuff`: "cooks" enemies in the blast;
+  `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
+  clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that
   land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (2 holograms; on later turns
   tap one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)

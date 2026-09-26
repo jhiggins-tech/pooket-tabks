@@ -166,6 +166,34 @@ export class Renderer {
     const c = tankCentre(p);
     const isCurrent = !at && state.players[state.current] === owner && state.phase !== 'gameover';
 
+    if (p.cooked && p.alive) {
+      // Cooked: an orange heat glow and wisps of steam rising off the hull.
+      const heat = ctx.createRadialGradient(c.x, c.y + 4, 2, c.x, c.y + 4, 20);
+      heat.addColorStop(0, `rgba(255,140,40,${0.35 + 0.15 * Math.sin(this.time * 6)})`);
+      heat.addColorStop(1, 'rgba(255,120,30,0)');
+      ctx.fillStyle = heat;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y + 4, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.lineWidth = 1.4;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const k = (this.time * 0.8 + i / 3) % 1;
+        const x0 = c.x - 6 + i * 6;
+        ctx.strokeStyle = `rgba(240,240,255,${0.6 * (1 - k)})`;
+        ctx.beginPath();
+        for (let j = 0; j <= 6; j++) {
+          const y = c.y - 8 - j * 2 - k * 10;
+          const x = x0 + Math.sin(j * 1.3 + this.time * 5 + i) * 1.6;
+          if (j === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
     if (p.burn && p.alive) {
       // Pulsing glow while a Hyperfixate burn is still ticking.
       const pulse = 0.55 + 0.45 * Math.sin(this.time * 8);

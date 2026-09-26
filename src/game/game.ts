@@ -19,7 +19,22 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { Boom, Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Puddle, Sludge, Spew, Stream } from './state';
+import type {
+  Boom,
+  Burst,
+  Droplet,
+  GameState,
+  Hologram,
+  Jet,
+  Nap,
+  Player,
+  PlayerConfig,
+  Projectile,
+  Puddle,
+  Sludge,
+  Spew,
+  Stream,
+} from './state';
 
 /** Something a shot can hit: a real tank or a hologram of one. */
 export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
@@ -79,6 +94,7 @@ export function createGame(cfg: GameConfig): GameState {
       burn: null,
       soak: 0,
       soakColour: '#ffffff',
+      cooked: null,
       fuel: FUEL_PER_MATCH,
       toxin: 0,
       toxinRate: 0,
@@ -101,6 +117,8 @@ export function createGame(cfg: GameConfig): GameState {
     streams: [],
     jets: [],
     spews: [],
+    bursts: [],
+    naps: [],
     booms: [],
     apparitions: [],
     sludge: [],
@@ -179,7 +197,7 @@ function hullRest(state: GameState, x: number, fromY: number): number {
 export function isAimless(state: GameState): boolean {
   const p = currentPlayer(state);
   const kind = weaponForTier(p, p.selectedTier).kind ?? 'ballistic';
-  return kind === 'rain' || kind === 'decoy';
+  return kind === 'rain' || kind === 'decoy' || kind === 'heal';
 }
 
 export function setAim(state: GameState, angle: number, power: number): void {
@@ -268,8 +286,15 @@ export function fire(state: GameState): boolean {
         heading: (p.angle * Math.PI) / 180,
       });
       break;
+    case 'heal':
+      state.naps.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, nextZ: 0 });
+      break;
     case 'ballistic':
-      fireBallistic(state, p, weapon);
+      if (weapon.burst) {
+        state.bursts.push({ playerId: p.id, weaponId: weapon.id, angle: p.angle, power: p.power, fired: 0, elapsed: 0 });
+      } else {
+        fireBallistic(state, p, weapon);
+      }
       break;
   }
   if (weapon.apparition) {
@@ -321,11 +346,11 @@ function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
     state.terrain.carveCircle(end.x, end.y, weapon.blastRadius);
     settleTanks(state);
   } else if (end.hit) {
-    damageTarget(state, end.hit, weapon.damage, p.id);
+    damageTarget(state, end.hit, scaled(state, p.id, weapon.damage), p.id);
     const target = end.hit.kind === 'player' ? end.hit.player : null;
     if (weapon.dot && target?.alive) {
       // A fresh hit refreshes the burn rather than stacking it.
-      target.burn = { damagePerTurn: weapon.dot.damagePerTurn, turnsLeft: weapon.dot.turns, colour };
+      target.burn = { damagePerTurn: scaled(state, p.id, weapon.dot.damagePerTurn), turnsLeft: weapon.dot.turns, colour };
     }
   }
 }
@@ -517,6 +542,8 @@ export function step(state: GameState, dt: number): void {
     stepSoak(state, dt, false);
     state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
     state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
+    state.bursts = state.bursts.filter((b) => !stepBurst(state, b, dt));
+    state.naps = state.naps.filter((n) => !stepNap(state, n, dt));
     state.booms = state.booms.filter((b) => !stepBoom(state, b, dt));
     state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
     stepPuddles(state, dt);
@@ -528,6 +555,8 @@ export function step(state: GameState, dt: number): void {
       state.droplets.length +
       state.jets.length +
       state.spews.length +
+      state.bursts.length +
+      state.naps.length +
       state.booms.length +
       state.sludge.length +
       state.puddles.length +
@@ -714,7 +743,7 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const target = targetAt(state, x, y);
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
       const soaked = target.kind === 'player' ? target.player : target.holo;
-      soaked.soak += weapon.stream?.damagePerDrop ?? 0;
+      soaked.soak += (weapon.stream?.damagePerDrop ?? 0) * offence(state, d.ownerId);
       soaked.soakColour = tint(d.colour, 0.35);
       if (target.kind === 'hologram') target.holo.soakShooterId = d.ownerId;
       spawnSplash(state, x, y, d, 3);
@@ -861,6 +890,57 @@ function land(state: GameState, p: Player): void {
   spawnDust(state, p.x, p.y, 1);
 }
 
+// ---- Cook debuff, bursts, naps --------------------------------------------------------------------
+
+/** Damage multiplier for everything a player fires: halved (etc.) while they're cooked. */
+export function offence(state: GameState, playerId: number): number {
+  const c = state.players[playerId]?.cooked;
+  return c?.active ? c.multiplier : 1;
+}
+
+/** Scale a hit by the shooter's offence and round it (a real hit never rounds down to 0). */
+function scaled(state: GameState, shooterId: number, amount: number): number {
+  if (Math.round(amount) <= 0) return 0;
+  return Math.max(1, Math.round(amount * offence(state, shooterId)));
+}
+
+/** Fire the next rounds of a burst as their time comes. Returns true once all are away. */
+function stepBurst(state: GameState, b: Burst, dt: number): boolean {
+  const weapon = getWeapon(b.weaponId);
+  const spec = weapon.burst!;
+  const p = state.players[b.playerId]!;
+  b.elapsed += dt;
+  while (b.fired < spec.count && b.elapsed >= b.fired * spec.interval) {
+    const m = muzzle(p);
+    const a = ((b.angle + randRange(state.rng, -1, 1)) * Math.PI) / 180;
+    const speed = (b.power / 100) * MAX_SPEED * (1 + randRange(state.rng, -spec.powerJitter, spec.powerJitter));
+    spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
+    b.fired++;
+  }
+  return b.fired >= spec.count;
+}
+
+/** Doze, with z's drifting up, then wake at full health. Returns true once awake. */
+function stepNap(state: GameState, n: Nap, dt: number): boolean {
+  const p = state.players[n.playerId]!;
+  const spec = getWeapon(n.weaponId).heal!;
+  n.elapsed += dt;
+  n.nextZ -= dt;
+  if (n.nextZ <= 0 && n.elapsed < spec.napTime - 0.3) {
+    const c = tankCentre(p);
+    spawnFloater(state, c.x + 6, c.y - 4, n.elapsed < spec.napTime / 2 ? 'z' : 'Z', '#cfe3ff');
+    n.nextZ = 0.45;
+  }
+  if (n.elapsed < spec.napTime) return false;
+  if (p.alive && p.hp < MAX_HP) {
+    const gained = MAX_HP - p.hp;
+    p.hp = MAX_HP;
+    const c = tankCentre(p);
+    spawnFloater(state, c.x, c.y, `+${gained}`, '#7ee7a8');
+  }
+  return true;
+}
+
 // ---- Sonic ---------------------------------------------------------------------------------------
 
 /** Radius of each wave of a boom right now (negative = not emitted yet). */
@@ -894,7 +974,7 @@ function stepBoom(state: GameState, b: Boom, dt: number): boolean {
     radii.forEach((r, k) => {
       if (r < d - TANK_HIT_RADIUS || b.hits[k]!.includes(key)) return;
       b.hits[k]!.push(key);
-      const dmg = Math.max(1, Math.round(spec.damage * Math.min(1, spec.refDistance / Math.max(d, 1))));
+      const dmg = scaled(state, b.ownerId, spec.damage * Math.min(1, spec.refDistance / Math.max(d, 1)));
       damageTarget(state, t, dmg, b.ownerId, getWeapon(b.weaponId).colour ?? '#c9b6ff');
     });
   }
@@ -957,11 +1037,11 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
     const target = targetAt(state, x, y);
     if (target && targetOwner(target) !== sl.ownerId) {
       if (target.kind === 'player') {
-        target.player.toxin += spec.dosePerParticle;
+        target.player.toxin += spec.dosePerParticle * offence(state, sl.ownerId);
         target.player.toxinRate = spec.dosePerSecond;
         target.player.soakColour = getWeapon(sl.weaponId).colour ?? '#9be22d';
       } else {
-        target.holo.soak += spec.dosePerParticle;
+        target.holo.soak += spec.dosePerParticle * offence(state, sl.ownerId);
         target.holo.soakShooterId = sl.ownerId;
         target.holo.soakColour = getWeapon(sl.weaponId).colour ?? '#9be22d';
       }
@@ -1039,7 +1119,7 @@ function stepPuddles(state: GameState, dt: number): void {
     const burning = state.puddles.find((p) => p.ownerId !== targetOwner(t) && touchesPuddle(p, pos.x, pos.y));
     if (!burning) continue;
     const w = getWeapon(burning.weaponId);
-    const amount = (w.gunk?.puddle?.damagePerSecond ?? 0) * dt;
+    const amount = (w.gunk?.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
     const colour = '#b6f04a';
     if (t.kind === 'player') {
       t.player.soak += amount;
@@ -1207,9 +1287,18 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     const pos = t.kind === 'player' ? t.player : t.holo;
     const reach = r + TANK_HIT_RADIUS;
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
-    if (d < reach) damageTarget(state, t, Math.round(weapon.damage * (1 - d / reach)), shooterId);
+    if (d >= reach) continue;
+    damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)), shooterId);
+    if (weapon.debuff && t.kind === 'player' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier);
   }
   settleTanks(state);
+}
+
+/** The Rizzler's debuff: halves (etc.) everything this player fires on their next turn. */
+function cook(state: GameState, p: Player, multiplier: number): void {
+  p.cooked = { active: false, multiplier };
+  const c = tankCentre(p);
+  spawnFloater(state, c.x, c.y - 10, 'COOKED', '#ff9f43');
 }
 
 /** Every source of damage goes through here so it always gets a floating number. */
@@ -1284,6 +1373,9 @@ function resolveHolograms(state: GameState): void {
 }
 
 function endTurn(state: GameState): void {
+  // A cook lasts exactly one of the victim's turns.
+  const ending = currentPlayer(state);
+  if (ending.cooked?.active) ending.cooked = null;
   resolveHolograms(state);
   // Hand the turn on. Each player whose turn comes up takes their burn damage first;
   // players who are dead or out of ammo are skipped.
@@ -1317,6 +1409,8 @@ function endTurn(state: GameState): void {
   state.current = next;
   state.turn++;
   state.phase = 'aiming';
+  const up = state.players[next]!;
+  if (up.cooked) up.cooked.active = true;
 }
 
 function tickBurn(state: GameState, p: Player): void {

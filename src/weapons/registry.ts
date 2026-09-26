@@ -186,6 +186,46 @@ export const sonicBoom: WeaponDef = {
   apparition: 'kookaburra',
 };
 
+/** larinovsky's tier 1: indirect fire, a series of four pills lobbed along the aim that walk across the target. */
+export const pillPusher: WeaponDef = {
+  id: 'pill-pusher',
+  name: 'Pill Pusher',
+  shortName: 'Pill Pusher',
+  blastRadius: 14,
+  damage: 12,
+  burst: { count: 4, interval: 0.15, powerJitter: 0.05 },
+  sprite: 'pill',
+  trail: false,
+};
+
+/**
+ * larinovsky's tier 2: a spinning heart in shades. Its blast "cooks" any enemy it catches: on their
+ * next turn everything they fire does half damage.
+ */
+export const theRizzler: WeaponDef = {
+  id: 'the-rizzler',
+  name: 'the Rizzler',
+  shortName: 'the Rizzler',
+  blastRadius: 26,
+  damage: 18,
+  debuff: { offenceMultiplier: 0.5 },
+  sprite: 'rizz',
+  spin: 5,
+  colour: '#ff6fb5',
+};
+
+/** larinovsky's tier 3: a quick nap, waking at full health. Takes the turn; no aiming. */
+export const takeANap: WeaponDef = {
+  id: 'take-a-nap',
+  name: 'Take a Nap',
+  shortName: 'Take a Nap',
+  kind: 'heal',
+  blastRadius: 0,
+  damage: 0,
+  heal: { napTime: 2 },
+  colour: '#7ee7a8',
+};
+
 const weapons: WeaponDef[] = [
   shell,
   heavyShell,
@@ -199,6 +239,9 @@ const weapons: WeaponDef[] = [
   weaselPop,
   ten3,
   sonicBoom,
+  pillPusher,
+  theRizzler,
+  takeANap,
 ];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
