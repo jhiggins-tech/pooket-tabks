@@ -1,11 +1,13 @@
 import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
-import { adjustAim, createGame, drive, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
+import { getCharacter } from './characters/roster';
+import { adjustAim, createGame, currentPlayer, drive, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
+import { InfoScreen } from './ui/info';
 import { SetupScreen } from './ui/setup';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -26,6 +28,13 @@ const setup = new SetupScreen((chosen) => {
 
 // A live battlefield sits behind the setup screen until the real match starts.
 let state: GameState = createGame({ seed: nextSeed, players: setup.players() });
+
+// Characters in this match show in their match colours; the rest in their signature colour.
+const info = new InfoScreen(
+  (id) => state.players.find((p) => p.characterId === id)?.colour ?? getCharacter(id).colours[0]!,
+);
+document.getElementById('info-open')!.addEventListener('click', () => info.open(currentPlayer(state).characterId));
+document.getElementById('setup-info')!.addEventListener('click', () => info.open(setup.players()[0]?.characterId));
 
 /** Which drive button is held (−1 / 0 / +1); applied every simulation step. */
 let driveDir = 0;
@@ -84,6 +93,7 @@ function frame(now: number): void {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   acc += dt;
+  if (info.isOpen) acc = 0; // the game waits while the info screen is up
   while (acc >= FIXED_DT) {
     drive(state, driveDir, FIXED_DT);
     step(state, FIXED_DT);

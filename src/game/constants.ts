@@ -17,5 +17,11 @@ export const FIXED_DT = 1 / 120;
 /** Fuel for the whole match, in px of driving. It never refills, so spend it wisely. */
 export const FUEL_PER_MATCH = 250;
 export const DRIVE_SPEED = 32; // px/s
-/** Highest step a driving tank can climb per pixel moved. */
-export const DRIVE_CLIMB = 3;
+/** Highest lip or bump a driving tank rolls over in one go. */
+export const DRIVE_CLIMB = 7;
+/**
+ * Steepest sustained climb (rise per px, 1 = 45°), judged over the next DRIVE_LOOKAHEAD px, so a
+ * short bump is fine but a steep hill stops the tank.
+ */
+export const DRIVE_MAX_SLOPE = 1;
+export const DRIVE_LOOKAHEAD = 14;

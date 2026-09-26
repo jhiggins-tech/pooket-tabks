@@ -9,7 +9,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 3. ✅ **torikloud's Debate and Twins** (plus Sonic Boom crossover), shipped (see below).
 4. ✅ **ciarra's kit**: Tattoo Gun / Sew / Marathon plus frog hops, shipped (see below). Every character
    now has their own kit; the placeholder Heavy and Mega shells are gone.
-5. _(empty; next requests go here)_
+5. ✅ **Info screen** and **smoother driving**, shipped (see below).
+6. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -27,11 +28,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Info screen**: the ⓘ button (top centre in battle, and on the setup screen) opens a guide: how to
+  play, what the status icons mean, and a page per character with their movement and a card for each
+  weapon (tier, rounds, aimed or not, what it does). It opens on the current player's character and
+  pauses the game while it's up.
+- **Smoother driving**: tanks roll over bumps and lips up to 7px (mud piles, crater edges) instead of
+  getting caught on anything over 3px, but hills steeper than 45° still stop them.
 - **Fuel meter**: each tank has one tank of fuel for the whole match (250px of driving; it never
   refills), usable any time during your turn before firing. Hold ◀ ▶ in the drive bar; the gauge shows
   what's left. Tanks follow the ground: they climb small
   bumps, roll down slopes and drop off ledges, and are stopped by walls, other tanks and decoys, and the
-  map edge.
+  map edge. (Bumps up to 7px are fine; slopes steeper than 45° are too steep.)
 - **Frog hops** (ciarra): instead of driving, she hops 24px at a time from the same fuel tank, clearing
   walls up to ~16px that would stop a tank.
 - **360° aiming** with slingshot drag (pull back to aim, pull length = power) plus fine-tune buttons.

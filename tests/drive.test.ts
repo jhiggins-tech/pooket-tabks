@@ -95,6 +95,33 @@ describe('driving with fuel', () => {
     expect(kie.y).toBeGreaterThan(high);
   });
 
+  it('rolls over small bumps and lips without getting caught', () => {
+    const lip = game((x) => (x >= 330 ? 394 : 400)); // a 6px lip, then flat
+    hold(lip, 1, 1.5);
+    expect(lip.players[0]!.x).toBeGreaterThan(335);
+    expect(lip.players[0]!.y).toBe(394);
+
+    const mound = game((x) => (x >= 325 && x < 335 ? 395 : 400)); // a 5px mound, like a mud pile
+    hold(mound, 1, 2);
+    expect(mound.players[0]!.x).toBeGreaterThan(350);
+    expect(mound.players[0]!.y).toBe(400);
+
+    const rubble = game((x) => 400 - ((x * 7) % 5)); // bumpy ground, up to 4px
+    hold(rubble, 1, 2);
+    expect(rubble.players[0]!.x).toBeGreaterThan(350);
+  });
+
+  it("climbs a 45° hill but not a steeper one", () => {
+    const ok = game((x) => (x >= 320 ? Math.max(340, 400 - (x - 320) * 0.9) : 400));
+    hold(ok, 1, 3);
+    expect(ok.players[0]!.y).toBeLessThan(360);
+
+    const steep = game((x) => (x >= 320 ? Math.max(300, 400 - (x - 320) * 2) : 400));
+    hold(steep, 1, 3);
+    expect(steep.players[0]!.y).toBeGreaterThan(390);
+    expect(steep.players[0]!.x).toBeLessThan(320);
+  });
+
   it('is stopped by walls, other tanks, and the map edge', () => {
     const wall = game((x) => (x >= 330 ? 370 : 400));
     hold(wall, 1, 2);

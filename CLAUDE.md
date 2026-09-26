@@ -31,7 +31,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
   Each tank has `FUEL_PER_MATCH` px of driving for the whole match (never refills; `drive()`, held ◀ ▶
-  buttons), usable during its turn before firing. Characters with `movement: 'hop'` (ciarra) spend it on
+  buttons), usable during its turn before firing. Tanks roll over lips up to `DRIVE_CLIMB` px, but stop when
+  the ground over the next `DRIVE_LOOKAHEAD` px rises steeper than `DRIVE_MAX_SLOPE` (45°). Characters with `movement: 'hop'` (ciarra) spend it on
   frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`; no
   firing mid-hop). A pinned tank can't move at all.
   Keep it pure and DOM-free so it stays unit-testable.
@@ -96,6 +97,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/ui/setup.ts` + `src/ui/seats.ts`: setup screen. PoC matches are exactly 2 players (`PLAYER_COUNT`),
   each picking a character; the name field pre-fills with the character name and stays editable.
   Remembered in localStorage. The engine itself supports more players.
+- `src/ui/info.ts`: the info overlay (ⓘ in the HUD and on setup): how to play, status effects, and a page
+  per character built from the roster and each weapon's required `info` text, so a new weapon must
+  describe itself. The game loop pauses while it's open. `ignoresAim()` (registry) decides "No aiming".
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`

@@ -119,6 +119,8 @@ export interface WeaponDef {
   name: string;
   /** Short label for thumb-sized buttons. */
   shortName: string;
+  /** What it does, in a sentence or three, for the in-game info screen. */
+  info: string;
   kind?: WeaponKind;
   /** Crater radius in world pixels (for a beam: the hole it burns where it hits ground). */
   blastRadius: number;

@@ -3,11 +3,13 @@ import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
 import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
 import { DICTIONARIES } from '../weapons/dictionaries';
-import { getWeapon } from '../weapons/registry';
+import { getWeapon, ignoresAim } from '../weapons/registry';
 import type { StreamSpec, WeaponDef } from '../weapons/types';
 import {
   BARREL_LENGTH,
   DRIVE_CLIMB,
+  DRIVE_LOOKAHEAD,
+  DRIVE_MAX_SLOPE,
   DRIVE_SPEED,
   FUEL_PER_MATCH,
   GRAVITY,
@@ -165,8 +167,8 @@ export function muzzle(p: Player): { x: number; y: number } {
 
 /**
  * Drive the current player's tank along the ground for dt seconds in direction `dir` (−1 / +1),
- * spending fuel per pixel from a tank that has to last the whole match. It climbs steps up to DRIVE_CLIMB px, rolls down slopes and drops off
- * ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
+ * spending fuel per pixel from a tank that has to last the whole match. It rolls over bumps and lips up to DRIVE_CLIMB px and climbs slopes up to
+ * DRIVE_MAX_SLOPE, rolls down slopes and drops off ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
  * Returns the distance moved.
  */
 export function drive(state: GameState, dir: number, dt: number): number {
@@ -190,6 +192,12 @@ export function drive(state: GameState, dir: number, dt: number): number {
     const here = hullRest(state, p.x, p.y - DRIVE_CLIMB - 1);
     const ground = hullRest(state, nx, here - DRIVE_CLIMB - 1);
     if (ground < here - DRIVE_CLIMB) break; // a wall
+    if (ground < here) {
+      // Climbing: a bump is fine, but not if the ground keeps rising steeply beyond it (a steep hill).
+      const aheadX = clamp(nx + Math.sign(dir) * DRIVE_LOOKAHEAD, TANK_HALF_WIDTH, terrain.width - TANK_HALF_WIDTH);
+      const limit = Math.max(DRIVE_CLIMB, DRIVE_MAX_SLOPE * Math.abs(aheadX - p.x));
+      if (hullRest(state, aheadX, here - limit - 1) < here - limit) break;
+    }
     p.x = nx;
     p.y = ground;
     budget -= stepX;
@@ -275,8 +283,7 @@ function hullRest(state: GameState, x: number, fromY: number): number {
 /** True when the current player's selected weapon ignores angle and power. */
 export function isAimless(state: GameState): boolean {
   const p = currentPlayer(state);
-  const kind = weaponForTier(p, p.selectedTier).kind ?? 'ballistic';
-  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin' || kind === 'runner';
+  return ignoresAim(weaponForTier(p, p.selectedTier));
 }
 
 export function setAim(state: GameState, angle: number, power: number): void {
@@ -1179,7 +1186,7 @@ function stepRunner(state: GameState, r: Runner, dt: number): boolean {
     const hit = targetAt(state, r.x, r.y - 6);
     if (hit && targetOwner(hit) !== r.ownerId) {
       // Finish line: a big hit.
-      const finish: WeaponDef = { id: r.weaponId, name: 'Marathon', shortName: 'Marathon', blastRadius: spec.radius, damage: spec.damage };
+      const finish: WeaponDef = { ...getWeapon(r.weaponId), kind: 'ballistic', blastRadius: spec.radius, damage: spec.damage };
       r.out = true; // it's done: don't DNF itself in its own blast
       // Full force at the finish line: the blast goes off right on the tank it reached.
       const at = targetPos(hit);

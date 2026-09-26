@@ -406,6 +406,48 @@ test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('info screen explains every character and weapon', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=4242&debug');
+  await page.getByLabel('Player 1 character').selectOption('ciarra');
+
+  // From the setup screen: opens on player 1's character.
+  await page.locator('#setup-info').tap();
+  const info = page.locator('#info');
+  await expect(info).toBeVisible();
+  await expect(page.locator('.info-character h2')).toHaveText('ciarra');
+  await expect(page.locator('.info-card h3')).toHaveText(['Tattoo Gun', 'Sew', 'Marathon']);
+  await expect(page.locator('.info-move b')).toHaveText('Frog hops');
+  await page.getByRole('tab', { name: 'How to play' }).tap();
+  await expect(page.locator('.info-list h2')).toHaveText(['Controls', 'Status effects']);
+  await page.screenshot({ path: 'test-results/info-basics.png' });
+  await page.locator('#info-close').tap();
+  await expect(info).toBeHidden();
+
+  // In battle: opens on the current player's character, pauses the game, and lists every character.
+  await page.locator('#start').tap();
+  await page.locator('#fire').tap(); // Tattoo Gun burst in flight
+  await page.locator('#info-open').tap();
+  await expect(page.locator('.info-character h2')).toHaveText('ciarra');
+  await page.screenshot({ path: 'test-results/info-ciarra.png' });
+  type Dbg = { __pooket: { state: { projectiles: { x: number; y: number }[] } } };
+  const shots = () => page.evaluate(() => JSON.stringify((window as unknown as Dbg).__pooket.state.projectiles.map((p) => [p.x, p.y])));
+  const frozen = await shots();
+  expect(frozen).not.toBe('[]');
+  await page.waitForTimeout(400);
+  expect(await shots()).toBe(frozen);
+  await expect(page.getByRole('tab')).toHaveCount(7);
+  for (const [name, weapon] of [['tones', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
+    await page.getByRole('tab', { name, exact: true }).tap();
+    await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
+  }
+  await page.locator('#info-close').tap();
+  await expect(info).toBeHidden();
+  await expect.poll(shots).not.toBe(frozen); // and carries on once it's closed
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');
