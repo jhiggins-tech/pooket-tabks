@@ -43,7 +43,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   terrain without damaging it; each wave hits a target once, weaker with distance; power sets range).
   `apparition` summons a cosmetic sky effect on firing (torikloud's kookaburra in parting clouds). Jetpack propellant and spew chunks are both `Sludge` "gunk" (`WeaponDef.gunk`:
   look, pile colour, dose): it flies, slumps into piles via `Terrain.addDirt`, and doses enemies with
-  `Player.toxin`, which drains into soak damage before the turn ends. Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
+  `Player.toxin`, which drains into soak damage before the turn ends. Gunk ignores terrain for `GUNK_GRACE`
+  after leaving the nozzle (else mud stacks up in mid-air behind a flying tank), slumps up to 3px sideways
+  into mounds, and never piles onto a tank's hull. `gunk.puddle` (ten-3) leaves toxic `Puddle`s where it
+  lands that burn enemies touching them until they expire; the turn waits for them. Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `spin` (tumble the sprite in
   flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
   small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`), `trail`.
@@ -60,9 +63,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (2 holograms; on later turns
   tap one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)
-  / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; toxic mud propellant) / ten-3
-  (incredibly powerful short-range chunky spew, ~200px max; coated enemies burn ~25 HP/s, all within the
-  turn: ~70 point blank, falling off with distance). kcaj has
+  / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; a huge, wide blast of toxic mud
+  propellant) / ten-3 (incredibly powerful short-range chunky spew, ~200px max; coated enemies burn
+  ~25 HP/s, and landed chunks leave toxic sludge burning 10 HP/s for the rest of the turn; best case
+  ~90–98 at 70–100px, deliberately just short of a one-shot). kcaj has
   Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
   at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
   micro-detonate; ignores aiming and never hurts kcaj). Ammo is

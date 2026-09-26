@@ -114,6 +114,7 @@ export class Renderer {
       ctx.drawImage(this.terrainCanvas, this.worldW - 1, 0, 1, h, this.worldW, 0, side + 1, h);
     }
 
+    this.drawPuddles(state);
     this.drawSludge(state); // behind the tanks so the jet flame stays visible
     for (const p of state.players) {
       // Holograms are drawn exactly like the real tank, so there is no visual tell. The shared
@@ -367,6 +368,49 @@ export class Renderer {
         ctx.fillStyle = pass === 0 ? rim : pass === 1 ? shade : shine;
         ctx.fill();
       }
+    }
+    ctx.restore();
+  }
+
+  /** ten-3's toxic sludge: a glowing, bubbling coat on the ground that fades as the turn ends. */
+  private drawPuddles(state: GameState): void {
+    if (state.puddles.length === 0) return;
+    const { ctx } = this;
+    ctx.save();
+    for (const p of state.puddles) {
+      const life = 1 - p.age / p.ttl;
+      const alpha = Math.min(1, life * 2.5);
+      // Glow
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius + 5);
+      g.addColorStop(0, `rgba(182,240,74,${0.55 * alpha})`);
+      g.addColorStop(1, 'rgba(120,200,40,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius + 5, 0, Math.PI * 2);
+      ctx.fill();
+      // Slick coat hugging the surface
+      ctx.globalAlpha = 0.85 * alpha;
+      ctx.fillStyle = '#7fb31f';
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, p.radius, 2.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#c8f25a';
+      ctx.beginPath();
+      ctx.ellipse(p.x - 1, p.y - 0.8, p.radius * 0.6, 1, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Bubbles rising and popping
+      const seed = p.x * 0.73 + p.y * 1.31;
+      for (let i = 0; i < 2; i++) {
+        const phase = (this.time * 1.4 + noise(seed + i * 7)) % 1;
+        const bx = p.x + (noise(seed + i * 3) - 0.5) * p.radius * 1.6;
+        ctx.globalAlpha = alpha * (1 - phase);
+        ctx.strokeStyle = '#d9ff7a';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(bx, p.y - 2 - phase * 9, 0.8 + phase * 1.6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
     }
     ctx.restore();
   }

@@ -172,6 +172,8 @@ export interface Sludge {
   weaponId: string;
   /** Cosmetic 0–1 variety (clump size and shade); never affects gameplay. */
   look: number;
+  /** Seconds since it left the nozzle. */
+  age: number;
 }
 
 /** Sonic waves in progress: arcs expanding from `x, y` along `angle`. */
@@ -195,6 +197,18 @@ export interface Apparition {
   y: number;
   age: number;
   duration: number;
+}
+
+/** A patch of toxic sludge on the ground (ten-3). Burns enemies touching it until it expires. */
+export interface Puddle {
+  x: number;
+  y: number;
+  radius: number;
+  ownerId: number;
+  weaponId: string;
+  age: number;
+  /** Seconds it stays toxic. */
+  ttl: number;
 }
 
 /** Cosmetic spray where water lands. */
@@ -252,6 +266,7 @@ export interface GameState {
   booms: Boom[];
   apparitions: Apparition[];
   sludge: Sludge[];
+  puddles: Puddle[];
   droplets: Droplet[];
   splashes: Splash[];
   /** Seconds since stream damage was last applied. */

@@ -19,7 +19,7 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { Boom, Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Sludge, Spew, Stream } from './state';
+import type { Boom, Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Puddle, Sludge, Spew, Stream } from './state';
 
 /** Something a shot can hit: a real tank or a hologram of one. */
 export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
@@ -104,6 +104,7 @@ export function createGame(cfg: GameConfig): GameState {
     booms: [],
     apparitions: [],
     sludge: [],
+    puddles: [],
     droplets: [],
     splashes: [],
     soakTimer: 0,
@@ -518,6 +519,7 @@ export function step(state: GameState, dt: number): void {
     state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
     state.booms = state.booms.filter((b) => !stepBoom(state, b, dt));
     state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
+    stepPuddles(state, dt);
     drainToxin(state, dt);
     const busy =
       state.projectiles.length +
@@ -528,6 +530,7 @@ export function step(state: GameState, dt: number): void {
       state.spews.length +
       state.booms.length +
       state.sludge.length +
+      state.puddles.length +
       state.players.filter((p) => p.toxin > 0).length;
     if (busy === 0) {
       stepSoak(state, dt, true);
@@ -782,8 +785,9 @@ function stepJet(state: GameState, j: Jet, dt: number): boolean {
     const back = j.heading + Math.PI;
     while (j.emitCarry >= 1) {
       j.emitCarry -= 1;
-      const a = back + randRange(state.rng, -0.45, 0.45);
-      const v = spec.exhaustSpeed * randRange(state.rng, 0.55, 1.1);
+      const spread = (spec.exhaustSpreadDeg * Math.PI) / 180;
+      const a = back + randRange(state.rng, -spread, spread);
+      const v = spec.exhaustSpeed * randRange(state.rng, spec.exhaustSpeedRange[0], spec.exhaustSpeedRange[1]);
       state.sludge.push({
         x: p.x - Math.cos(j.heading) * 9,
         y: p.y - TANK_BODY_HEIGHT + Math.sin(j.heading) * 9,
@@ -792,6 +796,7 @@ function stepJet(state: GameState, j: Jet, dt: number): boolean {
         ownerId: p.id,
         weaponId: j.weaponId,
         look: hash(state.fxSeq++ * 1.618),
+        age: 0,
       });
     }
   }
@@ -917,6 +922,7 @@ function stepSpew(state: GameState, sp: Spew, dt: number): boolean {
       ownerId: p.id,
       weaponId: sp.weaponId,
       look: hash(state.fxSeq++ * 1.618),
+      age: 0,
     });
   }
   return sp.elapsed >= spec.duration;
@@ -927,10 +933,17 @@ export function isSpewing(state: GameState, playerId: number): boolean {
   return state.spews.some((sp) => sp.playerId === playerId);
 }
 
+/**
+ * Gunk ignores terrain for this long after leaving the nozzle. Otherwise a particle landing right at
+ * the nozzle leaves a blob the next ones hit, and mud piles up in mid-air behind a flying tank.
+ */
+const GUNK_GRACE = 0.05;
+
 /** Moves one gunk particle. Returns true when it has landed (as dirt) or hit a tank. */
 function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
   const { terrain } = state;
   const spec = getWeapon(sl.weaponId).gunk!;
+  sl.age += dt;
   sl.vy += GRAVITY * dt;
   const nx = sl.x + sl.vx * dt;
   const ny = sl.y + sl.vy * dt;
@@ -954,18 +967,38 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
       }
       return true;
     }
-    if (!target && terrain.isSolid(x, y)) {
+    if (!target && sl.age > GUNK_GRACE && terrain.isSolid(x, y)) {
       // Gunk slumps: slide down and off the top of piles before settling, so it builds mounds, not spikes.
       let mx = Math.round(freeX);
       let my = Math.round(freeY);
-      for (let k = 0; k < 16; k++) {
-        const side = k % 2 === 0 ? 1 : -1;
-        if (!terrain.isSolid(mx, my + 1)) my++;
-        else if (!terrain.isSolid(mx + side, my + 1)) (mx += side), my++;
-        else if (!terrain.isSolid(mx - side, my + 1)) (mx -= side), my++;
-        else break;
+      // Blasted into the ground during its grace period? Surface first.
+      for (let up = 0; up < 40 && terrain.isSolid(mx, my); up++) my--;
+      // Look up to 3px either side for somewhere lower, so piles spread into low mounds, not towers.
+      for (let k = 0; k < 40; k++) {
+        if (!terrain.isSolid(mx, my + 1)) {
+          my++;
+          continue;
+        }
+        const side = hash(mx * 0.7 + my * 1.3 + k) < 0.5 ? 1 : -1;
+        let slid = false;
+        for (let d = 1; d <= 3 && !slid; d++) {
+          for (const dir of [side, -side]) {
+            if (!terrain.isSolid(mx + dir * d, my) && !terrain.isSolid(mx + dir * d, my + 1)) {
+              mx += dir * d;
+              my++;
+              slid = true;
+              break;
+            }
+          }
+        }
+        if (!slid) break;
       }
-      terrain.addDirt(mx, my - 0.5, spec.depositRadius, spec.deposit);
+      // Gunk that lands on a tank's hull splatters off rather than burying it.
+      const onHull = state.players.some(
+        (q) => q.alive && Math.abs(q.x - mx) < TANK_HALF_WIDTH + 2 && my <= q.y + 1 && my >= q.y - TANK_BODY_HEIGHT * 2 - 2,
+      );
+      if (!onHull) terrain.addDirt(mx, my - 0.5, spec.depositRadius, spec.deposit);
+      if (spec.puddle) addPuddle(state, sl, mx, my, spec.puddle);
       return true;
     }
     freeX = x;
@@ -974,6 +1007,51 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
   sl.x = nx;
   sl.y = ny;
   return sl.x < -50 || sl.x > terrain.width + 50;
+}
+
+/** Leave (or refresh) a patch of toxic sludge where a particle landed. */
+function addPuddle(
+  state: GameState,
+  sl: Sludge,
+  x: number,
+  y: number,
+  spec: { radius: number; linger: number },
+): void {
+  const near = state.puddles.find((p) => p.ownerId === sl.ownerId && Math.hypot(p.x - x, p.y - y) < spec.radius * 0.6);
+  if (near) {
+    near.age = 0; // fresh sludge keeps it going
+    return;
+  }
+  state.puddles.push({ x, y, radius: spec.radius, ownerId: sl.ownerId, weaponId: sl.weaponId, age: 0, ttl: spec.linger });
+}
+
+/** Whether a tank resting with its feet at (x, y) is touching a puddle. */
+function touchesPuddle(p: Puddle, x: number, y: number): boolean {
+  return Math.abs(p.x - x) <= p.radius + TANK_HALF_WIDTH && Math.abs(p.y - y) <= p.radius + TANK_BODY_HEIGHT;
+}
+
+/** Burn enemies (and decoys) touching toxic sludge; puddles expire after lingering. */
+function stepPuddles(state: GameState, dt: number): void {
+  if (state.puddles.length === 0) return;
+  for (const t of allTargets(state)) {
+    const pos = t.kind === 'player' ? t.player : t.holo;
+    // One burn per sludge owner, however many patches the tank is sitting in.
+    const burning = state.puddles.find((p) => p.ownerId !== targetOwner(t) && touchesPuddle(p, pos.x, pos.y));
+    if (!burning) continue;
+    const w = getWeapon(burning.weaponId);
+    const amount = (w.gunk?.puddle?.damagePerSecond ?? 0) * dt;
+    const colour = '#b6f04a';
+    if (t.kind === 'player') {
+      t.player.soak += amount;
+      t.player.soakColour = colour;
+    } else {
+      t.holo.soak += amount;
+      t.holo.soakShooterId = burning.ownerId;
+      t.holo.soakColour = colour;
+    }
+  }
+  for (const p of state.puddles) p.age += dt;
+  state.puddles = state.puddles.filter((p) => p.age < p.ttl);
 }
 
 /** Toxin on a tank drains into (batched, trickling) damage over a couple of seconds. */

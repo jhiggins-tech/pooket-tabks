@@ -47,6 +47,12 @@ export interface GunkSpec {
   depositRadius: number;
   /** How the particles are drawn in flight. */
   look: 'mud' | 'spew';
+  /**
+   * Toxic puddles: where a particle lands it leaves a patch of sludge (`radius` px). For the rest of
+   * the turn (the turn lingers `linger` s after the last landing), any enemy touching a patch burns at
+   * `damagePerSecond` (touching several patches doesn't stack).
+   */
+  puddle?: { radius: number; damagePerSecond: number; linger: number };
 }
 
 /** Spew weapons: gush `chunksPerSecond` for `duration`, fanned ±`spreadDeg`, at up to `speed` px/s (× power). */
@@ -67,8 +73,11 @@ export interface JetpackSpec {
   thrust: number;
   burnTime: number;
   particlesPerSecond: number;
-  /** Exhaust speed relative to the tank (px/s). */
+  /** Exhaust speed relative to the tank (px/s), randomised between `exhaustSpeedRange` × this. */
   exhaustSpeed: number;
+  exhaustSpeedRange: readonly [number, number];
+  /** Half-width of the exhaust fan, in degrees either side of straight back. */
+  exhaustSpreadDeg: number;
 }
 
 /**

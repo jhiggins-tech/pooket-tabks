@@ -19,6 +19,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+### Balance
+- **tones buff** (user testing: felt underpowered): ten-2's exhaust is ~3× bigger and much wider (1s at
+  900 particles/s, ±43° fan), carpeting ~300px of ground in mud; ten-3's chunks now leave toxic sludge
+  that burns enemies touching it at 10 HP/s for the rest of the turn.
+
 ### Core
 - **Fuel meter**: each tank has one tank of fuel for the whole match (250px of driving; it never
   refills), usable any time during your turn before firing. Hold ◀ ▶ in the drive bar; the gauge shows
@@ -37,7 +42,7 @@ between visits.
 
 | Character | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|---|
-| **tones** | ten-1: yellow water jet that builds in spurts, trickle damage | ten-2: shakes for 10s, then jetpacks away on toxic mud | ten-3: short-range chunky spew, intense damage over one turn |
+| **tones** | ten-1: yellow water jet that builds in spurts, trickle damage | ten-2: shakes for 10s, then jetpacks away on a huge, wide blast of toxic mud | ten-3: short-range chunky spew, intense damage over one turn; coats the ground in toxic sludge that burns enemies for the rest of the turn |
 | **kie** | Shell | Weasel Pop: 3 tumbling weasels that walk to the enemy and pop | Trollogram: 2 decoys, secret swap, 50% penalty for hitting one |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Shell (placeholder) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky | Mega (placeholder) |

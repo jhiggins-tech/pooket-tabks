@@ -92,4 +92,42 @@ describe('ten-3', () => {
     expect(Math.max(...angles) - Math.min(...angles)).toBeGreaterThan(ten3.spew!.spreadDeg);
     expect(g.sludge.every((s) => s.y < 400 - TANK_BODY_HEIGHT + 20)).toBe(true);
   });
+
+  it('chunks that land coat the ground in toxic sludge that burns an enemy for the rest of the turn', () => {
+    const g = game(160);
+    const kie = g.players[1]!;
+    spew(g, 20, 50);
+    // Replace the gush with one chunk dropped on the ground right beside kie's hull.
+    const chunk = g.sludge[0] ?? { x: 0, y: 0, vx: 0, vy: 0, ownerId: 0, weaponId: 'ten-3', look: 0.5, age: 1 };
+    Object.assign(chunk, { x: kie.x + 15, y: 385, vx: 0, vy: 0, age: 1 });
+    g.sludge = [chunk];
+    g.spews = [];
+    let t = 0;
+    let puddleSeen = false;
+    const hp: number[] = [];
+    for (; t < 10 && g.phase === 'flying'; t += FIXED_DT) {
+      step(g, FIXED_DT);
+      if (g.puddles.length > 0) puddleSeen = true;
+      hp.push(kie.hp);
+    }
+    expect(puddleSeen).toBe(true);
+    const dealt = MAX_HP - kie.hp;
+    // ~10 HP/s for the 2.5s the sludge lingers
+    expect(dealt).toBeGreaterThan(18);
+    expect(dealt).toBeLessThan(35);
+    expect(new Set(hp).size).toBeGreaterThan(5); // over time, not all at once
+    expect(t).toBeGreaterThan(2); // the turn waits for it
+    // It's gone once the turn is over.
+    for (let s = 0; s < 3 && g.phase !== 'aiming'; s += FIXED_DT) step(g, FIXED_DT);
+    expect(g.puddles).toHaveLength(0);
+    expect(currentPlayer(g).name).toBe('kie');
+    expect(kie.hp).toBe(MAX_HP - dealt);
+  });
+
+  it("tones' own sludge never burns him", () => {
+    const g = game(600);
+    spew(g, 270, 30); // straight down at his own feet
+    for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) step(g, FIXED_DT);
+    expect(g.players[0]!.hp).toBe(MAX_HP);
+  });
 });

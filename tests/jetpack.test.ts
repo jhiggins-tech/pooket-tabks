@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_HALF_WIDTH } from '../src/game/constants';
-import { createGame, currentPlayer, fire, jetCharge, selectTier, setAim, step } from '../src/game/game';
+import { createGame, currentPlayer, drive, fire, jetCharge, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { ten2 } from '../src/weapons/registry';
 
@@ -67,7 +67,12 @@ describe('ten-2', () => {
       launch(g, angle, power);
       run(g, 25);
       expect(g.phase).not.toBe('flying');
-      expect(tones.y).toBe(g.terrain.surfaceY(tones.x)); // resting on the ground
+      // Resting on the highest ground under its hull (which may be its own mud).
+      let rest = g.terrain.height;
+      for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
+        rest = Math.min(rest, g.terrain.groundBelow(tones.x + dx, tones.y - 30));
+      }
+      expect(tones.y).toBe(rest);
       return tones.x - x0;
     };
     const right = distance(60, 50);
@@ -139,5 +144,56 @@ describe('ten-2', () => {
     launch(g, 60, 45);
     run(g, 25);
     expect(Math.abs(tones.x - kie.x)).toBeGreaterThanOrEqual(TANK_HALF_WIDTH * 2);
+  });
+
+  it('blasts out a big, wide spray of mud that carpets the ground', () => {
+    const g = flatGame();
+    const before = solidCount(g);
+    launch(g, 55, 60);
+    const seen = new Set<object>();
+    run(g, 25, () => g.sludge.forEach((p) => seen.add(p)));
+    expect(seen.size).toBeGreaterThan(800);
+    expect(solidCount(g) - before).toBeGreaterThan(5000);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (let x = 0; x < g.terrain.width; x++) {
+      for (let y = 330; y < 400; y++) {
+        if (g.terrain.solid[y * g.terrain.width + x]) {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+        }
+      }
+    }
+    expect(maxX - minX).toBeGreaterThan(250);
+  });
+
+  it("doesn't leave mud hanging in mid-air behind the tank", () => {
+    const g = flatGame();
+    launch(g, 70, 70);
+    run(g, 25);
+    // Every column is solid from its surface all the way down: no mud floating with air beneath it.
+    const w = g.terrain.width;
+    for (let x = 0; x < w; x++) {
+      const top = g.terrain.surfaceY(x);
+      for (let y = top; y < 400; y++) expect(g.terrain.solid[y * w + x]).toBe(1);
+    }
+  });
+
+  it("never buries tones under his own mud: he can still drive afterwards", () => {
+    const g = flatGame();
+    launch(g, 80, 30);
+    run(g, 25);
+    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    for (let t = 0; t < 3 && currentPlayer(g).name !== 'tones'; t += FIXED_DT) {
+      g.phase = 'settling';
+      g.settleTimer = 0;
+      step(g, FIXED_DT);
+    }
+    const x0 = g.players[0]!.x;
+    let moved = 0;
+    for (let t = 0; t < 1; t += FIXED_DT) moved += drive(g, 1, FIXED_DT) + drive(g, -1, 0);
+    if (moved === 0) for (let t = 0; t < 1; t += FIXED_DT) moved += drive(g, -1, FIXED_DT);
+    expect(moved).toBeGreaterThan(5);
+    expect(g.players[0]!.x).not.toBe(x0);
   });
 });

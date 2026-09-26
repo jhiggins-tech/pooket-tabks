@@ -112,12 +112,15 @@ export const ten2: WeaponDef = {
   jetpack: {
     chargeTime: 10,
     thrust: 0.85,
-    burnTime: 0.7,
-    particlesPerSecond: 320,
+    // A long, wide, heavy blast of mud that carpets the ground around the launch.
+    burnTime: 1,
+    particlesPerSecond: 900,
     exhaustSpeed: 260,
+    exhaustSpeedRange: [0.35, 1.35],
+    exhaustSpreadDeg: 43,
   },
   // Dark, wet mud: clearly different from the dry soil and grass it lands on.
-  gunk: { dosePerParticle: 0.35, dosePerSecond: 6, deposit: [92, 62, 36], depositRadius: 2.2, look: 'mud' },
+  gunk: { dosePerParticle: 0.25, dosePerSecond: 12, deposit: [92, 62, 36], depositRadius: 2.2, look: 'mud' },
   friendlyFire: false,
   colour: '#9be22d',
 };
@@ -141,7 +144,8 @@ export const weaselPop: WeaponDef = {
 
 /**
  * tones' tier 3: an incredibly powerful, short-range gush of chunky spew. Chunks that land on an
- * enemy coat it and burn through ~25 HP a second until the coating is gone, all within the turn.
+ * enemy coat it and burn through ~25 HP a second until the coating is gone; chunks that land on the
+ * ground coat it in toxic sludge that burns any enemy touching it for the rest of the turn.
  */
 export const ten3: WeaponDef = {
   id: 'ten-3',
@@ -151,7 +155,15 @@ export const ten3: WeaponDef = {
   blastRadius: 0,
   damage: 0,
   spew: { duration: 1.4, chunksPerSecond: 50, speed: 250, spreadDeg: 10 },
-  gunk: { dosePerParticle: 1, dosePerSecond: 25, deposit: [190, 146, 58], depositRadius: 1.8, look: 'spew' },
+  gunk: {
+    dosePerParticle: 1,
+    dosePerSecond: 25,
+    deposit: [190, 146, 58],
+    depositRadius: 1.8,
+    look: 'spew',
+    // Every chunk that lands leaves toxic sludge that burns enemies for the rest of the turn.
+    puddle: { radius: 7, damagePerSecond: 10, linger: 2.5 },
+  },
   friendlyFire: false,
   colour: '#f0c050',
 };
