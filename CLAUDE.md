@@ -30,7 +30,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`)
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
-  Each turn a tank gets `FUEL_PER_TURN` px of driving (`drive()`, held ◀ ▶ buttons) usable before firing.
+  Each tank has `FUEL_PER_MATCH` px of driving for the whole match (never refills; `drive()`, held ◀ ▶
+  buttons), usable during its turn before firing.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the

@@ -8,7 +8,7 @@ import {
   BARREL_LENGTH,
   DRIVE_CLIMB,
   DRIVE_SPEED,
-  FUEL_PER_TURN,
+  FUEL_PER_MATCH,
   GRAVITY,
   MAX_HP,
   MAX_SPEED,
@@ -79,7 +79,7 @@ export function createGame(cfg: GameConfig): GameState {
       burn: null,
       soak: 0,
       soakColour: '#ffffff',
-      fuel: FUEL_PER_TURN,
+      fuel: FUEL_PER_MATCH,
       toxin: 0,
       toxinRate: 0,
     };
@@ -132,7 +132,7 @@ export function muzzle(p: Player): { x: number; y: number } {
 
 /**
  * Drive the current player's tank along the ground for dt seconds in direction `dir` (−1 / +1),
- * spending fuel per pixel. It climbs steps up to DRIVE_CLIMB px, rolls down slopes and drops off
+ * spending fuel per pixel from a tank that has to last the whole match. It climbs steps up to DRIVE_CLIMB px, rolls down slopes and drops off
  * ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
  * Returns the distance moved.
  */
@@ -1239,7 +1239,6 @@ function endTurn(state: GameState): void {
   state.current = next;
   state.turn++;
   state.phase = 'aiming';
-  state.players[next]!.fuel = FUEL_PER_TURN;
 }
 
 function tickBurn(state: GameState, p: Player): void {

@@ -33,7 +33,7 @@ export interface Player {
   soak: number;
   /** Colour for the soak damage numbers (the liquid's colour). */
   soakColour: string;
-  /** px of driving left this turn. */
+  /** px of driving left for the rest of the match. */
   fuel: number;
   /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
   toxin: number;

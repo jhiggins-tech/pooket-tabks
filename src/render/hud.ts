@@ -1,4 +1,4 @@
-import { FUEL_PER_TURN, MAX_HP } from '../game/constants';
+import { FUEL_PER_MATCH, MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
 import { currentPlayer, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
 import { getWeapon } from '../weapons/registry';
@@ -85,7 +85,7 @@ export class Hud {
       }),
     );
 
-    this.fuelEl.style.width = `${(p.fuel / FUEL_PER_TURN) * 100}%`;
+    this.fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
     this.driveEl.dataset.empty = String(p.fuel <= 0.5);
     for (const b of this.driveEl.querySelectorAll('button')) b.disabled = state.phase !== 'aiming' || p.fuel <= 0.5;
     this.angleEl.textContent = `${angleLabel(p.angle)}`;

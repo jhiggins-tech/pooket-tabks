@@ -20,8 +20,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Shipped
 
 ### Core
-- **Fuel meter**: each tank gets fuel each turn (about 60px of driving) to use any time before firing.
-  Hold ◀ ▶ in the drive bar; the gauge shows what's left. Tanks follow the ground: they climb small
+- **Fuel meter**: each tank has one tank of fuel for the whole match (250px of driving; it never
+  refills), usable any time during your turn before firing. Hold ◀ ▶ in the drive bar; the gauge shows
+  what's left. Tanks follow the ground: they climb small
   bumps, roll down slopes and drop off ledges, and are stopped by walls, other tanks and decoys, and the
   map edge.
 - **360° aiming** with slingshot drag (pull back to aim, pull length = power) plus fine-tune buttons.

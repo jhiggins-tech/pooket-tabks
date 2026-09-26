@@ -14,8 +14,8 @@ export const MAX_HP = 100;
 export const SETTLE_TIME = 0.8; // s pause after the last impact before the turn passes
 export const FIXED_DT = 1 / 120;
 
-/** Fuel per turn, in px of driving. Refills at the start of each of the player's turns. */
-export const FUEL_PER_TURN = 60;
+/** Fuel for the whole match, in px of driving. It never refills, so spend it wisely. */
+export const FUEL_PER_MATCH = 250;
 export const DRIVE_SPEED = 32; // px/s
 /** Highest step a driving tank can climb per pixel moved. */
 export const DRIVE_CLIMB = 3;

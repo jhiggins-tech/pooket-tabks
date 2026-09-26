@@ -13,7 +13,7 @@ Pass-and-play artillery (Worms / Pocket Tanks style) for **phone browsers**, hos
 - **Fine-tune:** ↺ / ↻ for angle, − / + for power (hold to repeat).
 - **Decoys:** after kie deploys Trollogram, tap one of his holograms on his turn to secretly swap
   places with it once the shot lands. Hitting a hologram costs the shooter half the damage.
-- **Drive:** hold ◀ ▶ in the bottom bar to move a little before you fire; the gauge shows fuel left this turn.
+- **Drive:** hold ◀ ▶ in the bottom bar to move before you fire. One tank of fuel has to last the whole match.
 - **FIRE**, then pass the phone.
 
 See [FEATURES.md](FEATURES.md) for everything shipped so far and what's queued next.

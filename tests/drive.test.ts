@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
-import { DRIVE_SPEED, FIXED_DT, FUEL_PER_TURN, TANK_HALF_WIDTH } from '../src/game/constants';
+import { DRIVE_SPEED, FIXED_DT, FUEL_PER_MATCH, TANK_HALF_WIDTH } from '../src/game/constants';
 import { createGame, currentPlayer, drive, fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 
@@ -27,8 +27,8 @@ function hold(g: GameState, dir: number, seconds: number): void {
 }
 
 describe('driving with fuel', () => {
-  it('every tank starts with a full tank of fuel', () => {
-    expect(game().players.every((p) => p.fuel === FUEL_PER_TURN)).toBe(true);
+  it('every tank starts the match with a full tank of fuel', () => {
+    expect(game().players.every((p) => p.fuel === FUEL_PER_MATCH)).toBe(true);
   });
 
   it('drives at a steady speed, spending fuel per pixel, staying on the ground', () => {
@@ -36,7 +36,7 @@ describe('driving with fuel', () => {
     const kie = g.players[0]!;
     hold(g, 1, 1);
     expect(kie.x - 300).toBeCloseTo(DRIVE_SPEED, 0);
-    expect(kie.fuel).toBeCloseTo(FUEL_PER_TURN - (kie.x - 300), 5);
+    expect(kie.fuel).toBeCloseTo(FUEL_PER_MATCH - (kie.x - 300), 5);
     expect(kie.y).toBe(400);
     hold(g, -1, 0.5);
     expect(kie.x).toBeCloseTo(300 + DRIVE_SPEED / 2, 0);
@@ -46,7 +46,7 @@ describe('driving with fuel', () => {
     const g = game();
     const kie = g.players[0]!;
     hold(g, 1, 10);
-    expect(kie.x - 300).toBeCloseTo(FUEL_PER_TURN, 5);
+    expect(kie.x - 300).toBeCloseTo(FUEL_PER_MATCH, 5);
     expect(kie.fuel).toBe(0);
     expect(drive(g, 1, 1)).toBe(0);
   });
@@ -61,19 +61,27 @@ describe('driving with fuel', () => {
     expect(drive(g, 1, 0.5)).toBe(0);
   });
 
-  it('refills at the start of each turn', () => {
+  it('is one tank for the whole match: fuel carries over between turns and never refills', () => {
     const g = game();
-    hold(g, 1, 10);
     const pass = () => {
       g.phase = 'settling';
       g.settleTimer = 0;
       step(g, FIXED_DT);
     };
+    hold(g, 1, 1); // kie spends some
+    const left = g.players[0]!.fuel;
+    expect(left).toBeLessThan(FUEL_PER_MATCH);
     pass(); // kie -> tones
-    expect(currentPlayer(g).fuel).toBe(FUEL_PER_TURN);
+    expect(currentPlayer(g).fuel).toBe(FUEL_PER_MATCH); // tones has his own, untouched
     pass(); // tones -> kie
     expect(currentPlayer(g).name).toBe('kie');
-    expect(currentPlayer(g).fuel).toBe(FUEL_PER_TURN);
+    expect(currentPlayer(g).fuel).toBe(left);
+    hold(g, 1, 60); // drain the rest
+    expect(g.players[0]!.fuel).toBe(0);
+    pass();
+    pass();
+    expect(currentPlayer(g).name).toBe('kie');
+    expect(drive(g, 1, 1)).toBe(0);
   });
 
   it('climbs gentle slopes and rolls down them', () => {
