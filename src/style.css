@@ -218,9 +218,62 @@ button:disabled {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
 }
 
-.hint {
+/* Drive bar: bottom centre, clear of the corner thumb pads. */
+.drive {
   position: absolute;
   bottom: var(--safe-b);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.drive button {
+  width: 46px;
+  height: 40px;
+  font-size: 16px;
+  pointer-events: auto;
+}
+.drive button.held {
+  background: var(--player-colour);
+}
+.fuel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 84px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--panel);
+}
+.fuel small {
+  font-size: 9px;
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+}
+.fuel .gauge {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+#fuel-fill {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fde047);
+  transition: width 0.1s linear;
+}
+body:not([data-phase='aiming']) .drive,
+.drive[data-empty='true'] button {
+  opacity: 0.35;
+}
+
+.hint {
+  position: absolute;
+  bottom: calc(var(--safe-b) + 46px);
   left: 0;
   right: 0;
   margin: 0;
@@ -387,6 +440,8 @@ button.big {
 
 /* Short landscape phones (e.g. iPhone SE with browser chrome) */
 @media (max-height: 340px) {
+  .drive button { width: 40px; height: 34px; }
+  .hint { bottom: calc(var(--safe-b) + 40px); }
   .control button { width: 40px; height: 40px; }
   #fire { width: 80px; height: 80px; font-size: 19px; }
   .readout span { font-size: 15px; }

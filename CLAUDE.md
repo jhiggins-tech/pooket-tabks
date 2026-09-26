@@ -10,6 +10,10 @@ Scope: local hotseat multiplayer, a variety of weapons, custom player names/colo
   After pushing, check the run and fix it if it goes red.
 - Run `npm run typecheck && npm test && npm run test:e2e` before pushing.
 
+## Features list
+`FEATURES.md` is the features list and work queue. When the owner asks to add something to the list or
+queue, put it there; when shipping a feature, move it to **Shipped** (and update the character table).
+
 ## Commands
 ```sh
 npm run dev        # Vite dev server
@@ -26,6 +30,7 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`)
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
+  Each turn a tank gets `FUEL_PER_TURN` px of driving (`drive()`, held ◀ ▶ buttons) usable before firing.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
@@ -65,7 +70,7 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   each picking a character; the name field pre-fills with the character name and stays editable.
   Remembered in localStorage. The engine itself supports more players.
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
-- `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, FIRE button).
+- `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`
   (live state + renderer) for e2e tests that need world positions.
 

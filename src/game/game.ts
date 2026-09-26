@@ -6,6 +6,9 @@ import { getWeapon } from '../weapons/registry';
 import type { StreamSpec, WeaponDef } from '../weapons/types';
 import {
   BARREL_LENGTH,
+  DRIVE_CLIMB,
+  DRIVE_SPEED,
+  FUEL_PER_TURN,
   GRAVITY,
   MAX_HP,
   MAX_SPEED,
@@ -76,6 +79,7 @@ export function createGame(cfg: GameConfig): GameState {
       burn: null,
       soak: 0,
       soakColour: '#ffffff',
+      fuel: FUEL_PER_TURN,
       toxin: 0,
       toxinRate: 0,
     };
@@ -124,6 +128,50 @@ export function muzzle(p: Player): { x: number; y: number } {
   const c = tankCentre(p);
   const a = (p.angle * Math.PI) / 180;
   return { x: c.x + Math.cos(a) * BARREL_LENGTH, y: c.y - Math.sin(a) * BARREL_LENGTH };
+}
+
+/**
+ * Drive the current player's tank along the ground for dt seconds in direction `dir` (−1 / +1),
+ * spending fuel per pixel. It climbs steps up to DRIVE_CLIMB px, rolls down slopes and drops off
+ * ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
+ * Returns the distance moved.
+ */
+export function drive(state: GameState, dir: number, dt: number): number {
+  if (state.phase !== 'aiming' || dir === 0) return 0;
+  const p = currentPlayer(state);
+  const { terrain } = state;
+  let budget = Math.min(p.fuel, DRIVE_SPEED * dt);
+  let moved = 0;
+  while (budget > 0) {
+    const stepX = Math.min(1, budget);
+    const nx = p.x + Math.sign(dir) * stepX;
+    if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) break;
+    const blocked = [...state.players.filter((q) => q !== p && q.alive), ...state.holograms].some(
+      (q) => Math.abs(q.x - nx) < TANK_HALF_WIDTH * 2 && Math.abs(q.x - nx) < Math.abs(q.x - p.x),
+    );
+    if (blocked) break;
+    // Compare where the hull would rest at nx with where it rests now (the highest supporting
+    // column under it), so a tank sitting slightly into a slope isn't mistaken for hitting a wall.
+    const here = hullRest(state, p.x, p.y - DRIVE_CLIMB - 1);
+    const ground = hullRest(state, nx, here - DRIVE_CLIMB - 1);
+    if (ground < here - DRIVE_CLIMB) break; // a wall
+    p.x = nx;
+    p.y = ground;
+    budget -= stepX;
+    moved += stepX;
+  }
+  p.fuel = Math.max(0, p.fuel - moved);
+  if (moved > 0 && hash(state.fxSeq * 0.37 + p.x) < 0.25) spawnDust(state, p.x - Math.sign(dir) * 9, p.y, 0.15);
+  return moved;
+}
+
+/** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */
+function hullRest(state: GameState, x: number, fromY: number): number {
+  let ground = state.terrain.height;
+  for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
+    ground = Math.min(ground, state.terrain.groundBelow(x + dx, fromY));
+  }
+  return ground;
 }
 
 /** True when the current player's selected weapon ignores angle and power. */
@@ -1191,6 +1239,7 @@ function endTurn(state: GameState): void {
   state.current = next;
   state.turn++;
   state.phase = 'aiming';
+  state.players[next]!.fuel = FUEL_PER_TURN;
 }
 
 function tickBurn(state: GameState, p: Player): void {

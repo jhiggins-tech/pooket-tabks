@@ -1,7 +1,7 @@
 import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
-import { adjustAim, createGame, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
+import { adjustAim, createGame, drive, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -27,6 +27,9 @@ const setup = new SetupScreen((chosen) => {
 // A live battlefield sits behind the setup screen until the real match starts.
 let state: GameState = createGame({ seed: nextSeed, players: setup.players() });
 
+/** Which drive button is held (−1 / 0 / +1); applied every simulation step. */
+let driveDir = 0;
+
 function newGame(): void {
   state = createGame({ seed: nextSeed, players });
   nextSeed = randomSeed();
@@ -38,6 +41,7 @@ bindControls(canvas, {
   setAim: (a, p) => setAim(state, a, p),
   adjust: (da, dp) => adjustAim(state, da, dp),
   selectTier: (t) => selectTier(state, t),
+  setDrive: (dir) => (driveDir = dir),
   tap: (x, y) => {
     const w = renderer.screenToWorld(x, y);
     // Generous finger-sized radius (~30 CSS px).
@@ -81,6 +85,7 @@ function frame(now: number): void {
   last = now;
   acc += dt;
   while (acc >= FIXED_DT) {
+    drive(state, driveDir, FIXED_DT);
     step(state, FIXED_DT);
     acc -= FIXED_DT;
   }

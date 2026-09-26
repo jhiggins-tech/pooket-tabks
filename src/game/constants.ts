@@ -13,3 +13,9 @@ export const BARREL_LENGTH = 18;
 export const MAX_HP = 100;
 export const SETTLE_TIME = 0.8; // s pause after the last impact before the turn passes
 export const FIXED_DT = 1 / 120;
+
+/** Fuel per turn, in px of driving. Refills at the start of each of the player's turns. */
+export const FUEL_PER_TURN = 60;
+export const DRIVE_SPEED = 32; // px/s
+/** Highest step a driving tank can climb per pixel moved. */
+export const DRIVE_CLIMB = 3;

@@ -3,6 +3,8 @@ export interface ControlHandlers {
   setAim(angle: number, power: number): void;
   adjust(dAngle: number, dPower: number): void;
   selectTier(tier: number): void;
+  /** Drive button held (−1 / +1) or released (0). */
+  setDrive(dir: number): void;
   /** A tap (no drag) on the battlefield, in screen CSS pixels. */
   tap(clientX: number, clientY: number): void;
   fire(): void;
@@ -40,6 +42,7 @@ export function fullPowerDragPx(viewportW: number, viewportH: number): number {
  *   opposite way to the drag, and drag length sets power.
  * - Hold-to-repeat +/- buttons for fine adjustment.
  * - Tap (without dragging) on the battlefield, e.g. to pick a hologram to swap with.
+ * - Hold-to-drive buttons (spending fuel).
  * - Weapon tier buttons.
  * - A big FIRE button (release never fires, so hotseat mis-taps are harmless).
  */
@@ -78,6 +81,25 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
     bindRepeat(btn, () => {
       if (h.canAim()) h.adjust(da, dp);
     });
+  }
+
+  // Drive buttons: held to drive, released (or finger slid off) to stop.
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-drive]')) {
+    const dir = Number(btn.dataset.drive);
+    const stop = () => {
+      btn.classList.remove('held');
+      h.setDrive(0);
+    };
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btn.setPointerCapture(e.pointerId);
+      btn.classList.add('held');
+      h.setDrive(dir);
+    });
+    btn.addEventListener('pointerup', stop);
+    btn.addEventListener('pointercancel', stop);
+    btn.addEventListener('lostpointercapture', stop);
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
   }
 
   // Weapon buttons are re-rendered by the HUD, so listen on their container.

@@ -287,6 +287,39 @@ test("torikloud's Sonic Boom and the kookaburra in the sky", async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+test('drive with fuel before firing', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.locator('#start').tap();
+  type Dbg = { __pooket: { state: { players: { x: number; fuel: number }[] } } };
+  const me = () => page.evaluate(() => ({ ...(window as unknown as Dbg).__pooket.state.players[0]! }));
+  const start = await me();
+
+  // Hold ▶ for a second.
+  const right = page.getByRole('button', { name: 'Drive right' });
+  const box = (await right.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: 'test-results/drive.png' });
+  await page.mouse.up();
+  const after = await me();
+  expect(after.x).toBeGreaterThan(start.x + 15);
+  expect(after.fuel).toBeLessThan(start.fuel);
+  const gauge = await page.locator('#fuel-fill').evaluate((e) => parseFloat((e as HTMLElement).style.width));
+  expect(gauge).toBeLessThan(100);
+
+  // Released: it stops.
+  await page.waitForTimeout(300);
+  expect((await me()).x).toBe(after.x);
+
+  // After firing, driving does nothing.
+  await page.locator('#fire').tap();
+  await expect(right).toBeDisabled();
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');
