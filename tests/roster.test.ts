@@ -3,8 +3,14 @@ import { AMMO_PER_TIER, assignColours, getCharacter, loadoutSummary, ROSTER } fr
 import { getWeapon } from '../src/weapons/registry';
 
 describe('roster', () => {
-  it('has the three selectable characters', () => {
-    expect(ROSTER.map((c) => c.name)).toEqual(['tones', 'kie', 'kcaj']);
+  it('has the six selectable characters', () => {
+    expect(ROSTER.map((c) => c.name)).toEqual(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
+  });
+
+  it('the new characters use placeholder shells, apart from torikloud’s Sonic Boom', () => {
+    expect(getCharacter('torikloud').loadout).toEqual(['shell', 'sonic-boom', 'mega-shell']);
+    expect(getCharacter('ciarra').loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
+    expect(getCharacter('larinovsky').loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
   });
 
   it('uses 5 / 3 / 1 rounds for tiers 1-3', () => {

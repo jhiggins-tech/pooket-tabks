@@ -16,7 +16,7 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Sludge, Spew, Stream } from './state';
+import type { Boom, Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Sludge, Spew, Stream } from './state';
 
 /** Something a shot can hit: a real tank or a hologram of one. */
 export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
@@ -97,6 +97,8 @@ export function createGame(cfg: GameConfig): GameState {
     streams: [],
     jets: [],
     spews: [],
+    booms: [],
+    apparitions: [],
     sludge: [],
     droplets: [],
     splashes: [],
@@ -185,6 +187,21 @@ export function fire(state: GameState): boolean {
     case 'decoy':
       fireDecoys(state, p, weapon);
       break;
+    case 'sonic': {
+      const spec = weapon.sonic!;
+      const m = muzzle(p);
+      state.booms.push({
+        ownerId: p.id,
+        weaponId: weapon.id,
+        x: m.x,
+        y: m.y,
+        angle: (p.angle * Math.PI) / 180,
+        range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
+        elapsed: 0,
+        hits: Array.from({ length: spec.waves }, () => []),
+      });
+      break;
+    }
     case 'spew':
       state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
       break;
@@ -205,6 +222,10 @@ export function fire(state: GameState): boolean {
     case 'ballistic':
       fireBallistic(state, p, weapon);
       break;
+  }
+  if (weapon.apparition) {
+    const c = tankCentre(p);
+    state.apparitions.push({ kind: weapon.apparition, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
   }
   state.phase = 'flying';
   return true;
@@ -433,6 +454,8 @@ export function step(state: GameState, dt: number): void {
   state.explosions = state.explosions.filter((e) => e.age < e.duration);
   stepFloaters(state, dt);
   stepPhaseFx(state, dt);
+  for (const a of state.apparitions) a.age += dt;
+  state.apparitions = state.apparitions.filter((a) => a.age < a.duration);
 
   stepSplashes(state, dt);
 
@@ -445,6 +468,7 @@ export function step(state: GameState, dt: number): void {
     stepSoak(state, dt, false);
     state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
     state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
+    state.booms = state.booms.filter((b) => !stepBoom(state, b, dt));
     state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
     drainToxin(state, dt);
     const busy =
@@ -454,6 +478,7 @@ export function step(state: GameState, dt: number): void {
       state.droplets.length +
       state.jets.length +
       state.spews.length +
+      state.booms.length +
       state.sludge.length +
       state.players.filter((p) => p.toxin > 0).length;
     if (busy === 0) {
@@ -781,6 +806,46 @@ function land(state: GameState, p: Player): void {
   }
   p.y = ground;
   spawnDust(state, p.x, p.y, 1);
+}
+
+// ---- Sonic ---------------------------------------------------------------------------------------
+
+/** Radius of each wave of a boom right now (negative = not emitted yet). */
+export function boomRadii(b: Boom): number[] {
+  const spec = getWeapon(b.weaponId).sonic!;
+  return b.hits.map((_, k) => (b.elapsed - k * spec.interval) * spec.speed);
+}
+
+/**
+ * Advance a boom's waves. Each wave hits each target (tank or hologram, never the owner's) once, as
+ * its front sweeps past, if the target is inside the arc. Terrain doesn't stop it. Returns true once
+ * the last wave has reached full range.
+ */
+function stepBoom(state: GameState, b: Boom, dt: number): boolean {
+  const spec = getWeapon(b.weaponId).sonic!;
+  b.elapsed += dt;
+  const half = (spec.halfAngleDeg * Math.PI) / 180;
+  const radii = boomRadii(b);
+  for (const t of allTargets(state)) {
+    if (targetOwner(t) === b.ownerId) continue;
+    const pos = t.kind === 'player' ? t.player : t.holo;
+    const dx = pos.x - b.x;
+    const dy = -(pos.y - TANK_BODY_HEIGHT - b.y);
+    const d = Math.hypot(dx, dy);
+    if (d > b.range) continue;
+    let off = Math.atan2(dy, dx) - b.angle;
+    off = Math.atan2(Math.sin(off), Math.cos(off));
+    // The hull has some width, so allow a little beyond the arc's edge.
+    if (Math.abs(off) > half + Math.atan2(TANK_HIT_RADIUS, Math.max(d, 1))) continue;
+    const key = t.kind === 'player' ? `p${t.player.id}` : `h${t.holo.id}`;
+    radii.forEach((r, k) => {
+      if (r < d - TANK_HIT_RADIUS || b.hits[k]!.includes(key)) return;
+      b.hits[k]!.push(key);
+      const dmg = Math.max(1, Math.round(spec.damage * Math.min(1, spec.refDistance / Math.max(d, 1))));
+      damageTarget(state, t, dmg, b.ownerId, getWeapon(b.weaponId).colour ?? '#c9b6ff');
+    });
+  }
+  return radii[radii.length - 1]! >= b.range;
 }
 
 // ---- Spew ----------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel';
+export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra';
 
 /**
  * How a weapon is delivered:
@@ -10,8 +10,29 @@ export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel';
  * - `decoy`: no shot; spawns hologram copies of the firer's tank (see `decoys`). Ignores aiming.
  * - `jetpack`: the firer's own tank charges up, then launches along the aim (see `jetpack`).
  * - `spew`: a short-range gush of chunky gunk from the barrel (see `spew`).
+ * - `sonic`: expanding arcs of sound that pass through terrain (see `sonic`).
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack' | 'spew';
+export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack' | 'spew' | 'sonic';
+
+/**
+ * Sonic weapons: `waves` arcs, `interval` s apart, expand from the barrel at `speed` px/s across
+ * ±`halfAngleDeg` of the aim, through terrain, out to a range set by power (`minRange`–`maxRange`).
+ * Each wave hits each target once for `damage` × min(1, `refDistance` / distance): the further away,
+ * the less of the arc reaches them.
+ */
+export interface SonicSpec {
+  waves: number;
+  interval: number;
+  speed: number;
+  halfAngleDeg: number;
+  minRange: number;
+  maxRange: number;
+  damage: number;
+  refDistance: number;
+}
+
+/** Cosmetic apparitions a weapon can summon in the sky when fired. */
+export type ApparitionKind = 'kookaburra';
 
 /**
  * Gunk particles (jetpack propellant, spew chunks): they fly under gravity, slump into piles of new
@@ -109,6 +130,10 @@ export interface WeaponDef {
   spew?: SpewSpec;
   /** Particles from jetpack/spew weapons. */
   gunk?: GunkSpec;
+  /** Sonic weapons: the waves. */
+  sonic?: SonicSpec;
+  /** Something that appears in the sky above the tank when fired (cosmetic). */
+  apparition?: ApparitionKind;
   /** Stream weapons: pressure profile and flow. */
   stream?: StreamSpec;
   /** Beam / liquid colour. */

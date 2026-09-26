@@ -16,6 +16,9 @@ export interface CharacterDef {
   loadout: Loadout;
 }
 
+/** Stand-in loadout for characters whose own weapons haven't been designed yet. */
+const PLACEHOLDER_LOADOUT: Loadout = ['shell', 'heavy-shell', 'mega-shell'];
+
 export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'tones',
@@ -37,6 +40,27 @@ export const ROSTER: readonly CharacterDef[] = [
     blurb: 'Ice cream volleys, a fixating laser and a pill storm.',
     colours: ['#ffc53d', '#c77dff', '#e2e8f0'],
     loadout: ['double-park', 'hyperfixate', 'unmedicated'],
+  },
+  {
+    id: 'torikloud',
+    name: 'torikloud',
+    blurb: 'Sonic Boom: arcs of sound through solid ground.',
+    colours: ['#a78bfa', '#818cf8', '#e879f9'],
+    loadout: ['shell', 'sonic-boom', 'mega-shell'],
+  },
+  {
+    id: 'ciarra',
+    name: 'ciarra',
+    blurb: 'Standard-issue shells (for now).',
+    colours: ['#f472b6', '#fb7185', '#fda4af'],
+    loadout: PLACEHOLDER_LOADOUT,
+  },
+  {
+    id: 'larinovsky',
+    name: 'larinovsky',
+    blurb: 'Standard-issue shells (for now).',
+    colours: ['#34d399', '#a3e635', '#22d3ee'],
+    loadout: PLACEHOLDER_LOADOUT,
   },
 ];
 

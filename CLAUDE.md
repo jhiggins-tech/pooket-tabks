@@ -32,8 +32,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   stage, ignores aim), `stream` (liquid jet with a `stream` pressure profile; droplets trickle damage
   via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering), `decoy`
   (spawns `Hologram`s of the firer's tank; ignores aim), `jetpack` (the firer's tank charges, then
-  launches once along the aim; its propellant must look like dirt/mud) or `spew` (a short-range gush of
-  chunks from the barrel). Jetpack propellant and spew chunks are both `Sludge` "gunk" (`WeaponDef.gunk`:
+  launches once along the aim; its propellant must look like dirt/mud), `spew` (a short-range gush of
+  chunks from the barrel) or `sonic` (`Boom`: waves of expanding arcs along the aim that pass through
+  terrain without damaging it; each wave hits a target once, weaker with distance; power sets range).
+  `apparition` summons a cosmetic sky effect on firing (torikloud's kookaburra in parting clouds). Jetpack propellant and spew chunks are both `Sludge` "gunk" (`WeaponDef.gunk`:
   look, pile colour, dose): it flies, slumps into piles via `Terrain.addDirt`, and doses enemies with
   `Player.toxin`, which drains into soak damage before the turn ends. Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `spin` (tumble the sprite in
@@ -46,8 +48,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   Holograms must stay visually identical to the real tank. Cosmetic phase effects: holograms phase in
   (`Hologram.age`), exposed ones dissolve (`ghosts`), and all of a player's copies shimmer together at the
   end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
-- `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
-  signature colours and a 3-tier loadout. kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that
+- `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj`, `torikloud`, `ciarra`,
+  `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout. ciarra and
+  larinovsky use the placeholder Shell / Heavy / Mega for now; torikloud has Shell / Sonic Boom / Mega. kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that
   land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (2 holograms; on later turns
   tap one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)

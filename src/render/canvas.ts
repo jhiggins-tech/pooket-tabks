@@ -1,7 +1,18 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, tankCentre, WALKER_BODY } from '../game/game';
-import type { Droplet, GameState, Player, Projectile } from '../game/state';
+import {
+  boomRadii,
+  currentPlayer,
+  HOLOGRAM_PHASE_IN,
+  hologramsOf,
+  isAimless,
+  isSpewing,
+  jetCharge,
+  muzzle,
+  tankCentre,
+  WALKER_BODY,
+} from '../game/game';
+import type { Apparition, Droplet, GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
 
@@ -93,6 +104,7 @@ export class Renderer {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.setTransform(this.scale, 0, 0, this.scale, this.offsetX, this.offsetY);
+    for (const a of state.apparitions) this.drawApparition(a); // in the sky, behind the hills
     ctx.drawImage(this.terrainCanvas, 0, 0);
     // Stretch the edge columns into any side letterbox so hills run to the screen edge.
     const side = this.offsetX / this.scale;
@@ -127,6 +139,7 @@ export class Renderer {
     this.drawProjectiles(state);
     this.drawLiquid(state);
     this.drawBeams(state);
+    this.drawBooms(state);
     this.drawExplosions(state);
     this.drawFloaters(state);
 
@@ -534,6 +547,109 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(sp.x, sp.y, 1.4, 0, Math.PI * 2);
       ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  /** Sonic waves: nested arcs that fade as they spread, drawn over the terrain they pass through. */
+  private drawBooms(state: GameState): void {
+    const { ctx } = this;
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (const b of state.booms) {
+      const w = getWeapon(b.weaponId);
+      const half = ((w.sonic?.halfAngleDeg ?? 30) * Math.PI) / 180;
+      const colour = w.colour ?? '#c9b6ff';
+      for (const r of boomRadii(b)) {
+        if (r <= 2 || r > b.range) continue;
+        const fade = 1 - r / b.range;
+        const wobble = Math.sin(r * 0.15 + this.time * 20) * 1.2;
+        const arc = (rr: number, style: string, width: number, alpha: number) => {
+          ctx.globalAlpha = alpha * fade;
+          ctx.strokeStyle = style;
+          ctx.lineWidth = width;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, Math.max(1, rr), -b.angle - half, -b.angle + half);
+          ctx.stroke();
+        };
+        arc(r + wobble, colour, 10, 0.18);
+        arc(r + wobble, colour, 3.5, 0.9);
+        arc(r + wobble, '#ffffff', 1.2, 0.9);
+        arc(r - 7, colour, 1.5, 0.5);
+        arc(r - 13, colour, 1, 0.3);
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * torikloud's kookaburra: clouds part like a sunrise, a glowing kookaburra looks down from a burst
+   * of golden rays, then it all fades back into the sky.
+   */
+  private drawApparition(a: Apparition): void {
+    const { ctx } = this;
+    const k = a.age / a.duration;
+    const ease = (x: number) => 1 - (1 - Math.min(1, Math.max(0, x))) ** 3;
+    const reveal = ease(k / 0.35);
+    const alpha = k < 0.8 ? reveal : Math.max(0, 1 - (k - 0.8) / 0.2);
+    ctx.save();
+    ctx.translate(a.x, a.y);
+
+    // Sun glow and slowly turning rays.
+    ctx.globalAlpha = alpha;
+    const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 70);
+    glow.addColorStop(0, 'rgba(255,236,170,0.95)');
+    glow.addColorStop(0.35, 'rgba(255,196,90,0.45)');
+    glow.addColorStop(1, 'rgba(255,170,60,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, 70, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.save();
+    ctx.rotate(this.time * 0.25);
+    ctx.fillStyle = 'rgba(255,214,120,0.22)';
+    for (let i = 0; i < 12; i++) {
+      ctx.rotate((Math.PI * 2) / 12);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(95, -7);
+      ctx.lineTo(95, 7);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // The kookaburra, rising slightly into view with a golden halo.
+    const sprite = this.sprites.kookaburra;
+    if (sprite.image.complete && sprite.image.naturalWidth > 0) {
+      const s = 0.85 + 0.15 * reveal;
+      const bob = Math.sin(this.time * 2) * 1.5 + (1 - reveal) * 10;
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,215,120,0.9)';
+      ctx.shadowBlur = 14;
+      ctx.drawImage(sprite.image, (-sprite.width * s) / 2, (-sprite.height * s) / 2 + bob, sprite.width * s, sprite.height * s);
+      ctx.restore();
+    }
+
+    // Clouds drifting apart to reveal it, then melting away.
+    ctx.globalAlpha = Math.min(1, (1 - reveal) * 0.6 + 0.4) * (k < 0.8 ? 1 : alpha);
+    for (const side of [-1, 1]) {
+      const cx = side * (8 + 70 * reveal);
+      for (const [dx, dy, r] of [
+        [0, 6, 16],
+        [side * 14, 2, 13],
+        [side * -12, 10, 12],
+        [side * 26, 9, 10],
+      ] as const) {
+        const g = ctx.createRadialGradient(cx + dx, dy + 2, 2, cx + dx, dy + 2, r);
+        g.addColorStop(0, 'rgba(255,255,255,0.95)');
+        g.addColorStop(0.7, 'rgba(226,232,245,0.9)');
+        g.addColorStop(1, 'rgba(200,210,230,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx + dx, dy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     ctx.restore();
   }

@@ -14,7 +14,7 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator('option')).toHaveText(['tones', 'kie', 'kcaj']);
+  await expect(p1Char.locator('option')).toHaveText(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
   await expect(p1Name).toHaveValue('tones');
@@ -260,6 +260,30 @@ test("tones' ten-3 spew", async ({ page }) => {
   await page.screenshot({ path: 'test-results/ten-3.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   await expect(weapons.nth(2)).toBeEnabled(); // kie's turn now, with his own tier 3
+  expect(errors).toEqual([]);
+});
+
+test("torikloud's Sonic Boom and the kookaburra in the sky", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777');
+  await page.getByLabel('Player 1 character').selectOption('torikloud');
+  await expect(page.getByLabel('Player 1 name')).toHaveValue('torikloud');
+  await page.getByLabel('Player 2 character').selectOption('larinovsky');
+  await page.locator('#start').tap();
+
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Sonic Boom, 3 left');
+  await weapons.nth(1).tap();
+  for (let i = 0; i < 40; i++) await page.getByRole('button', { name: 'Rotate barrel clockwise' }).tap();
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: 'test-results/sonic-boom.png' });
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: 'test-results/sonic-boom-2.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  // larinovsky has the placeholder shells for now.
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Heavy Shell, 3 left');
   expect(errors).toEqual([]);
 });
 

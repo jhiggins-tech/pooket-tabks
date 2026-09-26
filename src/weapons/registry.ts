@@ -8,6 +8,24 @@ export const shell: WeaponDef = {
   damage: 45,
 };
 
+/** Placeholder tier 2 for characters without their own weapons yet. */
+export const heavyShell: WeaponDef = {
+  id: 'heavy-shell',
+  name: 'Heavy Shell',
+  shortName: 'Heavy',
+  blastRadius: 36,
+  damage: 45,
+};
+
+/** Placeholder tier 3 for characters without their own weapons yet. */
+export const megaShell: WeaponDef = {
+  id: 'mega-shell',
+  name: 'Mega Shell',
+  shortName: 'Mega',
+  blastRadius: 54,
+  damage: 45,
+};
+
 /** kcaj's tier 1: two ice cream cones fanned ±2° either side of the aim. */
 export const doublePark: WeaponDef = {
   id: 'double-park',
@@ -138,7 +156,38 @@ export const ten3: WeaponDef = {
   colour: '#f0c050',
 };
 
-const weapons: WeaponDef[] = [shell, doublePark, hyperfixate, unmedicated, ten1, trollogram, ten2, weaselPop, ten3];
+/**
+ * torikloud's tier 2: pulses of disruptor sound radiate in arcs from the barrel, straight through
+ * terrain. Close targets catch the whole arc; distant ones only a sliver. A kookaburra looks down
+ * from the clouds as it fires.
+ */
+export const sonicBoom: WeaponDef = {
+  id: 'sonic-boom',
+  name: 'Sonic Boom',
+  shortName: 'Sonic Boom',
+  kind: 'sonic',
+  blastRadius: 0,
+  damage: 0,
+  sonic: { waves: 4, interval: 0.22, speed: 320, halfAngleDeg: 30, minRange: 150, maxRange: 500, damage: 12, refDistance: 80 },
+  friendlyFire: false,
+  colour: '#c9b6ff',
+  apparition: 'kookaburra',
+};
+
+const weapons: WeaponDef[] = [
+  shell,
+  heavyShell,
+  megaShell,
+  doublePark,
+  hyperfixate,
+  unmedicated,
+  ten1,
+  trollogram,
+  ten2,
+  weaselPop,
+  ten3,
+  sonicBoom,
+];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

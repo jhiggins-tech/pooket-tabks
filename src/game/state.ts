@@ -172,6 +172,29 @@ export interface Sludge {
   look: number;
 }
 
+/** Sonic waves in progress: arcs expanding from `x, y` along `angle`. */
+export interface Boom {
+  ownerId: number;
+  weaponId: string;
+  x: number;
+  y: number;
+  /** Radians, maths convention (0 = right, π/2 = up). */
+  angle: number;
+  range: number;
+  elapsed: number;
+  /** Target keys already hit, per wave. */
+  hits: string[][];
+}
+
+/** Cosmetic: something appearing in the sky (e.g. torikloud's kookaburra). */
+export interface Apparition {
+  kind: 'kookaburra';
+  x: number;
+  y: number;
+  age: number;
+  duration: number;
+}
+
 /** Cosmetic spray where water lands. */
 export interface Splash {
   x: number;
@@ -224,6 +247,8 @@ export interface GameState {
   streams: Stream[];
   jets: Jet[];
   spews: Spew[];
+  booms: Boom[];
+  apparitions: Apparition[];
   sludge: Sludge[];
   droplets: Droplet[];
   splashes: Splash[];
