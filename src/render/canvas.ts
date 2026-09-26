@@ -608,47 +608,107 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** Marathon: a little jogger in a pink singlet with a race bib, legs and arms pumping. */
+  /**
+   * Marathon: a short little runner with tan skin and a swinging rose ponytail, in a crop singlet (the
+   * owner's colour) with a race bib, running shorts and white trainers, arms and legs pumping.
+   */
   private drawRunner(r: Runner, state: GameState): void {
     const { ctx } = this;
     const colour = state.players[r.ownerId]?.colour ?? '#f472b6';
-    const stride = Math.sin(r.distance * 0.35);
+    const SKIN = '#c68a5c';
+    const SKIN_SHADE = '#a26a42';
+    const HAIR = '#d23f6b';
+    const HAIR_LIGHT = '#f07a9c';
+    const HIPS = 2.4; // she's short: legs and torso are cut down, the head stays full size
     const moving = r.legLeft > 0;
-    const s = moving ? stride : 0.15;
-    const x = r.x;
-    const y = r.y - 1 - (moving ? Math.abs(Math.cos(r.distance * 0.35)) * 1.5 : 0);
+    const phase = r.distance * 0.35;
+    const s = moving ? Math.sin(phase) : 0.15;
+    const bounce = moving ? Math.abs(Math.cos(phase)) * 1.5 : 0;
     ctx.save();
-    ctx.translate(x, y);
+    ctx.translate(r.x, r.y - 1 - bounce);
     ctx.scale(r.dir, 1);
     ctx.lineCap = 'round';
-    ctx.strokeStyle = '#2b1d14';
-    ctx.lineWidth = 1.8;
-    // legs
+    ctx.lineJoin = 'round';
+
+    // One leg: hip → knee → foot, with a white trainer. `k` is its stride (−1…1).
+    const leg = (k: number, skin: string) => {
+      const knee = { x: 2.4 * k + 0.8, y: -3.6 };
+      const foot = { x: 2.9 * k - (k < 0 ? 1.4 : 0.3), y: -0.6 };
+      ctx.strokeStyle = skin;
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.moveTo(0, -6.6);
+      ctx.lineTo(knee.x, knee.y);
+      ctx.lineTo(foot.x, foot.y);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(foot.x - 0.6, foot.y + 0.2);
+      ctx.lineTo(foot.x + 1.6, foot.y + 0.2);
+      ctx.stroke();
+    };
+    // One arm, bent at the elbow, swinging opposite its leg.
+    const arm = (k: number, skin: string) => {
+      ctx.strokeStyle = skin;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(0.3, -14.2 + HIPS);
+      ctx.lineTo(-2.2 * k, -12 + HIPS);
+      ctx.lineTo(-2.2 * k + 1.6, -11 + HIPS - Math.max(0, k) * 1.1);
+      ctx.stroke();
+    };
+
+    // Far side first, in shade.
+    leg(-s, SKIN_SHADE);
+    arm(-s, SKIN_SHADE);
+
+    // Rose ponytail streaming behind, swinging with the stride.
+    const sway = moving ? Math.cos(phase * 2) * 1.1 : 0.6;
+    ctx.fillStyle = HAIR;
     ctx.beginPath();
-    ctx.moveTo(0, -9);
-    ctx.lineTo(4 * s, -4);
-    ctx.lineTo(4 * s - 1.5, 0);
-    ctx.moveTo(0, -9);
-    ctx.lineTo(-4 * s, -4);
-    ctx.lineTo(-4 * s - 1.5, 0);
-    // arms
-    ctx.moveTo(0, -15);
-    ctx.lineTo(-3.5 * s, -12);
-    ctx.moveTo(0, -15);
-    ctx.lineTo(3.5 * s, -12);
-    ctx.stroke();
-    // singlet with bib
-    ctx.fillStyle = colour;
-    ctx.fillRect(-2.2, -16, 4.4, 7);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-1.5, -14, 3, 2.4);
-    // head and headband
-    ctx.fillStyle = '#f1c9a0';
-    ctx.beginPath();
-    ctx.arc(0.5, -19, 2.6, 0, Math.PI * 2);
+    ctx.moveTo(-1.4, -20.4 + HIPS);
+    ctx.quadraticCurveTo(-5.2, -20.7 + HIPS + sway * 0.4, -6.2, -16.4 + HIPS + sway);
+    ctx.quadraticCurveTo(-4.2, -17.4 + HIPS + sway * 0.5, -1.9, -17.8 + HIPS);
+    ctx.closePath();
     ctx.fill();
+
+    // Shorts and crop singlet with a race bib.
+    ctx.fillStyle = '#1f2437';
+    ctx.fillRect(-2.2, -10.4 + HIPS, 4.4, 2.6);
+    ctx.fillStyle = SKIN; // a sliver of midriff
+    ctx.fillRect(-1.9, -11.2 + HIPS, 3.8, 0.9);
     ctx.fillStyle = colour;
-    ctx.fillRect(-2, -20.5, 5, 1.2);
+    ctx.beginPath();
+    ctx.moveTo(-2.1, -15.4 + HIPS);
+    ctx.lineTo(2.5, -15.4 + HIPS);
+    ctx.lineTo(2.2, -11.1 + HIPS);
+    ctx.lineTo(-2.0, -11.1 + HIPS);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-1.3, -14.1 + HIPS, 2.9, 2);
+
+    // Near side.
+    leg(s, SKIN);
+    arm(s, SKIN);
+
+    // Head, then rose hair over the crown and the back.
+    ctx.fillStyle = SKIN;
+    ctx.fillRect(-0.2, -16.6 + HIPS, 1.3, 1.4); // neck
+    ctx.beginPath();
+    ctx.arc(0.6, -18.5 + HIPS, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = HAIR;
+    ctx.beginPath();
+    ctx.arc(0.4, -18.8 + HIPS, 2.8, Math.PI * 0.62, Math.PI * 2.02);
+    ctx.quadraticCurveTo(1.2, -19.4 + HIPS, -0.6, -19 + HIPS);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = HAIR_LIGHT;
+    ctx.fillRect(-0.9, -21.2 + HIPS, 2.2, 0.7); // shine
+    ctx.fillStyle = '#2b1d14';
+    ctx.fillRect(1.9, -18.6 + HIPS, 0.7, 0.8); // eye
     ctx.restore();
   }
 
