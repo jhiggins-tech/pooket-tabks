@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, jetCharge, muzzle, tankCentre } from '../game/game';
+import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, jetCharge, muzzle, tankCentre, WALKER_BODY } from '../game/game';
 import type { Droplet, GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
@@ -391,17 +391,37 @@ export class Renderer {
     }
   }
 
-  /** Draws the weapon's sprite rotated along the velocity. Returns false if there isn't one (yet). */
+  /**
+   * Draws the weapon's sprite: pointing along the velocity by default, tumbling about its centre
+   * for `spin` weapons, or upright and scurrying for walkers on the ground.
+   * Returns false if there isn't one (yet).
+   */
   private drawSprite(pr: Projectile): boolean {
-    const id = getWeapon(pr.weaponId).sprite;
+    const weapon = getWeapon(pr.weaponId);
+    const id = weapon.sprite;
     const sprite = id && this.sprites[id];
     if (!sprite || !sprite.image.complete || sprite.image.naturalWidth === 0) return false;
     const { ctx } = this;
+    const { width: w, height: h } = sprite;
     ctx.save();
-    ctx.translate(pr.x, pr.y);
-    ctx.rotate(Math.atan2(pr.vy, pr.vx));
-    // Anchor near the tip so the sprite's nose sits on the collision point.
-    ctx.drawImage(sprite.image, -sprite.width * 0.85, -sprite.height / 2, sprite.width, sprite.height);
+    if (pr.walkDir !== 0) {
+      // Scurrying: upright, facing its walk direction, with a quick bob.
+      const bob = Math.abs(Math.sin(pr.walkTime * 22)) * 1.6;
+      ctx.translate(pr.x, pr.y - WALKER_BODY - bob);
+      ctx.scale(pr.walkDir, 1);
+      ctx.rotate(Math.sin(pr.walkTime * 22) * 0.06);
+      ctx.drawImage(sprite.image, -w / 2, -h / 2 - 0.5, w, h);
+    } else if (weapon.spin) {
+      ctx.translate(pr.x, pr.y);
+      ctx.rotate(pr.age * weapon.spin * (pr.vx < 0 ? -1 : 1));
+      ctx.scale(pr.vx < 0 ? -1 : 1, 1);
+      ctx.drawImage(sprite.image, -w / 2, -h / 2, w, h);
+    } else {
+      ctx.translate(pr.x, pr.y);
+      ctx.rotate(Math.atan2(pr.vy, pr.vx));
+      // Anchor near the tip so the sprite's nose sits on the collision point.
+      ctx.drawImage(sprite.image, -w * 0.85, -h / 2, w, h);
+    }
     ctx.restore();
     return true;
   }

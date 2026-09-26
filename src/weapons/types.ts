@@ -1,5 +1,5 @@
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill';
+export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel';
 
 /**
  * How a weapon is delivered:
@@ -72,6 +72,13 @@ export interface WeaponDef {
   friendlyFire?: boolean;
   /** Draw the projectile as a sprite pointing along its flight path; default is a plain shell. */
   sprite?: SpriteId;
+  /** Tumble the sprite around its centre at this many radians per second in flight (instead of pointing along the path). */
+  spin?: number;
+  /**
+   * Walkers: instead of exploding on landing, walk along the ground towards the nearest enemy at
+   * `speed` px/s, climbing steps up to `climb` px, and detonate on touching a target or after `duration`.
+   */
+  walk?: { speed: number; duration: number; climb: number };
   /** Draw a dotted trail behind projectiles. Default true. */
   trail?: boolean;
   /** Decoy weapons: how many hologram copies to spawn. */

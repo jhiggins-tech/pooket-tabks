@@ -35,7 +35,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   launches once along the aim; its `Sludge` propellant must look like dirt/mud: brown clumps in flight,
   slumping into wet mud mounds via `Terrain.addDirt`; it doses enemies with `Player.toxin`, which drains
   into soak damage). Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
-  (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `trail`.
+  (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `spin` (tumble the sprite in
+  flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
+  small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`), `trail`.
 - Hit-testing goes through `targetAt()` / `Target` (a real tank or a hologram). Damage goes through
   `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
   damage, and at the end of the turn (`resolveHolograms()`) any hit hologram vanishes and the shooter takes
@@ -44,8 +46,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   (`Hologram.age`), exposed ones dissolve (`ghosts`), and all of a player's copies shimmer together at the
   end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj` (lowercase on purpose), each with
-  signature colours and a 3-tier loadout. kie: Shell / Heavy / Trollogram (2 holograms; on later turns tap
-  one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
+  signature colours and a 3-tier loadout. kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that
+  land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (2 holograms; on later turns
+  tap one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)
   / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; toxic mud propellant) / Mega. kcaj has
   Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8

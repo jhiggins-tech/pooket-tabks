@@ -50,6 +50,10 @@ export interface Projectile {
   bounces: number;
   /** Seconds in flight (stray projectiles detonate after a while). */
   age: number;
+  /** Walkers: −1 / +1 while walking along the ground, 0 while airborne. */
+  walkDir: number;
+  /** Walkers: seconds spent walking so far (they pop when it reaches the weapon's walk duration). */
+  walkTime: number;
 }
 
 export interface Beam {

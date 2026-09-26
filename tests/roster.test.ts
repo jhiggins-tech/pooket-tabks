@@ -18,8 +18,8 @@ describe('roster', () => {
     }
   });
 
-  it("kie's loadout is Shell, Heavy Shell, Trollogram", () => {
-    expect(getCharacter('kie').loadout).toEqual(['shell', 'heavy-shell', 'trollogram']);
+  it("kie's loadout is Shell, Weasel Pop, Trollogram", () => {
+    expect(getCharacter('kie').loadout).toEqual(['shell', 'weasel-pop', 'trollogram']);
   });
 
   it('the shell tiers grow in blast radius', () => {
@@ -50,7 +50,7 @@ describe('roster', () => {
   });
 
   it('summarises a loadout for the setup screen', () => {
-    expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Heavy ×3 · Trollogram ×1');
+    expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Weasel Pop ×3 · Trollogram ×1');
     expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · ten-2 ×3 · Mega ×1');
   });
 });

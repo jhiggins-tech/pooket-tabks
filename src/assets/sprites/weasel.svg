@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="24" viewBox="0 0 48 24">
+  <!-- Side-on weasel facing right (+x); centred so it can tumble about its middle. -->
+  <!-- tail -->
+  <path d="M10 13 C5 13 2 10 2.5 6 C3 3.5 5.5 3.5 5.5 6 C5.5 9 8 10 11 10.5 Z" fill="#6b4020" stroke="#2e1a0c" stroke-width="1"/>
+  <!-- legs -->
+  <g fill="#6b4020" stroke="#2e1a0c" stroke-width="1">
+    <rect x="11" y="15" width="3.2" height="7" rx="1.4"/>
+    <rect x="16" y="15.5" width="3.2" height="6.5" rx="1.4"/>
+    <rect x="29" y="15.5" width="3.2" height="6.5" rx="1.4"/>
+    <rect x="34" y="15" width="3.2" height="7" rx="1.4"/>
+  </g>
+  <!-- body -->
+  <path d="M9 13 C9 8 15 6.5 23 6.5 C31 6.5 36 7.5 38 10 L38 16 C34 18.5 14 18.5 11 17 C9.5 16 9 14.5 9 13 Z" fill="#8a5a2e" stroke="#2e1a0c" stroke-width="1.1"/>
+  <!-- cream belly -->
+  <path d="M14 16.3 C19 17.6 30 17.6 35 15.8 C31 14.3 19 14.3 14 16.3 Z" fill="#f2dfbe"/>
+  <!-- head -->
+  <path d="M34 11 C34 6.5 38 4.5 42 5.5 C45 6.3 47 8.8 46.5 10.8 C46 12.8 43 14.5 39.5 14.5 C36 14.5 34 13.2 34 11 Z" fill="#8a5a2e" stroke="#2e1a0c" stroke-width="1.1"/>
+  <path d="M39 13.6 C41.5 14.2 44.5 13.2 46.2 11.2 C44 12.2 41 12.6 39 13.6 Z" fill="#f2dfbe"/>
+  <!-- ear, eye, nose -->
+  <path d="M37.5 6.2 C37 3.4 39.3 2.4 40.6 4.8 Z" fill="#6b4020" stroke="#2e1a0c" stroke-width="0.9"/>
+  <circle cx="41.8" cy="8.6" r="1.25" fill="#111"/>
+  <circle cx="42.2" cy="8.2" r="0.4" fill="#fff"/>
+  <circle cx="46.6" cy="10.3" r="1.1" fill="#f28ca0" stroke="#2e1a0c" stroke-width="0.5"/>
+  <!-- stripe highlight -->
+  <path d="M15 9.5 C21 7.8 29 7.8 34 9" fill="none" stroke="#b37c47" stroke-width="1.4" stroke-linecap="round"/>
+</svg>

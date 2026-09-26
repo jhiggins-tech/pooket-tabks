@@ -120,7 +120,24 @@ export const ten2: WeaponDef = {
   colour: '#9be22d',
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1, trollogram, ten2];
+/**
+ * kie's tier 2: three weasels tumble out of the barrel at aim −4° / 0° / +4°. Each one that lands
+ * scurries along the ground towards the nearest enemy and pops on contact, or when it runs out of steam.
+ */
+export const weaselPop: WeaponDef = {
+  id: 'weasel-pop',
+  name: 'Weasel Pop',
+  shortName: 'Weasel Pop',
+  blastRadius: 20,
+  damage: 20,
+  volley: { count: 3, spreadDeg: 4 },
+  sprite: 'weasel',
+  spin: 12,
+  trail: false,
+  walk: { speed: 40, duration: 2.5, climb: 6 },
+};
+
+const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1, trollogram, ten2, weaselPop];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

@@ -4,7 +4,7 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
 
-  await page.goto('./?seed=12345');
+  await page.goto('./?seed=12345&debug');
   await expect(page.locator('#rotate')).toBeHidden();
 
   // --- Setup screen: two players, three characters, names pre-filled ---
@@ -42,7 +42,7 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons).toHaveCount(3);
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Shell, 5 left');
-  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Heavy Shell, 3 left');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Weasel Pop, 3 left');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Trollogram, 1 left');
   await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
 
@@ -60,10 +60,17 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.getByRole('button', { name: 'More power' }).tap();
   await expect(page.locator('#power')).toHaveText(String(Math.min(100, powerBefore + 1)));
 
-  // Fire a tier 2 Heavy Shell.
+  // Fire a tier 2 Weasel Pop: three tumbling weasels that land and scurry towards the enemy.
   await weapons.nth(1).tap();
   await expect(weapons.nth(1)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#fire').tap();
+  type Dbg = { __pooket: { state: { projectiles: { walkDir: number }[] } } };
+  await page.waitForTimeout(450);
+  expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.state.projectiles.length)).toBe(3);
+  await page.screenshot({ path: 'test-results/weasel-flight.png' });
+  await page.waitForFunction(() => (window as unknown as Dbg).__pooket.state.projectiles.some((p) => p.walkDir !== 0), undefined, { timeout: 10_000, polling: 16 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/weasel-walk.png' });
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   await expect(page.locator('.chip.active .name')).toHaveText('kcaj');

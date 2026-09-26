@@ -27,9 +27,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'kie',
     name: 'kie',
-    blurb: 'Trollogram: hologram decoys he can secretly swap with.',
+    blurb: 'Weasel Pop and Trollogram decoys he can secretly swap with.',
     colours: ['#4ea8ff', '#46d27a', '#2dd4bf'],
-    loadout: ['shell', 'heavy-shell', 'trollogram'],
+    loadout: ['shell', 'weasel-pop', 'trollogram'],
   },
   {
     id: 'kcaj',

@@ -207,7 +207,7 @@ export function fire(state: GameState): boolean {
 }
 
 function spawnProjectile(state: GameState, owner: Player, weapon: WeaponDef, x: number, y: number, vx: number, vy: number): void {
-  state.projectiles.push({ x, y, vx, vy, weaponId: weapon.id, ownerId: owner.id, trail: [], bounces: 0, age: 0 });
+  state.projectiles.push({ x, y, vx, vy, weaponId: weapon.id, ownerId: owner.id, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 });
 }
 
 function fireBallistic(state: GameState, p: Player, weapon: WeaponDef): void {
@@ -470,6 +470,7 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
     explode(state, pr.x, pr.y, weapon, pr.ownerId);
     return true;
   }
+  if (pr.walkDir !== 0) return stepWalker(state, pr, weapon, dt);
   pr.vy += GRAVITY * dt;
   const nx = pr.x + pr.vx * dt;
   const ny = pr.y + pr.vy * dt;
@@ -488,6 +489,10 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
       return true;
     }
     if (terrain.isSolid(x, y)) {
+      if (weapon.walk) {
+        startWalking(state, pr, lastX, lastY);
+        return false;
+      }
       if (pr.bounces < (weapon.bounces ?? 0)) {
         bounce(state, pr, weapon, x, y, lastX, lastY);
         return false;
@@ -508,6 +513,81 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
 
   const margin = 200;
   return pr.x < -margin || pr.x > terrain.width + margin;
+}
+
+// ---- Walkers (Weasel Pop) ----------------------------------------------------------------------
+
+/** How high a walker's body sits above its feet, for hit-testing and drawing. */
+export const WALKER_BODY = 7;
+
+/** Land a walker at (x, y), stand it on the ground and point it at the nearest enemy. */
+function startWalking(state: GameState, pr: Projectile, x: number, y: number): void {
+  const { terrain } = state;
+  pr.x = Math.min(terrain.width - 1, Math.max(0, x));
+  pr.y = terrain.groundBelow(pr.x, y);
+  pr.vx = 0;
+  pr.vy = 0;
+  pr.walkDir = directionToNearestEnemy(state, pr);
+}
+
+/** −1 / +1 towards the nearest target (tank or hologram) not owned by the walker's owner. */
+function directionToNearestEnemy(state: GameState, pr: Projectile): number {
+  let best: number | null = null;
+  for (const t of allTargets(state)) {
+    if (targetOwner(t) === pr.ownerId) continue;
+    const tx = t.kind === 'player' ? t.player.x : t.holo.x;
+    if (best === null || Math.abs(tx - pr.x) < Math.abs(best - pr.x)) best = tx;
+  }
+  return best === null || best >= pr.x ? 1 : -1;
+}
+
+/**
+ * One walking step: scurry along the surface (climbing small steps, stepping down small drops,
+ * falling off real ledges), popping on contact with a target or when the walk time runs out.
+ * Returns true once it has exploded.
+ */
+function stepWalker(state: GameState, pr: Projectile, weapon: WeaponDef, dt: number): boolean {
+  const { terrain } = state;
+  const walk = weapon.walk!;
+  pr.walkTime += dt;
+  if (pr.walkTime >= walk.duration) {
+    explode(state, pr.x, pr.y - 3, weapon, pr.ownerId);
+    return true;
+  }
+  let budget = walk.speed * dt;
+  while (budget > 0) {
+    const stepX = Math.min(1, budget);
+    budget -= stepX;
+    const nx = pr.x + pr.walkDir * stepX;
+    if (nx < 0 || nx > terrain.width - 1) return false; // stands at the map edge until it pops
+    if (targetAt(state, nx, pr.y - WALKER_BODY)) {
+      explode(state, nx, pr.y - WALKER_BODY, weapon, pr.ownerId);
+      return true;
+    }
+    let ny = pr.y;
+    if (terrain.isSolid(nx, ny - 1)) {
+      // Step up if it's low enough, otherwise it's a wall: wait here.
+      let up = 1;
+      while (up <= walk.climb && terrain.isSolid(nx, ny - 1 - up)) up++;
+      if (up > walk.climb) return false;
+      ny -= up;
+    } else {
+      // Step down small drops; a bigger drop means it tumbles off the ledge.
+      let down = 0;
+      while (down <= walk.climb && !terrain.isSolid(nx, ny + down)) down++;
+      if (down > walk.climb) {
+        pr.x = nx;
+        pr.vx = pr.walkDir * walk.speed;
+        pr.vy = 0;
+        pr.walkDir = 0;
+        return false;
+      }
+      ny += down;
+    }
+    pr.x = nx;
+    pr.y = ny;
+  }
+  return false;
 }
 
 /** Emits droplets for one stream. Returns true once its pressure profile has finished. */

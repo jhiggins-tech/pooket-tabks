@@ -86,7 +86,7 @@ describe('game', () => {
   it('gives each player the character loadout with 5/3/1 rounds', () => {
     const g = createGame({ seed: 1, players });
     for (const p of g.players) {
-      expect(p.loadout).toEqual(['shell', 'heavy-shell', 'trollogram']);
+      expect(p.loadout).toEqual(['shell', 'weasel-pop', 'trollogram']);
       expect(p.ammo).toEqual([5, 3, 1]);
       expect(p.selectedTier).toBe(0);
     }
