@@ -14,10 +14,9 @@ export interface CharacterDef {
   colours: readonly string[];
   /** Weapon ids by tier. */
   loadout: Loadout;
+  /** How the ◀ ▶ buttons move this character: roll along the ground, or frog hops. Default drive. */
+  movement?: 'drive' | 'hop';
 }
-
-/** Stand-in loadout for characters whose own weapons haven't been designed yet. */
-const PLACEHOLDER_LOADOUT: Loadout = ['shell', 'heavy-shell', 'mega-shell'];
 
 export const ROSTER: readonly CharacterDef[] = [
   {
@@ -51,9 +50,10 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'ciarra',
     name: 'ciarra',
-    blurb: 'Standard-issue shells (for now).',
+    blurb: 'Tattoo Gun, Sew and Marathon, and she hops like a frog.',
     colours: ['#f472b6', '#fb7185', '#fda4af'],
-    loadout: PLACEHOLDER_LOADOUT,
+    loadout: ['tattoo-gun', 'sew', 'marathon'],
+    movement: 'hop',
   },
   {
     id: 'larinovsky',

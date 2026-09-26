@@ -21,6 +21,9 @@ import {
   WORLD_W,
 } from './constants';
 import type {
+  Hop,
+  Runner,
+  Stitch,
   Boom,
   Twin,
   Burst,
@@ -100,6 +103,9 @@ export function createGame(cfg: GameConfig): GameState {
       soak: 0,
       soakColour: '#ffffff',
       cooked: null,
+      tattoo: null,
+      pinned: null,
+      hop: null,
       twin: null,
       fuel: FUEL_PER_MATCH,
       toxin: 0,
@@ -123,6 +129,8 @@ export function createGame(cfg: GameConfig): GameState {
     streams: [],
     jets: [],
     spews: [],
+    stitches: [],
+    runners: [],
     bursts: [],
     naps: [],
     booms: [],
@@ -162,8 +170,10 @@ export function muzzle(p: Player): { x: number; y: number } {
  * Returns the distance moved.
  */
 export function drive(state: GameState, dir: number, dt: number): number {
-  if (state.phase !== 'aiming' || dir === 0) return 0;
+  if (state.phase !== 'aiming') return 0;
   const p = currentPlayer(state);
+  if (getCharacter(p.characterId).movement === 'hop') return hopDrive(state, p, dir, dt);
+  if (dir === 0 || p.pinned?.active) return 0;
   const { terrain } = state;
   let budget = Math.min(p.fuel, DRIVE_SPEED * dt);
   let moved = 0;
@@ -190,6 +200,69 @@ export function drive(state: GameState, dir: number, dt: number): number {
   return moved;
 }
 
+// ---- Frog hops (ciarra's movement) ---------------------------------------------------------------
+
+/** How far one frog hop goes, how high it jumps, and how long it takes. */
+export const HOP_DISTANCE = 24;
+export const HOP_HEIGHT = 16;
+export const HOP_TIME = 0.34;
+
+/**
+ * Hop movement: while ◀ / ▶ is held the tank makes little frog leaps, each spending HOP_DISTANCE of
+ * fuel. A hop clears walls up to HOP_HEIGHT that would stop a driving tank. Returns px moved this step.
+ */
+function hopDrive(state: GameState, p: Player, dir: number, dt: number): number {
+  if (p.hop) {
+    const h = p.hop;
+    const before = p.x;
+    h.t = Math.min(1, h.t + dt / HOP_TIME);
+    p.x = h.x0 + (h.x1 - h.x0) * h.t;
+    p.y = h.y0 + (h.y1 - h.y0) * h.t - 4 * HOP_HEIGHT * h.t * (1 - h.t);
+    if (h.t >= 1) {
+      p.x = h.x1;
+      p.y = h.y1;
+      p.hop = null;
+      spawnDust(state, p.x, p.y, 0.4);
+    }
+    return Math.abs(p.x - before);
+  }
+  if (dir === 0 || p.pinned?.active) return 0;
+  const hop = planHop(state, p, Math.sign(dir));
+  if (!hop) return 0;
+  p.fuel = Math.max(0, p.fuel - Math.abs(hop.x1 - hop.x0));
+  p.hop = hop;
+  spawnDust(state, p.x, p.y, 0.4);
+  return 0;
+}
+
+/** Plan the longest hop (up to HOP_DISTANCE, limited by fuel) that clears everything in the way. */
+function planHop(state: GameState, p: Player, dir: number): Hop | null {
+  const { terrain } = state;
+  const apex = p.y - HOP_HEIGHT;
+  const maxDist = Math.min(HOP_DISTANCE, p.fuel);
+  for (let dist = Math.floor(maxDist); dist >= 4; dist -= 2) {
+    const x1 = p.x + dir * dist;
+    if (x1 < TANK_HALF_WIDTH || x1 > terrain.width - TANK_HALF_WIDTH) continue;
+    // Nothing along the way pokes above the top of the hop…
+    let clear = true;
+    for (let d = 1; d <= dist && clear; d++) {
+      for (const dx of [-TANK_HALF_WIDTH + 2, TANK_HALF_WIDTH - 2]) {
+        if (terrain.isSolid(p.x + dir * d + dx, apex)) clear = false;
+      }
+    }
+    if (!clear) continue;
+    // …it lands on solid ground no higher than the apex, and not on top of another tank.
+    const y1 = hullRest(state, x1, apex);
+    if (y1 < apex) continue;
+    const bump = [...tankBodies(state).filter((q) => !(q.owner === p && !q.twin)), ...state.holograms].some(
+      (q) => Math.abs(q.x - x1) < TANK_HALF_WIDTH * 2,
+    );
+    if (bump) continue;
+    return { x0: p.x, y0: p.y, x1, y1, t: 0 };
+  }
+  return null;
+}
+
 /** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */
 function hullRest(state: GameState, x: number, fromY: number): number {
   let ground = state.terrain.height;
@@ -203,7 +276,7 @@ function hullRest(state: GameState, x: number, fromY: number): number {
 export function isAimless(state: GameState): boolean {
   const p = currentPlayer(state);
   const kind = weaponForTier(p, p.selectedTier).kind ?? 'ballistic';
-  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin';
+  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin' || kind === 'runner';
 }
 
 export function setAim(state: GameState, angle: number, power: number): void {
@@ -238,6 +311,7 @@ export function selectTier(state: GameState, tier: number): boolean {
 export function fire(state: GameState): boolean {
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
+  if (p.hop) return false; // land first
   const tier = p.selectedTier;
   if ((p.ammo[tier] ?? 0) <= 0) return false;
   p.ammo[tier]!--;
@@ -267,6 +341,27 @@ export function fire(state: GameState): boolean {
     case 'twin':
       spawnTwin(state, p);
       break;
+    case 'sew': {
+      const spec = weapon.sew!;
+      const m = muzzle(p);
+      state.stitches.push({
+        ownerId: p.id,
+        weaponId: weapon.id,
+        x0: m.x,
+        y0: m.y,
+        angle: (p.angle * Math.PI) / 180,
+        range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
+        travelled: 0,
+        path: [{ x: m.x, y: m.y }],
+        hits: [],
+        linger: 1.2,
+        done: false,
+      });
+      break;
+    }
+    case 'runner':
+      state.runners.push({ ownerId: p.id, weaponId: weapon.id, x: p.x, y: p.y, dir: 1, legLeft: 0, distance: 0, out: false });
+      break;
     case 'spew':
       state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
       break;
@@ -293,6 +388,8 @@ export function fire(state: GameState): boolean {
       if (p.twin) fireRounds(state, p, weapon, 'twin');
       break;
   }
+  // The marathon goes on: every shot fired sends every runner off on another leg.
+  for (const r of state.runners) r.legLeft += getWeapon(r.weaponId).runner!.leg;
   if (weapon.apparition) {
     const c = tankCentre(p);
     state.apparitions.push({ kind: weapon.apparition, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
@@ -596,6 +693,8 @@ export function step(state: GameState, dt: number): void {
     state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
     state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
     state.bursts = state.bursts.filter((b) => !stepBurst(state, b, dt));
+    state.stitches = state.stitches.filter((st) => !stepStitch(state, st, dt));
+    state.runners = state.runners.filter((r) => !stepRunner(state, r, dt));
     state.naps = state.naps.filter((n) => !stepNap(state, n, dt));
     state.booms = state.booms.filter((b) => !stepBoom(state, b, dt));
     state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
@@ -609,6 +708,8 @@ export function step(state: GameState, dt: number): void {
       state.jets.length +
       state.spews.length +
       state.bursts.length +
+      state.stitches.length +
+      state.runners.filter((r) => r.legLeft > 0).length +
       state.naps.length +
       state.booms.length +
       state.sludge.length +
@@ -998,6 +1099,97 @@ function stepNap(state: GameState, n: Nap, dt: number): boolean {
     spawnFloater(state, c.x, c.y, `+${gained}`, '#7ee7a8');
   }
   return true;
+}
+
+// ---- Sew -----------------------------------------------------------------------------------------
+
+/** The needle's position after sewing `t` px: along the aim, zig-zagging either side of the line. */
+export function stitchPoint(st: Stitch, amplitude: number, wavelength: number, t: number): { x: number; y: number } {
+  const zig = Math.sin((t / wavelength) * Math.PI * 2) * amplitude; // weaving in and out, like running stitches
+  const ux = Math.cos(st.angle);
+  const uy = -Math.sin(st.angle);
+  return { x: st.x0 + ux * t - uy * zig, y: st.y0 + uy * t + ux * zig };
+}
+
+/**
+ * Sew along the line through anything, stitching (damaging and pinning) each enemy it passes through
+ * and leaving stitch marks in the soil. The thread lingers a moment after. Returns true when finished.
+ */
+function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
+  const weapon = getWeapon(st.weaponId);
+  const spec = weapon.sew!;
+  const { terrain } = state;
+  if (st.done) {
+    st.linger -= dt;
+    return st.linger <= 0;
+  }
+  const to = Math.min(st.range, st.travelled + spec.speed * dt);
+  for (let t = st.travelled + 1; t <= to; t += 1) {
+    const pt = stitchPoint(st, spec.amplitude, spec.wavelength, t);
+    if (pt.x < -20 || pt.x > terrain.width + 20 || pt.y < -200 || pt.y > terrain.height + 20) {
+      st.done = true;
+      break;
+    }
+    if (Math.round(t) % 3 === 0 && terrain.isSolid(pt.x, pt.y)) terrain.wetCircle(pt.x, pt.y, 1.3, [244, 114, 182]);
+    const target = targetAt(state, pt.x, pt.y);
+    if (target && targetOwner(target) !== st.ownerId && !st.hits.includes(targetKey(target))) {
+      st.hits.push(targetKey(target));
+      damageTarget(state, target, scaled(state, st.ownerId, spec.damage), st.ownerId, weapon.colour);
+      if (target.kind !== 'hologram' && target.player.alive) {
+        target.player.pinned = { active: false };
+        const c = targetPos(target);
+        spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'PINNED', weapon.colour ?? '#f472b6');
+      }
+    }
+    if (Math.round(t) % 4 === 0) st.path.push(pt);
+  }
+  st.travelled = to;
+  if (st.travelled >= st.range) st.done = true;
+  return false;
+}
+
+// ---- Marathon ------------------------------------------------------------------------------------
+
+/** Run the current leg towards the nearest enemy, over any hill. Returns true once it's finished. */
+function stepRunner(state: GameState, r: Runner, dt: number): boolean {
+  const owner = state.players[r.ownerId];
+  if (!owner?.alive || r.out) return true;
+  if (r.legLeft <= 0) return false; // waiting for the next shot to set it off again
+  const spec = getWeapon(r.weaponId).runner!;
+  const { terrain } = state;
+  let targetX: number | null = null;
+  for (const t of allTargets(state)) {
+    if (targetOwner(t) === r.ownerId) continue;
+    const x = targetPos(t).x;
+    if (targetX === null || Math.abs(x - r.x) < Math.abs(targetX - r.x)) targetX = x;
+  }
+  if (targetX === null) {
+    r.legLeft = 0;
+    return false;
+  }
+  r.dir = targetX >= r.x ? 1 : -1;
+  let budget = Math.min(r.legLeft, spec.speed * dt);
+  while (budget > 0) {
+    const stepX = Math.min(1, budget);
+    budget -= stepX;
+    r.legLeft -= stepX;
+    r.distance += stepX;
+    r.x = Math.min(terrain.width - 1, Math.max(0, r.x + r.dir * stepX));
+    r.y = terrain.surfaceY(r.x); // up and over anything
+    const hit = targetAt(state, r.x, r.y - 6);
+    if (hit && targetOwner(hit) !== r.ownerId) {
+      // Finish line: a big hit.
+      const finish: WeaponDef = { id: r.weaponId, name: 'Marathon', shortName: 'Marathon', blastRadius: spec.radius, damage: spec.damage };
+      r.out = true; // it's done: don't DNF itself in its own blast
+      // Full force at the finish line: the blast goes off right on the tank it reached.
+      const at = targetPos(hit);
+      explode(state, at.x, at.y - TANK_BODY_HEIGHT, finish, r.ownerId);
+      spawnFloater(state, r.x, r.y - 30, 'FINISH!', '#f472b6');
+      return true;
+    }
+  }
+  if (r.legLeft < 0) r.legLeft = 0;
+  return false;
 }
 
 // ---- Sonic ---------------------------------------------------------------------------------------
@@ -1419,14 +1611,17 @@ function damageTarget(state: GameState, t: Target, amount: number, shooterId: nu
   } else if (t.kind === 'twin') {
     damageTwin(state, t.player, amount, colour);
   } else {
-    t.holo.hits.push({ shooterId, damage: amount });
-    spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
+    // A decoy of a tattooed tank shows the same boosted number, so it gives nothing away.
+    const shown = vulnerable(state.players[t.holo.ownerId]!, amount);
+    t.holo.hits.push({ shooterId, damage: shown });
+    spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${shown}`, colour);
   }
 }
 
 function damageTwin(state: GameState, p: Player, amount: number, colour: string): void {
   const tw = p.twin;
   if (!tw || amount <= 0) return;
+  amount = vulnerable(p, amount);
   tw.hp = Math.max(0, tw.hp - amount);
   spawnFloater(state, tw.x, tw.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
   if (tw.hp === 0) {
@@ -1450,6 +1645,19 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     if (d >= reach) continue;
     damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)), shooterId);
     if (weapon.debuff && t.kind !== 'hologram' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier);
+    if (weapon.tattoo && t.kind !== 'hologram' && t.player.alive) {
+      if (!t.player.tattoo) {
+        const c = targetPos(t);
+        spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'TATTOOED', '#b8c4ff');
+      }
+      t.player.tattoo = { multiplier: weapon.tattoo.multiplier, turnsLeft: weapon.tattoo.turns };
+    }
+  }
+  // Any blast knocks out a marathon runner caught in it ("did not finish").
+  for (const rn of state.runners) {
+    if (rn.out || Math.hypot(rn.x - x, rn.y - 6 - y) >= r + 6) continue;
+    rn.out = true;
+    spawnFloater(state, rn.x, rn.y - 20, 'DNF', '#f472b6');
   }
   settleTanks(state);
 }
@@ -1462,8 +1670,14 @@ function cook(state: GameState, p: Player, multiplier: number): void {
 }
 
 /** Every source of damage goes through here so it always gets a floating number. */
+/** Tattooed tanks take extra damage from everything. */
+function vulnerable(p: Player, amount: number): number {
+  return p.tattoo ? Math.round(amount * p.tattoo.multiplier) : amount;
+}
+
 export function damagePlayer(state: GameState, p: Player, amount: number, colour = '#ffffff'): void {
   if (amount <= 0 || !p.alive) return;
+  amount = vulnerable(p, amount);
   p.hp = Math.max(0, p.hp - amount);
   const c = tankCentre(p);
   spawnFloater(state, c.x, c.y, `-${amount}`, colour);
@@ -1549,6 +1763,8 @@ function endTurn(state: GameState): void {
   // A cook lasts exactly one of the victim's turns.
   const ending = currentPlayer(state);
   if (ending.cooked?.active) ending.cooked = null;
+  if (ending.pinned?.active) ending.pinned = null;
+  if (ending.tattoo && --ending.tattoo.turnsLeft <= 0) ending.tattoo = null;
   resolveHolograms(state);
   // Hand the turn on. Each player whose turn comes up takes their burn damage first;
   // players who are dead or out of ammo are skipped.
@@ -1585,6 +1801,7 @@ function endTurn(state: GameState): void {
   state.phase = 'aiming';
   const up = state.players[next]!;
   if (up.cooked) up.cooked.active = true;
+  if (up.pinned) up.pinned.active = true;
 }
 
 function tickBurn(state: GameState, p: Player): void {

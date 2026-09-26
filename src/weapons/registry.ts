@@ -8,24 +8,6 @@ export const shell: WeaponDef = {
   damage: 45,
 };
 
-/** Placeholder tier 2 for characters without their own weapons yet. */
-export const heavyShell: WeaponDef = {
-  id: 'heavy-shell',
-  name: 'Heavy Shell',
-  shortName: 'Heavy',
-  blastRadius: 36,
-  damage: 45,
-};
-
-/** Placeholder tier 3 for characters without their own weapons yet. */
-export const megaShell: WeaponDef = {
-  id: 'mega-shell',
-  name: 'Mega Shell',
-  shortName: 'Mega',
-  blastRadius: 54,
-  damage: 45,
-};
-
 /** kcaj's tier 1: two ice cream cones fanned ±2° either side of the aim. */
 export const doublePark: WeaponDef = {
   id: 'double-park',
@@ -254,10 +236,49 @@ export const twins: WeaponDef = {
   colour: '#a78bfa',
 };
 
+/**
+ * ciarra's tier 1: a buzzing stream of ink needles. Each is a tiny hit, and any tank it catches is
+ * tattooed: +25% damage from everything until it has had two more turns.
+ */
+export const tattooGun: WeaponDef = {
+  id: 'tattoo-gun',
+  name: 'Tattoo Gun',
+  shortName: 'Tattoo Gun',
+  blastRadius: 5,
+  damage: 3,
+  burst: { count: 12, interval: 0.05, powerJitter: 0.02 },
+  tattoo: { multiplier: 1.25, turns: 2 },
+  sprite: 'ink-needle',
+  trail: false,
+  colour: '#1e2a4a',
+};
+
+/** ciarra's tier 2: needle and thread zig-zag through anything; stitched enemies are pinned for a turn. */
+export const sew: WeaponDef = {
+  id: 'sew',
+  name: 'Sew',
+  shortName: 'Sew',
+  kind: 'sew',
+  blastRadius: 0,
+  damage: 0,
+  sew: { speed: 520, minRange: 200, maxRange: 700, amplitude: 7, wavelength: 56, damage: 20 },
+  colour: '#f472b6',
+};
+
+/** ciarra's tier 3: a marathon runner who jogs a leg every time anyone fires, and hits hard on arrival. */
+export const marathon: WeaponDef = {
+  id: 'marathon',
+  name: 'Marathon',
+  shortName: 'Marathon',
+  kind: 'runner',
+  blastRadius: 0,
+  damage: 0,
+  runner: { speed: 85, leg: 150, damage: 50, radius: 30 },
+  colour: '#f472b6',
+};
+
 const weapons: WeaponDef[] = [
   shell,
-  heavyShell,
-  megaShell,
   doublePark,
   hyperfixate,
   unmedicated,
@@ -272,6 +293,9 @@ const weapons: WeaponDef[] = [
   takeANap,
   debate,
   twins,
+  tattooGun,
+  sew,
+  marathon,
 ];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));

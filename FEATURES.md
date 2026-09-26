@@ -7,11 +7,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
 1. ✅ **Fuel meter**: shipped (see below).
 2. ✅ **larinovsky's kit**: Pill Pusher / the Rizzler / Take a Nap, shipped (see below).
 3. ✅ **torikloud's Debate and Twins** (plus Sonic Boom crossover), shipped (see below).
-4. _(empty; next requests go here)_
+4. ✅ **ciarra's kit**: Tattoo Gun / Sew / Marathon plus frog hops, shipped (see below). Every character
+   now has their own kit; the placeholder Heavy and Mega shells are gone.
+5. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
-- Weapons for **ciarra** (currently placeholder Shell / Heavy / Mega).
 - Hide the Trollogram "flat pad" tell: decoys spawn on natural slopes while the real tank starts on a
   flattened pad.
 - Sound effects and music.
@@ -31,6 +32,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   what's left. Tanks follow the ground: they climb small
   bumps, roll down slopes and drop off ledges, and are stopped by walls, other tanks and decoys, and the
   map edge.
+- **Frog hops** (ciarra): instead of driving, she hops 24px at a time from the same fuel tank, clearing
+  walls up to ~16px that would stop a tank.
 - **360° aiming** with slingshot drag (pull back to aim, pull length = power) plus fine-tune buttons.
 - **Floating damage numbers** for every hit, sloping off the tank and fading into the sky.
 - Seeded random destructible terrain (`?seed=N` reproduces a map), turn-based hotseat for 2 players,
@@ -47,5 +50,5 @@ between visits.
 | **kie** | Shell | Weasel Pop: 3 tumbling weasels that walk to the enemy and pop | Trollogram: 2 decoys, secret swap, 50% penalty for hitting one |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
-| **ciarra** | Shell (placeholder) | Heavy (placeholder) | Mega (placeholder) |
+| **ciarra** (moves in frog hops) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a runner jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target | the Rizzler: blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |

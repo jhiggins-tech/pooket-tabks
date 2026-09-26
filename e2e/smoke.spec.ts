@@ -371,6 +371,41 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.getByLabel('Player 1 character').selectOption('ciarra');
+  await page.locator('#start').tap();
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Tattoo Gun, 5 left');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Sew, 3 left');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Marathon, 1 left');
+  await expect(page.locator('.fuel small')).toHaveText('HOPS');
+
+  // Hold ▶: she hops along.
+  type Dbg = { __pooket: { state: { players: { x: number }[] } } };
+  const x0 = await page.evaluate(() => (window as unknown as Dbg).__pooket.state.players[0]!.x);
+  const right = page.getByRole('button', { name: 'Drive right' });
+  const box = (await right.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'test-results/frog-hop.png' });
+  await page.waitForTimeout(600);
+  await page.mouse.up();
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.state.players[0]!.x)).toBeGreaterThan(x0 + 20);
+
+  // Sew.
+  await weapons.nth(1).tap();
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: 'test-results/sew.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');

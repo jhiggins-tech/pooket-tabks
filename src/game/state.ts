@@ -38,6 +38,12 @@ export interface Player {
    * (everything they fire deals `multiplier` × damage), then gone.
    */
   cooked: { active: boolean; multiplier: number } | null;
+  /** Tattooed: takes `multiplier` × damage from everything until it has had `turnsLeft` more turns. */
+  tattoo: { multiplier: number; turnsLeft: number } | null;
+  /** Pinned by Sew: pending until this player's next turn starts, when they can't drive or hop; then gone. */
+  pinned: { active: boolean } | null;
+  /** A frog hop in progress (ciarra's movement). */
+  hop: Hop | null;
   /** A second tank (torikloud's Twins): its own position and health bar, mirroring this player's shots. */
   twin: Twin | null;
   /** px of driving left for the rest of the match. */
@@ -45,6 +51,52 @@ export interface Player {
   /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
   toxin: number;
   toxinRate: number;
+}
+
+/** One frog hop: a little parabolic leap from (x0, y0) to (x1, y1). */
+export interface Hop {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  /** 0 → 1 through the hop. */
+  t: number;
+}
+
+/** Sew in progress: a needle zig-zagging along a line, trailing thread. */
+export interface Stitch {
+  ownerId: number;
+  weaponId: string;
+  x0: number;
+  y0: number;
+  /** Radians, maths convention. */
+  angle: number;
+  range: number;
+  /** px sewn so far along the line. */
+  travelled: number;
+  /** Where the needle has been (for drawing the thread). */
+  path: { x: number; y: number }[];
+  /** Target keys already stitched. */
+  hits: string[];
+  /** Seconds the thread lingers after the needle stops (then it's removed). */
+  linger: number;
+  done: boolean;
+}
+
+/** A marathon runner, jogging a leg at a time towards the nearest enemy, across turns. */
+export interface Runner {
+  ownerId: number;
+  weaponId: string;
+  x: number;
+  y: number;
+  /** −1 / +1: which way it's facing. */
+  dir: number;
+  /** px left to run in the current leg. */
+  legLeft: number;
+  /** Total px run (for the running animation). */
+  distance: number;
+  /** Knocked out by a blast (removed on its next step). */
+  out: boolean;
 }
 
 /** A player's second tank. */
@@ -309,6 +361,8 @@ export interface GameState {
   streams: Stream[];
   jets: Jet[];
   spews: Spew[];
+  stitches: Stitch[];
+  runners: Runner[];
   bursts: Burst[];
   naps: Nap[];
   booms: Boom[];

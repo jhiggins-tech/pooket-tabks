@@ -1,6 +1,7 @@
 import { FUEL_PER_MATCH, MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
 import { currentPlayer, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
+import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { GameState } from '../game/state';
 
@@ -14,6 +15,7 @@ export class Hud {
   private readonly weaponsEl = byId('weapons');
   private readonly hintEl = byId('hint');
   private readonly fuelEl = byId('fuel-fill');
+  private readonly fuelLabel = document.querySelector<HTMLElement>('.fuel small')!;
   private readonly driveEl = document.querySelector<HTMLElement>('.drive')!;
   private readonly gameOverEl = byId('gameover');
   private readonly winnerEl = byId('winner');
@@ -35,7 +37,9 @@ export class Hud {
       jetCountdown(state),
       p.ammo.join(','),
       ...state.players.map(
-        (pl) => `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}`,
+        (pl) =>
+          `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}` +
+          `${pl.tattoo?.turnsLeft ?? ''}${pl.pinned ? 'P' : ''}`,
       ),
     ].join('|');
     if (key === this.last) return;
@@ -81,6 +85,8 @@ export class Hud {
           track.append(fill);
           bar.append(track);
         }
+        if (pl.tattoo && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'tattoo', textContent: ' ✒', title: 'Tattooed: takes extra damage' }));
+        if (pl.pinned && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'pinned', textContent: ' 📌', title: 'Pinned: can’t move next turn' }));
         if (pl.cooked && pl.alive) {
           const cooked = document.createElement('span');
           cooked.className = 'cooked';
@@ -102,6 +108,7 @@ export class Hud {
     );
 
     this.fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
+    this.fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
     this.driveEl.dataset.empty = String(p.fuel <= 0.5);
     for (const b of this.driveEl.querySelectorAll('button')) b.disabled = state.phase !== 'aiming' || p.fuel <= 0.5;
     this.angleEl.textContent = `${angleLabel(p.angle)}`;

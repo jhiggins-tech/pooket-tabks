@@ -1,6 +1,7 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
 import {
+  stitchPoint,
   boomPhaseArcs,
   boomRadii,
   currentPlayer,
@@ -13,7 +14,7 @@ import {
   tankCentre,
   WALKER_BODY,
 } from '../game/game';
-import type { Apparition, Droplet, GameState, Player, Projectile } from '../game/state';
+import type { Apparition, Droplet, GameState, Player, Projectile, Runner, Stitch } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
 
@@ -144,6 +145,8 @@ export class Renderer {
     }
     if (state.phase === 'aiming' && !isAimless(state)) this.drawAimGuide(currentPlayer(state));
     this.drawProjectiles(state);
+    for (const st of state.stitches) this.drawStitch(st);
+    for (const r of state.runners) this.drawRunner(r, state);
     this.drawLiquid(state);
     this.drawBeams(state);
     this.drawBooms(state);
@@ -237,6 +240,38 @@ export class Renderer {
     ctx.roundRect(p.x - TANK_HALF_WIDTH, p.y - TANK_BODY_HEIGHT, TANK_HALF_WIDTH * 2, TANK_BODY_HEIGHT, 3);
     ctx.fill();
     ctx.stroke();
+    if (p.tattoo && p.alive) {
+      // Tattooed: a little ink heart and flash lines on the hull.
+      ctx.fillStyle = '#1e2a4a';
+      ctx.beginPath();
+      const hx = p.x - 4;
+      const hy = p.y - 4.5;
+      ctx.moveTo(hx, hy + 2.2);
+      ctx.bezierCurveTo(hx - 3, hy, hx - 2, hy - 2.4, hx, hy - 1);
+      ctx.bezierCurveTo(hx + 2, hy - 2.4, hx + 3, hy, hx, hy + 2.2);
+      ctx.fill();
+      ctx.strokeStyle = '#1e2a4a';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(p.x + 1, p.y - 6);
+      ctx.lineTo(p.x + 7, p.y - 6);
+      ctx.moveTo(p.x + 2, p.y - 3.5);
+      ctx.lineTo(p.x + 8, p.y - 3.5);
+      ctx.stroke();
+    }
+    if (p.pinned && p.alive) {
+      // Pinned: pink cross-stitches over the hull.
+      ctx.strokeStyle = '#f472b6';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      for (const sx of [-7, 0, 7]) {
+        ctx.moveTo(p.x + sx - 2.5, p.y - TANK_BODY_HEIGHT - 1);
+        ctx.lineTo(p.x + sx + 2.5, p.y + 1);
+        ctx.moveTo(p.x + sx + 2.5, p.y - TANK_BODY_HEIGHT - 1);
+        ctx.lineTo(p.x + sx - 2.5, p.y + 1);
+      }
+      ctx.stroke();
+    }
     ctx.restore();
 
     if (isCurrent && state.phase === 'aiming') {
@@ -518,6 +553,103 @@ export class Renderer {
         ctx.fill();
       }
     }
+  }
+
+  /** Sew: pink thread with cross-stitches trailing a silver needle, fading once it stops. */
+  private drawStitch(st: Stitch): void {
+    const { ctx } = this;
+    if (st.path.length < 2) return;
+    const w = getWeapon(st.weaponId);
+    const spec = w.sew!;
+    ctx.save();
+    ctx.globalAlpha = st.done ? Math.max(0, st.linger / 1.2) : 1;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(80,20,50,0.6)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    st.path.forEach((pt, i) => (i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)));
+    ctx.stroke();
+    ctx.strokeStyle = w.colour ?? '#f472b6';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    // Little stitch ticks across the thread.
+    ctx.strokeStyle = '#ffd1e6';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    for (let i = 2; i < st.path.length; i += 3) {
+      const a = st.path[i - 1]!;
+      const b = st.path[i]!;
+      const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      const nx = -(b.y - a.y) / len;
+      const ny = (b.x - a.x) / len;
+      ctx.moveTo(b.x - nx * 2.5, b.y - ny * 2.5);
+      ctx.lineTo(b.x + nx * 2.5, b.y + ny * 2.5);
+    }
+    ctx.stroke();
+    // The needle, pointing the way it's sewing.
+    if (!st.done) {
+      const head = stitchPoint(st, spec.amplitude, spec.wavelength, st.travelled);
+      const prev = stitchPoint(st, spec.amplitude, spec.wavelength, Math.max(0, st.travelled - 3));
+      ctx.translate(head.x, head.y);
+      ctx.rotate(Math.atan2(head.y - prev.y, head.x - prev.x));
+      ctx.strokeStyle = '#e8ecf6';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-12, 0);
+      ctx.lineTo(3, 0);
+      ctx.stroke();
+      ctx.strokeStyle = '#6b7390';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.ellipse(-10, 0, 2, 0.9, 0, 0, Math.PI * 2); // the eye
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /** Marathon: a little jogger in a pink singlet with a race bib, legs and arms pumping. */
+  private drawRunner(r: Runner, state: GameState): void {
+    const { ctx } = this;
+    const colour = state.players[r.ownerId]?.colour ?? '#f472b6';
+    const stride = Math.sin(r.distance * 0.35);
+    const moving = r.legLeft > 0;
+    const s = moving ? stride : 0.15;
+    const x = r.x;
+    const y = r.y - 1 - (moving ? Math.abs(Math.cos(r.distance * 0.35)) * 1.5 : 0);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(r.dir, 1);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#2b1d14';
+    ctx.lineWidth = 1.8;
+    // legs
+    ctx.beginPath();
+    ctx.moveTo(0, -9);
+    ctx.lineTo(4 * s, -4);
+    ctx.lineTo(4 * s - 1.5, 0);
+    ctx.moveTo(0, -9);
+    ctx.lineTo(-4 * s, -4);
+    ctx.lineTo(-4 * s - 1.5, 0);
+    // arms
+    ctx.moveTo(0, -15);
+    ctx.lineTo(-3.5 * s, -12);
+    ctx.moveTo(0, -15);
+    ctx.lineTo(3.5 * s, -12);
+    ctx.stroke();
+    // singlet with bib
+    ctx.fillStyle = colour;
+    ctx.fillRect(-2.2, -16, 4.4, 7);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(-1.5, -14, 3, 2.4);
+    // head and headband
+    ctx.fillStyle = '#f1c9a0';
+    ctx.beginPath();
+    ctx.arc(0.5, -19, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = colour;
+    ctx.fillRect(-2, -20.5, 5, 1.2);
+    ctx.restore();
   }
 
   /** Debate: each round is a letter, tumbling through the air. */

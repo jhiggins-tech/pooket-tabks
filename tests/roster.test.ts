@@ -7,9 +7,10 @@ describe('roster', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
   });
 
-  it('torikloud and larinovsky have their own kits; ciarra is still on placeholders', () => {
+  it('torikloud, larinovsky and ciarra have their own kits', () => {
     expect(getCharacter('torikloud').loadout).toEqual(['debate', 'sonic-boom', 'twins']);
-    expect(getCharacter('ciarra').loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
+    expect(getCharacter('ciarra').loadout).toEqual(['tattoo-gun', 'sew', 'marathon']);
+    expect(getCharacter('ciarra').movement).toBe('hop');
     expect(getCharacter('larinovsky').loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap']);
     expect(loadoutSummary(getCharacter('larinovsky'))).toBe('Pill Pusher ×5 · the Rizzler ×3 · Take a Nap ×1');
   });

@@ -1,7 +1,7 @@
 import type { DictionaryId } from './dictionaries';
 
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'rizz';
+export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle';
 
 /**
  * How a weapon is delivered:
@@ -14,6 +14,8 @@ export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'ri
  * - `spew`: a short-range gush of chunky gunk from the barrel (see `spew`).
  * - `sonic`: expanding arcs of sound that pass through terrain (see `sonic`).
  * - `heal`: no shot; the firer naps and wakes at full health (see `heal`). Ignores aiming.
+ * - `sew`: a needle and thread stitching along the aim through terrain, pinning what it stitches (see `sew`).
+ * - `runner`: a marathon runner jogs towards the nearest enemy a leg at a time, turn after turn (see `runner`).
  * - `twin`: no shot; a second tank appears and the firer's HP is split between the two. From then on
  *   the twin fires the same weapon with the same aim whenever its player fires. Ignores aiming.
  */
@@ -27,7 +29,9 @@ export type WeaponKind =
   | 'spew'
   | 'sonic'
   | 'heal'
-  | 'twin';
+  | 'twin'
+  | 'sew'
+  | 'runner';
 
 /**
  * Sonic weapons: `waves` arcs, `interval` s apart, expand from the barrel at `speed` px/s across
@@ -169,6 +173,19 @@ export interface WeaponDef {
    * so the round count is the word's length. A twin fires from its own dictionary.
    */
   words?: { main: DictionaryId; twin: DictionaryId; mainColour: string; twinColour: string };
+  /** "Tattoo" mark: any tank hit takes `multiplier` × damage from everything until it has had `turns` more turns. */
+  tattoo?: { multiplier: number; turns: number };
+  /**
+   * Sew: a needle zig-zags along the aim at `speed` px/s (stitches `amplitude` px either side, one every
+   * `wavelength` px) through terrain, out to a range set by power; each enemy stitched takes `damage`
+   * and is pinned (can't drive or hop) on its next turn.
+   */
+  sew?: { speed: number; minRange: number; maxRange: number; amplitude: number; wavelength: number; damage: number };
+  /**
+   * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any
+   * hill; on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
+   */
+  runner?: { speed: number; leg: number; damage: number; radius: number };
   /** Heal weapons: nap for `napTime` s, then wake at full health. */
   heal?: { napTime: number };
   /** Sonic weapons: the waves. */

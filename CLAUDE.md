@@ -31,7 +31,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
   Each tank has `FUEL_PER_MATCH` px of driving for the whole match (never refills; `drive()`, held ◀ ▶
-  buttons), usable during its turn before firing.
+  buttons), usable during its turn before firing. Characters with `movement: 'hop'` (ciarra) spend it on
+  frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`; no
+  firing mid-hop). A pinned tank can't move at all.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
@@ -39,7 +41,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering), `decoy`
   (spawns `Hologram`s of the firer's tank; ignores aim), `jetpack` (the firer's tank charges, then
   launches once along the aim; its propellant must look like dirt/mud), `spew` (a short-range gush of
-  chunks from the barrel) or `sonic` (`Boom`: waves of expanding arcs along the aim that pass through
+  chunks from the barrel), `sew` (`Stitch`: a zig-zag needle and thread sewn through terrain along the
+  aim without cratering, power = length; each enemy it passes is hit once and pinned), `runner` (`Runner`:
+  a jogger who runs one `leg` towards the nearest enemy every time anyone fires, over any terrain, and
+  explodes at the finish; a blast within reach marks it `out` (DNF)) or `sonic` (`Boom`: waves of expanding arcs along the aim that pass through
   terrain without damaging it; each wave hits a target once, weaker with distance; power sets range).
   `apparition` summons a cosmetic sky effect on firing (torikloud's kookaburra in parting clouds). Jetpack propellant and spew chunks are both `Sludge` "gunk" (`WeaponDef.gunk`:
   look, pile colour, dose): it flies, slumps into piles via `Terrain.addDirt`, and doses enemies with
@@ -51,7 +56,12 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
   small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`), `trail`.
 - Outgoing damage is scaled by the shooter's `offence()` (1, or 0.5 while cooked) at every source: blasts,
-  beams, burns, sonic waves, stream soak, gunk doses and puddles.
+  beams, burns, sonic waves, stream soak, gunk doses and puddles. Incoming damage is scaled by the victim's
+  `vulnerable()` (×`tattoo.multiplier` while tattooed) in `damagePlayer`/`damageTwin`.
+- Status lifecycles live in `endTurn`: `cooked` and `pinned` are set pending, become active when the
+  victim's next turn starts, and clear when that turn ends; `tattoo.turnsLeft` counts down at the end of
+  each of the victim's turns; hyperfixate burns tick as the victim's turn comes up. `drawTank` draws the
+  tattoo and pinned marks, so twins and holograms show them too.
 - Hit-testing goes through `targetAt()` / `Target` (a real tank, a twin or a hologram); use `targetPos()`,
   `targetOwner()`, `soakTarget()` and `tankBodies()` rather than switching on the kind. A twin dying just
   removes it; the main tank dying with a twin alive promotes the twin (`damagePlayer`). Damage goes through
@@ -62,8 +72,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   (`Hologram.age`), exposed ones dissolve (`ghosts`), and all of a player's copies shimmer together at the
   end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj`, `torikloud`, `ciarra`,
-  `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout. ciarra uses the
-  placeholder Shell / Heavy / Mega for now. torikloud: Debate (`burst` + `words`: a random word from
+  `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout (optional
+  `movement`). ciarra (frog hops): Tattoo Gun (`burst` of 12 ink needles; `tattoo`: +25% damage taken for
+  2 of the victim's turns) / Sew (20 damage, pins: no moving on their next turn) / Marathon (runner, 50 at
+  the finish). torikloud: Debate (`burst` + `words`: a random word from
   `src/weapons/dictionaries.ts`, one letter per round) / Sonic Boom / Twins (`twin` kind: `Player.twin`, a
   second tank with its own HP; the HP is split on spawning; it mirrors every shot with the same aim, using
   the twin dictionary; twin booms phase where their arcs overlap for `PHASE_FOCUS` damage and `PHASE_RANGE`). larinovsky: Pill
