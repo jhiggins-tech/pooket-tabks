@@ -93,11 +93,11 @@ describe('game', () => {
   });
 
   it('spends a round of the selected tier and keeps ammo per player', () => {
-    // tones' tier 3 is the Mega Shell.
+    // tones' tier 3 is ten-3.
     const g = createGame({ seed: 1, players: [{ ...players[0]!, characterId: 'tones' }, players[1]!] });
     expect(selectTier(g, 2)).toBe(true);
     fire(g);
-    expect(g.projectiles[0]!.weaponId).toBe('mega-shell');
+    expect(g.spews[0]!.weaponId).toBe('ten-3');
     const alice = g.players[0]!;
     expect(alice.ammo).toEqual([5, 3, 0]);
     expect(alice.selectedTier).toBe(0); // tier 3 empty -> falls back to tier 1

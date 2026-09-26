@@ -16,7 +16,7 @@ import {
   WORLD_H,
   WORLD_W,
 } from './constants';
-import type { Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Sludge, Stream } from './state';
+import type { Droplet, GameState, Hologram, Jet, Player, PlayerConfig, Projectile, Sludge, Spew, Stream } from './state';
 
 /** Something a shot can hit: a real tank or a hologram of one. */
 export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
@@ -96,6 +96,7 @@ export function createGame(cfg: GameConfig): GameState {
     ghosts: [],
     streams: [],
     jets: [],
+    spews: [],
     sludge: [],
     droplets: [],
     splashes: [],
@@ -183,6 +184,9 @@ export function fire(state: GameState): boolean {
       break;
     case 'decoy':
       fireDecoys(state, p, weapon);
+      break;
+    case 'spew':
+      state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
       break;
     case 'jetpack':
       state.jets.push({
@@ -440,6 +444,7 @@ export function step(state: GameState, dt: number): void {
     state.droplets = state.droplets.filter((d) => !stepDroplet(state, d, dt));
     stepSoak(state, dt, false);
     state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
+    state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
     state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
     drainToxin(state, dt);
     const busy =
@@ -448,6 +453,7 @@ export function step(state: GameState, dt: number): void {
       state.streams.length +
       state.droplets.length +
       state.jets.length +
+      state.spews.length +
       state.sludge.length +
       state.players.filter((p) => p.toxin > 0).length;
     if (busy === 0) {
@@ -654,8 +660,6 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
 /** Radius of the circle used for a flying tank's collisions (centred on the body). */
 const JET_BODY_RADIUS = 7.5;
 const JET_MAX_FLIGHT = 8; // s
-/** Dark, wet mud: clearly different from the dry soil and grass it lands on. */
-const MUD: [number, number, number] = [92, 62, 36];
 
 /** How far through its charge-up a player's jet is (0–1), or null if they aren't charging. */
 export function jetCharge(state: GameState, playerId: number): number | null {
@@ -779,10 +783,41 @@ function land(state: GameState, p: Player): void {
   spawnDust(state, p.x, p.y, 1);
 }
 
-/** Moves one propellant particle. Returns true when it has landed (as dirt) or hit a tank. */
+// ---- Spew ----------------------------------------------------------------------------------------
+
+/** Gush chunks from the barrel for the spew's duration. Returns true once it has finished. */
+function stepSpew(state: GameState, sp: Spew, dt: number): boolean {
+  const p = state.players[sp.playerId]!;
+  const spec = getWeapon(sp.weaponId).spew!;
+  sp.elapsed += dt;
+  sp.emitCarry += spec.chunksPerSecond * dt;
+  const m = muzzle(p);
+  while (sp.emitCarry >= 1) {
+    sp.emitCarry -= 1;
+    const a = ((p.angle + randRange(state.rng, -spec.spreadDeg, spec.spreadDeg)) * Math.PI) / 180;
+    const v = (0.25 + 0.75 * (p.power / 100)) * spec.speed * randRange(state.rng, 0.75, 1.1);
+    state.sludge.push({
+      x: m.x,
+      y: m.y,
+      vx: Math.cos(a) * v,
+      vy: -Math.sin(a) * v,
+      ownerId: p.id,
+      weaponId: sp.weaponId,
+      look: hash(state.fxSeq++ * 1.618),
+    });
+  }
+  return sp.elapsed >= spec.duration;
+}
+
+/** True while a player's spew is gushing (for drawing). */
+export function isSpewing(state: GameState, playerId: number): boolean {
+  return state.spews.some((sp) => sp.playerId === playerId);
+}
+
+/** Moves one gunk particle. Returns true when it has landed (as dirt) or hit a tank. */
 function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
   const { terrain } = state;
-  const spec = getWeapon(sl.weaponId).jetpack!;
+  const spec = getWeapon(sl.weaponId).gunk!;
   sl.vy += GRAVITY * dt;
   const nx = sl.x + sl.vx * dt;
   const ny = sl.y + sl.vy * dt;
@@ -807,7 +842,7 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
       return true;
     }
     if (!target && terrain.isSolid(x, y)) {
-      // Mud slumps: slide down and off the top of piles before settling, so it builds mounds, not spikes.
+      // Gunk slumps: slide down and off the top of piles before settling, so it builds mounds, not spikes.
       let mx = Math.round(freeX);
       let my = Math.round(freeY);
       for (let k = 0; k < 16; k++) {
@@ -817,7 +852,7 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
         else if (!terrain.isSolid(mx - side, my + 1)) (mx -= side), my++;
         else break;
       }
-      terrain.addDirt(mx, my - 0.5, 2.2, MUD);
+      terrain.addDirt(mx, my - 0.5, spec.depositRadius, spec.deposit);
       return true;
     }
     freeX = x;

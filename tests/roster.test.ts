@@ -22,14 +22,8 @@ describe('roster', () => {
     expect(getCharacter('kie').loadout).toEqual(['shell', 'weasel-pop', 'trollogram']);
   });
 
-  it('the shell tiers grow in blast radius', () => {
-    const radii = ['shell', 'heavy-shell', 'mega-shell'].map((w) => getWeapon(w).blastRadius);
-    expect(radii[0]!).toBeLessThan(radii[1]!);
-    expect(radii[1]!).toBeLessThan(radii[2]!);
-  });
-
-  it("tones' loadout is ten-1, ten-2, Mega Shell", () => {
-    expect(getCharacter('tones').loadout).toEqual(['ten-1', 'ten-2', 'mega-shell']);
+  it("tones' loadout is ten-1, ten-2, ten-3", () => {
+    expect(getCharacter('tones').loadout).toEqual(['ten-1', 'ten-2', 'ten-3']);
   });
 
   it("kcaj's loadout is Double Park, Hyperfixate, Unmedicated", () => {
@@ -51,6 +45,6 @@ describe('roster', () => {
 
   it('summarises a loadout for the setup screen', () => {
     expect(loadoutSummary(getCharacter('kie'))).toBe('Shell ×5 · Weasel Pop ×3 · Trollogram ×1');
-    expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · ten-2 ×3 · Mega ×1');
+    expect(loadoutSummary(getCharacter('tones'))).toBe('ten-1 ×5 · ten-2 ×3 · ten-3 ×1');
   });
 });

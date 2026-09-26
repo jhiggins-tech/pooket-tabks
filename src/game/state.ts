@@ -152,7 +152,15 @@ export interface Jet {
   heading: number;
 }
 
-/** Toxic propellant: falls, piles up as dirt, doses enemies it lands on. */
+/** A spew weapon gushing from a player's barrel. */
+export interface Spew {
+  playerId: number;
+  weaponId: string;
+  elapsed: number;
+  emitCarry: number;
+}
+
+/** Gunk (jetpack mud, spew chunks): falls, piles up as dirt, doses enemies it lands on. */
 export interface Sludge {
   x: number;
   y: number;
@@ -215,6 +223,7 @@ export interface GameState {
   ghosts: HologramGhost[];
   streams: Stream[];
   jets: Jet[];
+  spews: Spew[];
   sludge: Sludge[];
   droplets: Droplet[];
   splashes: Splash[];

@@ -20,9 +20,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'tones',
     name: 'tones',
-    blurb: 'ten-1 water jet and ten-2 toxic jetpack.',
+    blurb: 'ten-1 water jet, ten-2 mud jetpack and the ten-3 spew.',
     colours: ['#ff5a5f', '#ff8c42', '#ff7eb6'],
-    loadout: ['ten-1', 'ten-2', 'mega-shell'],
+    loadout: ['ten-1', 'ten-2', 'ten-3'],
   },
   {
     id: 'kie',

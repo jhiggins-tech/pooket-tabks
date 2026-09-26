@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
-import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, jetCharge, muzzle, tankCentre, WALKER_BODY } from '../game/game';
+import { currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, tankCentre, WALKER_BODY } from '../game/game';
 import type { Droplet, GameState, Player, Projectile } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { loadSprites } from './sprites';
@@ -114,6 +114,7 @@ export class Renderer {
         if (state.swapTargetId === h.id && state.phase === 'aiming' && currentPlayer(state) === p) this.drawSwapMarker(h);
       }
       this.drawJet(p, state, () => this.drawGlitchedTank(p, state, undefined, shimmerAmt, 1, 1));
+      if (isSpewing(state, p.id)) this.drawSpewGush(p);
     }
     for (const g of state.ghosts) {
       const owner = state.players[g.ownerId];
@@ -310,19 +311,34 @@ export class Renderer {
     draw();
   }
 
-  /** Flying mud: irregular clumps in a few earthy shades, darker rims and the odd wet highlight. */
+  /** Gunk in flight: mud clumps for ten-2's propellant, chunky spew for ten-3. */
   private drawSludge(state: GameState): void {
     if (state.sludge.length === 0) return;
+    const mud = state.sludge.filter((s) => getWeapon(s.weaponId).gunk?.look !== 'spew');
+    const spew = state.sludge.filter((s) => getWeapon(s.weaponId).gunk?.look === 'spew');
+    this.drawClumps(mud, ['#5c3d22', '#6e4a2a', '#7d5632', '#4d321c'], '#2e1d10', 'rgba(220,190,150,0.7)', 1.5, 1.9);
+    // Chunky: bigger, lumpier, in bile yellows and oranges with darker bits.
+    this.drawClumps(spew, ['#e8b84e', '#d99a3a', '#c7b24a', '#b8742a'], '#6b4a16', 'rgba(255,250,215,0.85)', 2, 2.6);
+  }
+
+  /** Irregular clumps in a few shades, darker rims and the odd glossy highlight, stretched along their motion. */
+  private drawClumps(
+    parts: GameState['sludge'],
+    shades: readonly string[],
+    rim: string,
+    shine: string,
+    minR: number,
+    extraR: number,
+  ): void {
+    if (parts.length === 0) return;
     const { ctx } = this;
-    const shades = ['#5c3d22', '#6e4a2a', '#7d5632', '#4d321c'];
     ctx.save();
     for (let pass = 0; pass < 3; pass++) {
       for (const [idx, shade] of shades.entries()) {
         ctx.beginPath();
-        for (const s of state.sludge) {
+        for (const s of parts) {
           if (Math.floor(s.look * shades.length) !== idx) continue;
-          const r = 1.5 + s.look * 1.9;
-          // Squash clumps along their motion a little so they read as flung mud, not dots.
+          const r = minR + s.look * extraR;
           const a = Math.atan2(s.vy, s.vx);
           if (pass === 0) {
             ctx.moveTo(s.x + r + 0.8, s.y);
@@ -330,15 +346,35 @@ export class Renderer {
           } else if (pass === 1) {
             ctx.moveTo(s.x + r, s.y);
             ctx.ellipse(s.x, s.y, r * 1.3, r, a, 0, Math.PI * 2);
-          } else if (s.look > 0.7) {
-            ctx.moveTo(s.x + 0.7, s.y - r * 0.4);
-            ctx.arc(s.x - r * 0.3, s.y - r * 0.4, 0.7, 0, Math.PI * 2);
+          } else if (s.look > 0.6) {
+            ctx.moveTo(s.x + 0.8, s.y - r * 0.4);
+            ctx.arc(s.x - r * 0.3, s.y - r * 0.4, 0.8, 0, Math.PI * 2);
           }
         }
-        ctx.fillStyle = pass === 0 ? '#2e1d10' : pass === 1 ? shade : 'rgba(220,190,150,0.7)';
+        ctx.fillStyle = pass === 0 ? rim : pass === 1 ? shade : shine;
         ctx.fill();
       }
     }
+    ctx.restore();
+  }
+
+  /** A wobbling gush at the barrel while ten-3 is spewing. */
+  private drawSpewGush(p: Player): void {
+    const { ctx } = this;
+    const m = muzzle(p);
+    const a = (p.angle * Math.PI) / 180;
+    const wob = Math.sin(this.time * 30);
+    ctx.save();
+    ctx.translate(m.x, m.y);
+    ctx.rotate(-a);
+    ctx.fillStyle = '#6b4a16';
+    ctx.beginPath();
+    ctx.ellipse(5, 0, 7 + wob, 4.5 - wob * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e8b84e';
+    ctx.beginPath();
+    ctx.ellipse(5, 0, 6 + wob, 3.5 - wob * 0.5, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 

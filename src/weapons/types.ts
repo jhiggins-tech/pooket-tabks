@@ -9,14 +9,37 @@ export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel';
  * - `stream`: a jet of liquid whose pressure ramps up, holds, then eases off (see `stream`).
  * - `decoy`: no shot; spawns hologram copies of the firer's tank (see `decoys`). Ignores aiming.
  * - `jetpack`: the firer's own tank charges up, then launches along the aim (see `jetpack`).
+ * - `spew`: a short-range gush of chunky gunk from the barrel (see `spew`).
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack';
+export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack' | 'spew';
+
+/**
+ * Gunk particles (jetpack propellant, spew chunks): they fly under gravity, slump into piles of new
+ * dirt where they land, and dose any enemy tank they hit. The dose drains as trickling damage at
+ * `dosePerSecond`, all within the same turn.
+ */
+export interface GunkSpec {
+  dosePerParticle: number;
+  dosePerSecond: number;
+  /** Colour of the piles it leaves. */
+  deposit: readonly [number, number, number];
+  depositRadius: number;
+  /** How the particles are drawn in flight. */
+  look: 'mud' | 'spew';
+}
+
+/** Spew weapons: gush `chunksPerSecond` for `duration`, fanned ±`spreadDeg`, at up to `speed` px/s (× power). */
+export interface SpewSpec {
+  duration: number;
+  chunksPerSecond: number;
+  speed: number;
+  spreadDeg: number;
+}
 
 /**
  * Jetpack weapons: the tank shakes while it charges for `chargeTime`, then gets one launch impulse
  * along the aim at power × `thrust` × MAX_SPEED and flies ballistically until it lands. For
- * `burnTime` after launch it sprays propellant particles backwards; they fall, pile up as dirt, and
- * dose any enemy tank they land on with toxin that drains as damage at `dosePerSecond`.
+ * `burnTime` after launch it sprays propellant backwards (see the weapon's `gunk`).
  */
 export interface JetpackSpec {
   chargeTime: number;
@@ -25,9 +48,6 @@ export interface JetpackSpec {
   particlesPerSecond: number;
   /** Exhaust speed relative to the tank (px/s). */
   exhaustSpeed: number;
-  /** Toxin each particle that lands on an enemy adds (damage points). */
-  dosePerParticle: number;
-  dosePerSecond: number;
 }
 
 /**
@@ -85,6 +105,10 @@ export interface WeaponDef {
   decoys?: number;
   /** Jetpack weapons: charge, launch and propellant. */
   jetpack?: JetpackSpec;
+  /** Spew weapons: the gush. */
+  spew?: SpewSpec;
+  /** Particles from jetpack/spew weapons. */
+  gunk?: GunkSpec;
   /** Stream weapons: pressure profile and flow. */
   stream?: StreamSpec;
   /** Beam / liquid colour. */

@@ -8,22 +8,6 @@ export const shell: WeaponDef = {
   damage: 45,
 };
 
-export const heavyShell: WeaponDef = {
-  id: 'heavy-shell',
-  name: 'Heavy Shell',
-  shortName: 'Heavy',
-  blastRadius: 36,
-  damage: 45,
-};
-
-export const megaShell: WeaponDef = {
-  id: 'mega-shell',
-  name: 'Mega Shell',
-  shortName: 'Mega',
-  blastRadius: 54,
-  damage: 45,
-};
-
 /** kcaj's tier 1: two ice cream cones fanned ±2° either side of the aim. */
 export const doublePark: WeaponDef = {
   id: 'double-park',
@@ -113,9 +97,9 @@ export const ten2: WeaponDef = {
     burnTime: 0.7,
     particlesPerSecond: 320,
     exhaustSpeed: 260,
-    dosePerParticle: 0.35,
-    dosePerSecond: 6,
   },
+  // Dark, wet mud: clearly different from the dry soil and grass it lands on.
+  gunk: { dosePerParticle: 0.35, dosePerSecond: 6, deposit: [92, 62, 36], depositRadius: 2.2, look: 'mud' },
   friendlyFire: false,
   colour: '#9be22d',
 };
@@ -137,7 +121,24 @@ export const weaselPop: WeaponDef = {
   walk: { speed: 40, duration: 2.5, climb: 6 },
 };
 
-const weapons: WeaponDef[] = [shell, heavyShell, megaShell, doublePark, hyperfixate, unmedicated, ten1, trollogram, ten2, weaselPop];
+/**
+ * tones' tier 3: an incredibly powerful, short-range gush of chunky spew. Chunks that land on an
+ * enemy coat it and burn through ~25 HP a second until the coating is gone, all within the turn.
+ */
+export const ten3: WeaponDef = {
+  id: 'ten-3',
+  name: 'ten-3',
+  shortName: 'ten-3',
+  kind: 'spew',
+  blastRadius: 0,
+  damage: 0,
+  spew: { duration: 1.4, chunksPerSecond: 50, speed: 250, spreadDeg: 10 },
+  gunk: { dosePerParticle: 1, dosePerSecond: 25, deposit: [190, 146, 58], depositRadius: 1.8, look: 'spew' },
+  friendlyFire: false,
+  colour: '#f0c050',
+};
+
+const weapons: WeaponDef[] = [shell, doublePark, hyperfixate, unmedicated, ten1, trollogram, ten2, weaselPop, ten3];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

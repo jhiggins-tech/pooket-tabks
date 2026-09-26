@@ -247,6 +247,22 @@ test("tones' ten-2 jetpack", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("tones' ten-3 spew", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777');
+  await page.locator('#start').tap();
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'ten-3, 1 left');
+  await weapons.nth(2).tap();
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(800);
+  await page.screenshot({ path: 'test-results/ten-3.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  await expect(weapons.nth(2)).toBeEnabled(); // kie's turn now, with his own tier 3
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');
