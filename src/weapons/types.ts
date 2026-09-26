@@ -1,3 +1,5 @@
+import type { DictionaryId } from './dictionaries';
+
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
 export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'rizz';
 
@@ -12,8 +14,20 @@ export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'ri
  * - `spew`: a short-range gush of chunky gunk from the barrel (see `spew`).
  * - `sonic`: expanding arcs of sound that pass through terrain (see `sonic`).
  * - `heal`: no shot; the firer naps and wakes at full health (see `heal`). Ignores aiming.
+ * - `twin`: no shot; a second tank appears and the firer's HP is split between the two. From then on
+ *   the twin fires the same weapon with the same aim whenever its player fires. Ignores aiming.
  */
-export type WeaponKind = 'ballistic' | 'beam' | 'rain' | 'stream' | 'decoy' | 'jetpack' | 'spew' | 'sonic' | 'heal';
+export type WeaponKind =
+  | 'ballistic'
+  | 'beam'
+  | 'rain'
+  | 'stream'
+  | 'decoy'
+  | 'jetpack'
+  | 'spew'
+  | 'sonic'
+  | 'heal'
+  | 'twin';
 
 /**
  * Sonic weapons: `waves` arcs, `interval` s apart, expand from the barrel at `speed` px/s across
@@ -150,6 +164,11 @@ export interface WeaponDef {
    * it fires on its next turn.
    */
   debuff?: { offenceMultiplier: number };
+  /**
+   * Word fire (with `burst`): pick a random word from the dictionary and fire it one letter per round,
+   * so the round count is the word's length. A twin fires from its own dictionary.
+   */
+  words?: { main: DictionaryId; twin: DictionaryId; mainColour: string; twinColour: string };
   /** Heal weapons: nap for `napTime` s, then wake at full health. */
   heal?: { napTime: number };
   /** Sonic weapons: the waves. */

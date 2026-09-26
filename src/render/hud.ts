@@ -34,7 +34,9 @@ export class Hud {
       state.swapTargetId,
       jetCountdown(state),
       p.ammo.join(','),
-      ...state.players.map((pl) => `${pl.hp}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}`),
+      ...state.players.map(
+        (pl) => `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}`,
+      ),
     ].join('|');
     if (key === this.last) return;
     this.last = key;
@@ -67,11 +69,18 @@ export class Hud {
         const name = document.createElement('span');
         name.className = 'name';
         name.textContent = pl.name;
+        // One bar, or two half-size bars once Twins has split the health between two tanks.
         const bar = document.createElement('span');
-        bar.className = 'hp';
-        const fill = document.createElement('span');
-        fill.style.width = `${(pl.hp / MAX_HP) * 100}%`;
-        bar.append(fill);
+        bar.className = 'bars';
+        const bars = pl.twin ? [pl.hp, pl.twin.hp] : [pl.hp];
+        for (const hp of bars) {
+          const track = document.createElement('span');
+          track.className = 'hp';
+          const fill = document.createElement('span');
+          fill.style.width = `${(hp / (pl.twin ? MAX_HP / 2 : MAX_HP)) * 100}%`;
+          track.append(fill);
+          bar.append(track);
+        }
         if (pl.cooked && pl.alive) {
           const cooked = document.createElement('span');
           cooked.className = 'cooked';

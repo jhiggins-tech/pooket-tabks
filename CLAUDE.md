@@ -52,7 +52,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`), `trail`.
 - Outgoing damage is scaled by the shooter's `offence()` (1, or 0.5 while cooked) at every source: blasts,
   beams, burns, sonic waves, stream soak, gunk doses and puddles.
-- Hit-testing goes through `targetAt()` / `Target` (a real tank or a hologram). Damage goes through
+- Hit-testing goes through `targetAt()` / `Target` (a real tank, a twin or a hologram); use `targetPos()`,
+  `targetOwner()`, `soakTarget()` and `tankBodies()` rather than switching on the kind. A twin dying just
+  removes it; the main tank dying with a twin alive promotes the twin (`damagePlayer`). Damage goes through
   `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
   damage, and at the end of the turn (`resolveHolograms()`) any hit hologram vanishes and the shooter takes
   `HOLOGRAM_PENALTY` (50%) of it; then the current player's chosen swap (`swapTargetId`) happens.
@@ -61,7 +63,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
 - `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj`, `torikloud`, `ciarra`,
   `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout. ciarra uses the
-  placeholder Shell / Heavy / Mega for now; torikloud has Shell / Sonic Boom / Mega. larinovsky: Pill
+  placeholder Shell / Heavy / Mega for now. torikloud: Debate (`burst` + `words`: a random word from
+  `src/weapons/dictionaries.ts`, one letter per round) / Sonic Boom / Twins (`twin` kind: `Player.twin`, a
+  second tank with its own HP; the HP is split on spawning; it mirrors every shot with the same aim, using
+  the twin dictionary; twin booms phase where their arcs overlap for `PHASE_FOCUS` damage and `PHASE_RANGE`). larinovsky: Pill
   Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`debuff`: "cooks" enemies in the blast;
   `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
   clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that

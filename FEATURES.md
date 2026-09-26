@@ -6,12 +6,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 1. ✅ **Fuel meter**: shipped (see below).
 2. ✅ **larinovsky's kit**: Pill Pusher / the Rizzler / Take a Nap, shipped (see below).
-3. _(empty; next requests go here)_
+3. ✅ **torikloud's Debate and Twins** (plus Sonic Boom crossover), shipped (see below).
+4. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
 - Weapons for **ciarra** (currently placeholder Shell / Heavy / Mega).
-- **torikloud** tier 1 and tier 3 (currently placeholder Shell / Mega).
 - Hide the Trollogram "flat pad" tell: decoys spawn on natural slopes while the real tank starts on a
   flattened pad.
 - Sound effects and music.
@@ -46,6 +46,6 @@ between visits.
 | **tones** | ten-1: yellow water jet that builds in spurts, trickle damage | ten-2: shakes for 10s, then jetpacks away on a huge, wide blast of toxic mud | ten-3: short-range chunky spew, intense damage over one turn; coats the ground in toxic sludge that burns enemies for the rest of the turn |
 | **kie** | Shell | Weasel Pop: 3 tumbling weasels that walk to the enemy and pop | Trollogram: 2 decoys, secret swap, 50% penalty for hitting one |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
-| **torikloud** | Shell (placeholder) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky | Mega (placeholder) |
+| **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
 | **ciarra** | Shell (placeholder) | Heavy (placeholder) | Mega (placeholder) |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target | the Rizzler: blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |

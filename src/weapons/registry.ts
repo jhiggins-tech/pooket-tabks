@@ -171,7 +171,8 @@ export const ten3: WeaponDef = {
 /**
  * torikloud's tier 2: pulses of disruptor sound radiate in arcs from the barrel, straight through
  * terrain. Close targets catch the whole arc; distant ones only a sliver. A kookaburra looks down
- * from the clouds as it fires.
+ * from the clouds as it fires. With a twin, where the two tanks' waves cross they phase together:
+ * extra range and focused damage there.
  */
 export const sonicBoom: WeaponDef = {
   id: 'sonic-boom',
@@ -226,6 +227,33 @@ export const takeANap: WeaponDef = {
   colour: '#7ee7a8',
 };
 
+/**
+ * torikloud's tier 1: indirect fire of a random legal word, one letter at a time. Longer words mean
+ * more letters, so more damage: it's the luck of the draw. A twin argues from social work instead.
+ */
+export const debate: WeaponDef = {
+  id: 'debate',
+  name: 'Debate',
+  shortName: 'Debate',
+  blastRadius: 12,
+  damage: 7,
+  burst: { count: 1, interval: 0.12, powerJitter: 0.05 },
+  words: { main: 'legal', twin: 'social-work', mainColour: '#ffd166', twinColour: '#7de2d1' },
+  spin: 6,
+  trail: false,
+};
+
+/** torikloud's tier 3: a twin tank appears and his HP is split between them; the twin mirrors his shots. */
+export const twins: WeaponDef = {
+  id: 'twins',
+  name: 'Twins',
+  shortName: 'Twins',
+  kind: 'twin',
+  blastRadius: 0,
+  damage: 0,
+  colour: '#a78bfa',
+};
+
 const weapons: WeaponDef[] = [
   shell,
   heavyShell,
@@ -242,6 +270,8 @@ const weapons: WeaponDef[] = [
   pillPusher,
   theRizzler,
   takeANap,
+  debate,
+  twins,
 ];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));

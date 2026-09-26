@@ -44,9 +44,9 @@ export const ROSTER: readonly CharacterDef[] = [
   {
     id: 'torikloud',
     name: 'torikloud',
-    blurb: 'Sonic Boom: arcs of sound through solid ground.',
+    blurb: 'Debate, Sonic Boom and a twin to argue alongside.',
     colours: ['#a78bfa', '#818cf8', '#e879f9'],
-    loadout: ['shell', 'sonic-boom', 'mega-shell'],
+    loadout: ['debate', 'sonic-boom', 'twins'],
   },
   {
     id: 'ciarra',

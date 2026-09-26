@@ -7,8 +7,8 @@ describe('roster', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
   });
 
-  it('torikloud has Sonic Boom, ciarra is still on placeholders, larinovsky has his own kit', () => {
-    expect(getCharacter('torikloud').loadout).toEqual(['shell', 'sonic-boom', 'mega-shell']);
+  it('torikloud and larinovsky have their own kits; ciarra is still on placeholders', () => {
+    expect(getCharacter('torikloud').loadout).toEqual(['debate', 'sonic-boom', 'twins']);
     expect(getCharacter('ciarra').loadout).toEqual(['shell', 'heavy-shell', 'mega-shell']);
     expect(getCharacter('larinovsky').loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap']);
     expect(loadoutSummary(getCharacter('larinovsky'))).toBe('Pill Pusher ×5 · the Rizzler ×3 · Take a Nap ×1');

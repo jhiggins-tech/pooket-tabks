@@ -2,6 +2,7 @@ import { createRng, randRange } from '../core/rng';
 import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
 import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
+import { DICTIONARIES } from '../weapons/dictionaries';
 import { getWeapon } from '../weapons/registry';
 import type { StreamSpec, WeaponDef } from '../weapons/types';
 import {
@@ -21,6 +22,7 @@ import {
 } from './constants';
 import type {
   Boom,
+  Twin,
   Burst,
   Droplet,
   GameState,
@@ -37,7 +39,10 @@ import type {
 } from './state';
 
 /** Something a shot can hit: a real tank or a hologram of one. */
-export type Target = { kind: 'player'; player: Player } | { kind: 'hologram'; holo: Hologram };
+export type Target =
+  | { kind: 'player'; player: Player }
+  | { kind: 'hologram'; holo: Hologram }
+  | { kind: 'twin'; player: Player };
 
 const BEAM_DURATION = 0.6;
 const FLOATER_DURATION = 1.6;
@@ -95,6 +100,7 @@ export function createGame(cfg: GameConfig): GameState {
       soak: 0,
       soakColour: '#ffffff',
       cooked: null,
+      twin: null,
       fuel: FUEL_PER_MATCH,
       toxin: 0,
       toxinRate: 0,
@@ -165,7 +171,7 @@ export function drive(state: GameState, dir: number, dt: number): number {
     const stepX = Math.min(1, budget);
     const nx = p.x + Math.sign(dir) * stepX;
     if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) break;
-    const blocked = [...state.players.filter((q) => q !== p && q.alive), ...state.holograms].some(
+    const blocked = [...tankBodies(state).filter((q) => !(q.owner === p && !q.twin)), ...state.holograms].some(
       (q) => Math.abs(q.x - nx) < TANK_HALF_WIDTH * 2 && Math.abs(q.x - nx) < Math.abs(q.x - p.x),
     );
     if (blocked) break;
@@ -197,7 +203,7 @@ function hullRest(state: GameState, x: number, fromY: number): number {
 export function isAimless(state: GameState): boolean {
   const p = currentPlayer(state);
   const kind = weaponForTier(p, p.selectedTier).kind ?? 'ballistic';
-  return kind === 'rain' || kind === 'decoy' || kind === 'heal';
+  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin';
 }
 
 export function setAim(state: GameState, angle: number, power: number): void {
@@ -254,21 +260,13 @@ export function fire(state: GameState): boolean {
     case 'decoy':
       fireDecoys(state, p, weapon);
       break;
-    case 'sonic': {
-      const spec = weapon.sonic!;
-      const m = muzzle(p);
-      state.booms.push({
-        ownerId: p.id,
-        weaponId: weapon.id,
-        x: m.x,
-        y: m.y,
-        angle: (p.angle * Math.PI) / 180,
-        range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
-        elapsed: 0,
-        hits: Array.from({ length: spec.waves }, () => []),
-      });
+    case 'sonic':
+      fireSonic(state, p, weapon, p);
+      if (p.twin) fireSonic(state, p, weapon, twinGun(p));
       break;
-    }
+    case 'twin':
+      spawnTwin(state, p);
+      break;
     case 'spew':
       state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
       break;
@@ -290,11 +288,9 @@ export function fire(state: GameState): boolean {
       state.naps.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, nextZ: 0 });
       break;
     case 'ballistic':
-      if (weapon.burst) {
-        state.bursts.push({ playerId: p.id, weaponId: weapon.id, angle: p.angle, power: p.power, fired: 0, elapsed: 0 });
-      } else {
-        fireBallistic(state, p, weapon);
-      }
+      fireRounds(state, p, weapon, 'main');
+      // A twin fires the same weapon with the same trajectory and power from its own spot.
+      if (p.twin) fireRounds(state, p, weapon, 'twin');
       break;
   }
   if (weapon.apparition) {
@@ -316,6 +312,62 @@ function fireBallistic(state: GameState, p: Player, weapon: WeaponDef): void {
     const a = ((p.angle + offset) * Math.PI) / 180;
     spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
   }
+}
+
+/** The player's twin as a stand-in shooter: same aim and power, the twin's position. */
+function twinGun(p: Player): Player {
+  return { ...p, x: p.twin!.x, y: p.twin!.y };
+}
+
+/** Ballistic rounds from the main tank or the twin: a single shot/volley, a burst, or a word. */
+function fireRounds(state: GameState, p: Player, weapon: WeaponDef, origin: 'main' | 'twin'): void {
+  const gun = origin === 'twin' ? twinGun(p) : p;
+  if (!weapon.burst) {
+    fireBallistic(state, gun, weapon);
+    return;
+  }
+  let word: string | null = null;
+  let wordColour = '#ffffff';
+  if (weapon.words) {
+    const list = DICTIONARIES[origin === 'twin' ? weapon.words.twin : weapon.words.main];
+    word = list[Math.floor(state.rng() * list.length)]!;
+    wordColour = origin === 'twin' ? weapon.words.twinColour : weapon.words.mainColour;
+    const c = tankCentre(gun);
+    spawnFloater(state, c.x, c.y - 18, `“${word}”`, wordColour);
+  }
+  state.bursts.push({ playerId: p.id, weaponId: weapon.id, origin, angle: p.angle, power: p.power, fired: 0, elapsed: 0, word, wordColour });
+}
+
+function fireSonic(state: GameState, p: Player, weapon: WeaponDef, gun: Player): void {
+  const spec = weapon.sonic!;
+  const m = muzzle(gun);
+  state.booms.push({
+    ownerId: p.id,
+    weaponId: weapon.id,
+    x: m.x,
+    y: m.y,
+    angle: (p.angle * Math.PI) / 180,
+    range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
+    elapsed: 0,
+    hits: Array.from({ length: spec.waves }, () => []),
+  });
+}
+
+/** Twins: a second tank appears somewhere clear, and the player's HP is split between the two. */
+function spawnTwin(state: GameState, p: Player): void {
+  if (p.twin || p.hp < 2) return;
+  const { terrain, rng } = state;
+  const taken = [...tankBodies(state).map((q) => q.x), ...state.holograms.map((h) => h.x)];
+  let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
+  for (let tries = 0; tries < 60 && taken.some((t) => Math.abs(t - x) < HOLOGRAM_MIN_SPACING); tries++) {
+    x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
+  }
+  x = Math.round(x);
+  const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), soak: 0, soakColour: '#ffffff', age: 0 };
+  p.hp -= twin.hp;
+  p.twin = twin;
+  ring(state, p.x, p.y - TANK_BODY_HEIGHT, p.colour);
+  ring(state, twin.x, twin.y - TANK_BODY_HEIGHT, p.colour);
 }
 
 /** Straight line from the barrel until it meets ground, a tank or the edge of the map. */
@@ -375,7 +427,7 @@ function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void {
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, colour);
   shimmer(state, p.id);
   for (let n = 0; n < (weapon.decoys ?? 2); n++) {
-    const taken = [...state.players.filter((q) => q.alive).map((q) => q.x), ...state.holograms.map((h) => h.x)];
+    const taken = [...tankBodies(state).map((q) => q.x), ...state.holograms.map((h) => h.x)];
     let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
     for (let tries = 0; tries < 60 && taken.some((t) => Math.abs(t - x) < HOLOGRAM_MIN_SPACING); tries++) {
       x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
@@ -408,6 +460,7 @@ function shimmer(state: GameState, ownerId: number): void {
 
 function stepPhaseFx(state: GameState, dt: number): void {
   for (const h of state.holograms) h.age += dt;
+  for (const p of state.players) if (p.twin) p.twin.age += dt;
   for (const s of state.shimmers) s.age += dt;
   for (const g of state.ghosts) g.age += dt;
   state.shimmers = state.shimmers.filter((s) => s.age < s.duration);
@@ -646,7 +699,7 @@ function directionToNearestEnemy(state: GameState, pr: Projectile): number {
   let best: number | null = null;
   for (const t of allTargets(state)) {
     if (targetOwner(t) === pr.ownerId) continue;
-    const tx = t.kind === 'player' ? t.player.x : t.holo.x;
+    const tx = targetPos(t).x;
     if (best === null || Math.abs(tx - pr.x) < Math.abs(best - pr.x)) best = tx;
   }
   return best === null || best >= pr.x ? 1 : -1;
@@ -742,10 +795,7 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const y = d.y + (ny - d.y) * t;
     const target = targetAt(state, x, y);
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
-      const soaked = target.kind === 'player' ? target.player : target.holo;
-      soaked.soak += (weapon.stream?.damagePerDrop ?? 0) * offence(state, d.ownerId);
-      soaked.soakColour = tint(d.colour, 0.35);
-      if (target.kind === 'hologram') target.holo.soakShooterId = d.ownerId;
+      soakTarget(target, (weapon.stream?.damagePerDrop ?? 0) * offence(state, d.ownerId), tint(d.colour, 0.35), d.ownerId);
       spawnSplash(state, x, y, d, 3);
       return true;
     }
@@ -779,7 +829,7 @@ function jetBodyHits(state: GameState, x: number, y: number, self: Player): bool
     const a = (k * Math.PI) / 4;
     if (state.terrain.isSolid(x + Math.cos(a) * JET_BODY_RADIUS, cy + Math.sin(a) * JET_BODY_RADIUS)) return true;
   }
-  return state.players.some((q) => q !== self && q.alive && Math.hypot(q.x - x, q.y - y) < TANK_HALF_WIDTH * 2);
+  return tankBodies(state).some((q) => !(q.owner === self && !q.twin) && Math.hypot(q.x - x, q.y - y) < TANK_HALF_WIDTH * 2);
 }
 
 /** Charge, launch, fly, land. Returns true once the tank has landed. */
@@ -873,7 +923,7 @@ function stepJet(state: GameState, j: Jet, dt: number): boolean {
 function land(state: GameState, p: Player): void {
   const { terrain } = state;
   for (let guard = 0; guard < 60; guard++) {
-    const other = state.players.find((q) => q !== p && q.alive && Math.abs(q.x - p.x) < TANK_HALF_WIDTH * 2);
+    const other = tankBodies(state).find((q) => !(q.owner === p && !q.twin) && Math.abs(q.x - p.x) < TANK_HALF_WIDTH * 2);
     if (!other) break;
     const dir = p.x >= other.x ? 1 : -1;
     const nx = p.x + dir;
@@ -909,15 +959,24 @@ function stepBurst(state: GameState, b: Burst, dt: number): boolean {
   const weapon = getWeapon(b.weaponId);
   const spec = weapon.burst!;
   const p = state.players[b.playerId]!;
+  const count = b.word ? b.word.length : spec.count;
+  // A twin destroyed mid-burst (or a dead player) stops firing.
+  if (!p.alive || (b.origin === 'twin' && !p.twin)) return true;
+  const gun = b.origin === 'twin' ? twinGun(p) : p;
   b.elapsed += dt;
-  while (b.fired < spec.count && b.elapsed >= b.fired * spec.interval) {
-    const m = muzzle(p);
+  while (b.fired < count && b.elapsed >= b.fired * spec.interval) {
+    const m = muzzle({ ...gun, angle: b.angle });
     const a = ((b.angle + randRange(state.rng, -1, 1)) * Math.PI) / 180;
     const speed = (b.power / 100) * MAX_SPEED * (1 + randRange(state.rng, -spec.powerJitter, spec.powerJitter));
     spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
+    if (b.word) {
+      const pr = state.projectiles[state.projectiles.length - 1]!;
+      pr.glyph = b.word[b.fired]!;
+      pr.glyphColour = b.wordColour;
+    }
     b.fired++;
   }
-  return b.fired >= spec.count;
+  return b.fired >= count;
 }
 
 /** Doze, with z's drifting up, then wake at full health. Returns true once awake. */
@@ -957,28 +1016,77 @@ export function boomRadii(b: Boom): number[] {
 function stepBoom(state: GameState, b: Boom, dt: number): boolean {
   const spec = getWeapon(b.weaponId).sonic!;
   b.elapsed += dt;
-  const half = (spec.halfAngleDeg * Math.PI) / 180;
   const radii = boomRadii(b);
+  // Twins: another boom from the same player at the same time. Where their arcs cross, the waves
+  // phase together: more range and focused damage.
+  const siblings = state.booms.filter((o) => o !== b && o.ownerId === b.ownerId);
   for (const t of allTargets(state)) {
-    if (targetOwner(t) === b.ownerId) continue;
-    const pos = t.kind === 'player' ? t.player : t.holo;
-    const dx = pos.x - b.x;
-    const dy = -(pos.y - TANK_BODY_HEIGHT - b.y);
-    const d = Math.hypot(dx, dy);
-    if (d > b.range) continue;
-    let off = Math.atan2(dy, dx) - b.angle;
-    off = Math.atan2(Math.sin(off), Math.cos(off));
-    // The hull has some width, so allow a little beyond the arc's edge.
-    if (Math.abs(off) > half + Math.atan2(TANK_HIT_RADIUS, Math.max(d, 1))) continue;
-    const key = t.kind === 'player' ? `p${t.player.id}` : `h${t.holo.id}`;
+    if (gone(t) || targetOwner(t) === b.ownerId) continue;
+    const pos = targetPos(t);
+    const tx = pos.x;
+    const ty = pos.y - TANK_BODY_HEIGHT;
+    const d = Math.hypot(tx - b.x, ty - b.y);
+    if (!inArc(b, spec, tx, ty)) continue;
+    const phased = siblings.some((o) => inArc(o, spec, tx, ty) && Math.hypot(tx - o.x, ty - o.y) <= o.range * PHASE_RANGE);
+    if (d > b.range * (phased ? PHASE_RANGE : 1)) continue;
+    const key = targetKey(t);
     radii.forEach((r, k) => {
       if (r < d - TANK_HIT_RADIUS || b.hits[k]!.includes(key)) return;
       b.hits[k]!.push(key);
-      const dmg = scaled(state, b.ownerId, spec.damage * Math.min(1, spec.refDistance / Math.max(d, 1)));
-      damageTarget(state, t, dmg, b.ownerId, getWeapon(b.weaponId).colour ?? '#c9b6ff');
+      const falloff = Math.min(1, spec.refDistance / Math.max(d, 1));
+      const dmg = scaled(state, b.ownerId, spec.damage * falloff * (phased ? PHASE_FOCUS : 1));
+      damageTarget(state, t, dmg, b.ownerId, phased ? '#ffffff' : (getWeapon(b.weaponId).colour ?? '#c9b6ff'));
     });
   }
-  return radii[radii.length - 1]! >= b.range;
+  return radii[radii.length - 1]! >= b.range * (siblings.length > 0 ? PHASE_RANGE : 1);
+}
+
+/** Crossing waves from twin booms reach this much further… */
+export const PHASE_RANGE = 1.5;
+/** …and hit this much harder. */
+export const PHASE_FOCUS = 1.5;
+
+/** Whether (x, y) is inside a boom's arc (allowing for the width of a hull). */
+function inArc(b: Boom, spec: { halfAngleDeg: number }, x: number, y: number): boolean {
+  const dx = x - b.x;
+  const dy = -(y - b.y);
+  const d = Math.hypot(dx, dy);
+  let off = Math.atan2(dy, dx) - b.angle;
+  off = Math.atan2(Math.sin(off), Math.cos(off));
+  return Math.abs(off) <= (spec.halfAngleDeg * Math.PI) / 180 + Math.atan2(TANK_HIT_RADIUS, Math.max(d, 1));
+}
+
+/**
+ * The phased stretches of each twin boom's waves (cosmetic): runs of arc that pass through the
+ * region the other boom's arc also covers, out to the phased range. Angles are canvas radians.
+ */
+export function boomPhaseArcs(state: GameState): { x: number; y: number; r: number; from: number; to: number; fade: number }[] {
+  const out: { x: number; y: number; r: number; from: number; to: number; fade: number }[] = [];
+  const SAMPLES = 24;
+  for (const b of state.booms) {
+    const siblings = state.booms.filter((o) => o !== b && o.ownerId === b.ownerId);
+    if (siblings.length === 0) continue;
+    const spec = getWeapon(b.weaponId).sonic!;
+    const half = (spec.halfAngleDeg * Math.PI) / 180;
+    const maxR = b.range * PHASE_RANGE;
+    for (const r of boomRadii(b)) {
+      if (r <= 2 || r > maxR) continue;
+      let runStart: number | null = null;
+      for (let i = 0; i <= SAMPLES; i++) {
+        const a = b.angle - half + (2 * half * i) / SAMPLES; // maths angle
+        const x = b.x + Math.cos(a) * r;
+        const y = b.y - Math.sin(a) * r;
+        const inside = siblings.some((o) => inArc(o, spec, x, y) && Math.hypot(x - o.x, y - o.y) <= o.range * PHASE_RANGE);
+        if (inside && runStart === null) runStart = a;
+        if ((!inside || i === SAMPLES) && runStart !== null) {
+          const end = inside ? a : a - (2 * half) / SAMPLES;
+          if (end > runStart) out.push({ x: b.x, y: b.y, r, from: -end, to: -runStart, fade: 1 - r / maxR });
+          runStart = null;
+        }
+      }
+    }
+  }
+  return out;
 }
 
 // ---- Spew ----------------------------------------------------------------------------------------
@@ -1036,14 +1144,14 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
     const y = sl.y + (ny - sl.y) * t;
     const target = targetAt(state, x, y);
     if (target && targetOwner(target) !== sl.ownerId) {
+      const dose = spec.dosePerParticle * offence(state, sl.ownerId);
+      const colour = getWeapon(sl.weaponId).colour ?? '#9be22d';
       if (target.kind === 'player') {
-        target.player.toxin += spec.dosePerParticle * offence(state, sl.ownerId);
+        target.player.toxin += dose;
         target.player.toxinRate = spec.dosePerSecond;
-        target.player.soakColour = getWeapon(sl.weaponId).colour ?? '#9be22d';
+        target.player.soakColour = colour;
       } else {
-        target.holo.soak += spec.dosePerParticle * offence(state, sl.ownerId);
-        target.holo.soakShooterId = sl.ownerId;
-        target.holo.soakColour = getWeapon(sl.weaponId).colour ?? '#9be22d';
+        soakTarget(target, dose, colour, sl.ownerId);
       }
       return true;
     }
@@ -1074,8 +1182,8 @@ function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
         if (!slid) break;
       }
       // Gunk that lands on a tank's hull splatters off rather than burying it.
-      const onHull = state.players.some(
-        (q) => q.alive && Math.abs(q.x - mx) < TANK_HALF_WIDTH + 2 && my <= q.y + 1 && my >= q.y - TANK_BODY_HEIGHT * 2 - 2,
+      const onHull = tankBodies(state).some(
+        (q) => Math.abs(q.x - mx) < TANK_HALF_WIDTH + 2 && my <= q.y + 1 && my >= q.y - TANK_BODY_HEIGHT * 2 - 2,
       );
       if (!onHull) terrain.addDirt(mx, my - 0.5, spec.depositRadius, spec.deposit);
       if (spec.puddle) addPuddle(state, sl, mx, my, spec.puddle);
@@ -1114,21 +1222,13 @@ function touchesPuddle(p: Puddle, x: number, y: number): boolean {
 function stepPuddles(state: GameState, dt: number): void {
   if (state.puddles.length === 0) return;
   for (const t of allTargets(state)) {
-    const pos = t.kind === 'player' ? t.player : t.holo;
+    const pos = targetPos(t);
     // One burn per sludge owner, however many patches the tank is sitting in.
     const burning = state.puddles.find((p) => p.ownerId !== targetOwner(t) && touchesPuddle(p, pos.x, pos.y));
     if (!burning) continue;
     const w = getWeapon(burning.weaponId);
     const amount = (w.gunk?.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
-    const colour = '#b6f04a';
-    if (t.kind === 'player') {
-      t.player.soak += amount;
-      t.player.soakColour = colour;
-    } else {
-      t.holo.soak += amount;
-      t.holo.soakShooterId = burning.ownerId;
-      t.holo.soakColour = colour;
-    }
+    soakTarget(t, amount, '#b6f04a', burning.ownerId);
   }
   for (const p of state.puddles) p.age += dt;
   state.puddles = state.puddles.filter((p) => p.age < p.ttl);
@@ -1174,6 +1274,13 @@ function stepSoak(state: GameState, dt: number, final: boolean): void {
     const whole = final ? Math.round(h.soak) : Math.floor(h.soak);
     if (whole > 0) damageTarget(state, { kind: 'hologram', holo: h }, whole, h.soakShooterId, h.soakColour);
     h.soak = final ? 0 : h.soak - whole;
+  }
+  for (const p of state.players) {
+    const tw = p.twin;
+    if (!tw) continue;
+    const whole = final ? Math.round(tw.soak) : Math.floor(tw.soak);
+    tw.soak = final ? 0 : tw.soak - whole;
+    if (whole > 0) damageTwin(state, p, whole, tw.soakColour);
   }
 }
 
@@ -1239,41 +1346,93 @@ function bounce(state: GameState, pr: Projectile, weapon: WeaponDef, hitX: numbe
   pr.bounces++;
 }
 
-/** The real tank or hologram whose hit circle contains (x, y). */
+/** The real tank, twin or hologram whose hit circle contains (x, y). */
 export function targetAt(state: GameState, x: number, y: number): Target | undefined {
-  for (const p of state.players) {
-    if (p.alive && Math.hypot(x - p.x, y - (p.y - TANK_BODY_HEIGHT)) <= TANK_HIT_RADIUS) return { kind: 'player', player: p };
-  }
-  for (const h of state.holograms) {
-    if (!state.players[h.ownerId]?.alive) continue;
-    if (Math.hypot(x - h.x, y - (h.y - TANK_BODY_HEIGHT)) <= TANK_HIT_RADIUS) return { kind: 'hologram', holo: h };
+  for (const t of allTargets(state)) {
+    const pos = targetPos(t);
+    if (Math.hypot(x - pos.x, y - (pos.y - TANK_BODY_HEIGHT)) <= TANK_HIT_RADIUS) return t;
   }
   return undefined;
 }
 
+/** Where a target's hull rests (x centre, y = ground contact). */
+export function targetPos(t: Target): { x: number; y: number } {
+  return t.kind === 'player' ? t.player : t.kind === 'twin' ? t.player.twin! : t.holo;
+}
+
+/** A target that has left the field since the target list was taken (dead, or a twin promoted/destroyed). */
+function gone(t: Target): boolean {
+  return t.kind === 'hologram' ? false : !t.player.alive || (t.kind === 'twin' && !t.player.twin);
+}
+
 function targetOwner(t: Target): number {
-  return t.kind === 'player' ? t.player.id : t.holo.ownerId;
+  return t.kind === 'hologram' ? t.holo.ownerId : t.player.id;
+}
+
+function targetKey(t: Target): string {
+  return t.kind === 'player' ? `p${t.player.id}` : t.kind === 'twin' ? `t${t.player.id}` : `h${t.holo.id}`;
 }
 
 function allTargets(state: GameState): Target[] {
+  const alive = state.players.filter((p) => p.alive);
   return [
-    ...state.players.filter((p) => p.alive).map((player): Target => ({ kind: 'player', player })),
+    ...alive.map((player): Target => ({ kind: 'player', player })),
+    ...alive.filter((p) => p.twin).map((player): Target => ({ kind: 'twin', player })),
     ...state.holograms.filter((h) => state.players[h.ownerId]?.alive).map((holo): Target => ({ kind: 'hologram', holo })),
   ];
 }
 
+/** Every living tank body on the field (real tanks and twins), for collisions and spacing. */
+function tankBodies(state: GameState): { x: number; y: number; owner: Player; twin: boolean }[] {
+  const out: { x: number; y: number; owner: Player; twin: boolean }[] = [];
+  for (const p of state.players) {
+    if (!p.alive) continue;
+    out.push({ x: p.x, y: p.y, owner: p, twin: false });
+    if (p.twin) out.push({ x: p.twin.x, y: p.twin.y, owner: p, twin: true });
+  }
+  return out;
+}
+
+/** Add damage-over-time "soak" (water, mud, sludge) to any kind of target. */
+function soakTarget(t: Target, amount: number, colour: string, shooterId: number): void {
+  if (t.kind === 'player') {
+    t.player.soak += amount;
+    t.player.soakColour = colour;
+  } else if (t.kind === 'twin') {
+    t.player.twin!.soak += amount;
+    t.player.twin!.soakColour = colour;
+  } else {
+    t.holo.soak += amount;
+    t.holo.soakShooterId = shooterId;
+    t.holo.soakColour = colour;
+  }
+}
+
 /**
- * Real tanks take the damage. Holograms put on a show (same floating number) and record it
+ * Real tanks and twins take the damage. Holograms put on a show (same floating number) and record it
  * against the shooter, who pays the penalty when the hologram is exposed at the end of the turn.
  */
 function damageTarget(state: GameState, t: Target, amount: number, shooterId: number, colour = '#ffffff'): void {
   if (amount <= 0) return;
   if (t.kind === 'player') {
     damagePlayer(state, t.player, amount, colour);
-    return;
+  } else if (t.kind === 'twin') {
+    damageTwin(state, t.player, amount, colour);
+  } else {
+    t.holo.hits.push({ shooterId, damage: amount });
+    spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
   }
-  t.holo.hits.push({ shooterId, damage: amount });
-  spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
+}
+
+function damageTwin(state: GameState, p: Player, amount: number, colour: string): void {
+  const tw = p.twin;
+  if (!tw || amount <= 0) return;
+  tw.hp = Math.max(0, tw.hp - amount);
+  spawnFloater(state, tw.x, tw.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
+  if (tw.hp === 0) {
+    state.explosions.push({ x: tw.x, y: tw.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
+    p.twin = null;
+  }
 }
 
 export function explode(state: GameState, x: number, y: number, weapon: WeaponDef, ownerId?: number): void {
@@ -1283,13 +1442,14 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
 
   const shooterId = ownerId ?? currentPlayer(state).id;
   for (const t of allTargets(state)) {
+    if (gone(t)) continue; // e.g. a twin promoted by this very blast
     if (weapon.friendlyFire === false && targetOwner(t) === shooterId) continue;
-    const pos = t.kind === 'player' ? t.player : t.holo;
+    const pos = targetPos(t);
     const reach = r + TANK_HIT_RADIUS;
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
     damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)), shooterId);
-    if (weapon.debuff && t.kind === 'player' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier);
+    if (weapon.debuff && t.kind !== 'hologram' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier);
   }
   settleTanks(state);
 }
@@ -1305,9 +1465,21 @@ function cook(state: GameState, p: Player, multiplier: number): void {
 export function damagePlayer(state: GameState, p: Player, amount: number, colour = '#ffffff'): void {
   if (amount <= 0 || !p.alive) return;
   p.hp = Math.max(0, p.hp - amount);
-  if (p.hp === 0) p.alive = false;
   const c = tankCentre(p);
   spawnFloater(state, c.x, c.y, `-${amount}`, colour);
+  if (p.hp > 0) return;
+  if (p.twin) {
+    // The main tank is destroyed, but the twin carries on as the player's tank.
+    state.explosions.push({ x: c.x, y: c.y, radius: 22, age: 0, duration: 0.5 });
+    const tw = p.twin;
+    p.x = tw.x;
+    p.y = tw.y;
+    p.hp = tw.hp;
+    p.soak += tw.soak;
+    p.twin = null;
+    return;
+  }
+  p.alive = false;
 }
 
 function spawnFloater(state: GameState, x: number, y: number, text: string, colour: string): void {
@@ -1333,7 +1505,8 @@ function stepFloaters(state: GameState, dt: number): void {
 /** Drop tanks (and holograms) onto whatever ground is left beneath them. */
 function settleTanks(state: GameState): void {
   const { terrain } = state;
-  for (const t of [...state.players, ...state.holograms]) {
+  const twins = state.players.flatMap((p) => (p.twin ? [p.twin] : []));
+  for (const t of [...state.players, ...state.holograms, ...twins]) {
     let ground = terrain.height;
     for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
       ground = Math.min(ground, terrain.groundBelow(t.x + dx, t.y));
@@ -1400,8 +1573,9 @@ function endTurn(state: GameState): void {
   }
   if (next < 0) {
     // Everyone is out of ammo: highest HP wins, a tie is a draw.
-    const best = Math.max(...alive.map((p) => p.hp));
-    const leaders = alive.filter((p) => p.hp === best);
+    const total = (p: Player) => p.hp + (p.twin?.hp ?? 0);
+    const best = Math.max(...alive.map(total));
+    const leaders = alive.filter((p) => total(p) === best);
     state.phase = 'gameover';
     state.winner = leaders.length === 1 ? leaders[0]! : null;
     return;

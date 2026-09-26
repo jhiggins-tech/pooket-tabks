@@ -38,11 +38,25 @@ export interface Player {
    * (everything they fire deals `multiplier` × damage), then gone.
    */
   cooked: { active: boolean; multiplier: number } | null;
+  /** A second tank (torikloud's Twins): its own position and health bar, mirroring this player's shots. */
+  twin: Twin | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
   /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
   toxin: number;
   toxinRate: number;
+}
+
+/** A player's second tank. */
+export interface Twin {
+  x: number;
+  y: number;
+  hp: number;
+  /** Fractional damage soaked (water, mud, sludge) not yet applied. */
+  soak: number;
+  soakColour: string;
+  /** Seconds since it appeared (cosmetic phase-in). */
+  age: number;
 }
 
 export interface Projectile {
@@ -61,6 +75,9 @@ export interface Projectile {
   walkDir: number;
   /** Walkers: seconds spent walking so far (they pop when it reaches the weapon's walk duration). */
   walkTime: number;
+  /** Word fire: the letter this round is, and its colour. */
+  glyph?: string;
+  glyphColour?: string;
 }
 
 export interface Beam {
@@ -163,10 +180,15 @@ export interface Jet {
 export interface Burst {
   playerId: number;
   weaponId: string;
+  /** Which of the player's tanks it fires from. */
+  origin: 'main' | 'twin';
   angle: number;
   power: number;
   fired: number;
   elapsed: number;
+  /** Word fire: the word being fired, one letter per round (null for plain bursts). */
+  word: string | null;
+  wordColour: string;
 }
 
 /** A player napping (Take a Nap); wakes at full health. */

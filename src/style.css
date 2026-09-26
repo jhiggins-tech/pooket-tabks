@@ -97,7 +97,12 @@ button:disabled {
   from { opacity: 0.55; }
   to { opacity: 1; }
 }
+.chip .bars {
+  display: flex;
+  gap: 4px;
+}
 .chip .hp {
+  flex: 1;
   height: 5px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.15);

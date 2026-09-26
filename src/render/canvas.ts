@@ -1,6 +1,7 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/constants';
 import {
+  boomPhaseArcs,
   boomRadii,
   currentPlayer,
   HOLOGRAM_PHASE_IN,
@@ -125,6 +126,11 @@ export class Renderer {
         const phaseIn = Math.min(1, h.age / HOLOGRAM_PHASE_IN);
         this.drawGlitchedTank(p, state, h, Math.max(shimmerAmt, 1 - phaseIn), phaseIn, 1);
         if (state.swapTargetId === h.id && state.phase === 'aiming' && currentPlayer(state) === p) this.drawSwapMarker(h);
+      }
+      if (p.twin && p.alive) {
+        // Twins: an identical second tank, phasing in when it first appears.
+        const phaseIn = Math.min(1, p.twin.age / HOLOGRAM_PHASE_IN);
+        this.drawGlitchedTank(p, state, p.twin, 1 - phaseIn, phaseIn, 1);
       }
       this.drawJet(p, state, () => this.drawGlitchedTank(p, state, undefined, shimmerAmt, 1, 1));
       if (isSpewing(state, p.id)) this.drawSpewGush(p);
@@ -503,13 +509,34 @@ export class Renderer {
         ctx.arc(t.x, t.y, 1.5, 0, Math.PI * 2);
         ctx.fill();
       });
-      if (!this.drawSprite(pr)) {
+      if (pr.glyph) {
+        this.drawGlyph(pr);
+      } else if (!this.drawSprite(pr)) {
         ctx.fillStyle = '#111';
         ctx.beginPath();
         ctx.arc(pr.x, pr.y, 3.5, 0, Math.PI * 2);
         ctx.fill();
       }
     }
+  }
+
+  /** Debate: each round is a letter, tumbling through the air. */
+  private drawGlyph(pr: Projectile): void {
+    const { ctx } = this;
+    const spin = getWeapon(pr.weaponId).spin ?? 0;
+    ctx.save();
+    ctx.translate(pr.x, pr.y);
+    ctx.rotate(pr.age * spin * (pr.vx < 0 ? -1 : 1));
+    ctx.font = '900 16px Georgia, "Times New Roman", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(20,16,40,0.9)';
+    ctx.strokeText(pr.glyph!.toUpperCase(), 0, 0);
+    ctx.fillStyle = pr.glyphColour ?? '#fff';
+    ctx.fillText(pr.glyph!.toUpperCase(), 0, 0);
+    ctx.restore();
   }
 
   /**
@@ -627,6 +654,23 @@ export class Renderer {
   private drawBooms(state: GameState): void {
     const { ctx } = this;
     ctx.save();
+    // Where twin booms' waves overlap they phase together: those stretches glow white and carry further.
+    ctx.lineCap = 'round';
+    for (const arc of boomPhaseArcs(state)) {
+      const shimmer = 0.75 + 0.25 * Math.sin(this.time * 30 + arc.r * 0.2);
+      ctx.globalAlpha = Math.min(1, arc.fade * 1.4) * shimmer;
+      ctx.strokeStyle = 'rgba(235,225,255,0.35)';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.arc(arc.x, arc.y, arc.r, arc.from, arc.to);
+      ctx.stroke();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(arc.x, arc.y, arc.r, arc.from, arc.to);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
     ctx.lineCap = 'round';
     for (const b of state.booms) {
       const w = getWeapon(b.weaponId);
