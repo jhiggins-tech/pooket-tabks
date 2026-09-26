@@ -10,6 +10,8 @@ import {
   DRIVE_CLIMB,
   DRIVE_LOOKAHEAD,
   DRIVE_MAX_SLOPE,
+  DRIVE_SCRAMBLE,
+  DRIVE_SCRAMBLE_REACH,
   DRIVE_SPEED,
   FUEL_PER_MATCH,
   GRAVITY,
@@ -168,7 +170,7 @@ export function muzzle(p: Player): { x: number; y: number } {
 /**
  * Drive the current player's tank along the ground for dt seconds in direction `dir` (−1 / +1),
  * spending fuel per pixel from a tank that has to last the whole match. It rolls over bumps and lips up to DRIVE_CLIMB px and climbs slopes up to
- * DRIVE_MAX_SLOPE, rolls down slopes and drops off ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
+ * DRIVE_MAX_SLOPE (steeper only when the climb is short, like a crater wall: see shortClimb), rolls down slopes and drops off ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
  * Returns the distance moved.
  */
 export function drive(state: GameState, dir: number, dt: number): number {
@@ -196,7 +198,7 @@ export function drive(state: GameState, dir: number, dt: number): number {
       // Climbing: a bump is fine, but not if the ground keeps rising steeply beyond it (a steep hill).
       const aheadX = clamp(nx + Math.sign(dir) * DRIVE_LOOKAHEAD, TANK_HALF_WIDTH, terrain.width - TANK_HALF_WIDTH);
       const limit = Math.max(DRIVE_CLIMB, DRIVE_MAX_SLOPE * Math.abs(aheadX - p.x));
-      if (hullRest(state, aheadX, here - limit - 1) < here - limit) break;
+      if (hullRest(state, aheadX, here - limit - 1) < here - limit && !shortClimb(state, nx, Math.sign(dir), here)) break;
     }
     p.x = nx;
     p.y = ground;
@@ -206,6 +208,21 @@ export function drive(state: GameState, dir: number, dt: number): number {
   p.fuel = Math.max(0, p.fuel - moved);
   if (moved > 0 && hash(state.fxSeq * 0.37 + p.x) < 0.25) spawnDust(state, p.x - Math.sign(dir) * 9, p.y, 0.15);
   return moved;
+}
+
+/**
+ * True when the climb ahead tops out within DRIVE_SCRAMBLE px of `here` (the ground over the next
+ * DRIVE_SCRAMBLE_REACH px never rises higher than that), so even a steep one can be scrambled up:
+ * crater walls and short banks, as opposed to a steep hill that keeps going.
+ */
+function shortClimb(state: GameState, x: number, dir: number, here: number): boolean {
+  const cap = here - DRIVE_SCRAMBLE;
+  const { width } = state.terrain;
+  for (let k = 0; k <= DRIVE_SCRAMBLE_REACH; k += 2) {
+    const ax = clamp(x + dir * k, TANK_HALF_WIDTH, width - TANK_HALF_WIDTH);
+    if (hullRest(state, ax, cap - 1) < cap) return false;
+  }
+  return true;
 }
 
 // ---- Frog hops (ciarra's movement) ---------------------------------------------------------------
@@ -259,8 +276,9 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
       }
     }
     if (!clear) continue;
-    // …it lands on solid ground no higher than the apex, and not on top of another tank.
-    const y1 = hullRest(state, x1, apex);
+    // …it lands on solid ground no higher than the apex (searching from just above it, so the hull
+    // never lands sunk into a bank), and not on top of another tank.
+    const y1 = hullRest(state, x1, apex - 1);
     if (y1 < apex) continue;
     const bump = [...tankBodies(state).filter((q) => !(q.owner === p && !q.twin)), ...state.holograms].some(
       (q) => Math.abs(q.x - x1) < TANK_HALF_WIDTH * 2,

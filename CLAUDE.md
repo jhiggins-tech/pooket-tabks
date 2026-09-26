@@ -32,7 +32,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
   Each tank has `FUEL_PER_MATCH` px of driving for the whole match (never refills; `drive()`, held ◀ ▶
   buttons), usable during its turn before firing. Tanks roll over lips up to `DRIVE_CLIMB` px, but stop when
-  the ground over the next `DRIVE_LOOKAHEAD` px rises steeper than `DRIVE_MAX_SLOPE` (45°). Characters with `movement: 'hop'` (ciarra) spend it on
+  the ground over the next `DRIVE_LOOKAHEAD` px rises steeper than `DRIVE_MAX_SLOPE` (45°), unless the climb
+  is short (`shortClimb`: tops out within `DRIVE_SCRAMBLE` px, e.g. a crater wall), so tanks can always drive out of craters. Characters with `movement: 'hop'` (ciarra) spend it on
   frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`; no
   firing mid-hop). A pinned tank can't move at all.
   Keep it pure and DOM-free so it stays unit-testable.

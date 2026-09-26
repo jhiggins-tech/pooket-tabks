@@ -33,12 +33,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
   weapon (tier, rounds, aimed or not, what it does). It opens on the current player's character and
   pauses the game while it's up.
 - **Smoother driving**: tanks roll over bumps and lips up to 7px (mud piles, crater edges) instead of
-  getting caught on anything over 3px, but hills steeper than 45° still stop them.
+  getting caught on anything over 3px, and scramble up short steep climbs like crater walls (anything that
+  tops out within 30px), so they can always drive out of a crater; tall hills steeper than 45° still stop
+  them. Frog hops never land sunk into a bank.
 - **Fuel meter**: each tank has one tank of fuel for the whole match (250px of driving; it never
   refills), usable any time during your turn before firing. Hold ◀ ▶ in the drive bar; the gauge shows
   what's left. Tanks follow the ground: they climb small
   bumps, roll down slopes and drop off ledges, and are stopped by walls, other tanks and decoys, and the
-  map edge. (Bumps up to 7px are fine; slopes steeper than 45° are too steep.)
+  map edge. (Bumps up to 7px and short steep climbs like crater walls are fine; tall slopes steeper than 45° are too steep.)
 - **Frog hops** (ciarra): instead of driving, she hops 24px at a time from the same fuel tank, clearing
   walls up to ~16px that would stop a tank.
 - **360° aiming** with slingshot drag (pull back to aim, pull length = power) plus fine-tune buttons.
