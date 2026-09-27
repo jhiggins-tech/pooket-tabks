@@ -1,3 +1,4 @@
+import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
 import { Rtdb, RtdbError, SERVER_TIME, type RtdbEvent } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
@@ -33,16 +34,6 @@ export function newRoomCode(): string {
 export function normaliseRoomCode(text: string): string | null {
   const c = text.toUpperCase().replace(/0/g, 'O').replace(/1/g, 'I').replace(/[^A-Z]/g, '');
   return c.length === 4 ? c : null;
-}
-
-export function toB64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
-
-export function fromB64(s: string): Uint8Array {
-  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 }
 
 /**

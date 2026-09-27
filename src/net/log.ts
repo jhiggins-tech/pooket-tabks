@@ -1,6 +1,6 @@
 /**
- * A small in-memory log of what the online code does (lobby servers, room messages, WebRTC states),
- * for the "Copy logs" button. Addresses are masked so a log is safe to paste into a chat.
+ * A small in-memory log of what the online code does (database calls and streams, rooms, the relay,
+ * the match session), for the "Copy logs" button. Addresses are masked so a log is safe to paste into a chat.
  */
 
 const MAX_LINES = 600;
@@ -21,7 +21,7 @@ export function netLogText(): string {
     `page: ${typeof location !== 'undefined' ? location.origin + location.pathname + location.search : '?'}`,
     `browser: ${nav?.userAgent ?? '?'}`,
     `online: ${nav?.onLine ?? '?'}${conn ? `, connection: ${conn.type ?? '?'} / ${conn.effectiveType ?? '?'}` : ''}`,
-    `webrtc: ${typeof RTCPeerConnection !== 'undefined'}, websocket: ${typeof WebSocket !== 'undefined'}, crypto: ${!!globalThis.crypto?.subtle}`,
+    `stun (nearby list): ${typeof RTCPeerConnection !== 'undefined'}, crypto: ${!!globalThis.crypto?.subtle}`,
     '',
   ];
   return [...head, ...lines].join('\n');
@@ -37,12 +37,6 @@ export function maskAddress(a: string): string {
   }
   if (a.includes(':')) return `${a.split(':').slice(0, 2).join(':')}:…(v6)`;
   return '?';
-}
-
-/** A WebRTC candidate line, summarised: type, protocol, masked address. */
-export function describeCandidate(c: string): string {
-  const f = c.replace(/^a=/, '').replace(/^candidate:/, '').split(' ');
-  return `${f[7] ?? '?'}/${(f[2] ?? '?').toLowerCase()} ${maskAddress(f[4] ?? '')}`;
 }
 
 function safeJson(v: unknown): string {

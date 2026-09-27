@@ -102,7 +102,7 @@ function newGame(): void {
   sfx.tunes.stopAll();
 }
 
-// ---- Over Wi-Fi: two phones, one each. Null in a local (hotseat) game. ----
+// ---- Online: two phones, one each, through a Firebase room. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
 // `?debug&db=URL` points at a test database; `&lan=X` fakes the Wi-Fi's shared address (`none`: unknown).
 const query = new URLSearchParams(location.search);

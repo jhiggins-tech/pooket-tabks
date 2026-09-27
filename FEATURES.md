@@ -4,28 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. ✅ **Fuel meter**: shipped (see below).
-2. ✅ **larinovsky's kit**: Pill Pusher / the Rizzler / Take a Nap, shipped (see below).
-3. ✅ **torikloud's Debate and Twins** (plus Sonic Boom crossover), shipped (see below).
-4. ✅ **ciarra's kit**: Tattoo Gun / Sew / Marathon plus frog hops, shipped (see below). Every character
-   now has their own kit; the placeholder Heavy and Mega shells are gone.
-5. ✅ **Info screen** and **smoother driving**, shipped (see below).
-6. ✅ **kie's new kit**: Weasel Pop / Trollogram / Steal, shipped (see below).
-7. ✅ **8-bit sound effects**, shipped (see below).
-8. ✅ **Two phones online** (first built on WebRTC; now through Firebase), shipped (see below).
-9. ✅ **Room codes and a nearby-games list** through Firebase (any network); QR/direct codes dropped, shipped (see below).
-10. ✅ **Online play switched on**: the Firebase database is live (rooms, relay and nearby list checked
-    against the real database).
-11. ✅ **Spectator mode**, shipped (see below).
-12. ✅ **"What's new" popup**, shipped (see below).
-13. ✅ **Marathon info text**: says a leg is 150px, about a seventh of the stage's width.
-14. ✅ **Trollogram swap on the casting turn**, shipped (see kie's kit below).
-15. ✅ **ten-1 spread**, shipped (see Balance below).
-16. ✅ **Random first player**, shipped (see below).
-17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
-18. ✅ **Rejoin a match**, shipped (see below).
-19. ✅ **the Rizzler homes in**, shipped (see Balance below).
-20. _(empty; next requests go here)_
+Everything queued so far has shipped (details under **Shipped** below).
+
+1. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 

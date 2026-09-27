@@ -1,52 +1,58 @@
 # Pooket Tabks
 
-Pass-and-play artillery (Worms / Pocket Tanks style) for **phone browsers**, hosted on GitHub Pages.
+Artillery (Worms / Pocket Tanks style) for **phone browsers**: six characters with their own
+three-weapon kits, destructible terrain, kitschy 8-bit sound. Play hotseat on one phone, or on two
+phones anywhere with a 4-letter room code (others can watch).
 
-**Play:** https://jhiggins-tech.github.io/pooket-tabks/ — hold your phone in landscape. On iOS, *Share → Add to Home Screen* gives true fullscreen.
+**Play:** https://jhiggins-tech.github.io/pooket-tabks/ (hold your phone in landscape; on iOS,
+*Share → Add to Home Screen* gives true fullscreen).
 
 ## How to play
-- **Setup:** two players each pick a character (tones, kie or kcaj); the name pre-fills and can be
-  changed. Each character has a three-tier loadout: 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3.
-- **Weapon:** tap a weapon above FIRE; the dots show rounds left.
-- **Aim:** drag anywhere on the battlefield and pull back like a slingshot — direction sets the angle
-  (a full 360°, so you can fire down at a tank below you), pull length sets power.
-- **Fine-tune:** ↺ / ↻ for angle, − / + for power (hold to repeat).
-- **Decoys:** after kie deploys Trollogram, tap one of his holograms on his turn to secretly swap
-  places with it once the shot lands. Hitting a hologram costs the shooter half the damage.
-- **Drive:** hold ◀ ▶ in the bottom bar to move before you fire. One tank of fuel has to last the whole match.
-- **FIRE**, then pass the phone.
+- **Setup:** each player picks a character (tones, kie, kcaj, torikloud, ciarra, larinovsky); the name
+  pre-fills and can be changed. Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3.
+  ⓘ explains every weapon; ✨ shows what's new.
+- **Aim:** drag anywhere and pull back like a slingshot: direction is the angle (a full 360°), pull
+  length is power. Fine-tune with ↺ ↻ and − +.
+- **Move:** hold ◀ ▶ before you fire. One tank of fuel lasts the whole match (ciarra hops instead).
+- **FIRE.** Last tank standing wins; if everyone runs out of ammo, most HP wins.
+- **Two phones:** 📶 Host shows a room code and a link; the other phone taps Join (games on the same
+  Wi-Fi are listed) or opens the link. A dropped phone can rejoin; a third phone can watch.
 
-See [FEATURES.md](FEATURES.md) for everything shipped so far and what's queued next.
+[FEATURES.md](FEATURES.md) lists everything shipped and what's queued; [CLAUDE.md](CLAUDE.md) has the
+architecture in detail.
 
 ## Architecture
 TypeScript + Vite, a small hand-rolled Canvas2D engine, no runtime dependencies.
 
 ```
 src/
-  core/      rng (seeded), terrain (per-pixel destructible mask), terrainGen
-  characters/ roster of characters with colours and tiered loadouts
-  game/      state types, constants, game.ts (turn state machine + physics, DOM-free)
-  weapons/   data-driven weapon defs + registry
-  render/    canvas renderer (letterboxed, DPR-aware), DOM HUD
-  input/     touch controls (slingshot drag, hold-to-repeat buttons, weapon picker)
-  ui/        setup screen
-  main.ts    fixed-timestep loop wiring it all together
-tests/       Vitest unit tests for terrain + game logic (runs in Node)
-e2e/         Playwright smoke tests on an emulated landscape phone
+  core/        seeded RNG, destructible terrain (per-pixel mask + RGBA), terrain generation
+  game/        the match: turn state machine, physics and every weapon mechanic (pure, DOM-free)
+  weapons/     data-driven weapon definitions + registry
+  characters/  the roster: colours, loadouts, movement
+  render/      canvas renderer (letterboxed, DPR-aware), sprites, DOM HUD
+  input/       touch controls
+  audio/       8-bit synth, sound effects and chiptunes
+  net/         online play through Firebase: rooms, relay, match session, spectating, rejoining
+  ui/          setup, info, what's new, online screens
+  main.ts      fixed-timestep loop wiring it all together
+tests/         Vitest unit tests (Node; a local Firebase stand-in for the online code)
+e2e/           Playwright on an emulated landscape phone (incl. multi-phone online flows)
+firebase/      database security rules and setup guide
 ```
 
-Game logic is pure and seeded: `?seed=123` in the URL reproduces a map.
+Game logic is pure and seeded: `?seed=123` reproduces a map.
 
 ## Development
 ```sh
 npm install
 npm run dev        # Vite dev server (--host, so you can open it on a phone on your LAN)
 npm test           # unit tests
-npm run test:e2e   # phone-emulated browser smoke tests (builds + previews first)
+npm run test:e2e   # phone-emulated browser tests
 npm run build      # typecheck + production build into dist/
 ```
 
 ## Deployment
-`.github/workflows/deploy.yml` runs typecheck, unit tests, build and e2e on every push/PR,
-and deploys `dist/` to GitHub Pages on pushes to `main`.
-One-time setup: **Settings → Pages → Source: GitHub Actions**.
+`.github/workflows/deploy.yml` runs typecheck, unit tests, build and e2e on every push, and deploys
+`dist/` to GitHub Pages on pushes to `main`. Online play needs the Firebase database in
+`src/net/config.ts` (see `firebase/README.md`).

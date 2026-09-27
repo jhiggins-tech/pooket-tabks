@@ -2,7 +2,6 @@ import { getWeapon } from '../weapons/registry';
 
 /** Rounds per tier at the start of a match: tier 1, tier 2, tier 3. */
 export const AMMO_PER_TIER = [5, 3, 1] as const;
-export const TIER_COUNT = AMMO_PER_TIER.length;
 
 export type Loadout = readonly [tier1: string, tier2: string, tier3: string];
 

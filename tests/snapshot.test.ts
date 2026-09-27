@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createGame, explode, fire, setAim, step } from '../src/game/game';
 import { FIXED_DT } from '../src/game/constants';
 import { decodeMsg, encodeMsg } from '../src/net/wire';
-import { applySnapshot, decodeSolid, encodeSolid, solidHash, takeSnapshot } from '../src/net/snapshot';
+import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot } from '../src/net/snapshot';
 import { getWeapon } from '../src/weapons/registry';
 
 const players = [
@@ -47,7 +47,7 @@ describe('snapshots', () => {
     expect(code.length).toBeLessThan(12_000);
     expect(decodeSolid(code, A.terrain.solid.length)).toEqual(A.terrain.solid);
     expect(B.terrain.patchSolid(decodeSolid(code, B.terrain.solid.length))).toBeGreaterThan(100);
-    expect(solidHash(B.terrain)).toBe(solidHash(A.terrain));
+    expect(B.terrain.solid).toEqual(A.terrain.solid);
     const i = 200 * B.terrain.width + 600;
     expect(B.terrain.pixels[i * 4 + 3]).toBe(255); // the new dirt is drawn
     expect(B.terrain.takeDirty()).not.toBeNull();

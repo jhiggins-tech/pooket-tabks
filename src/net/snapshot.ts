@@ -1,5 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import type { GameState } from '../game/state';
+import { fromB64, toB64 } from './b64';
 import { decodeMsg, encodeMsg } from './wire';
 
 /**
@@ -75,25 +76,4 @@ export function decodeSolid(code: string, size: number): Uint8Array {
     cur ^= 1;
   }
   return mask;
-}
-
-/** Cheap checksum of the solid mask (FNV-1a), to spot a terrain mismatch. */
-export function solidHash(t: Terrain): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < t.solid.length; i++) {
-    h ^= t.solid[i]!;
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-function toB64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromB64(s: string): Uint8Array {
-  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
