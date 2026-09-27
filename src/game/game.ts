@@ -194,16 +194,17 @@ export function drive(state: GameState, dir: number, dt: number): number {
       (q) => Math.abs(q.x - nx) < TANK_HALF_WIDTH * 2 && Math.abs(q.x - nx) < Math.abs(q.x - p.x),
     );
     if (blocked) break;
-    // Compare where the hull would rest at nx with where it rests now (the highest supporting
-    // column under it), so a tank sitting slightly into a slope isn't mistaken for hitting a wall.
-    const here = hullRest(state, p.x, p.y - DRIVE_CLIMB - 1);
-    const ground = hullRest(state, nx, here - DRIVE_CLIMB - 1);
+    // Compare where the hull would rest at nx with where it rests now. A wall the hull is overlapping
+    // behind it (a tank that dropped into a crater against its steep side) doesn't hold it back.
+    const here = p.y;
+    const ground = driveRest(state, nx, here - DRIVE_CLIMB - 1, Math.sign(dir));
     if (ground < here - DRIVE_CLIMB) break; // a wall
     if (ground < here) {
       // Climbing: a bump is fine, but not if the ground keeps rising steeply beyond it (a steep hill).
       const aheadX = clamp(nx + Math.sign(dir) * DRIVE_LOOKAHEAD, TANK_HALF_WIDTH, terrain.width - TANK_HALF_WIDTH);
       const limit = Math.max(DRIVE_CLIMB, DRIVE_MAX_SLOPE * Math.abs(aheadX - p.x));
-      if (hullRest(state, aheadX, here - limit - 1) < here - limit && !shortClimb(state, nx, Math.sign(dir), here)) break;
+      const steep = driveRest(state, aheadX, here - limit - 1, Math.sign(dir)) < here - limit;
+      if (steep && !shortClimb(state, nx, Math.sign(dir), here) && !inHollow(state, p.x, Math.sign(dir), here)) break;
     }
     p.x = nx;
     p.y = ground;
@@ -216,6 +217,20 @@ export function drive(state: GameState, dir: number, dt: number): number {
 }
 
 /**
+ * True when the ground behind the tank (within DRIVE_SCRAMBLE_REACH px) also rises above it: it's down
+ * in a pit or crater, so any climb that isn't a sheer wall is a way out, not a steep hill.
+ */
+function inHollow(state: GameState, x: number, dir: number, here: number): boolean {
+  const { width } = state.terrain;
+  for (let k = TANK_HALF_WIDTH; k <= DRIVE_SCRAMBLE_REACH; k += 2) {
+    const bx = x - dir * k;
+    if (bx < 0 || bx >= width) break;
+    if (state.terrain.groundBelow(bx, here - DRIVE_SCRAMBLE * 2) < here - DRIVE_CLIMB) return true;
+  }
+  return false;
+}
+
+/**
  * True when the climb ahead tops out within DRIVE_SCRAMBLE px of `here` (the ground over the next
  * DRIVE_SCRAMBLE_REACH px never rises higher than that), so even a steep one can be scrambled up:
  * crater walls and short banks, as opposed to a steep hill that keeps going.
@@ -225,7 +240,7 @@ function shortClimb(state: GameState, x: number, dir: number, here: number): boo
   const { width } = state.terrain;
   for (let k = 0; k <= DRIVE_SCRAMBLE_REACH; k += 2) {
     const ax = clamp(x + dir * k, TANK_HALF_WIDTH, width - TANK_HALF_WIDTH);
-    if (hullRest(state, ax, cap - 1) < cap) return false;
+    if (driveRest(state, ax, cap - 1, dir) < cap) return false;
   }
   return true;
 }
@@ -293,6 +308,21 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
     return { x0: p.x, y0: p.y, x1, y1, t: 0 };
   }
   return null;
+}
+
+/**
+ * Like hullRest for a tank driving in direction `dir`: columns on the trailing half that are solid right
+ * up to fromY are walls it's pulling away from, so they don't count. Returns fromY - 1 (a wall) if
+ * nothing under the hull can hold it.
+ */
+function driveRest(state: GameState, x: number, fromY: number, dir: number): number {
+  let ground = Infinity;
+  for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
+    const g = state.terrain.groundBelow(x + dx, fromY);
+    if (g <= fromY && dx * dir < 0) continue; // embedded in a wall behind
+    ground = Math.min(ground, g);
+  }
+  return Number.isFinite(ground) ? ground : fromY - 1;
 }
 
 /** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */

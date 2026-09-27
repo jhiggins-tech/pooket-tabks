@@ -43,8 +43,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
   pauses the game while it's up.
 - **Smoother driving**: tanks roll over bumps and lips up to 7px (mud piles, crater edges) instead of
   getting caught on anything over 3px, and scramble up short steep climbs like crater walls (anything that
-  tops out within 30px), so they can always drive out of a crater; tall hills steeper than 45° still stop
-  them. Frog hops never land sunk into a bank.
+  tops out within 40px) and anything that leads out of a pit or crater, so they can always drive out of
+  a crater, even a pile of overlapping ones, or away from a steep crater wall they've slid against; tall
+  hills steeper than 45° still stop them. Frog hops never land sunk into a bank.
 - **Fuel meter**: each tank has one tank of fuel for the whole match (250px of driving; it never
   refills), usable any time during your turn before firing. Hold ◀ ▶ in the drive bar; the gauge shows
   what's left. Tanks follow the ground: they climb small

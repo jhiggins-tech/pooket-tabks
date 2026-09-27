@@ -29,5 +29,5 @@ export const DRIVE_LOOKAHEAD = 14;
  * Steeper climbs are still fine if they're short: when the ground within DRIVE_SCRAMBLE_REACH px ahead
  * tops out no more than DRIVE_SCRAMBLE px above the tank (a crater wall, a bank), it scrambles up.
  */
-export const DRIVE_SCRAMBLE = 30;
-export const DRIVE_SCRAMBLE_REACH = 40;
+export const DRIVE_SCRAMBLE = 40;
+export const DRIVE_SCRAMBLE_REACH = 50;
