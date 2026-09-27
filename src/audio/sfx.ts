@@ -226,6 +226,11 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
       s.tone({ at: 0.35 + i * 0.075, dur: 0.06, from: up ? 1150 : 1700, to: up ? 1750 : 1050, duty: 0.25, vol: 0.05 + i * 0.008 });
     }
   },
+  // The classic coin: bling-bling.
+  refund: (s) => {
+    s.tone({ dur: 0.07, from: midi(83), duty: 0.5, vol: 0.14 });
+    s.tone({ at: 0.07, dur: 0.35, from: midi(88), duty: 0.5, vol: 0.14 });
+  },
   // A walker tune has just been cut off: POP!
   'tune-end': (s) => {
     s.tone({ dur: 0.07, from: midi(93), to: midi(105), duty: 0.5, vol: 0.2 });

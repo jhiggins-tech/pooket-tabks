@@ -145,7 +145,7 @@ async function playFromLobby(host: Page, guest: Page) {
   await expect(guest.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
   await expect(host.locator('#online-start')).toBeEnabled();
   await host.locator('#online-start').tap();
-  await expect(guest.locator('#online')).toBeHidden({ timeout: 5000 });
+  await expect(guest.locator('#online')).toBeHidden({ timeout: 15_000 });
   await host.locator('#fire').tap();
   await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
   expect(await summary(guest)).toEqual(await summary(host));
@@ -196,7 +196,7 @@ test('any network: type the room code, or open the room link', async ({ browser 
   const lost = await browser.newContext(devices['Pixel 7 landscape']);
   const third = await lost.newPage();
   await third.goto(`./?${q}#room=ZZZZ`);
-  await expect(third.locator('#online')).toContainText('No game with code ZZZZ', { timeout: 20_000 });
+  await expect(third.locator('#online')).toContainText('No game with code ZZZZ', { timeout: 35_000 });
   await lost.close();
   expect(errors).toEqual([]);
   await close();

@@ -173,3 +173,57 @@ describe('ten-1 stream', () => {
 function runUntilTime(g: GameState, seconds: number): void {
   for (let t = 0; t < seconds; t += FIXED_DT) step(g, FIXED_DT);
 }
+
+describe('ten-1 refund on a miss', () => {
+  it('a jet that soaks nobody gives the round back at the end of the turn', () => {
+    const g = flatGame();
+    const tones = g.players[0]!;
+    tones.angle = 135; // away from kie, off the left of the map
+    tones.power = 60;
+    fire(g);
+    expect(tones.ammo[0]).toBe(4);
+    runTurn(g);
+    expect(currentPlayer(g).name).toBe('kie');
+    expect(tones.ammo[0]).toBe(5);
+    expect(g.floaters.some((f) => f.text === 'REFUNDED')).toBe(true);
+    expect(g.sfx.some((e) => e.cue === 'refund')).toBe(true);
+    expect(g.players[1]!.hp).toBe(MAX_HP);
+  });
+
+  it('a jet that soaks the enemy keeps the round spent', () => {
+    const g = flatGame();
+    const tones = g.players[0]!;
+    aimAtKie(g);
+    fire(g);
+    runTurn(g);
+    expect(g.players[1]!.hp).toBeLessThan(MAX_HP);
+    expect(tones.ammo[0]).toBe(4);
+    expect(g.floaters.some((f) => f.text === 'REFUNDED')).toBe(false);
+  });
+
+  it('refunds the last round too, so a player out of everything else keeps their turn coming', () => {
+    const g = flatGame();
+    const tones = g.players[0]!;
+    tones.ammo = [1, 0, 0];
+    tones.angle = 135;
+    tones.power = 60;
+    fire(g);
+    runTurn(g);
+    expect(tones.ammo[0]).toBe(1);
+    // kie passes; it comes back round to tones.
+    g.phase = 'settling';
+    g.settleTimer = 0;
+    step(g, FIXED_DT);
+    expect(currentPlayer(g).name).toBe('tones');
+  });
+
+  it('other weapons never refund', () => {
+    const g = flatGame();
+    const tones = g.players[0]!;
+    tones.selectedTier = 2; // ten-3, spewed away from kie
+    tones.angle = 180;
+    fire(g);
+    runTurn(g);
+    expect(tones.ammo[2]).toBe(0);
+  });
+});

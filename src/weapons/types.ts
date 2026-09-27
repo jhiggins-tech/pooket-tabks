@@ -157,6 +157,8 @@ export interface WeaponDef {
    * closer (a wall, a ledge, walking past); otherwise after `duration`.
    */
   walk?: { speed: number; duration: number; climb: number; fuse: number };
+  /** A shot that hits no enemy (tank, twin or decoy) gives its round back at the end of the turn. */
+  refundOnMiss?: boolean;
   /** A chiptune that plays while this weapon's walkers are walking, cut off when the last one is gone. */
   tune?: TuneId;
   /** Draw a dotted trail behind projectiles. Default true. */

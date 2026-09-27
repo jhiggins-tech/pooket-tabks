@@ -94,7 +94,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   land, scurry right up under the enemy and pop, or as close as they can get in range, or after 2.5s) / Trollogram (each use adds 2 holograms; on
   later turns tap one to secretly swap with it after firing) / Steal (see `steal` above; the roulette is the
   `#heist` HUD overlay plus a grabbing-hand tether on the canvas). `shell` is unused but kept as the plain default weapon. tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
-  in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)
+  in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`;
+  `refundOnMiss`: if no droplet soaks an enemy, `endTurn` gives the round back via `state.refund`)
   / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; a huge, wide blast of toxic mud
   propellant) / ten-3 (incredibly powerful short-range chunky spew, ~200px max; coated enemies burn
   ~25 HP/s, and landed chunks leave toxic sludge burning 10 HP/s for the rest of the turn; best case

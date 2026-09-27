@@ -366,6 +366,7 @@ export type SfxCue =
   | 'kookaburra'
   | 'tune'
   | 'tune-end'
+  | 'refund'
   | 'gameover';
 
 export interface Sfx {
@@ -411,6 +412,8 @@ export interface GameState {
   sfx: Sfx[];
   /** Weapons whose walker chiptune is playing (cosmetic). */
   tunes: string[];
+  /** A refund-on-miss round in play this turn: whose, from which tier, and whether it hit anyone yet. */
+  refund: { playerId: number; tier: number; hit: boolean } | null;
   projectiles: Projectile[];
   beams: Beam[];
   holograms: Hologram[];

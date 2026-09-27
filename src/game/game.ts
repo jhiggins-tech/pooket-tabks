@@ -129,6 +129,7 @@ export function createGame(cfg: GameConfig): GameState {
     heist: null,
     sfx: [],
     tunes: [],
+    refund: null,
     projectiles: [],
     beams: [],
     holograms: [],
@@ -384,6 +385,8 @@ export function fire(state: GameState): boolean {
     if (next >= 0) p.selectedTier = next;
   }
   const weapon = weaponForTier(p, tier);
+  // A miss gets the round back (checked when the turn ends).
+  state.refund = weapon.refundOnMiss ? { playerId: p.id, tier, hit: false } : null;
   switch (weapon.kind ?? 'ballistic') {
     case 'beam':
       fireBeam(state, p, weapon);
@@ -1086,6 +1089,7 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const x = d.x + (nx - d.x) * t;
     const y = d.y + (ny - d.y) * t;
     const target = targetAt(state, x, y);
+    if (target && state.refund?.playerId === d.ownerId && targetOwner(target) !== d.ownerId) state.refund.hit = true;
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
       soakTarget(target, (weapon.stream?.damagePerDrop ?? 0) * offence(state, d.ownerId), tint(d.colour, 0.35), d.ownerId);
       spawnSplash(state, x, y, d, 3);
@@ -1971,6 +1975,16 @@ function resolveHolograms(state: GameState): void {
 }
 
 function endTurn(state: GameState): void {
+  // A refund-on-miss shot that didn't touch an enemy gives its round back.
+  const refund = state.refund;
+  state.refund = null;
+  const shooter = refund && state.players[refund.playerId];
+  if (refund && shooter && !refund.hit && shooter.alive) {
+    shooter.ammo[refund.tier] = (shooter.ammo[refund.tier] ?? 0) + 1;
+    const c = tankCentre(shooter);
+    spawnFloater(state, c.x, c.y - 18, 'REFUNDED', '#ffcc1f');
+    sound(state, 'refund');
+  }
   // A cook lasts exactly one of the victim's turns.
   const ending = currentPlayer(state);
   if (ending.cooked?.active) ending.cooked = null;
