@@ -118,31 +118,25 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   scheduled a little ahead so it pauses with the game and cuts instantly) that plays while that weapon's
   walkers walk: the game cues `tune` when the first starts walking (`state.tunes`) and `tune-end` the
   step the last one is gone. `new Chip(offlineCtx)` renders sounds offline for previews.
-- `src/net/`: two phones. `sdp.ts` squeezes an offer/answer to a ~130-char code
-  (ICE creds, DTLS fingerprint, role, UDP host/srflx candidates) and rebuilds a minimal data-channel SDP;
-  `peer.ts` is the RTCPeerConnection/data channel (public STUN only, non-trickle, chunked messages,
-  `wire.ts` keeps Infinity/NaN); `links.ts` wraps codes as `#join=`/`#answer=` links (so a phone's camera
-  app can scan them; a reply tab relays to the host tab via localStorage/BroadcastChannel) and scans QR
-  in-app via BarcodeDetector where available; `qr.ts` is a hand-written QR encoder (tests decode it with
-  jsQR, a dev dependency only). `session.ts` (`NetSession`, DOM-free, tested over `loopback()`): host is
-  seat 0. The phone whose turn it is streams aim previews (never the secret swap target) and, on fire,
-  sends a pre-fire `takeSnapshot` so both fire from identical state; when the turn resolves it sends the
-  result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
-  `Terrain.patchSolid`), so cross-device float drift never outlives a turn. `Rng.state` is serialisable
-  for this. Online, the info screen doesn't pause and `main.ts` gates input on `net.canAct()`.
-  Online rooms go through Firebase (Realtime Database, free Spark plan; `firebase/README.md`,
-  `firebase/database.rules.json`, URL in `src/net/config.ts`): `rtdb.ts` is a tiny REST + SSE client (no
-  SDK); `rooms.ts` has `HostedRoom`/`joinRoom` (host/guest seats at `rooms/<hash of the 4-letter code>`,
-  first come first served) and `RelayTransport` (each side posts sealed, numbered batches to its queue and
-  streams the other's; in-order delivery, read messages deleted, pings, silence = lost), so game traffic
-  goes phone → Firebase → phone on any network. `advertise`/`watchLobby` list games on the same Wi-Fi,
-  keyed by the STUN public address (`publicAddress()`). Everything stored is sealed with AES-GCM
-  (`seal.ts`). Without Firebase (not configured / unreachable) the UI falls back to direct WebRTC codes.
-  `log.ts` (`netLog`) records every step (database calls and streams, rooms, relay, WebRTC, session) with
-  masked addresses for the "Copy logs" button on the online screens; log new network steps there too.
-  Tests use a local stand-in (`tests/support/rtdb.ts`); `?debug&db=URL&lan=X|none` points the game at it.
-  `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator view
-  (`body[data-remote]`).
+- `src/net/`: two phones, one each, through Firebase (local multiplayer is hotseat on one phone). Rooms
+  live in a Firebase Realtime Database (free Spark plan; `firebase/README.md`, `firebase/database.rules.json`,
+  URL in `src/net/config.ts`; empty = online play shows "not switched on yet"). `rtdb.ts` is a tiny REST + SSE
+  client (no SDK); `rooms.ts` has `HostedRoom`/`joinRoom` (host/guest seats at `rooms/<hash of the 4-letter
+  code>`, first come first served) and `RelayTransport` (each side posts sealed, numbered batches to its
+  queue and streams the other's; in-order delivery, read messages deleted, pings, silence = lost), so game
+  traffic goes phone → Firebase → phone on any network. `advertise`/`watchLobby` list games on the same
+  Wi-Fi, keyed by the STUN public address (`lan.ts`). Everything stored is sealed with AES-GCM (`seal.ts`).
+  `links.ts` makes `#room=CODE` links. `session.ts` (`NetSession`, DOM-free, tested over `loopback()`):
+  host is seat 0. The phone whose turn it is streams aim previews (never the secret swap target) and, on
+  fire, sends a pre-fire `takeSnapshot` so both fire from identical state; when the turn resolves it sends
+  the result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
+  `Terrain.patchSolid`), so cross-device float drift never outlives a turn (`wire.ts` keeps Infinity/NaN;
+  `Rng.state` is serialisable for this). Online, the info screen doesn't pause and `main.ts` gates input
+  on `net.canAct()`. `log.ts` (`netLog`) records every step (database calls and streams, rooms, relay,
+  session) with masked addresses for the "Copy logs" button on the online screens; log new network steps
+  there too. Tests use a local Firebase stand-in (`tests/support/rtdb.ts`); `?debug&db=URL&lan=X|none`
+  points the game at it. `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator
+  view (`body[data-remote]`).
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`

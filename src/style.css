@@ -627,12 +627,6 @@ body[data-remote='true'] .drive button {
   min-width: 0;
   max-width: 340px;
 }
-.online-qr {
-  width: min(46vh, 210px);
-  height: min(46vh, 210px);
-  image-rendering: pixelated;
-  border-radius: 8px;
-}
 .online-share,
 .online-paste {
   display: flex;
@@ -662,15 +656,6 @@ body[data-remote='true'] .drive button {
   height: 38px;
   padding: 0 14px;
   flex: none;
-}
-.online-video {
-  width: 220px;
-  max-height: 40vh;
-  border-radius: 8px;
-  background: #000;
-}
-.online-video[hidden] {
-  display: none;
 }
 .online-seat {
   display: flex;

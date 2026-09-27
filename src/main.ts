@@ -9,8 +9,8 @@ import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
-import { takeHashCode } from './net/links';
-import { publicAddress } from './net/peer';
+import { publicAddress } from './net/lan';
+import { takeRoomCode } from './net/links';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
@@ -126,11 +126,9 @@ online.onClosed = () => {
 };
 document.getElementById('host-online')!.addEventListener('click', () => void online.host());
 document.getElementById('join-online')!.addEventListener('click', () => void online.join());
-// Opened from a QR code or link: a host's code (join it) or a reply (hand it to the host's tab).
-const opened = takeHashCode();
-if (opened?.kind === 'room') void online.join(opened.code);
-else if (opened?.kind === 'join') void online.joinDirect(opened.code);
-else if (opened?.kind === 'answer') online.relay(opened.code);
+// Opened from a room link: join that room.
+const openedRoom = takeRoomCode();
+if (openedRoom) void online.join(openedRoom);
 
 // Closing the tab or navigating away: tell the other phone straight away.
 window.addEventListener('pagehide', () => net?.leave());

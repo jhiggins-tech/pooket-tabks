@@ -12,8 +12,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 5. ✅ **Info screen** and **smoother driving**, shipped (see below).
 6. ✅ **kie's new kit**: Weasel Pop / Trollogram / Steal, shipped (see below).
 7. ✅ **8-bit sound effects**, shipped (see below).
-8. ✅ **Two phones over Wi-Fi** (WebRTC, no server), shipped (see below).
-9. ✅ **Room codes and a Wi-Fi game list** for two-phone play, now through Firebase (any network), shipped (see below).
+8. ✅ **Two phones online** (first built on WebRTC; now through Firebase), shipped (see below).
+9. ✅ **Room codes and a nearby-games list** through Firebase (any network); QR/direct codes dropped, shipped (see below).
 10. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
@@ -23,8 +23,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
-- Online: reconnect after a dropped connection (it currently ends the match); a relay (TURN) server for
-  direct-code play over mobile data (rooms don't need it: they go through Firebase).
+- Online: reconnect after a dropped connection (it currently ends the match).
 
 ## Shipped
 
@@ -34,16 +33,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
-- **Two phones, any network**: 📶 Host on one phone opens a room with a 4-letter code (plus a QR code
-  and a link of it). On the other phone, Join lists games on the same Wi-Fi to tap, or type the code, or
-  just open the link: one trip, nothing to send back. The game's messages go through a Firebase
-  Realtime Database (free tier, see `firebase/README.md`), sealed with a key from the code, so it works
-  on mobile data too. If Firebase isn't set up or reachable, it falls back to swapping direct WebRTC
-  QR codes both ways (same Wi-Fi; scan with the camera app, in-game on Android, or paste). Every online screen has a 📋 Copy
-  logs button (lobby servers, room messages, WebRTC states; addresses masked) for bug reports. Then a lobby (each picks their own character; the host starts) and each plays on their own phone:
-  the other phone watches your aim live, and its controls step aside until it's its turn. WebRTC
-  data channel with free public STUN only, no server: same Wi-Fi is the baseline; over mobile data
-  it's a bonus if the carrier allows it. Leaving or dropping out shows "Connection lost".
+- **Two phones, any network**: 📶 Host on one phone opens a room with a 4-letter code (and a link of it
+  to copy or share). On the other phone, Join lists games on the same Wi-Fi to tap, or type the code, or
+  just open the link. The game's messages go through a Firebase Realtime Database (free tier, see
+  `firebase/README.md`), sealed with a key from the code, so it works on mobile data too. (Local
+  multiplayer is hotseat on one phone.) Then a lobby (each picks their own character; the host starts)
+  and each plays on their own phone: the other phone watches your aim live, and its controls step aside
+  until it's its turn. Leaving or dropping out shows "Connection lost". Every online screen has a
+  📋 Copy logs button (database calls, room messages, session; addresses masked) for bug reports.
 - **8-bit sound effects**: kitschy Game Boy style bleeps, synthesised live (pulse waves and LFSR noise,
   no audio files). Every weapon has its own firing sound (an ice cream van jingle for Double Park, a
   wolf whistle for the Rizzler, BLEURGH for ten-3, a snore for Take a Nap, a sewing machine for Sew…),

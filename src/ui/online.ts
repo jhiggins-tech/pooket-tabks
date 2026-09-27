@@ -1,8 +1,6 @@
 import { getCharacter, ROSTER } from '../characters/roster';
-import { answerLink, canScanInApp, extractCode, joinLink, listenForAnswer, relayAnswer, roomLink, scanQr } from '../net/links';
+import { roomLink } from '../net/links';
 import { netLog, netLogText } from '../net/log';
-import { Peer } from '../net/peer';
-import { encodeQr } from '../net/qr';
 import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, watchLobby, type Advert } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { NetSession, type Pick } from '../net/session';
@@ -18,16 +16,13 @@ export interface OnlineOptions {
 }
 
 /**
- * Setting up a two-phone match. Normally through a room on Firebase: the host gets a 4-letter code (also
- * shown to phones on the same Wi-Fi as a game to tap), and the game's messages go through the room, so
- * any network works. If Firebase isn't set up or reachable, the phones swap direct WebRTC codes instead
- * (QR / link, both ways; same Wi-Fi). Then both land in a little lobby where the host starts the battle.
+ * Setting up a two-phone match through a room on Firebase: the host gets a 4-letter code (also shown to
+ * phones on the same Wi-Fi as a game to tap, and as a link to send), and the game's messages go through
+ * the room, so any network works. Then both land in a little lobby where the host starts the battle.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
   private stopRoom: (() => void) | null = null;
-  private stopListening: (() => void) | null = null;
-  private stopScan: (() => void) | null = null;
   private peer: Transport | null = null;
   session: NetSession | null = null;
 
@@ -54,13 +49,13 @@ export class OnlineScreen {
   async host(): Promise<void> {
     this.reset();
     netLog('ui: Host');
-    if (!this.opts.dbUrl) return this.hostDirect("Online rooms aren't switched on yet, so swap direct codes instead.");
+    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
     this.show([heading('Host a game'), status('Opening a room…')]);
     const db = new Rtdb(this.opts.dbUrl);
     const [lan, opened] = await Promise.all([this.opts.lanId(), HostedRoom.open(db).catch((e: unknown) => e as Error)]);
     if (opened instanceof Error) {
       netLog(`ui: couldn't open a room: ${opened.message}`);
-      return this.hostDirect("Couldn't reach the game server, so swap direct codes instead.");
+      return this.fail(new Error("Couldn't reach the game server. Is this phone online?"), () => void this.host());
     }
     const room = opened;
     const nearby = lan ? await lobbySealer(lan) : null;
@@ -88,10 +83,10 @@ export class OnlineScreen {
           big,
           text(nearby ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code (any network).' : 'On the other phone tap Join and type this code.'),
         ),
-        col(heading('Or scan this / send the link', 'h3'), qrCanvas(link), shareRow(link, 'Join my Pooket Tabks game')),
+        col(heading('Or send them the link', 'h3'), shareRow(link, 'Join my Pooket Tabks game')),
       ),
       status('Waiting for someone to join…', 'online-status'),
-      buttons(cancelButton(() => this.close()), linkButton('No internet? Use direct codes', () => void this.hostDirect())),
+      buttons(cancelButton(() => this.close())),
     ]);
   }
 
@@ -99,7 +94,7 @@ export class OnlineScreen {
   async join(code?: string): Promise<void> {
     this.reset();
     netLog(`ui: Join${code ? ` ${code}` : ''}`);
-    if (!this.opts.dbUrl) return this.joinDirect(undefined, "Online rooms aren't switched on yet, so scan or paste the host's direct code instead.");
+    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
     const db = new Rtdb(this.opts.dbUrl);
     let stopWatch = () => {};
     let cancelled = false;
@@ -122,7 +117,7 @@ export class OnlineScreen {
     this.show([heading('Join a game'), status('Looking for games…')]);
     const [lan, up] = await Promise.all([this.opts.lanId(), db.reachable()]);
     if (cancelled) return;
-    if (!up) return this.joinDirect(undefined, "Couldn't reach the game server, so scan or paste the host's direct code instead.");
+    if (!up) return this.fail(new Error("Couldn't reach the game server. Is this phone online?"), () => void this.join());
     const nearby = lan ? await lobbySealer(lan) : null;
     const list = el('div', 'online-games');
     list.id = 'online-games';
@@ -165,82 +160,7 @@ export class OnlineScreen {
         ...(nearby ? [col(heading('Games on your Wi-Fi', 'h3'), list)] : []),
         col(heading(nearby ? 'Or type the room code' : 'Type the room code', 'h3'), codeRow),
       ),
-      buttons(cancelButton(() => this.close()), linkButton('Have a direct code instead?', () => void this.joinDirect())),
-    ]);
-  }
-
-  /** Direct codes (no game server): the host shows a code, the other phone replies with its own. */
-  async hostDirect(note?: string): Promise<void> {
-    this.reset();
-    netLog(`ui: Host with direct codes${note ? ` (${note})` : ''}`);
-    this.show([heading('Host a game'), status('Making a code…')]);
-    try {
-      const { peer, code } = await Peer.host();
-      this.peer = peer;
-      this.watch(peer, 'host');
-      const link = joinLink(code);
-      const reply = el('div', 'online-reply');
-      const paste = pasteBox("Paste the other phone's reply", async (text) => this.accept(text));
-      reply.append(heading('2. Then get their reply', 'h3'), ...(await this.scanButton("Scan their reply", (t) => this.accept(t))), paste);
-      this.show([
-        heading('Host a game'),
-        ...(note ? [text(note)] : []),
-        row(
-          col(heading('1. On the other phone, scan this', 'h3'), qrCanvas(link), shareRow(link, 'Join my Pooket Tabks game')),
-          col(reply, status('Waiting for their reply…', 'online-status')),
-        ),
-        cancelButton(() => this.close()),
-      ]);
-      // A reply scanned with the camera app opens in another tab, which passes it back here.
-      this.stopListening = listenForAnswer((c) => void this.accept(c));
-    } catch (e) {
-      this.fail(e);
-    }
-  }
-
-  /** Join with a direct code: with one already (from a link), or ask for one. */
-  async joinDirect(code?: string, note?: string): Promise<void> {
-    this.reset();
-    netLog(`ui: Join with direct codes${note ? ` (${note})` : ''}${code ? ' (code given)' : ''}`);
-    if (!code) {
-      this.show([
-        heading('Join a game'),
-        ...(note ? [text(note)] : []),
-        text("Scan the host's QR code with your phone's camera, or paste their code or link here."),
-        ...(await this.scanButton("Scan the host's code", (t) => this.joinAny(t))),
-        pasteBox("Host's code or link", async (t) => this.joinAny(t)),
-        cancelButton(() => this.close()),
-      ]);
-      return;
-    }
-    this.show([heading('Join a game'), status('Answering…')]);
-    try {
-      const { peer, code: reply } = await Peer.join(extractCode(code).code);
-      this.peer = peer;
-      this.watch(peer, 'guest');
-      const link = answerLink(reply);
-      this.show([
-        heading('Join a game'),
-        row(
-          col(heading('Now show this to the host', 'h3'), qrCanvas(link), shareRow(link, 'My Pooket Tabks reply')),
-          col(text('On the host phone: scan it with the camera (or in the game), or paste it in.'), status('Waiting for the host…', 'online-status')),
-        ),
-        cancelButton(() => this.close()),
-      ]);
-    } catch (e) {
-      this.fail(e);
-    }
-  }
-
-  /** This tab was opened from a reply QR by the camera app: hand the code to the game tab. */
-  relay(code: string): void {
-    relayAnswer(code);
-    this.show([
-      heading('Reply sent'),
-      text('Switch back to the Pooket Tabks tab that showed the QR code; it connects from there.'),
-      text("If nothing happens there, copy this and paste it into that tab's reply box:"),
-      shareRow(answerLink(code), 'Pooket Tabks reply', false),
-      cancelButton(() => this.hide(), 'OK'),
+      buttons(cancelButton(() => this.close())),
     ]);
   }
 
@@ -301,31 +221,11 @@ export class OnlineScreen {
     this.onClosed();
   }
 
-  private async accept(text: string): Promise<void> {
-    const { code } = extractCode(text);
-    try {
-      await (this.peer as Peer | null)?.accept(code); // direct codes: always a WebRTC peer
-      this.setStatus('Connecting…');
-    } catch (e) {
-      this.setStatus(message(e));
-    }
-  }
-
-  /** Whatever was scanned or pasted: a room link, a direct code/link, or a bare room code. */
-  private joinAny(text: string): void {
-    const found = extractCode(text);
-    const room = found.kind === 'room' ? found.code : found.kind === 'bare' ? normaliseRoomCode(found.code) : null;
-    if (room) void this.join(room);
-    else void this.joinDirect(found.code);
-  }
-
-  /** The data channel is open: start the match session and show the lobby. */
+  /** Connected through the room: start the match session and show the lobby. */
   private startSession(peer: Transport, role: 'host' | 'guest'): void {
     netLog(`ui: connected as ${role}`);
     this.stopRoom?.();
     this.stopRoom = null;
-    this.stopListening?.();
-    this.stopScan?.();
     this.peer = peer;
     const s = new NetSession(peer, role);
     this.session = s;
@@ -333,38 +233,6 @@ export class OnlineScreen {
     s.onLost = () => this.lost();
     this.onConnected(s);
     s.setPick(this.pick());
-  }
-
-  private watch(peer: Peer, role: 'host' | 'guest'): void {
-    peer.onOpen = () => this.startSession(peer, role);
-    peer.onClose = () => {
-      if (!this.session) this.fail(new Error("Couldn't connect. Are both phones on the same Wi-Fi?"));
-    };
-  }
-
-  private async scanButton(label: string, onText: (text: string) => void): Promise<HTMLElement[]> {
-    if (!(await canScanInApp())) return [];
-    const btn = el('button', undefined, `📷 ${label}`);
-    const video = el('video', 'online-video') as HTMLVideoElement;
-    video.hidden = true;
-    video.muted = true;
-    btn.addEventListener('click', () => {
-      this.stopScan?.();
-      video.hidden = false;
-      const { result, cancel } = scanQr(video);
-      this.stopScan = cancel;
-      result.then(
-        (t) => {
-          video.hidden = true;
-          onText(t);
-        },
-        (e) => {
-          video.hidden = true;
-          if (message(e) !== 'cancelled') this.setStatus("Couldn't use the camera. Paste the code instead.");
-        },
-      );
-    });
-    return [btn, video];
   }
 
   private fail(e: unknown, retry?: () => void): void {
@@ -375,11 +243,6 @@ export class OnlineScreen {
       text(message(e)),
       buttons(cancelButton(() => this.close(), 'Back'), ...(retry ? [linkButton('Try again', retry)] : [])),
     ]);
-  }
-
-  private setStatus(msg: string): void {
-    const s = this.root.querySelector('.online-status');
-    if (s) s.textContent = msg;
   }
 
   private show(children: HTMLElement[]): void {
@@ -395,10 +258,6 @@ export class OnlineScreen {
   private cleanup(): void {
     this.stopRoom?.();
     this.stopRoom = null;
-    this.stopListening?.();
-    this.stopListening = null;
-    this.stopScan?.();
-    this.stopScan = null;
     if (!this.session) this.peer?.close();
     this.peer = null;
   }
@@ -479,24 +338,6 @@ function cancelButton(onClick: () => void, label = 'Cancel'): HTMLElement {
   return b;
 }
 
-/** Draw a link as a QR code on a canvas (dark on white, with a quiet zone). */
-function qrCanvas(link: string): HTMLElement {
-  const m = encodeQr(link, 'M');
-  const quiet = 3;
-  const n = m.length + quiet * 2;
-  const scale = Math.max(3, Math.floor(420 / n));
-  const c = document.createElement('canvas');
-  c.className = 'online-qr';
-  c.width = c.height = n * scale;
-  c.dataset.link = link;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#fff';
-  g.fillRect(0, 0, c.width, c.height);
-  g.fillStyle = '#000';
-  m.forEach((r, y) => r.forEach((dark, x) => dark && g.fillRect((x + quiet) * scale, (y + quiet) * scale, scale, scale)));
-  return c;
-}
-
 /** The link as selectable text, with Copy (and Share where the phone supports it). */
 function shareRow(link: string, title: string, share = true): HTMLElement {
   const r = el('div', 'online-share');
@@ -519,19 +360,5 @@ function shareRow(link: string, title: string, share = true): HTMLElement {
     s.addEventListener('click', () => void navigator.share({ title, url: link }).catch(() => {}));
     r.append(s);
   }
-  return r;
-}
-
-function pasteBox(placeholder: string, onSubmit: (text: string) => Promise<void> | void): HTMLElement {
-  const r = el('div', 'online-paste');
-  const input = el('input') as HTMLInputElement;
-  input.placeholder = placeholder;
-  input.autocomplete = 'off';
-  input.setAttribute('aria-label', placeholder);
-  const go = el('button', undefined, 'Connect');
-  const submit = () => input.value.trim() && void onSubmit(input.value);
-  go.addEventListener('click', submit);
-  input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
-  r.append(input, go);
   return r;
 }
