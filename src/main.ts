@@ -38,6 +38,10 @@ const hud = new Hud();
 // `?seed=N` fixes the first map (handy for tests and sharing a layout).
 const seedParam = Number(new URLSearchParams(location.search).get('seed'));
 let nextSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : randomSeed();
+// Who goes first is random (from the seed, so both phones agree). Automated tests get player 1
+// unless they ask: `?first=random`, or `?first=N` for player N + 1.
+const firstParam = new URLSearchParams(location.search).get('first') ?? (navigator.webdriver ? '0' : 'random');
+const first: number | 'random' = firstParam === 'random' ? 'random' : Number(firstParam) || 0;
 let players: PlayerConfig[] = [];
 
 const setup = new SetupScreen((chosen) => {
@@ -48,7 +52,7 @@ const setup = new SetupScreen((chosen) => {
 });
 
 // A live battlefield sits behind the setup screen until the real match starts.
-let state: GameState = createGame({ seed: nextSeed, players: setup.players() });
+let state: GameState = createGame({ seed: nextSeed, players: setup.players(), first });
 
 // Kitschy 8-bit sound effects, synthesised live. Audio can only start from a user gesture.
 const SOUND_KEY = 'pooket-tabks.sound';
@@ -91,7 +95,7 @@ document.getElementById('setup-info')!.addEventListener('click', () => info.open
 let driveDir = 0;
 
 function newGame(): void {
-  state = createGame({ seed: nextSeed, players });
+  state = createGame({ seed: nextSeed, players, first });
   nextSeed = randomSeed();
   hud.reset();
   sfx.tunes.stopAll();
@@ -114,7 +118,7 @@ online.onConnected = (s) => {
   net = s;
   s.onStart = (seed, chosen) => {
     // Both phones build the same game from the same seed; the session keeps them in step.
-    state = createGame({ seed, players: chosen });
+    state = createGame({ seed, players: chosen, first });
     hud.reset();
     sfx.tunes.stopAll();
     online.hide();
@@ -127,7 +131,7 @@ online.onConnected = (s) => {
 // Watching someone else's match: view only.
 online.onSpectate = (sp) => {
   sp.onStart = (seed, chosen) => {
-    state = createGame({ seed, players: chosen });
+    state = createGame({ seed, players: chosen, first });
     hud.reset();
     sfx.tunes.stopAll();
     online.hide();
@@ -145,7 +149,7 @@ online.onHostStart = (s) => {
 online.onClosed = () => {
   net = null;
   // Back to the setup screen, with a fresh battlefield behind it.
-  state = createGame({ seed: randomSeed(), players: setup.players() });
+  state = createGame({ seed: randomSeed(), players: setup.players(), first });
   hud.reset();
   sfx.tunes.stopAll();
   document.getElementById('gameover')!.hidden = true;

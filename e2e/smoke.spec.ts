@@ -581,3 +581,12 @@ test("what's new shows once per version, and can be reopened from setup", async 
   await page.locator('#whatsnew-ok').tap();
   await expect(popup).toBeHidden();
 });
+
+test('who goes first is random, picked from the seed', async ({ page }) => {
+  // Seed 12345 picks player 2, seed 12347 player 1.
+  for (const [seed, starts] of [[12345, 'kie'], [12347, 'tones']] as const) {
+    await page.goto(`./?seed=${seed}&first=random`);
+    await page.locator('#start').tap();
+    await expect(page.locator('.chip.active .name')).toHaveText(starts);
+  }
+});

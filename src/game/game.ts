@@ -72,6 +72,20 @@ export interface GameConfig {
   players: PlayerConfig[];
   width?: number;
   height?: number;
+  /** Who goes first: a player index (default 0), or 'random' (picked from the seed). */
+  first?: number | 'random';
+}
+
+/**
+ * Who goes first. 'random' is derived from the seed with integer maths (so both phones, and anyone
+ * rebuilding the match from its seed, agree) and leaves the gameplay RNG untouched.
+ */
+export function firstPlayer(seed: number, count: number, first: GameConfig['first'] = 0): number {
+  if (first !== 'random') return Math.min(Math.max(0, Math.floor(first)), count - 1);
+  let h = (seed ^ 0x9e3779b9) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) % count;
 }
 
 export function createGame(cfg: GameConfig): GameState {
@@ -125,7 +139,7 @@ export function createGame(cfg: GameConfig): GameState {
     seed: cfg.seed,
     terrain,
     players,
-    current: 0,
+    current: firstPlayer(cfg.seed, cfg.players.length, cfg.first),
     turn: 1,
     phase: 'aiming',
     heist: null,

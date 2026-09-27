@@ -38,6 +38,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `driveRest` ignores wall columns behind the hull (a tank sunk against a crater's steep side can pull away). Characters with `movement: 'hop'` (ciarra) spend it on
   frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`; no
   firing mid-hop). A pinned tank can't move at all.
+  Who goes first: `GameConfig.first` (default player 0; `'random'` → `firstPlayer()`, an integer hash of the
+  seed, so both phones agree and the gameplay RNG is untouched). `main.ts` uses `'random'`, except under
+  `navigator.webdriver` (e2e), which gets player 0 unless `?first=random|N`.
   Keep it pure and DOM-free so it stays unit-testable.
 - `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
   `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the

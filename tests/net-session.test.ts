@@ -10,11 +10,11 @@ const flush = async () => {
   for (let i = 0; i < 4; i++) await Promise.resolve();
 };
 
-async function connected(host = 'tones', guest = 'kie') {
+async function connected(host = 'tones', guest = 'kie', first: number | 'random' = 0) {
   const [ta, tb] = loopback();
   const a = new NetSession(ta, 'host');
   const b = new NetSession(tb, 'guest');
-  for (const s of [a, b]) s.onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players });
+  for (const s of [a, b]) s.onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first });
   a.setPick({ name: 'A', characterId: host });
   b.setPick({ name: 'B', characterId: guest });
   await flush();
@@ -63,6 +63,18 @@ describe('networked match', { timeout: 30_000 }, () => {
     same(A, B);
     expect(a.canAct()).toBe(true);
     expect(b.canAct()).toBe(false);
+  });
+
+  it('the guest can go first: then only the guest can fire, and both stay identical', async () => {
+    const { a, b, A, B } = await connected('tones', 'kie', 1);
+    expect(a.canAct()).toBe(false);
+    expect(b.canAct()).toBe(true);
+    expect(a.fire()).toBe(false);
+    setAim(B, 120, 60);
+    expect(b.fire()).toBe(true);
+    await playOut(a, b, A, B);
+    same(A, B);
+    expect(a.canAct()).toBe(true);
   });
 
   it('streams the aim and driving to the other phone, but not the secret decoy pick', async () => {

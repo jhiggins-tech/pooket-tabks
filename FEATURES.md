@@ -21,7 +21,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 13. ✅ **Marathon info text**: says a leg is 150px, about a seventh of the stage's width.
 14. ✅ **Trollogram swap on the casting turn**, shipped (see kie's kit below).
 15. ✅ **ten-1 spread**, shipped (see Balance below).
-16. **Random first player**: randomise who goes first in a match (hotseat and online).
+16. ✅ **Random first player**, shipped (see below).
 17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
 18. _(empty; next requests go here)_
 
@@ -57,6 +57,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it in
   the nearby list, where it shows as "in progress · watch") to watch it live, view only: aim, shots and
   results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
+- **Random first player**: who goes first is picked at random for every match, hotseat and online
+  (from the match seed, so both phones agree).
 - **What's new popup**: on opening, a card lists what's changed since this phone last looked (a first
   visit sees just the latest release), then stays away until the next release; ✨ What's new on the setup
   screen shows the whole changelog.
