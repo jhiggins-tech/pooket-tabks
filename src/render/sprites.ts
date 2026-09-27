@@ -9,6 +9,8 @@ import rizzUrl from '../assets/sprites/rizz.svg';
 import inkNeedleUrl from '../assets/sprites/ink-needle.svg';
 import type { SpriteId } from '../weapons/types';
 
+/** Weapon sprites: SVGs from src/assets/sprites/, each with its drawn size (a new one needs its id in SpriteId too). */
+
 interface SpriteDef {
   url: string;
   /** Drawn size in world pixels, before rotation (sprites point along +x). */

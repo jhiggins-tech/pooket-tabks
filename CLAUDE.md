@@ -1,18 +1,19 @@
 # CLAUDE.md
 
 Pooket Tabks: a Worms / Pocket Tanks style artillery game for **phone browsers only** (landscape, touch),
-hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/.
-Scope: local hotseat multiplayer, a variety of weapons, custom player names/colours, random terrain.
+hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Six characters, each with a
+three-weapon kit; hotseat on one phone, or two phones online through Firebase (with spectators).
 
-## Git workflow
-- The owner has authorised pushing directly to `main`. No feature branches or PRs needed unless asked.
-- Every push to `main` runs CI (typecheck, unit tests, build, Playwright e2e) and deploys to Pages.
-  After pushing, check the run and fix it if it goes red.
-- Run `npm run typecheck && npm test && npm run test:e2e` before pushing.
-
-## Features list
-`FEATURES.md` is the features list and work queue. When the owner asks to add something to the list or
-queue, put it there; when shipping a feature, move it to **Shipped** (and update the character table).
+## Working rules
+- The owner has authorised pushing directly to `main` (no branches or PRs unless asked). Every push runs
+  CI (typecheck, unit tests, build, Playwright e2e) and deploys to Pages: run
+  `npm run typecheck && npm test && npm run test:e2e` before pushing, then check the run and fix it if red.
+- `FEATURES.md` is the features list and work queue. Requests to "queue" something go there; shipping
+  moves it to **Shipped** (and updates the character table). Balance changes get a **Balance** entry.
+- Anything players will notice gets a release in `src/ui/whatsnew.ts` (`CHANGELOG`, newest first, version
+  + 1; never edit a release that has already shipped).
+- If `firebase/database.rules.json` changes, ask the owner to re-publish it (Firebase console → Rules).
+  The code assumes the latest rules; no fallbacks for old ones.
 
 ## Commands
 ```sh
@@ -21,173 +22,110 @@ npm test           # Vitest unit tests (Node, no DOM)
 npm run test:e2e   # Playwright on an emulated landscape Pixel 7; screenshots land in test-results/
 npm run build      # tsc --noEmit + vite build -> dist/
 ```
-In cloud containers, Playwright uses the preinstalled Chromium at `/opt/pw-browsers/chromium`
-(see `playwright.config.ts`); don't run `playwright install` locally.
+In cloud containers Playwright uses the preinstalled Chromium at `/opt/pw-browsers/chromium` (see
+`playwright.config.ts`); don't run `playwright install`.
 
-## Architecture
-TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
-- `src/core/`: seeded RNG, `Terrain` (per-pixel solid mask + RGBA buffer with dirty-rect tracking), terrain generation.
-- `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`),
-  the fixed-step `step`, `fire` (dispatches on the weapon kind) and ammo/tier selection, and re-exports the
-  public API, so everything outside imports from `game/game`. The rest is split by mechanic: `tanks.ts`
-  (tank geometry, hit-testing `targetAt`, damage, soak), `fx.ts` (sound cues, floaters, dust, splashes),
-  `movement.ts` (driving, hops, settling), `projectiles.ts` (shells, bursts, homing, bounces, beams,
-  rain), `copies.ts` (holograms and twins), and one module per weapon mechanic (`stream`, `jetpack`,
-  `gunk`, `walkers`, `sonic`, `sew`, `runner`, `nap`, `steal`), plus `util.ts`. `targetAt` is the hot
-  path (every projectile, droplet and blob of mud, every ~1px): keep it allocation-free. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
-  Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
-  Each tank has `FUEL_PER_MATCH` px of driving for the whole match (never refills; `drive()`, held ◀ ▶
-  buttons), usable during its turn before firing. Tanks roll over lips up to `DRIVE_CLIMB` px, but stop when
-  the ground over the next `DRIVE_LOOKAHEAD` px rises steeper than `DRIVE_MAX_SLOPE` (45°), unless the climb
-  is short (`shortClimb`: tops out within `DRIVE_SCRAMBLE` px) or the tank is down in a hollow (`inHollow`: the
-  ground behind rises too), so tanks can always drive out of craters. `drive()` measures from `p.y` and
-  `driveRest` ignores wall columns behind the hull (a tank sunk against a crater's steep side can pull away). Characters with `movement: 'hop'` (ciarra) spend it on
-  frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`, well above
-  `DRIVE_SCRAMBLE`, at `HOP_FUEL` per px so she goes twice as far; no firing mid-hop). A pinned tank can't move at all.
-  Who goes first: `GameConfig.first` (default player 0; `'random'` → `firstPlayer()`, an integer hash of the
-  seed, so both phones agree and the gameplay RNG is untouched). `main.ts` uses `'random'`, except under
-  `navigator.webdriver` (e2e), which gets player 0 unless `?first=random|N`.
-  Keep it pure and DOM-free so it stays unit-testable.
-- `src/weapons/`: data-driven `WeaponDef`s + registry; a new weapon should be a new definition, not game-loop edits.
-  `kind` is `ballistic` (default), `beam` (instant straight line, `dot` burn), `rain` (falls across the
-  stage, ignores aim), `stream` (liquid jet with a `stream` pressure profile; droplets trickle damage
-  via `Player.soak`, flushed as small batched numbers, and wet the soil instead of cratering), `decoy`
-  (spawns `Hologram`s of the firer's tank; ignores aim), `jetpack` (the firer's tank charges, then
-  launches once along the aim; its propellant must look like dirt/mud), `spew` (a short-range gush of
-  chunks from the barrel), `sew` (`Stitch`: a zig-zag needle and thread sewn through terrain along the
-  aim without cratering, power = length; each enemy it passes is hit once and pinned), `runner` (`Runner`:
-  a jogger who runs one `leg` towards the nearest enemy every time anyone fires, over any terrain, and
-  explodes at the finish; a blast within reach marks it `out` (DNF)), `steal` (not a shot: `startHeist` picks a
-  random enemy round (seeded) and enters the `stealing` phase, where `Heist` drives a slowing roulette
-  (`STEAL_SPIN`, then `STEAL_HOLD`); on landing the victim loses the round, it replaces Steal in the thief's
-  `loadout` slot with 1 round, and the phase returns to `aiming` for the same player) or `sonic` (`Boom`: waves of expanding arcs along the aim that pass through
-  terrain without damaging it; each wave hits a target once, weaker with distance; power sets range).
-  `apparition` summons a cosmetic sky effect on firing (torikloud's kookaburra in parting clouds). Jetpack propellant and spew chunks are both `Sludge` "gunk" (`WeaponDef.gunk`:
-  look, pile colour, dose): it flies, slumps into piles via `Terrain.addDirt`, and doses enemies with
-  `Player.toxin`, which drains into soak damage before the turn ends. Gunk ignores terrain for `GUNK_GRACE`
-  after leaving the nozzle (else mud stacks up in mid-air behind a flying tank), slumps up to 3px sideways
-  into mounds, and never piles onto a tank's hull. `gunk.puddle` (ten-3) leaves toxic `Puddle`s where it
-  lands that burn enemies touching them until they expire; the turn waits for them. Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
-  (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`; `spriteVariants` gives each round of
-  a burst or shot of a volley its own look by `Projectile.variant`, e.g. Pill Pusher's four different pills),
-  `spin` (tumble the sprite in
-  flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
-  small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`; proximity fuse: they
-  pop within `walk.fuse` px of the enemy's centre for near-full damage, or within blast range as soon as
-  they stop getting closer, `Projectile.fuseDist`), `trail`.
-- Outgoing damage is scaled by the shooter's `offence()` (1, or 0.5 while cooked) at every source: blasts,
-  beams, burns, sonic waves, stream soak, gunk doses and puddles. Incoming damage is scaled by the victim's
-  `vulnerable()` (×`tattoo.multiplier` while tattooed) in `damagePlayer`/`damageTwin`.
-- Status lifecycles live in `endTurn`: `cooked` and `pinned` are set pending, become active when the
-  victim's next turn starts, and clear when that turn ends; `tattoo.turnsLeft` counts down at the end of
-  each of the victim's turns; hyperfixate burns tick as the victim's turn comes up. `drawTank` draws the
-  tattoo and pinned marks, so twins and holograms show them too.
-- Hit-testing goes through `targetAt()` / `Target` (a real tank, a twin or a hologram); use `targetPos()`,
-  `targetOwner()`, `soakTarget()` and `tankBodies()` rather than switching on the kind. A twin dying just
-  removes it; the main tank dying with a twin alive promotes the twin (`damagePlayer`). Damage goes through
-  `damageTarget()` → `damagePlayer()`, which spawns the floating damage numbers. Holograms show the would-be
-  damage, and at the end of the turn (`resolveHolograms()`) any hit hologram vanishes and the shooter takes
-  `HOLOGRAM_PENALTY` (50%) of it; then the current player's chosen swap (`swapTargetId`) happens.
-  Holograms must stay visually identical to the real tank. Cosmetic phase effects: holograms phase in
-  (`Hologram.age`), exposed ones dissolve (`ghosts`), and all of a player's copies shimmer together at the
-  end of their turn (`shimmers`) whether or not they swapped, so the swap has no tell.
-- `src/characters/roster.ts`: selectable characters `tones`, `kie`, `kcaj`, `torikloud`, `ciarra`,
-  `larinovsky` (lowercase on purpose), each with signature colours and a 3-tier loadout (optional
-  `movement`). ciarra (frog hops): Tattoo Gun (`burst` of 12 ink needles; `tattoo`: +25% damage taken for
-  2 of the victim's turns) / Sew (20 damage, pins: no moving on their next turn) / Marathon (runner, 50 at
-  the finish). torikloud: Debate (`burst` + `words`: a random word from
-  `src/weapons/dictionaries.ts`, one letter per round) / Sonic Boom / Twins (`twin` kind: `Player.twin`, a
-  second tank with its own HP; the HP is split on spawning; it mirrors every shot with the same aim, using
-  the twin dictionary; twin booms phase where their arcs overlap for `PHASE_FOCUS` damage and `PHASE_RANGE`). larinovsky: Pill
-  Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`homing`: within `radius` px of an enemy
-  target it locks on, `Projectile.homing`, and steers at it without gravity; `debuff`: "cooks" enemies in the blast;
-  `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
-  clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Weasel Pop (3 spinning weasels at aim −4/0/+4° that
-  land, scurry right up under the enemy and pop, or as close as they can get in range, or after 2.5s) / Trollogram (each use adds 2 holograms; on
-  later turns tap one to secretly swap with it after firing; right after casting there's a `DECOY_PICK_TIME`
-  window (`state.decoyPick`, counted as busy; FIRE becomes DONE → `finishDecoyPick`) to pick one of the new ones.
-  `NetSession.fire` blanks `swapTargetId` in the pre-fire snapshot so the pick stays secret; a result
-  arriving closes the other phone's window) / Steal (see `steal` above; the roulette is the
-  `#heist` HUD overlay plus a grabbing-hand tether on the canvas). `shell` is unused but kept as the plain default weapon. tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
-  in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`;
-  low pressure sprays (`StreamSpec.spray`/`speedSpread`, scaled by (1 − pressure)^1.5) and each droplet's
-  damage scales with its pressure (0.1 + 0.9·p²), so point-blank isn't a near one-shot;
-  `refundOnMiss`: if no droplet soaks an enemy, `endTurn` gives the round back via `state.refund`)
-  / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; a huge, wide blast of toxic mud
-  propellant) / ten-3 (incredibly powerful short-range chunky spew, ~200px max; coated enemies burn
-  ~25 HP/s, and landed chunks leave toxic sludge burning 10 HP/s for the rest of the turn; best case
-  ~90–98 at 70–100px, deliberately just short of a one-shot). kcaj has
-  Double Park (two ice cream cones at aim ±2°), Hyperfixate (straight laser beam; a direct hit burns for 8
-  at the start of the victim's next 3 turns) and Unmedicated (120 pills rain over the stage, bounce twice,
-  micro-detonate; ignores aiming and never hurts kcaj). Ammo is
-  5 / 3 / 1 rounds for tiers 1–3 (`AMMO_PER_TIER`). Duplicate picks get distinct alternate colours.
-- `src/ui/setup.ts` + `src/ui/seats.ts`: setup screen. PoC matches are exactly 2 players (`PLAYER_COUNT`),
-  each picking a character; the name field pre-fills with the character name and stays editable.
-  Remembered in localStorage. The engine itself supports more players.
-- `src/ui/whatsnew.ts`: the "What's new" popup. `CHANGELOG` (newest first, `version` + 1 per release) is
-  shown once per version (localStorage `pooket.whatsNew`); add a release there when shipping something
-  players will notice. Skipped under `navigator.webdriver` (e2e) unless `?whatsnew`.
-- `src/ui/info.ts`: the info overlay (ⓘ in the HUD and on setup): how to play, status effects, and a page
-  per character built from the roster and each weapon's required `info` text, so a new weapon must
-  describe itself. The game loop pauses while it's open. `ignoresAim()` (registry) decides "No aiming".
-- `src/audio/`: 8-bit sound. Game logic stays DOM-free by queuing cues (`sound()` → `state.sfx`, capped);
-  `main.ts` drains them each frame into `SfxPlayer` (throttles repeats), which plays recipes on `Chip`
-  (Web Audio pulse/triangle/LFSR-noise synth, unlocked on the first tap). `FIRE_SOUNDS` needs an entry per
-  weapon id and `ROUND_SOUNDS` per burst weapon (tests enforce it); `CUE_SOUNDS` covers game events.
-  Keep them kitschy. `WeaponDef.tune` names a looping chiptune (`src/audio/tunes.ts`, `TunePlayer`: notes
-  scheduled a little ahead so it pauses with the game and cuts instantly) that plays while that weapon's
-  walkers walk: the game cues `tune` when the first starts walking (`state.tunes`) and `tune-end` the
-  step the last one is gone. `new Chip(offlineCtx)` renders sounds offline for previews.
-- `src/net/`: two phones, one each, through Firebase (local multiplayer is hotseat on one phone). Rooms
-  live in a Firebase Realtime Database (free Spark plan; `firebase/README.md`, `firebase/database.rules.json`,
-  URL in `src/net/config.ts`; empty = online play shows "not switched on yet"). When the rules change, ask the
-  owner to re-publish them (Firebase console → Rules); the code assumes the latest rules, no fallbacks
-  for old ones. `rtdb.ts` is a tiny REST + SSE
-  client (no SDK); `rooms.ts` has `HostedRoom`/`joinRoom`/`rejoinRoom` (host/guest seats at `rooms/<hash of
-  the 4-letter code>`, first come first served) and room codes; `relay.ts` has `RelayTransport` (each side
-  posts sealed, numbered batches to its queue and streams the other's; in-order delivery, read messages
-  deleted, pings), so game traffic goes phone → Firebase → phone on any network; `view.ts` the spectator
-  feed; `lobby.ts` the nearby list; `b64.ts` the one base64 helper. Silence isn't the end: after `lostMs` the transport
-  reports `onQuiet(true)` (then `false` when heard again) and keeps the room; only the room closing
-  (checked while quiet) or a `bye` ends the match. Rejoining: `seat.ts` remembers this phone's seat (code,
-  role, seat id; refreshed while playing), `rejoinRoom` takes it back with a fresh pipe (emptying its stale
-  inbox), and `NetSession.rejoin()` sends `rejoin`; the other phone `restart()`s its pipe and answers with
-  `resume` (picks, setup, snapshot, terrain) once any shot in flight has played out (its result stands).
-  Batches carry the sender's seat id (`from`; a pipe drops batches from anyone but the current other seat,
-  e.g. a freed ghost's leftovers) and epoch, so the receiver switches to a rejoined phone's new stream at its first
-  batch and ignores leftovers. `main.ts` rejoins by itself on opening within `AUTO_REJOIN_MS`, else shows
-  `#setup-rejoin`; typing the code or tapping it in the nearby list rejoins too. No goodbye on `pagehide`
-  (a reload must be rejoinable). `advertise`/`watchLobby` list games on the same
-  Wi-Fi (`lobby.ts`), keyed by the STUN public address (`lan.ts`). Everything stored is sealed with AES-GCM (`seal.ts`).
-  `links.ts` makes `#room=CODE` links; opening one asks first (`OnlineScreen.invite`: Join game / Not now),
-  because messaging apps load links in a hidden browser for previews and that must not take the seat.
-  A guest that goes quiet in the lobby (before a match) is taken for such a ghost: the host `detach()`es
-  its pipe, `HostedRoom.reopen()`s the guest seat and waits again under the same code. `session.ts` (`NetSession`, DOM-free, tested over `loopback()`):
-  host is seat 0. The phone whose turn it is streams aim previews (never the secret swap target) and, on
-  fire, sends a pre-fire `takeSnapshot` so both fire from identical state; when the turn resolves it sends
-  the result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
-  `Terrain.patchSolid`), so cross-device float drift never outlives a turn (`wire.ts` keeps Infinity/NaN;
-  `Rng.state` is serialisable for this). Online, the info screen doesn't pause and `main.ts` gates input
-  on `net.canAct()`. Spectators: `NetSession.onView` emits a feed (full state on start / fire / sync, with
-  the setup and terrain, plus the live aim) that `ViewPublisher` writes to the room's `view/state` and
-  `view/aim`; `watchRoom` streams it into a `Spectator` (`spectate.ts`: builds the game from any full
-  state, replays shots, snaps to results; never sends). A full room (or a nearby game marked `playing`)
-  opens as a spectator. `log.ts` (`netLog`) records every step (database calls and streams, rooms, relay,
-  session) with masked addresses for the "Copy logs" button on the online screens; log new network steps
-  there too. Tests use a local Firebase stand-in (`tests/support/rtdb.ts`); `?debug&db=URL&lan=X|none`
-  points the game at it. `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator
-  view (`body[data-remote]`).
-- `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
-- `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
-- `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`
-  (live state + renderer) for e2e tests that need world positions.
+## Map
+TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies. Each file starts with a comment saying
+what it's for; weapons are documented where they're defined.
+
+| Where | What |
+|---|---|
+| `src/core/` | seeded RNG (`Rng.state` is serialisable), `Terrain` (per-pixel solid mask + RGBA with dirty rects), terrain generation |
+| `src/characters/kits/<name>.ts` | a character **and** their three weapons (`kit()`); `kits/index.ts` lists them in setup order |
+| `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1), colour assignment |
+| `src/weapons/` | `types.ts` (`WeaponDef`, `WeaponKind`, specs, `SpriteId`), `registry.ts` (`getWeapon`, `ignoresAim`, the plain `shell`) |
+| `src/game/` | the match, pure and DOM-free (below) |
+| `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order) and `draw/<mechanic>.ts` (mirrors `src/game/`); `hud.ts` (DOM HUD); `sprites.ts` |
+| `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
+| `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
+| `src/net/` | online play (below) |
+| `src/ui/` | setup, info (ⓘ), what's new, online screens |
+| `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together; `?debug` exposes `window.__pooket` |
+| `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in) |
+| `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows) |
+
+## How the game fits together
+- **Turn state machine** (`game/game.ts`): `aiming → flying → settling → aiming | gameover` (plus
+  `stealing` for kie's roulette). `fire()` spends the round and calls the weapon kind's entry in
+  `FIRE`; `step()` advances every `STEPPERS` entry each tick while flying and settles once none is busy;
+  `endTurn()` runs statuses, holograms, refunds and picks the next player (skipping the dead and the
+  out-of-ammo; if nobody has ammo, most HP wins). `game.ts` re-exports the public API: import from `game/game`.
+- **Mechanics** (`game/mechanics.ts`): `FIRE` maps each `WeaponKind` to how it goes off (the type insists
+  on one per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of
+  the simulation). Each mechanic's module (`stream`, `jetpack`, `gunk`, `walkers`, `sonic`, `sew`,
+  `runner`, `nap`, `steal`, `projectiles`, `copies`) owns its fire function, steppers and rules.
+- **Tanks and damage** (`game/tanks.ts`): hit-testing goes through `targetAt()` / `Target` (a tank, a
+  twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than
+  switching on the kind. Damage: `damageTarget()` → `damagePlayer()` (floating numbers). Outgoing damage
+  × the shooter's `offence()` (halved while cooked) at every source; incoming × the victim's
+  `vulnerable()` (tattoos).
+- **Statuses** live in `endTurn`: `cooked` and `pinned` become active when the victim's next turn starts
+  and clear when it ends; `tattoo.turnsLeft` counts down per victim turn; Hyperfixate burns tick as the
+  victim's turn comes up.
+- **Movement** (`game/movement.ts`): one tank of fuel per match (`FUEL_PER_MATCH`), driving before
+  firing; tanks roll over small lips, stop at slopes > 45° unless the climb is short or they're in a
+  hollow (so craters are always escapable). ciarra hops instead (bigger, higher, half the fuel). Pinned
+  tanks can't move. Who goes first: `GameConfig.first` (`'random'` in `main.ts`, from the seed).
+- **Online** (`src/net/`): phone → Firebase Realtime Database (REST + SSE, `rtdb.ts`) → phone, all sealed
+  with AES-GCM from the room code (`seal.ts`). `rooms.ts` seats and codes, `relay.ts` the message pipe
+  (numbered batches per epoch, stamped with the sender's seat id; silence = "quiet", not the end),
+  `session.ts` the match protocol (`NetSession`: the phone whose turn it is streams its aim, sends a
+  pre-fire snapshot, then the result snapshot + terrain, which the other phone snaps to; `rejoin` /
+  `resume` for a phone that dropped out), `view.ts` + `spectate.ts` spectators, `lobby.ts` the nearby
+  list (keyed by the STUN public address, `lan.ts`), `seat.ts` the remembered seat for rejoining. Log
+  every network step with `netLog` (the "Copy logs" button). Tests: `?debug&db=URL&lan=X|none&lost=MS`.
+
+## Recipes
+**Tweak a weapon** (numbers, text): its kit file in `src/characters/kits/`. Keep `info` accurate (the info
+screen is built from it). Add a FEATURES **Balance** entry and a what's-new release.
+
+**Add a weapon using an existing mechanic** (e.g. another ballistic shot):
+1. Define it in the character's kit file and put it in their `kit(…, [t1, t2, t3])`.
+2. `src/audio/sfx.ts`: a `FIRE_SOUNDS` entry (and `ROUND_SOUNDS` if it has a `burst`); tests enforce both.
+3. Optional look: an SVG in `src/assets/sprites/`, its id in `SpriteId` (`weapons/types.ts`) and an entry
+   in `render/sprites.ts`.
+4. If it ignores the aim, add its kind to `ignoresAim()` (`weapons/registry.ts`).
+5. Unit tests in the character's test file; update the kit's e2e step in `e2e/smoke.spec.ts`.
+
+**Add a new mechanic** (a new `WeaponKind`):
+1. `weapons/types.ts`: the kind and its spec field on `WeaponDef`.
+2. `game/state.ts`: the entity type and its array on `GameState`; initialise it in `createGame`.
+   (Snapshots, sync and spectating copy the whole state, so plain data needs nothing more.)
+3. `game/<mechanic>.ts`: `fire…(state, p, weapon)` and a `Stepper` (`step` + `busy`); add them to `FIRE`
+   and `STEPPERS` in `game/mechanics.ts`.
+4. `render/draw/<mechanic>.ts` and a call in `Renderer.draw()` (order = layering).
+5. Sounds, info text and tests as above; say what it does in its module's header comment.
+
+**Add a character**: a new kit file (colours, blurb, three weapons, optional `movement`), add it to `KITS`
+in `kits/index.ts`, then update `tests/roster.test.ts` and the character list in `e2e/smoke.spec.ts`
+(both list every character), add a row to the FEATURES character table and a what's-new release.
+
+**Add a sound cue** for a game event: the cue name in `SfxCue` (`game/state.ts`), `sound(state, cue)` where
+it happens (game logic only queues cues), and its recipe in `CUE_SOUNDS` (`audio/sfx.ts`). Keep it kitschy.
+
+**Change the online protocol**: `NetMsg` in `net/session.ts`, bump `PROTOCOL`, `netLog` the new steps,
+test over `loopback()` (`tests/net-session.test.ts`) and the fake Firebase (`tests/rejoin.test.ts`,
+`tests/rooms.test.ts`). New database paths need rules (and a re-publish, see above).
+
+## Invariants and gotchas
+- **Deterministic**: gameplay randomness only through the seeded RNG (`?seed=N` reproduces a map);
+  cosmetic randomness (splashes, floater drift) uses `fxSeq` or `hash`, never the gameplay RNG. Both
+  phones must run identical code, so don't reorder `STEPPERS` or steps casually.
+- **Holograms look exactly like the real tank** (no tells: shared shimmer at the end of every turn,
+  swap or not), and the swap target is secret online (`NetSession.fire` blanks `swapTargetId` in the
+  pre-fire snapshot).
+- `targetAt` is the hot path (every projectile, droplet and blob of mud, every ~1px): keep it
+  allocation-free.
+- Game logic stays DOM-free (sound goes out as queued cues; the renderer only reads state).
+- Opening a `#room=` link asks before joining: messaging apps load links in hidden browsers for previews.
+- No goodbye on `pagehide`: a reload must be able to rejoin.
 
 ## Conventions
-- Mobile first: touch/pointer events only, landscape layout, respect safe-area insets, keep tanks and
-  key action clear of the bottom-corner thumb controls. Big tap targets.
-- Deterministic: all randomness in game logic goes through the seeded RNG (`?seed=N` reproduces a map).
-  Cosmetic-only effects (splashes, floater drift) use `fxSeq`, never the gameplay RNG.
-- Vite `base` is `'./'`, so use relative asset paths; Pages serves under `/pooket-tabks/`.
-- Add unit tests for game logic changes and extend `e2e/smoke.spec.ts` for new UI flows. Game tests build
-  matches with `tests/support/game.ts` (`testGame` on made-to-order ground, `whileFlying`, `untilAiming`,
-  `untilNextTurn`, `passTurn`, `hold`).
+- Mobile first: touch/pointer events only, landscape, safe-area insets, big tap targets; keep tanks and
+  key action clear of the bottom-corner thumb controls.
+- Vite `base` is `'./'`: relative asset paths (Pages serves under `/pooket-tabks/`).
+- Unit tests for game logic (build matches with `testGame` and move turns along with `whileFlying`,
+  `untilAiming`, `untilNextTurn`, `passTurn`, `hold` from `tests/support/game.ts`); extend
+  `e2e/smoke.spec.ts` for new UI flows. Automated runs (`navigator.webdriver`) start with player 1 and
+  skip the what's-new popup unless `?first=` / `?whatsnew`.

@@ -19,7 +19,7 @@ phones anywhere with a 4-letter room code (others can watch).
   Wi-Fi are listed) or opens the link. A dropped phone can rejoin; a third phone can watch.
 
 [FEATURES.md](FEATURES.md) lists everything shipped and what's queued; [CLAUDE.md](CLAUDE.md) has the
-architecture in detail.
+architecture and recipes for adding weapons, mechanics and characters.
 
 ## Architecture
 TypeScript + Vite, a small hand-rolled Canvas2D engine, no runtime dependencies.
@@ -27,10 +27,10 @@ TypeScript + Vite, a small hand-rolled Canvas2D engine, no runtime dependencies.
 ```
 src/
   core/        seeded RNG, destructible terrain (per-pixel mask + RGBA), terrain generation
-  game/        the match: turn state machine, physics and every weapon mechanic (pure, DOM-free)
-  weapons/     data-driven weapon definitions + registry
-  characters/  the roster: colours, loadouts, movement
-  render/      canvas renderer (letterboxed, DPR-aware), sprites, DOM HUD
+  characters/  one kit file per character: the character and their three weapons
+  weapons/     weapon types and the registry
+  game/        the match: turn state machine + one module per mechanic (pure, DOM-free)
+  render/      canvas renderer (letterboxed, DPR-aware) with draw/ mirroring game/, sprites, DOM HUD
   input/       touch controls
   audio/       8-bit synth, sound effects and chiptunes
   net/         online play through Firebase: rooms, relay, match session, spectating, rejoining

@@ -54,6 +54,7 @@ export const ten2: WeaponDef = {
  * tones' tier 3: an incredibly powerful, short-range gush of chunky spew. Chunks that land on an
  * enemy coat it and burn through ~25 HP a second until the coating is gone; chunks that land on the
  * ground coat it in toxic sludge that burns any enemy touching it for the rest of the turn.
+ * Best case ~90–98 at 70–100px: deliberately just short of a one-shot.
  */
 export const ten3: WeaponDef = {
   id: 'ten-3',

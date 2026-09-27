@@ -1,6 +1,11 @@
 import type { Rng } from '../core/rng';
 import type { Terrain } from '../core/terrain';
 
+/**
+ * The shape of a match: players, everything in flight, and the turn state. Plain data (apart from the
+ * terrain and RNG), so a snapshot of it can be sent to the other phone or a spectator as is.
+ */
+
 export interface PlayerConfig {
   name: string;
   colour: string;

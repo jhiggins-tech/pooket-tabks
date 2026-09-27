@@ -1,3 +1,8 @@
+/**
+ * The page: wires the game, renderer, HUD, controls, sound and screens together and runs the
+ * fixed-timestep loop (FIXED_DT). Hotseat by default; `net` / `online.spectator` when playing or
+ * watching online.
+ */
 import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
