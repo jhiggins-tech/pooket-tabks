@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { createGame, currentPlayer, fire, selectTier, setAim, step } from '../src/game/game';
+import { currentPlayer, fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { sonicBoom } from '../src/weapons/registry';
+import { testGame } from './support/game';
 
 const spec = sonicBoom.sonic!;
 const players = [
@@ -12,16 +11,8 @@ const players = [
   { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
 ];
 
-/** torikloud at x = 300 on flat ground; kie `gap` px to the right (negative = left). */
 function game(gap: number, heights?: (x: number) => number): GameState {
-  const g = createGame({ seed: 40, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(Float32Array.from({ length: w }, (_, x) => heights?.(x) ?? 400), w, g.terrain.height, createRng(1));
-  const [tori, kie] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
-  tori.x = 300;
-  kie.x = 300 + gap;
-  for (const p of g.players) p.y = 400;
-  return g;
+  return testGame({ seed: 40, players, heights, xs: [300, 300 + gap] });
 }
 
 /** Fire Sonic Boom level along the ground at the given power; return kie's damage and hit count. */

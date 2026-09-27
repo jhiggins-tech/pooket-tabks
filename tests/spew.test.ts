@@ -1,26 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
-import { createGame, currentPlayer, fire, isSpewing, selectTier, setAim, step } from '../src/game/game';
+import { currentPlayer, fire, isSpewing, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { ten3 } from '../src/weapons/registry';
+import { testGame } from './support/game';
 
 const players = [
   { name: 'tones', colour: '#ff5a5f', characterId: 'tones' },
   { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
 ];
 
-/** tones on flat ground at x = 300, kie `gap` px to the right. */
 function game(gap: number): GameState {
-  const g = createGame({ seed: 30, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  const [tones, kie] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
-  tones.x = 300;
-  kie.x = 300 + gap;
-  for (const p of g.players) p.y = 400;
-  return g;
+  return testGame({ seed: 30, players, xs: [300, 300 + gap] });
 }
 
 function spew(g: GameState, angle: number, power: number): void {

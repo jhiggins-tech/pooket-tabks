@@ -5,6 +5,7 @@ import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { createGame, currentPlayer, explode, fire, isAimless, offence, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
 import { pillPusher, shell, takeANap, theRizzler } from '../src/weapons/registry';
+import { passTurn, testGame, whileFlying } from './support/game';
 
 const players = [
   { name: 'larinovsky', colour: '#34d399', characterId: 'larinovsky' },
@@ -12,24 +13,7 @@ const players = [
 ];
 
 function game(): GameState {
-  const g = createGame({ seed: 60, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  g.players[0]!.x = 300;
-  g.players[1]!.x = 700;
-  for (const p of g.players) p.y = 400;
-  return g;
-}
-
-function resolve(g: GameState): void {
-  for (let t = 0; t < 20 && g.phase === 'flying'; t += FIXED_DT) step(g, FIXED_DT);
-}
-
-/** End the current turn without firing. */
-function pass(g: GameState): void {
-  g.phase = 'settling';
-  g.settleTimer = 0;
-  step(g, FIXED_DT);
+  return testGame({ seed: 60, players, xs: [300, 700] });
 }
 
 describe('Pill Pusher', () => {
@@ -98,16 +82,16 @@ describe('the Rizzler', () => {
     g.projectiles = [];
     g.bursts = [];
     explode(g, kie.x, kie.y - TANK_BODY_HEIGHT, theRizzler, lari.id);
-    resolve(g);
-    pass(g); // -> kie's turn: cooked
+    whileFlying(g);
+    passTurn(g); // -> kie's turn: cooked
     expect(currentPlayer(g)).toBe(kie);
     expect(offence(g, kie.id)).toBe(0.5);
     let hp = lari.hp;
     explode(g, lari.x, lari.y - TANK_BODY_HEIGHT, shell, kie.id); // kie lands a direct hit
     expect(hp - lari.hp).toBe(Math.round(shell.damage * 0.5));
-    pass(g); // -> larinovsky
+    passTurn(g); // -> larinovsky
     expect(kie.cooked).toBeNull();
-    pass(g); // -> kie again, full strength
+    passTurn(g); // -> kie again, full strength
     expect(offence(g, kie.id)).toBe(1);
     hp = lari.hp;
     explode(g, lari.x, lari.y - TANK_BODY_HEIGHT, shell, kie.id);
@@ -127,7 +111,7 @@ describe('the Rizzler', () => {
       // tones' ten-3 sludge right next to larinovsky
       g.puddles.push({ x: lari.x + 12, y: 400, radius: 7, ownerId: tones.id, weaponId: 'ten-3', age: 0, ttl: 2.5 });
       g.phase = 'flying';
-      resolve(g);
+      whileFlying(g);
       return MAX_HP - lari.hp;
     };
     const full = burnFor(false);
@@ -161,7 +145,7 @@ describe('Take a Nap', () => {
     for (let t = 0; t < takeANap.heal!.napTime - 0.2; t += FIXED_DT) step(g, FIXED_DT);
     expect(lari.hp).toBe(37); // still asleep
     expect(g.floaters.some((f) => f.text === 'z' || f.text === 'Z')).toBe(true);
-    resolve(g);
+    whileFlying(g);
     expect(lari.hp).toBe(MAX_HP);
     expect(g.floaters.some((f) => f.text === `+${MAX_HP - 37}`)).toBe(true);
     expect(lari.ammo[2]).toBe(0);

@@ -143,10 +143,11 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   URL in `src/net/config.ts`; empty = online play shows "not switched on yet"). When the rules change, ask the
   owner to re-publish them (Firebase console → Rules); the code assumes the latest rules, no fallbacks
   for old ones. `rtdb.ts` is a tiny REST + SSE
-  client (no SDK); `rooms.ts` has `HostedRoom`/`joinRoom` (host/guest seats at `rooms/<hash of the 4-letter
-  code>`, first come first served) and `RelayTransport` (each side posts sealed, numbered batches to its
-  queue and streams the other's; in-order delivery, read messages deleted, pings, silence = lost), so game
-  traffic goes phone → Firebase → phone on any network. Silence isn't the end: after `lostMs` the transport
+  client (no SDK); `rooms.ts` has `HostedRoom`/`joinRoom`/`rejoinRoom` (host/guest seats at `rooms/<hash of
+  the 4-letter code>`, first come first served) and room codes; `relay.ts` has `RelayTransport` (each side
+  posts sealed, numbered batches to its queue and streams the other's; in-order delivery, read messages
+  deleted, pings), so game traffic goes phone → Firebase → phone on any network; `view.ts` the spectator
+  feed; `lobby.ts` the nearby list; `b64.ts` the one base64 helper. Silence isn't the end: after `lostMs` the transport
   reports `onQuiet(true)` (then `false` when heard again) and keeps the room; only the room closing
   (checked while quiet) or a `bye` ends the match. Rejoining: `seat.ts` remembers this phone's seat (code,
   role, seat id; refreshed while playing), `rejoinRoom` takes it back with a fresh pipe (emptying its stale
@@ -157,7 +158,7 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   batch and ignores leftovers. `main.ts` rejoins by itself on opening within `AUTO_REJOIN_MS`, else shows
   `#setup-rejoin`; typing the code or tapping it in the nearby list rejoins too. No goodbye on `pagehide`
   (a reload must be rejoinable). `advertise`/`watchLobby` list games on the same
-  Wi-Fi, keyed by the STUN public address (`lan.ts`). Everything stored is sealed with AES-GCM (`seal.ts`).
+  Wi-Fi (`lobby.ts`), keyed by the STUN public address (`lan.ts`). Everything stored is sealed with AES-GCM (`seal.ts`).
   `links.ts` makes `#room=CODE` links; opening one asks first (`OnlineScreen.invite`: Join game / Not now),
   because messaging apps load links in a hidden browser for previews and that must not take the seat.
   A guest that goes quiet in the lobby (before a match) is taken for such a ghost: the host `detach()`es
@@ -187,4 +188,6 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - Deterministic: all randomness in game logic goes through the seeded RNG (`?seed=N` reproduces a map).
   Cosmetic-only effects (splashes, floater drift) use `fxSeq`, never the gameplay RNG.
 - Vite `base` is `'./'`, so use relative asset paths; Pages serves under `/pooket-tabks/`.
-- Add unit tests for game logic changes and extend `e2e/smoke.spec.ts` for new UI flows.
+- Add unit tests for game logic changes and extend `e2e/smoke.spec.ts` for new UI flows. Game tests build
+  matches with `tests/support/game.ts` (`testGame` on made-to-order ground, `whileFlying`, `untilAiming`,
+  `untilNextTurn`, `passTurn`, `hold`).

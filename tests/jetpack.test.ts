@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_HALF_WIDTH } from '../src/game/constants';
 import { createGame, currentPlayer, drive, fire, jetCharge, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { ten2 } from '../src/weapons/registry';
+import { testGame } from './support/game';
 
 const spec = ten2.jetpack!;
 const players = [
@@ -13,11 +12,7 @@ const players = [
 ];
 
 function flatGame(): GameState {
-  const g = createGame({ seed: 12, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  for (const p of g.players) p.y = 400;
-  return g;
+  return testGame({ seed: 12, players });
 }
 
 function launch(g: GameState, angle: number, power: number): void {

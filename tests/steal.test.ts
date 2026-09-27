@@ -1,22 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT } from '../src/game/constants';
-import { createGame, currentPlayer, drive, fire, heistIndex, isAimless, selectTier, STEAL_HOLD, STEAL_SPIN, step } from '../src/game/game';
+import { currentPlayer, drive, fire, heistIndex, isAimless, selectTier, STEAL_HOLD, STEAL_SPIN, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
+import { testGame } from './support/game';
 
 function game(seed = 7, enemy = 'tones'): GameState {
-  const g = createGame({
+  return testGame({
     seed,
     players: [
       { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
       { name: enemy, colour: '#ff5a5f', characterId: enemy },
     ],
   });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  for (const p of g.players) p.y = 400;
-  return g;
 }
 
 function run(g: GameState, seconds: number): void {

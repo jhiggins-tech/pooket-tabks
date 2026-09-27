@@ -18,35 +18,15 @@ import {
 } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { marathon, sew, shell, tattooGun } from '../src/weapons/registry';
+import { hold, passTurn, testGame, whileFlying } from './support/game';
 
 const players = [
   { name: 'ciarra', colour: '#f472b6', characterId: 'ciarra' },
   { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
 ];
 
-/** ciarra at x = 300, kie at 700, over custom ground (flat at 400 by default). */
 function game(heights?: (x: number) => number): GameState {
-  const g = createGame({ seed: 80, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(Float32Array.from({ length: w }, (_, x) => heights?.(x) ?? 400), w, g.terrain.height, createRng(1));
-  g.players[0]!.x = 300;
-  g.players[1]!.x = 700;
-  for (const p of g.players) p.y = g.terrain.surfaceY(p.x);
-  return g;
-}
-
-function resolve(g: GameState): void {
-  for (let t = 0; t < 20 && g.phase === 'flying'; t += FIXED_DT) step(g, FIXED_DT);
-}
-
-function pass(g: GameState): void {
-  g.phase = 'settling';
-  g.settleTimer = 0;
-  step(g, FIXED_DT);
-}
-
-function hold(g: GameState, dir: number, seconds: number): void {
-  for (let t = 0; t < seconds; t += FIXED_DT) drive(g, dir, FIXED_DT);
+  return testGame({ seed: 80, players, heights, xs: [300, 700] });
 }
 
 describe('Tattoo Gun', () => {
@@ -75,12 +55,12 @@ describe('Tattoo Gun', () => {
     let hp = kie.hp;
     explode(g, kie.x, kie.y - TANK_BODY_HEIGHT, shell, 0);
     expect(hp - kie.hp).toBe(Math.round(shell.damage * 1.25));
-    resolve(g);
-    pass(g); // kie's turn 1
-    pass(g); // ciarra
+    whileFlying(g);
+    passTurn(g); // kie's turn 1
+    passTurn(g); // ciarra
     expect(kie.tattoo?.turnsLeft).toBe(1);
-    pass(g); // kie's turn 2
-    pass(g); // ciarra
+    passTurn(g); // kie's turn 2
+    passTurn(g); // ciarra
     expect(kie.tattoo).toBeNull();
     kie.hp = MAX_HP;
     hp = kie.hp;
@@ -94,7 +74,7 @@ describe('Sew', () => {
     selectTier(g, 1);
     setAim(g, angle, power);
     fire(g);
-    resolve(g);
+    whileFlying(g);
   }
 
   it('stitches straight through terrain, damaging and pinning the enemy', () => {
@@ -120,7 +100,7 @@ describe('Sew', () => {
     const x0 = kie.x;
     for (let t = 0; t < 1; t += FIXED_DT) drive(g, -1, FIXED_DT);
     expect(kie.x).toBe(x0);
-    pass(g); // -> ciarra
+    passTurn(g); // -> ciarra
     expect(kie.pinned).toBeNull();
   });
 
@@ -138,7 +118,7 @@ describe('Marathon', () => {
     selectTier(g, 2);
     expect(isAimless(g)).toBe(true);
     fire(g);
-    resolve(g);
+    whileFlying(g);
     const r = g.runners[0]!;
     expect(r.x - 300).toBeCloseTo(marathon.runner!.leg, 0);
     expect(r.dir).toBe(1);
@@ -150,10 +130,10 @@ describe('Marathon', () => {
     const kie = g.players[1]!;
     selectTier(g, 2);
     fire(g);
-    resolve(g);
+    whileFlying(g);
     // kie and ciarra trade (harmless) shots; the runner keeps going.
     for (let i = 0; i < 6 && g.runners.length > 0; i++) {
-      pass(g);
+      passTurn(g);
       for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
       if (currentPlayer(g).ammo.every((a) => a === 0)) break;
       selectTier(g, 0);
@@ -162,7 +142,7 @@ describe('Marathon', () => {
       fire(g);
       g.projectiles = [];
       g.bursts = [];
-      resolve(g);
+      whileFlying(g);
     }
     expect(g.runners).toHaveLength(0);
     expect(MAX_HP - kie.hp).toBe(marathon.runner!.damage);
@@ -172,7 +152,7 @@ describe('Marathon', () => {
     const g = game();
     selectTier(g, 2);
     fire(g);
-    resolve(g);
+    whileFlying(g);
     const r = g.runners[0]!;
     explode(g, r.x, r.y - 4, shell, 1);
     expect(r.out).toBe(true);

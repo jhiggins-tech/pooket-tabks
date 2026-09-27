@@ -1,10 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import {
   canPickDecoy,
-  createGame,
   currentPlayer,
   DECOY_PICK_TIME,
   decoyPickLeft,
@@ -22,6 +19,7 @@ import {
 } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { hyperfixate, shell, trollogram } from '../src/weapons/registry';
+import { passTurn, testGame, untilNextTurn } from './support/game';
 
 const players = [
   { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
@@ -29,24 +27,7 @@ const players = [
 ];
 
 function flatGame(seed = 3): GameState {
-  const g = createGame({ seed, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  for (const p of g.players) p.y = 400;
-  return g;
-}
-
-/** Resolve whatever is in flight and move to the next turn. */
-function finishTurn(g: GameState): void {
-  const turn = g.turn;
-  for (let t = 0; t < 30 && g.turn === turn && g.phase !== 'gameover'; t += FIXED_DT) step(g, FIXED_DT);
-}
-
-/** End the current turn without firing. */
-function passTurn(g: GameState): void {
-  g.phase = 'settling';
-  g.settleTimer = 0;
-  step(g, FIXED_DT);
+  return testGame({ seed, players });
 }
 
 /** kie fires Trollogram, kcaj passes, and it's kie's turn again with two decoys out. */
@@ -54,7 +35,7 @@ function withDecoys(): GameState {
   const g = flatGame();
   selectTier(g, 1);
   fire(g);
-  finishTurn(g);
+  untilNextTurn(g);
   passTurn(g); // kcaj
   expect(currentPlayer(g).name).toBe('kie');
   return g;
@@ -79,7 +60,7 @@ describe('Trollogram', () => {
       for (let j = i + 1; j < xs.length; j++) expect(Math.abs(xs[i]! - xs[j]!)).toBeGreaterThanOrEqual(70);
     }
     for (const h of holos) expect(h.y).toBe(g.terrain.surfaceY(h.x));
-    finishTurn(g);
+    untilNextTurn(g);
     expect(currentPlayer(g).name).toBe('kcaj');
   });
 
@@ -92,7 +73,7 @@ describe('Trollogram', () => {
       fire(g);
       ids.push(hologramsOf(g, 0).map((h) => h.id));
       expect(hologramsOf(g, 0)).toHaveLength(use * 2);
-      finishTurn(g);
+      untilNextTurn(g);
       passTurn(g); // kcaj
     }
     // The earlier ones are still out.
@@ -132,7 +113,7 @@ describe('Trollogram', () => {
     expect({ x: kie.x, y: kie.y }).toEqual(before.tank);
     expect(toggleSwapTarget(g, h.id)).toBe(false);
 
-    finishTurn(g);
+    untilNextTurn(g);
     expect({ x: kie.x, y: kie.y }).toEqual(before.holo);
     expect({ x: h.x, y: h.y }).toEqual(before.tank);
     expect(g.swapTargetId).toBeNull();
@@ -154,7 +135,7 @@ describe('Trollogram', () => {
     const g = flatGame();
     selectTier(g, 1);
     fire(g);
-    finishTurn(g);
+    untilNextTurn(g);
     expect(currentPlayer(g).name).toBe('kcaj');
     const h = hologramsOf(g, 0)[0]!;
     expect(hologramAt(g, h.x, h.y - 8, 20)).toBeUndefined();
@@ -175,7 +156,7 @@ describe('Trollogram', () => {
     expect(kcaj.hp).toBe(MAX_HP); // nothing is revealed mid-turn
     expect(hologramsOf(g, 0)).toContain(h);
 
-    finishTurn(g);
+    untilNextTurn(g);
     expect(kcaj.hp).toBe(MAX_HP - Math.round(shell.damage * 0.5));
     expect(kie.hp).toBe(MAX_HP);
     expect(hologramsOf(g, 0)).not.toContain(h);
@@ -191,7 +172,7 @@ describe('Trollogram', () => {
     fire(g);
     g.projectiles = [];
     explode(g, kie.x + 15, kie.y - TANK_BODY_HEIGHT, shell, kcaj.id);
-    finishTurn(g);
+    untilNextTurn(g);
     expect(kie.hp).toBeLessThan(MAX_HP);
     expect(kcaj.hp).toBeLessThan(MAX_HP);
   });
@@ -209,7 +190,7 @@ describe('Trollogram', () => {
     setAim(g, 180, 50);
     fire(g);
     expect(g.beams[0]!.hitTank).toBe(true);
-    finishTurn(g);
+    untilNextTurn(g);
     expect(kcaj.hp).toBe(MAX_HP - Math.round(hyperfixate.damage * 0.5));
     expect(kcaj.burn).toBeNull();
     expect(kie.burn).toBeNull();
@@ -225,7 +206,7 @@ describe('Trollogram', () => {
     fire(g);
     g.projectiles = [];
     explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, kie.id); // kie shoots his own decoy
-    finishTurn(g);
+    untilNextTurn(g);
     expect(kie.x).toBe(x0);
     expect(kie.hp).toBe(MAX_HP - Math.round(shell.damage * 0.5)); // same penalty applies to kie
   });
@@ -248,12 +229,12 @@ describe('Trollogram', () => {
     step(g, 0.5);
     expect(hologramsOf(g, 0)[0]!.age).toBeCloseTo(0.5);
 
-    finishTurn(g);
+    untilNextTurn(g);
     const h = hologramsOf(g, 0)[0]!;
     fire(g);
     g.projectiles = [];
     explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, 1);
-    finishTurn(g);
+    untilNextTurn(g);
     expect(g.ghosts).toHaveLength(1);
     expect(g.ghosts[0]).toMatchObject({ x: h.x, y: h.y, ownerId: 0 });
     step(g, 1);
@@ -275,7 +256,7 @@ describe('Trollogram', () => {
       expect(g.turn).toBe(1);
       expect(canPickDecoy(g)).toBe(true);
       expect(toggleSwapTarget(g, target.id)).toBe(true);
-      finishTurn(g);
+      untilNextTurn(g);
       expect(currentPlayer(g).name).toBe('kcaj');
       expect({ x: kie.x, y: kie.y }).toEqual(spot);
       expect(hologramsOf(g, 0).some((h) => h.x === start.x)).toBe(true);

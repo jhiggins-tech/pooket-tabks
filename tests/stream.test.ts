@@ -5,6 +5,7 @@ import { FIXED_DT, GRAVITY, MAX_HP, MAX_SPEED } from '../src/game/constants';
 import { createGame, currentPlayer, fire, muzzle, step, streamDuration, streamPressure } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { ten1 } from '../src/weapons/registry';
+import { run, testGame, untilAiming } from './support/game';
 
 const spec = ten1.stream!;
 const players = [
@@ -12,13 +13,8 @@ const players = [
   { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
 ];
 
-/** tones vs kie on flat ground at y = 400. */
 function flatGame(): GameState {
-  const g = createGame({ seed: 8, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  for (const p of g.players) p.y = 400;
-  return g;
+  return testGame({ seed: 8, players });
 }
 
 /** Aim tones at 45° with the power whose full-pressure arc lands on kie. */
@@ -31,13 +27,6 @@ function aimAtKie(g: GameState): void {
   // 45° launch, y measured downwards: y(x) = −x + g·x²/v², so hitting (dx, drop) needs v² = g·dx² / (dx + drop)
   const v = Math.sqrt((GRAVITY * dx * dx) / (dx + drop));
   tones.power = (v / MAX_SPEED) * 100;
-}
-
-function runTurn(g: GameState, onTick?: (g: GameState) => void): void {
-  for (let t = 0; t < 20 && g.phase !== 'aiming' && g.phase !== 'gameover'; t += FIXED_DT) {
-    step(g, FIXED_DT);
-    onTick?.(g);
-  }
 }
 
 describe('ten-1 pressure profile', () => {
@@ -100,7 +89,7 @@ describe('ten-1 stream', () => {
     const speeds: { t: number; v: number }[] = [];
     let t = 0;
     let seen = 0;
-    runTurn(g, (s) => {
+    untilAiming(g, (s) => {
       t += FIXED_DT;
       for (const d of s.droplets.slice(seen)) speeds.push({ t, v: d.pressure * full });
       seen = s.droplets.length;
@@ -117,7 +106,7 @@ describe('ten-1 stream', () => {
     aimAtKie(g);
     fire(g);
     // Fast-forward into the hold, then track a freshly emitted droplet until it lands.
-    runUntilTime(g, spec.rampUp + 0.2);
+    run(g, spec.rampUp + 0.2);
     const d = g.droplets[g.droplets.length - 1]!;
     expect(d.pressure).toBe(1);
     let last = { x: d.x, y: d.y };
@@ -133,7 +122,7 @@ describe('ten-1 stream', () => {
     aimAtKie(g);
     fire(g);
     const seen = new Set<object>();
-    runTurn(g, (s) => s.floaters.forEach((f) => f.colour !== '#ffffff' && seen.add(f)));
+    untilAiming(g, (s) => s.floaters.forEach((f) => f.colour !== '#ffffff' && seen.add(f)));
     const [tones, kie] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
     const dealt = MAX_HP - kie.hp;
     expect(dealt).toBeGreaterThan(20);
@@ -149,7 +138,7 @@ describe('ten-1 stream', () => {
     g.players[0]!.angle = 60;
     g.players[0]!.power = 60;
     fire(g);
-    runTurn(g);
+    untilAiming(g);
     expect(g.terrain.solid.reduce((n, v) => n + v, 0)).toBe(solid);
     let wet = 0;
     for (let x = 0; x < g.terrain.width; x++) if (g.terrain.isWet(x, 400)) wet++;
@@ -170,10 +159,6 @@ describe('ten-1 stream', () => {
   });
 });
 
-function runUntilTime(g: GameState, seconds: number): void {
-  for (let t = 0; t < seconds; t += FIXED_DT) step(g, FIXED_DT);
-}
-
 describe('ten-1 refund on a miss', () => {
   it('a jet that soaks nobody gives the round back at the end of the turn', () => {
     const g = flatGame();
@@ -182,7 +167,7 @@ describe('ten-1 refund on a miss', () => {
     tones.power = 60;
     fire(g);
     expect(tones.ammo[0]).toBe(4);
-    runTurn(g);
+    untilAiming(g);
     expect(currentPlayer(g).name).toBe('kie');
     expect(tones.ammo[0]).toBe(5);
     expect(g.floaters.some((f) => f.text === 'REFUNDED')).toBe(true);
@@ -195,7 +180,7 @@ describe('ten-1 refund on a miss', () => {
     const tones = g.players[0]!;
     aimAtKie(g);
     fire(g);
-    runTurn(g);
+    untilAiming(g);
     expect(g.players[1]!.hp).toBeLessThan(MAX_HP);
     expect(tones.ammo[0]).toBe(4);
     expect(g.floaters.some((f) => f.text === 'REFUNDED')).toBe(false);
@@ -208,7 +193,7 @@ describe('ten-1 refund on a miss', () => {
     tones.angle = 135;
     tones.power = 60;
     fire(g);
-    runTurn(g);
+    untilAiming(g);
     expect(tones.ammo[0]).toBe(1);
     // kie passes; it comes back round to tones.
     g.phase = 'settling';
@@ -223,7 +208,7 @@ describe('ten-1 refund on a miss', () => {
     tones.selectedTier = 2; // ten-3, spewed away from kie
     tones.angle = 180;
     fire(g);
-    runTurn(g);
+    untilAiming(g);
     expect(tones.ammo[2]).toBe(0);
   });
 });
@@ -239,7 +224,7 @@ describe('ten-1 spread', () => {
     for (const p of g.players) p.y = 400;
     Object.assign(g.players[0]!, { angle, power });
     fire(g);
-    runTurn(g);
+    untilAiming(g);
     return MAX_HP - g.players[1]!.hp;
   };
 
@@ -249,7 +234,7 @@ describe('ten-1 spread', () => {
     fire(g);
     const launch: { p: number; angle: number }[] = [];
     let seen = 0;
-    runTurn(g, (s) => {
+    untilAiming(g, (s) => {
       for (const d of s.droplets.slice(seen)) launch.push({ p: d.pressure, angle: (Math.atan2(-d.vy, d.vx) * 180) / Math.PI });
       seen = s.droplets.length;
     });

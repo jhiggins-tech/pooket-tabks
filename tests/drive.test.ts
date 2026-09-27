@@ -1,29 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { DRIVE_SPEED, FIXED_DT, FUEL_PER_MATCH, TANK_HALF_WIDTH } from '../src/game/constants';
-import { createGame, currentPlayer, drive, fire, selectTier, setAim, step } from '../src/game/game';
+import { currentPlayer, drive, fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
+import { hold, testGame } from './support/game';
 
 const players = [
   { name: 'kie', colour: '#4ea8ff', characterId: 'kie' },
   { name: 'tones', colour: '#ff5a5f', characterId: 'tones' },
 ];
 
-/** kie at x = 300, tones at 800, over custom ground (flat at 400 by default). */
 function game(heights?: (x: number) => number): GameState {
-  const g = createGame({ seed: 50, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(Float32Array.from({ length: w }, (_, x) => heights?.(x) ?? 400), w, g.terrain.height, createRng(1));
-  g.players[0]!.x = 300;
-  g.players[1]!.x = 800;
-  for (const p of g.players) p.y = g.terrain.surfaceY(p.x);
-  return g;
-}
-
-/** Hold a drive button for `seconds`. */
-function hold(g: GameState, dir: number, seconds: number): void {
-  for (let t = 0; t < seconds; t += FIXED_DT) drive(g, dir, FIXED_DT);
+  return testGame({ seed: 50, players, heights, xs: [300, 800] });
 }
 
 describe('driving with fuel', () => {

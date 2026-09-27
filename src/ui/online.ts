@@ -1,11 +1,14 @@
 import { getCharacter, ROSTER } from '../characters/roster';
 import { roomLink } from '../net/links';
 import { netLog, netLogText } from '../net/log';
-import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, randomId, rejoinRoom, RelayTransport, ViewPublisher, watchLobby, watchRoom, type Advert } from '../net/rooms';
+import { advertise, lobbySealer, watchLobby, type Advert } from '../net/lobby';
+import { RelayTransport } from '../net/relay';
+import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { clearSeat, loadSeat, saveSeat, touchSeat, type Seat } from '../net/seat';
 import { NetSession, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
+import { ViewPublisher, watchRoom } from '../net/view';
 import type { Transport } from '../net/transport';
 
 export interface OnlineOptions {

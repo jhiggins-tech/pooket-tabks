@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_DT } from '../src/game/constants';
-import { createGame, currentPlayer, explode, fire, setAim, step, volleyOffsets } from '../src/game/game';
-import { doublePark, shell } from '../src/weapons/registry';
+import { createRng } from '../src/core/rng';
+import { Terrain } from '../src/core/terrain';
+import { FIXED_DT, MAX_HP } from '../src/game/constants';
+import { createGame, currentPlayer, damagePlayer, explode, fire, isAimless, muzzle, selectTier, setAim, step, traceBeam, volleyOffsets } from '../src/game/game';
+import type { GameState } from '../src/game/state';
+import { doublePark, hyperfixate, shell, unmedicated } from '../src/weapons/registry';
+import { testGame } from './support/game';
 
 const players = [
   { name: 'kcaj', colour: '#ffc53d', characterId: 'kcaj' },
@@ -50,29 +54,15 @@ describe('Double Park', () => {
     expect(sawOneLeft).toBe(true);
     expect(currentPlayer(g).name).toBe('tones');
   });
-
 });
-
-import { Terrain } from '../src/core/terrain';
-import { createRng } from '../src/core/rng';
-import { MAX_HP } from '../src/game/constants';
-import { damagePlayer, isAimless, muzzle, selectTier, traceBeam } from '../src/game/game';
-import type { GameState } from '../src/game/state';
-import { hyperfixate, unmedicated } from '../src/weapons/registry';
 
 function run(g: GameState, until: (g: GameState) => boolean, seconds = 30): void {
   for (let t = 0; t < seconds && !until(g); t += FIXED_DT) step(g, FIXED_DT);
   if (!until(g)) throw new Error(`timed out in phase ${g.phase}`);
 }
 
-/** kcaj vs tones on dead-flat ground, so shots are predictable. */
 function flatGame(): GameState {
-  const g = createGame({ seed: 4, players });
-  const w = g.terrain.width;
-  const h = g.terrain.height;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, h, createRng(1));
-  for (const p of g.players) p.y = 400;
-  return g;
+  return testGame({ seed: 4, players });
 }
 
 /** On flat ground both tank centres are level, so a horizontal beam hits tones square on. */

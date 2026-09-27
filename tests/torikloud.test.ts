@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
-import { createGame, currentPlayer, explode, fire, isAimless, selectTier, setAim, step, targetAt } from '../src/game/game';
+import { currentPlayer, explode, fire, isAimless, selectTier, setAim, step, targetAt } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
 import { DICTIONARIES } from '../src/weapons/dictionaries';
 import { debate, shell, sonicBoom } from '../src/weapons/registry';
+import { passTurn, testGame, whileFlying } from './support/game';
 
 const players = [
   { name: 'torikloud', colour: '#a78bfa', characterId: 'torikloud' },
@@ -13,26 +12,7 @@ const players = [
 ];
 
 function game(seed = 70): GameState {
-  const g = createGame({ seed, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
-  g.players[0]!.x = 200;
-  g.players[1]!.x = 800;
-  for (const p of g.players) p.y = 400;
-  return g;
-}
-
-function resolve(g: GameState, onTick?: () => void): void {
-  for (let t = 0; t < 20 && g.phase === 'flying'; t += FIXED_DT) {
-    step(g, FIXED_DT);
-    onTick?.();
-  }
-}
-
-function pass(g: GameState): void {
-  g.phase = 'settling';
-  g.settleTimer = 0;
-  step(g, FIXED_DT);
+  return testGame({ seed, players, xs: [200, 800] });
 }
 
 /** Words shown when Debate was fired. */
@@ -45,7 +25,7 @@ function fireDebate(g: GameState): Projectile[] {
   fire(g);
   lastWords = g.floaters.filter((f) => f.text.startsWith('“')).map((f) => f.text.slice(1, -1));
   const seen: Projectile[] = [];
-  resolve(g, () => g.projectiles.forEach((p) => !seen.includes(p) && seen.push(p)));
+  whileFlying(g, () => g.projectiles.forEach((p) => !seen.includes(p) && seen.push(p)));
   return seen;
 }
 
@@ -53,12 +33,12 @@ function fireDebate(g: GameState): Projectile[] {
 function withTwin(g: GameState): void {
   selectTier(g, 2);
   fire(g);
-  resolve(g);
+  whileFlying(g);
   const tw = g.players[0]!.twin!;
   tw.x = 450;
   tw.y = 400;
   for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
-  pass(g); // kie
+  passTurn(g); // kie
   expect(currentPlayer(g).name).toBe('torikloud');
 }
 
@@ -175,7 +155,7 @@ describe('Sonic Boom crossover', () => {
     selectTier(g, 1);
     setAim(g, 0, 40); // lone range: 150 + 350 * 0.4 = 290px
     fire(g);
-    resolve(g);
+    whileFlying(g);
     return MAX_HP - kie.hp;
   }
 
@@ -200,7 +180,7 @@ describe('Sonic Boom crossover', () => {
     fire(g);
     const { boomPhaseArcs } = await import('../src/game/game');
     let seen = 0;
-    resolve(g, () => (seen += boomPhaseArcs(g).length));
+    whileFlying(g, () => (seen += boomPhaseArcs(g).length));
     expect(seen).toBeGreaterThan(0);
     expect(sonicBoom.sonic!.waves).toBe(4);
   });

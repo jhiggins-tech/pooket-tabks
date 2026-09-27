@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createRng } from '../src/core/rng';
-import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { createGame, fire, selectTier, setAim, step } from '../src/game/game';
+import { fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
 import { weaselPop } from '../src/weapons/registry';
+import { testGame } from './support/game';
 
 const walk = weaselPop.walk!;
 const players = [
@@ -12,13 +11,8 @@ const players = [
   { name: 'tones', colour: '#ff5a5f', characterId: 'tones' },
 ];
 
-/** kie vs tones over custom ground (default: flat at y = 400). */
 function game(heights?: (x: number) => number): GameState {
-  const g = createGame({ seed: 21, players });
-  const w = g.terrain.width;
-  g.terrain = Terrain.fromHeights(Float32Array.from({ length: w }, (_, x) => heights?.(x) ?? 400), w, g.terrain.height, createRng(1));
-  for (const p of g.players) p.y = g.terrain.surfaceY(p.x);
-  return g;
+  return testGame({ seed: 21, players, heights });
 }
 
 /** Drop a single weasel owned by kie at x, just above the ground. */
