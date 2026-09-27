@@ -265,14 +265,19 @@ function shortClimb(state: GameState, x: number, dir: number, here: number): boo
 
 // ---- Frog hops (ciarra's movement) ---------------------------------------------------------------
 
-/** How far one frog hop goes, how high it jumps, and how long it takes. */
-export const HOP_DISTANCE = 24;
-export const HOP_HEIGHT = 16;
-export const HOP_TIME = 0.34;
+/**
+ * How far one frog hop goes, how high it jumps (well over the DRIVE_SCRAMBLE a driving tank manages), and
+ * how long it takes.
+ */
+export const HOP_DISTANCE = 44;
+export const HOP_HEIGHT = 64;
+export const HOP_TIME = 0.5;
+/** Fuel per px hopped: frogs go twice as far as a tank on the same fuel. */
+export const HOP_FUEL = 0.5;
 
 /**
- * Hop movement: while ◀ / ▶ is held the tank makes little frog leaps, each spending HOP_DISTANCE of
- * fuel. A hop clears walls up to HOP_HEIGHT that would stop a driving tank. Returns px moved this step.
+ * Hop movement: while ◀ / ▶ is held the tank makes big frog leaps, each spending HOP_FUEL per px. A hop
+ * clears walls and cliffs up to HOP_HEIGHT that would stop a driving tank. Returns px moved this step.
  */
 function hopDrive(state: GameState, p: Player, dir: number, dt: number): number {
   if (p.hop) {
@@ -280,7 +285,7 @@ function hopDrive(state: GameState, p: Player, dir: number, dt: number): number 
     const before = p.x;
     h.t = Math.min(1, h.t + dt / HOP_TIME);
     p.x = h.x0 + (h.x1 - h.x0) * h.t;
-    p.y = h.y0 + (h.y1 - h.y0) * h.t - 4 * HOP_HEIGHT * h.t * (1 - h.t);
+    p.y = h.y0 + (h.y1 - h.y0) * h.t - 4 * hopBulge(h) * h.t * (1 - h.t);
     if (h.t >= 1) {
       p.x = h.x1;
       p.y = h.y1;
@@ -292,18 +297,23 @@ function hopDrive(state: GameState, p: Player, dir: number, dt: number): number 
   if (dir === 0 || p.pinned?.active) return 0;
   const hop = planHop(state, p, Math.sign(dir));
   if (!hop) return 0;
-  p.fuel = Math.max(0, p.fuel - Math.abs(hop.x1 - hop.x0));
+  p.fuel = Math.max(0, p.fuel - Math.abs(hop.x1 - hop.x0) * HOP_FUEL);
   p.hop = hop;
   sound(state, 'hop');
   spawnDust(state, p.x, p.y, 0.4);
   return 0;
 }
 
+/** How far a hop arcs above the straight line from take-off to landing: more for a big climb or drop, so it clears the edge. */
+function hopBulge(h: Hop): number {
+  return HOP_HEIGHT * 0.5 + Math.abs(h.y1 - h.y0) * 0.75;
+}
+
 /** Plan the longest hop (up to HOP_DISTANCE, limited by fuel) that clears everything in the way. */
 function planHop(state: GameState, p: Player, dir: number): Hop | null {
   const { terrain } = state;
   const apex = p.y - HOP_HEIGHT;
-  const maxDist = Math.min(HOP_DISTANCE, p.fuel);
+  const maxDist = Math.min(HOP_DISTANCE, p.fuel / HOP_FUEL);
   for (let dist = Math.floor(maxDist); dist >= 4; dist -= 2) {
     const x1 = p.x + dir * dist;
     if (x1 < TANK_HALF_WIDTH || x1 > terrain.width - TANK_HALF_WIDTH) continue;

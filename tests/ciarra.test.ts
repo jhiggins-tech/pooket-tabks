@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
-import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT, WORLD_W } from '../src/game/constants';
+import { DRIVE_SCRAMBLE, FIXED_DT, FUEL_PER_MATCH, MAX_HP, TANK_BODY_HEIGHT, WORLD_W } from '../src/game/constants';
 import {
   createGame,
   currentPlayer,
@@ -9,6 +9,8 @@ import {
   explode,
   fire,
   HOP_DISTANCE,
+  HOP_FUEL,
+  HOP_HEIGHT,
   isAimless,
   selectTier,
   setAim,
@@ -189,25 +191,57 @@ describe('frog hops', () => {
     hold(g, 1, 0.1);
     expect(c.hop).not.toBeNull();
     let peak = c.y;
-    for (let t = 0; t < 0.5; t += FIXED_DT) {
+    for (let t = 0; t < 0.7; t += FIXED_DT) {
       drive(g, 0, FIXED_DT);
       peak = Math.min(peak, c.y);
     }
     expect(c.hop).toBeNull();
     expect(c.x - 300).toBe(HOP_DISTANCE);
-    expect(peak).toBeLessThan(390); // it actually jumped
+    expect(peak).toBeLessThan(400 - 25); // a proper leap
     expect(c.y).toBe(400);
-    expect(c.fuel).toBe(fuel - HOP_DISTANCE);
+    expect(c.fuel).toBe(fuel - HOP_DISTANCE * HOP_FUEL);
   });
 
-  it('hops over a wall a driving tank can’t climb, but not one taller than the hop', () => {
-    const low = game((x) => (x >= 330 && x < 336 ? 390 : 400)); // a 10px wall
-    hold(low, 1, 2);
-    expect(low.players[0]!.x).toBeGreaterThan(340);
+  /** The same ground with a driving tank (kie) in ciarra's place. */
+  function driverGame(heights?: (x: number) => number): GameState {
+    const g = createGame({ seed: 80, players: [{ name: 'kie', colour: '#4ea8ff', characterId: 'kie' }, players[1]!] });
+    const w = g.terrain.width;
+    g.terrain = Terrain.fromHeights(Float32Array.from({ length: w }, (_, x) => heights?.(x) ?? 400), w, g.terrain.height, createRng(1));
+    g.players[0]!.x = 300;
+    g.players[1]!.x = 700;
+    for (const p of g.players) p.y = g.terrain.surfaceY(p.x);
+    return g;
+  }
 
-    const high = game((x) => (x >= 330 ? 370 : 400)); // a 30px cliff
-    hold(high, 1, 2);
-    expect(high.players[0]!.x).toBeLessThan(330);
+  it('leaps up cliffs a driving tank can’t climb, but not one taller than the hop', () => {
+    const cliff = (h: number) => (x: number) => (x >= 330 ? 400 - h : 400);
+    const tall = DRIVE_SCRAMBLE + 15; // too much for a tank
+    const tank = driverGame(cliff(tall));
+    hold(tank, 1, 4);
+    expect(tank.players[0]!.x).toBeLessThan(330);
+    const frog = game(cliff(tall));
+    hold(frog, 1, 4);
+    hold(frog, 0, 1); // land
+    expect(frog.players[0]!.x).toBeGreaterThan(340);
+    expect(frog.players[0]!.y).toBe(400 - tall);
+
+    const tooTall = game(cliff(HOP_HEIGHT + 10));
+    hold(tooTall, 1, 4);
+    expect(tooTall.players[0]!.x).toBeLessThan(330);
+  });
+
+  it('goes twice as far as a tank on a full tank of fuel', () => {
+    const frog = game();
+    const tank = driverGame();
+    for (const g of [frog, tank]) g.players[1]!.x = 1080; // out of the way
+    hold(frog, 1, 30);
+    hold(tank, 1, 30);
+    hold(frog, 0, 1);
+    const hopped = frog.players[0]!.x - 300;
+    const drove = tank.players[0]!.x - 300;
+    expect(drove).toBeCloseTo(FUEL_PER_MATCH, -1);
+    expect(hopped).toBeGreaterThan(drove * 1.8);
+    expect(frog.players[0]!.fuel).toBeLessThan(HOP_DISTANCE * HOP_FUEL);
   });
 
   it("can't fire mid-hop, and can't hop while pinned", () => {

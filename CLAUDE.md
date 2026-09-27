@@ -36,8 +36,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   is short (`shortClimb`: tops out within `DRIVE_SCRAMBLE` px) or the tank is down in a hollow (`inHollow`: the
   ground behind rises too), so tanks can always drive out of craters. `drive()` measures from `p.y` and
   `driveRest` ignores wall columns behind the hull (a tank sunk against a crater's steep side can pull away). Characters with `movement: 'hop'` (ciarra) spend it on
-  frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`; no
-  firing mid-hop). A pinned tank can't move at all.
+  frog hops instead (`hopDrive`/`planHop`: `HOP_DISTANCE` px arcs over walls up to `HOP_HEIGHT`, well above
+  `DRIVE_SCRAMBLE`, at `HOP_FUEL` per px so she goes twice as far; no firing mid-hop). A pinned tank can't move at all.
   Who goes first: `GameConfig.first` (default player 0; `'random'` → `firstPlayer()`, an integer hash of the
   seed, so both phones agree and the gameplay RNG is untouched). `main.ts` uses `'random'`, except under
   `navigator.webdriver` (e2e), which gets player 0 unless `?first=random|N`.

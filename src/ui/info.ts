@@ -7,7 +7,7 @@ const BASICS = 'basics';
 /** How each character gets around with the ◀ ▶ buttons. */
 export function movementInfo(c: CharacterDef): { label: string; text: string } {
   return c.movement === 'hop'
-    ? { label: 'Frog hops', text: 'Hops instead of driving, over walls a tank can’t climb. Uses the same one tank of fuel.' }
+    ? { label: 'Frog hops', text: 'Big frog leaps instead of driving: clears walls and cliffs no tank can climb, and goes twice as far on the same one tank of fuel.' }
     : { label: 'Drives', text: 'Rolls over small bumps; steep hills and walls stop it.' };
 }
 

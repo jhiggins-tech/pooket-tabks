@@ -38,6 +38,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Shipped
 
 ### Balance
+- **Bigger frog hops** (user feedback: after the driving improvements hops were no real advantage):
+  44px leaps (was 24), clearing 64px (was 16, below a tank's 40px scramble), at half the fuel per px.
 - **the Rizzler homes in**: once the heart comes within 100px of an enemy tank (or its decoy or twin) it
   locks on (an "ooh-la-la" trill), drops gravity and turns up to 720°/s towards it, so near misses hit.
 - **ten-1 spread** (user feedback: too concentrated at close range): while the pressure is low the jet
@@ -92,8 +94,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
   what's left. Tanks follow the ground: they climb small
   bumps, roll down slopes and drop off ledges, and are stopped by walls, other tanks and decoys, and the
   map edge. (Bumps up to 7px and short steep climbs like crater walls are fine; tall slopes steeper than 45° are too steep.)
-- **Frog hops** (ciarra): instead of driving, she hops 24px at a time from the same fuel tank, clearing
-  walls up to ~16px that would stop a tank.
+- **Frog hops** (ciarra): instead of driving, she leaps 44px at a time, clearing walls and cliffs up to
+  64px (a driving tank scrambles up 40px at most), and hops cost half the fuel per px, so she goes twice
+  as far on the same tank.
 - **360° aiming** with slingshot drag (pull back to aim, pull length = power) plus fine-tune buttons.
 - **Floating damage numbers** for every hit, sloping off the tank and fading into the sky.
 - Seeded random destructible terrain (`?seed=N` reproduces a map), turn-based hotseat for 2 players,
@@ -110,5 +113,5 @@ between visits.
 | **kie** | Weasel Pop: 3 tumbling weasels that scurry right up under the enemy and pop for full damage (or as close as they can get in range), to Pop Goes the Weasel | Trollogram: 2 decoys per use (3 uses, they add up), secret swap (even on the turn it's cast: tap one, then DONE), 50% penalty for hitting one | Steal: a slot-machine roulette spins over the enemy's weapons and lands on one at random; kie takes a round of it (they lose it), it replaces Steal and he can fire it the same turn |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
-| **ciarra** (moves in frog hops) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
+| **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |
