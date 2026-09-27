@@ -1,8 +1,9 @@
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
-import type { GameState, Runner } from './state';
 import { sound, spawnFloater } from './fx';
+import type { Stepper } from './mechanics';
+import type { GameState, Player, Runner } from './state';
 import { allTargets, explode, targetAt, targetOwner, targetPos } from './tanks';
 
 /** ciarra's Marathon runner. */
@@ -49,3 +50,22 @@ export function stepRunner(state: GameState, r: Runner, dt: number): boolean {
   if (r.legLeft < 0) r.legLeft = 0;
   return false;
 }
+
+/** The marathon goes on: every shot fired (by anyone) sends every runner off on another leg. */
+export function runLegs(state: GameState): void {
+  for (const r of state.runners) r.legLeft += getWeapon(r.weaponId).runner!.leg;
+  if (state.runners.some((r) => !r.out)) sound(state, 'leg');
+}
+
+/** Marathon: a runner lines up at the firer's tank (and runs a leg with every shot, this one included). */
+export function fireRunner(state: GameState, p: Player, weapon: WeaponDef): void {
+  state.runners.push({ ownerId: p.id, weaponId: weapon.id, x: p.x, y: p.y, dir: 1, legLeft: 0, distance: 0, out: false });
+}
+
+/** Runners hold the turn only while running a leg; between shots they wait. */
+export const runnerStepper: Stepper = {
+  step(state, dt) {
+    state.runners = state.runners.filter((r) => !stepRunner(state, r, dt));
+  },
+  busy: (state) => state.runners.some((r) => r.legLeft > 0),
+};

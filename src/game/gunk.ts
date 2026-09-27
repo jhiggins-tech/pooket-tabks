@@ -1,7 +1,9 @@
 import { randRange } from '../core/rng';
 import { getWeapon } from '../weapons/registry';
+import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
-import type { GameState, Puddle, Sludge, Spew } from './state';
+import type { Stepper } from './mechanics';
+import type { GameState, Player, Puddle, Sludge, Spew } from './state';
 import { allTargets, muzzle, offence, soakTarget, tankBodies, targetAt, targetOwner, targetPos } from './tanks';
 import { hash } from './util';
 
@@ -159,3 +161,33 @@ export function drainToxin(state: GameState, dt: number): void {
     p.soak += d;
   }
 }
+
+/** ten-3: a gush of chunks from the barrel. */
+export function fireSpew(state: GameState, p: Player, weapon: WeaponDef): void {
+  state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
+}
+
+export const spewStepper: Stepper = {
+  step(state, dt) {
+    state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
+  },
+  busy: (state) => state.spews.length > 0,
+};
+
+export const sludgeStepper: Stepper = {
+  step(state, dt) {
+    state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
+  },
+  busy: (state) => state.sludge.length > 0,
+};
+
+export const puddleStepper: Stepper = {
+  step: stepPuddles,
+  busy: (state) => state.puddles.length > 0,
+};
+
+/** Toxin doses drain into damage before the turn can end. */
+export const toxinStepper: Stepper = {
+  step: drainToxin,
+  busy: (state) => state.players.some((p) => p.toxin > 0),
+};

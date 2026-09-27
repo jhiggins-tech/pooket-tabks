@@ -1,7 +1,7 @@
 import { getCharacter } from '../characters/roster';
 import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, TANK_HALF_WIDTH } from './constants';
-import type { GameState, Hop, Player } from './state';
 import { sound, spawnDust } from './fx';
+import type { GameState, Hop, Player } from './state';
 import { currentPlayer, tankBodies } from './tanks';
 import { clamp, hash } from './util';
 

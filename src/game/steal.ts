@@ -1,6 +1,6 @@
-import type { GameState, Heist, Player } from './state';
 import { ring, sound, spawnFloater } from './fx';
 import { weaponForTier } from './game';
+import type { GameState, Heist, Player } from './state';
 import { tankCentre } from './tanks';
 
 /** kie's Steal: the roulette over an enemy's rounds. */

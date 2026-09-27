@@ -1,7 +1,9 @@
 import { getWeapon } from '../weapons/registry';
+import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from './constants';
-import type { GameState, Nap } from './state';
 import { sound, spawnFloater } from './fx';
+import type { Stepper } from './mechanics';
+import type { GameState, Nap, Player } from './state';
 import { tankCentre } from './tanks';
 
 /** larinovsky's Take a Nap. */
@@ -27,3 +29,14 @@ export function stepNap(state: GameState, n: Nap, dt: number): boolean {
   }
   return true;
 }
+
+export function fireNap(state: GameState, p: Player, weapon: WeaponDef): void {
+  state.naps.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, nextZ: 0 });
+}
+
+export const napStepper: Stepper = {
+  step(state, dt) {
+    state.naps = state.naps.filter((n) => !stepNap(state, n, dt));
+  },
+  busy: (state) => state.naps.length > 0,
+};

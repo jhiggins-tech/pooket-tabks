@@ -1,6 +1,7 @@
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
+import type { Stepper } from './mechanics';
 import type { Boom, GameState, Player } from './state';
 import { allTargets, damageTarget, gone, muzzle, scaled, targetKey, targetOwner, targetPos } from './tanks';
 
@@ -108,3 +109,10 @@ export function boomPhaseArcs(state: GameState): { x: number; y: number; r: numb
   }
   return out;
 }
+
+export const boomStepper: Stepper = {
+  step(state, dt) {
+    state.booms = state.booms.filter((b) => !stepBoom(state, b, dt));
+  },
+  busy: (state) => state.booms.length > 0,
+};

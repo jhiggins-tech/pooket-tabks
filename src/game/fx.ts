@@ -1,5 +1,7 @@
+import type { ApparitionKind } from '../weapons/types';
 import { GRAVITY } from './constants';
-import type { Droplet, GameState, SfxCue } from './state';
+import type { Droplet, GameState, Player, SfxCue } from './state';
+import { tankCentre } from './tanks';
 import { hash } from './util';
 
 /** Cosmetic effects and sound cues: floating numbers, dust, splashes, rings. Game logic never reads these back. */
@@ -85,4 +87,11 @@ export function stepFloaters(state: GameState, dt: number): void {
     f.vy *= 1 - 0.6 * dt; // ease out as it rises
   }
   state.floaters = state.floaters.filter((f) => f.age < f.duration);
+}
+
+/** A cosmetic sky effect above the firer (torikloud's kookaburra in parting clouds). */
+export function summonApparition(state: GameState, p: Player, kind: ApparitionKind): void {
+  sound(state, 'kookaburra');
+  const c = tankCentre(p);
+  state.apparitions.push({ kind, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
 }

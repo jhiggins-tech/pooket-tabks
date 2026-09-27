@@ -3,12 +3,13 @@ import { DICTIONARIES } from '../weapons/dictionaries';
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT } from './constants';
-import type { Burst, GameState, Player, Projectile } from './state';
 import { twinGun } from './copies';
 import { sound, spawnFloater } from './fx';
+import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
-import { type Target, allTargets, damageTarget, explode, muzzle, scaled, tankCentre, targetAt, targetOwner, targetPos } from './tanks';
-import { startWalking, stepWalker } from './walkers';
+import type { Burst, GameState, Player, Projectile } from './state';
+import { allTargets, damageTarget, explode, muzzle, scaled, tankCentre, type Target, targetAt, targetOwner, targetPos } from './tanks';
+import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
 
 /** Projectiles: shells, volleys and bursts (with homing and bounces), beams and rain. */
 
@@ -232,3 +233,26 @@ function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<WeaponD
   pr.vx = Math.cos(a) * speed;
   pr.vy = Math.sin(a) * speed;
 }
+
+export const projectileStepper: Stepper = {
+  step(state, dt) {
+    state.projectiles = state.projectiles.filter((pr) => !stepProjectile(state, pr, dt));
+    if (state.tunes.length > 0) stopFinishedTunes(state);
+  },
+  busy: (state) => state.projectiles.length > 0,
+};
+
+export const beamStepper: Stepper = {
+  step(state, dt) {
+    for (const b of state.beams) b.age += dt;
+    state.beams = state.beams.filter((b) => b.age < b.duration);
+  },
+  busy: (state) => state.beams.length > 0,
+};
+
+export const burstStepper: Stepper = {
+  step(state, dt) {
+    state.bursts = state.bursts.filter((b) => !stepBurst(state, b, dt));
+  },
+  busy: (state) => state.bursts.length > 0,
+};

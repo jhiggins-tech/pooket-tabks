@@ -1,8 +1,10 @@
 import { getWeapon } from '../weapons/registry';
+import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
-import type { GameState, Stitch } from './state';
 import { sound, spawnFloater } from './fx';
-import { damageTarget, scaled, targetAt, targetKey, targetOwner, targetPos } from './tanks';
+import type { Stepper } from './mechanics';
+import type { GameState, Player, Stitch } from './state';
+import { damageTarget, muzzle, scaled, targetAt, targetKey, targetOwner, targetPos } from './tanks';
 
 /** ciarra's Sew: a needle and thread stitched through the terrain. */
 
@@ -51,3 +53,29 @@ export function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
   if (st.travelled >= st.range) st.done = true;
   return false;
 }
+
+/** Sew: a needle sets off from the barrel along the aim; power is how far it sews. */
+export function fireSew(state: GameState, p: Player, weapon: WeaponDef): void {
+  const spec = weapon.sew!;
+  const m = muzzle(p);
+  state.stitches.push({
+    ownerId: p.id,
+    weaponId: weapon.id,
+    x0: m.x,
+    y0: m.y,
+    angle: (p.angle * Math.PI) / 180,
+    range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
+    travelled: 0,
+    path: [{ x: m.x, y: m.y }],
+    hits: [],
+    linger: 1.2,
+    done: false,
+  });
+}
+
+export const stitchStepper: Stepper = {
+  step(state, dt) {
+    state.stitches = state.stitches.filter((st) => !stepStitch(state, st, dt));
+  },
+  busy: (state) => state.stitches.length > 0,
+};

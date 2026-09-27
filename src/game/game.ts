@@ -5,21 +5,14 @@ import { flattenAround, generateHeights } from '../core/terrainGen';
 import { getWeapon, ignoresAim } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
+import { resolveHolograms, stepPhaseFx } from './copies';
+import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
+import { FIRE, STEPPERS } from './mechanics';
+import { runLegs } from './runner';
 import type { GameState, Player, PlayerConfig } from './state';
-import { fireDecoys, resolveHolograms, spawnTwin, stepPhaseFx, twinGun } from './copies';
-import { sound, spawnFloater, stepFloaters, stepSplashes } from './fx';
-import { drainToxin, stepPuddles, stepSludge, stepSpew } from './gunk';
-import { stepJet } from './jetpack';
-import { stepNap } from './nap';
-import { fireBeam, fireRain, fireRounds, stepBurst, stepProjectile } from './projectiles';
-import { stepRunner } from './runner';
-import { stepStitch } from './sew';
-import { fireSonic, stepBoom } from './sonic';
 import { startHeist, stepHeist } from './steal';
-import { fireStream, stepDroplet, stepStream } from './stream';
-import { currentPlayer, muzzle, stepSoak, tankCentre, tickBurn } from './tanks';
+import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
 import { clamp, normalizeAngle } from './util';
-import { stopFinishedTunes } from './walkers';
 
 /**
  * The match: creating a game, aiming and weapon choice, firing (each weapon kind's mechanics live in
@@ -191,93 +184,22 @@ export function fire(state: GameState): boolean {
   if (p.hop) return false; // land first
   const tier = p.selectedTier;
   if ((p.ammo[tier] ?? 0) <= 0) return false;
+  const weapon = weaponForTier(p, tier);
+  const kind = weapon.kind ?? 'ballistic';
   // Steal isn't a shot: it lifts a round from an enemy, then the turn carries on.
-  if (weaponForTier(p, tier).kind === 'steal') return startHeist(state, p, tier);
+  if (kind === 'steal') return startHeist(state, p, tier);
   p.ammo[tier]!--;
   if (p.ammo[tier] === 0) {
     // Fall back to the lowest tier that still has rounds.
     const next = p.ammo.findIndex((n) => n > 0);
     if (next >= 0) p.selectedTier = next;
   }
-  const weapon = weaponForTier(p, tier);
   // A miss gets the round back (checked when the turn ends).
   state.refund = weapon.refundOnMiss ? { playerId: p.id, tier, hit: false } : null;
-  switch (weapon.kind ?? 'ballistic') {
-    case 'beam':
-      fireBeam(state, p, weapon);
-      break;
-    case 'rain':
-      fireRain(state, p, weapon);
-      break;
-    case 'stream':
-      fireStream(state, p, weapon);
-      break;
-    case 'decoy':
-      fireDecoys(state, p, weapon);
-      break;
-    case 'sonic':
-      fireSonic(state, p, weapon, p);
-      if (p.twin) fireSonic(state, p, weapon, twinGun(p));
-      break;
-    case 'twin':
-      spawnTwin(state, p);
-      break;
-    case 'sew': {
-      const spec = weapon.sew!;
-      const m = muzzle(p);
-      state.stitches.push({
-        ownerId: p.id,
-        weaponId: weapon.id,
-        x0: m.x,
-        y0: m.y,
-        angle: (p.angle * Math.PI) / 180,
-        range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
-        travelled: 0,
-        path: [{ x: m.x, y: m.y }],
-        hits: [],
-        linger: 1.2,
-        done: false,
-      });
-      break;
-    }
-    case 'runner':
-      state.runners.push({ ownerId: p.id, weaponId: weapon.id, x: p.x, y: p.y, dir: 1, legLeft: 0, distance: 0, out: false });
-      break;
-    case 'spew':
-      state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
-      break;
-    case 'jetpack':
-      state.jets.push({
-        playerId: p.id,
-        weaponId: weapon.id,
-        elapsed: 0,
-        launched: false,
-        vx: 0,
-        vy: 0,
-        burnLeft: 0,
-        emitCarry: 0,
-        flightTime: 0,
-        heading: (p.angle * Math.PI) / 180,
-      });
-      break;
-    case 'heal':
-      state.naps.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, nextZ: 0 });
-      break;
-    case 'ballistic':
-      fireRounds(state, p, weapon, 'main');
-      // A twin fires the same weapon with the same trajectory and power from its own spot.
-      if (p.twin) fireRounds(state, p, weapon, 'twin');
-      break;
-  }
+  FIRE[kind](state, p, weapon);
   sound(state, 'fire', weapon.id, p.power);
-  // The marathon goes on: every shot fired sends every runner off on another leg.
-  for (const r of state.runners) r.legLeft += getWeapon(r.weaponId).runner!.leg;
-  if (state.runners.some((r) => !r.out)) sound(state, 'leg');
-  if (weapon.apparition) {
-    sound(state, 'kookaburra');
-    const c = tankCentre(p);
-    state.apparitions.push({ kind: weapon.apparition, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
-  }
+  runLegs(state);
+  if (weapon.apparition) summonApparition(state, p, weapon.apparition);
   state.phase = 'flying';
   return true;
 }
@@ -294,41 +216,9 @@ export function step(state: GameState, dt: number): void {
   stepSplashes(state, dt);
 
   if (state.phase === 'flying') {
-    state.projectiles = state.projectiles.filter((pr) => !stepProjectile(state, pr, dt));
-    if (state.tunes.length > 0) stopFinishedTunes(state);
-    for (const b of state.beams) b.age += dt;
-    state.beams = state.beams.filter((b) => b.age < b.duration);
-    state.streams = state.streams.filter((st) => !stepStream(state, st, dt));
-    state.droplets = state.droplets.filter((d) => !stepDroplet(state, d, dt));
-    stepSoak(state, dt, false);
-    state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
-    state.spews = state.spews.filter((sp) => !stepSpew(state, sp, dt));
-    state.bursts = state.bursts.filter((b) => !stepBurst(state, b, dt));
-    state.stitches = state.stitches.filter((st) => !stepStitch(state, st, dt));
-    state.runners = state.runners.filter((r) => !stepRunner(state, r, dt));
-    state.naps = state.naps.filter((n) => !stepNap(state, n, dt));
-    state.booms = state.booms.filter((b) => !stepBoom(state, b, dt));
-    state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
-    stepPuddles(state, dt);
-    drainToxin(state, dt);
-    state.decoyPick = Math.max(0, state.decoyPick - dt);
-    const busy =
-      (state.decoyPick > 0 ? 1 : 0) +
-      state.projectiles.length +
-      state.beams.length +
-      state.streams.length +
-      state.droplets.length +
-      state.jets.length +
-      state.spews.length +
-      state.bursts.length +
-      state.stitches.length +
-      (state.runners.some((r) => r.legLeft > 0) ? 1 : 0) +
-      state.naps.length +
-      state.booms.length +
-      state.sludge.length +
-      state.puddles.length +
-      (state.players.some((p) => p.toxin > 0) ? 1 : 0);
-    if (busy === 0) {
+    for (const m of STEPPERS) m.step(state, dt);
+    const busy = STEPPERS.some((m) => m.busy(state));
+    if (!busy) {
       stepSoak(state, dt, true);
       state.phase = 'settling';
       state.settleTimer = SETTLE_TIME;

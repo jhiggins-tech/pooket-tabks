@@ -1,8 +1,10 @@
 import { randRange } from '../core/rng';
 import { getWeapon } from '../weapons/registry';
+import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
-import type { GameState, Jet, Player } from './state';
 import { sound, spawnDust } from './fx';
+import type { Stepper } from './mechanics';
+import type { GameState, Jet, Player } from './state';
 import { tankBodies } from './tanks';
 import { hash } from './util';
 
@@ -137,3 +139,26 @@ function land(state: GameState, p: Player): void {
   p.y = ground;
   spawnDust(state, p.x, p.y, 1);
 }
+
+/** ten-2: the tank starts charging, and launches along its aim once charged. */
+export function fireJetpack(state: GameState, p: Player, weapon: WeaponDef): void {
+  state.jets.push({
+    playerId: p.id,
+    weaponId: weapon.id,
+    elapsed: 0,
+    launched: false,
+    vx: 0,
+    vy: 0,
+    burnLeft: 0,
+    emitCarry: 0,
+    flightTime: 0,
+    heading: (p.angle * Math.PI) / 180,
+  });
+}
+
+export const jetStepper: Stepper = {
+  step(state, dt) {
+    state.jets = state.jets.filter((j) => !stepJet(state, j, dt));
+  },
+  busy: (state) => state.jets.length > 0,
+};

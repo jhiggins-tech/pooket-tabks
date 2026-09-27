@@ -2,8 +2,9 @@ import { randRange } from '../core/rng';
 import { getWeapon } from '../weapons/registry';
 import type { StreamSpec, WeaponDef } from '../weapons/types';
 import { GRAVITY, MAX_SPEED } from './constants';
-import type { Droplet, GameState, Player, Stream } from './state';
 import { spawnSplash } from './fx';
+import type { Stepper } from './mechanics';
+import type { Droplet, GameState, Player, Stream } from './state';
 import { muzzle, offence, soakTarget, targetAt, targetOwner } from './tanks';
 import { hash, hexToRgb, tint } from './util';
 
@@ -138,3 +139,17 @@ export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
   d.y = ny;
   return d.x < -50 || d.x > terrain.width + 50;
 }
+
+export const streamStepper: Stepper = {
+  step(state, dt) {
+    state.streams = state.streams.filter((st) => !stepStream(state, st, dt));
+  },
+  busy: (state) => state.streams.length > 0,
+};
+
+export const dropletStepper: Stepper = {
+  step(state, dt) {
+    state.droplets = state.droplets.filter((d) => !stepDroplet(state, d, dt));
+  },
+  busy: (state) => state.droplets.length > 0,
+};

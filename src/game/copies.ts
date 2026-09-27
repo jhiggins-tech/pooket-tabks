@@ -1,8 +1,9 @@
 import { randRange } from '../core/rng';
 import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
-import type { GameState, Hologram, Player, Twin } from './state';
 import { ring, sound } from './fx';
+import type { Stepper } from './mechanics';
+import type { GameState, Hologram, Player, Twin } from './state';
 import { currentPlayer, damagePlayer, tankBodies } from './tanks';
 
 /** Copies of a tank: kie's Trollogram holograms (decoys, the secret swap, exposure) and torikloud's twin, plus their phase effects. */
@@ -165,3 +166,11 @@ export function resolveHolograms(state: GameState): void {
   // Every one of my copies shimmers at the end of my turn, swap or no swap, so it gives nothing away.
   if (me.alive && state.holograms.some((h) => h.ownerId === me.id)) shimmer(state, me.id);
 }
+
+/** The moment after casting Trollogram to pick a decoy to swap into (FIRE, now DONE, ends it early). */
+export const decoyPickStepper: Stepper = {
+  step(state, dt) {
+    state.decoyPick = Math.max(0, state.decoyPick - dt);
+  },
+  busy: (state) => state.decoyPick > 0,
+};

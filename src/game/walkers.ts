@@ -1,8 +1,8 @@
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
-import type { GameState, Projectile } from './state';
 import { sound } from './fx';
+import type { GameState, Projectile } from './state';
 import { allTargets, explode, gone, targetOwner, targetPos } from './tanks';
 
 /** Walkers (kie's Weasel Pop): land, scurry towards the nearest enemy, pop. */

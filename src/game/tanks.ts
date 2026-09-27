@@ -1,8 +1,9 @@
 import type { WeaponDef } from '../weapons/types';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
-import type { GameState, Hologram, Player } from './state';
 import { sound, spawnFloater } from './fx';
+import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
+import type { GameState, Hologram, Player } from './state';
 
 /** Tanks and targets: where a tank is, what a shot at (x, y) hits (tank, twin or hologram), and damage (blasts, soak, burns, cooking, tattoos). */
 
@@ -242,3 +243,9 @@ export function tickBurn(state: GameState, p: Player): void {
   if (p.burn.turnsLeft <= 0) p.burn = null;
   damagePlayer(state, p, damagePerTurn, colour);
 }
+
+/** Soaked-up damage, shown in small batches as it builds (the last batch is flushed when the turn settles). */
+export const soakStepper: Stepper = {
+  step: (state, dt) => stepSoak(state, dt, false),
+  busy: () => false,
+};
