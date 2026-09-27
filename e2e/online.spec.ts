@@ -132,3 +132,52 @@ test('any network: type the room code, or open the room link', async ({ browser 
   expect(errors).toEqual([]);
   await close();
 });
+
+test('a third phone watches a match in progress (from the nearby list), view only', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { host, guest, q, errors, close } = await phones(browser, 'watch-wifi');
+  await host.goto(`./?${q}`);
+  await host.getByLabel('Player 1 name').fill('Ann');
+  await host.locator('#host-online').tap();
+  const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await guest.goto(`./?${q}#room=${code}`);
+  await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
+  await host.locator('#online-start').tap();
+  await expect(guest.locator('#online')).toBeHidden({ timeout: 15_000 });
+
+  // A third phone: the match shows as in progress; tap to watch.
+  const ctx = await browser.newContext(devices['Pixel 7 landscape']);
+  const fan = await ctx.newPage();
+  fan.on('pageerror', (e) => errors.push(e.message));
+  await fan.goto(`./?${q}`);
+  await fan.locator('#join-online').tap();
+  const game = fan.locator('#online-games .online-game');
+  await expect(game).toContainText("Ann's game", { timeout: 10_000 });
+  await expect(game).toContainText('watch');
+  await game.tap();
+  await expect(fan.locator('#online')).toBeHidden({ timeout: 15_000 });
+  await expect(fan.locator('#spectate-leave')).toBeVisible();
+  await expect(fan.locator('.pad.right')).toBeHidden(); // no controls
+  expect(await summary(fan)).toEqual(await summary(host));
+  await fan.screenshot({ path: 'test-results/spectating.png' });
+
+  // The host fires; the watcher sees it play out and ends up in the same place.
+  await host.locator('#fire').tap();
+  await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => JSON.stringify(await summary(fan)), { timeout: 15_000 }).toBe(JSON.stringify(await summary(host)));
+
+  // Joining by code also lands on watching when the game is full.
+  const ctx2 = await browser.newContext(devices['Pixel 7 landscape']);
+  const late = await ctx2.newPage();
+  await late.goto(`./?${q}#room=${code}`);
+  await expect(late.locator('#spectate-leave')).toBeVisible({ timeout: 15_000 });
+
+  // Leaving takes the watcher back to the setup screen; the players carry on.
+  await fan.locator('#spectate-leave').tap();
+  await expect(fan.locator('#setup')).toBeVisible();
+  expect(await canAct(guest)).toBe(true);
+  expect(errors).toEqual([]);
+  await ctx.close();
+  await ctx2.close();
+  await close();
+});

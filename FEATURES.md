@@ -16,14 +16,16 @@ The running features list and work queue. Newest shipped items first; the **Queu
 9. ✅ **Room codes and a nearby-games list** through Firebase (any network); QR/direct codes dropped, shipped (see below).
 10. ✅ **Online play switched on**: the Firebase database is live (rooms, relay and nearby list checked
     against the real database).
-11. **"What's new" popup**: on opening, show a changelog of the latest updates; remember (localStorage)
+11. ✅ **Spectator mode**, shipped (see below).
+12. **"What's new" popup**: on opening, show a changelog of the latest updates; remember (localStorage)
     which version the player has seen, so it only pops up once per new version.
-12. **Marathon info text**: explain how far "a leg" is (150px, roughly a fifth of the map width).
-13. **Trollogram swap on the casting turn**: be able to pick a hologram to swap with before the turn ends,
+13. **Marathon info text**: explain how far "a leg" is (150px, roughly a fifth of the map width).
+14. **Trollogram swap on the casting turn**: be able to pick a hologram to swap with before the turn ends,
     on the same turn it's cast (not only on later turns).
-14. **ten-1 spread**: more spread and variance in the jet so it isn't so concentrated at close range.
-15. **Random first player**: randomise who goes first in a match (hotseat and online).
-16. _(empty; next requests go here)_
+15. **ten-1 spread**: more spread and variance in the jet so it isn't so concentrated at close range.
+16. **Random first player**: randomise who goes first in a match (hotseat and online).
+17. **Hyperfixate info text**: say the laser doesn't go through the ground.
+18. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -50,6 +52,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
   and each plays on their own phone: the other phone watches your aim live, and its controls step aside
   until it's its turn. Leaving or dropping out shows "Connection lost". Every online screen has a
   📋 Copy logs button (database calls, room messages, session; addresses masked) for bug reports.
+- **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it in
+  the nearby list, where it shows as "in progress · watch") to watch it live, view only: aim, shots and
+  results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
 - **8-bit sound effects**: kitschy Game Boy style bleeps, synthesised live (pulse waves and LFSR noise,
   no audio files). Every weapon has its own firing sound (an ice cream van jingle for Double Park, a
   wolf whistle for the Rizzler, BLEURGH for ten-3, a snore for Take a Nap, a sewing machine for Sew…),

@@ -1,9 +1,10 @@
 import { getCharacter, ROSTER } from '../characters/roster';
 import { roomLink } from '../net/links';
 import { netLog, netLogText } from '../net/log';
-import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, watchLobby, type Advert } from '../net/rooms';
+import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, RelayTransport, ViewPublisher, watchLobby, watchRoom, type Advert } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { NetSession, type Pick } from '../net/session';
+import { Spectator } from '../net/spectate';
 import type { Transport } from '../net/transport';
 
 export interface OnlineOptions {
@@ -24,13 +25,19 @@ export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
   private stopRoom: (() => void) | null = null;
   private peer: Transport | null = null;
+  /** This phone's spot on the nearby list while hosting (kept through the match, for spectators). */
+  private advert: { stop: () => void; update: (c: Partial<Advert>) => void } | null = null;
   session: NetSession | null = null;
+  /** Watching someone else's match (view only). */
+  spectator: Spectator | null = null;
 
   /** A session is connected and both picks can be exchanged. */
   onConnected: (s: NetSession) => void = () => {};
   /** Host pressed Start. */
   onHostStart: (s: NetSession) => void = () => {};
   onClosed: () => void = () => {};
+  /** Started watching a match: set `onStart` on it to build the game. */
+  onSpectate: (sp: Spectator) => void = () => {};
 
   private readonly pick: () => Pick;
 
@@ -62,12 +69,10 @@ export class OnlineScreen {
     const pick = this.pick();
     const ad = nearby ? advertise(db, nearby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code }) : null;
     netLog(`ui: room ${room.code} open${nearby ? ', on the nearby list' : ' (no nearby list: public address unknown)'}`);
-    this.stopRoom = () => {
-      room.cancel();
-      ad?.stop();
-    };
+    this.advert = ad;
+    this.stopRoom = () => room.cancel();
     void room.waitForGuest().then((t) => {
-      ad?.stop();
+      ad?.update({ playing: true }); // stays listed, for anyone who wants to watch
       room.stop();
       this.stopRoom = null;
       this.startSession(t, 'host');
@@ -108,7 +113,12 @@ export class OnlineScreen {
       this.show([heading('Join a game'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
       joinRoom(db, c).then(
         (t) => (cancelled ? t.close() : this.startSession(t, 'guest')),
-        (e) => !cancelled && this.fail(e, () => void this.join()),
+        (e) => {
+          if (cancelled) return;
+          // Already two players: watch instead.
+          if (/two players/.test(message(e))) void this.watch(c);
+          else this.fail(e, () => void this.join());
+        },
       );
     };
     const typed = normaliseRoomCode(code ?? '');
@@ -128,9 +138,9 @@ export class OnlineScreen {
       list.replaceChildren(
         ...(games.length
           ? games.map((g) => {
-              const b = el('button', 'online-game', `${g.name}'s game`);
-              b.append(el('small', undefined, ` ${getCharacter(g.characterId).name} · ${g.room}`));
-              b.addEventListener('click', () => joinCode(g.room));
+              const b = el('button', 'online-game', `${g.playing ? '👁 ' : ''}${g.name}'s game`);
+              b.append(el('small', undefined, g.playing ? ` in progress · watch · ${g.room}` : ` ${getCharacter(g.characterId).name} · ${g.room}`));
+              b.addEventListener('click', () => (g.playing ? void this.watch(g.room) : joinCode(g.room)));
               return b;
             })
           : [el('p', 'online-none', 'No games yet. Ask the other phone to tap Host.')]),
@@ -162,6 +172,32 @@ export class OnlineScreen {
       ),
       buttons(cancelButton(() => this.close())),
     ]);
+  }
+
+  /** Watch a match in progress, view only. */
+  async watch(code: string): Promise<void> {
+    this.reset();
+    netLog(`ui: Watch ${code}`);
+    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
+    const db = new Rtdb(this.opts.dbUrl);
+    this.show([heading(`Watching ${code}`), status('Tuning in…', 'online-status'), buttons(cancelButton(() => this.close()))]);
+    const sp = new Spectator();
+    this.spectator = sp;
+    this.onSpectate(sp);
+    try {
+      const w = await watchRoom(db, code, (v) => sp.receive(v), () => this.watchEnded());
+      if (this.spectator !== sp) return w.stop();
+      this.stopRoom = () => w.stop();
+      if (!sp.game) this.show([heading(`Watching ${code}`), status("Waiting for the match to start…", 'online-status'), buttons(cancelButton(() => this.close(), 'Leave'))]);
+    } catch (e) {
+      this.fail(e, () => void this.watch(code));
+    }
+  }
+
+  private watchEnded(): void {
+    netLog('ui: the watched match ended');
+    this.cleanup();
+    this.show([heading('The match has ended'), text('The host closed the room.'), cancelButton(() => this.close(), 'Back')]);
   }
 
   /** The lobby: both picks, and (host) the Start button. */
@@ -217,6 +253,7 @@ export class OnlineScreen {
     this.session?.leave();
     this.cleanup();
     this.session = null;
+    this.spectator = null;
     this.hide();
     this.onClosed();
   }
@@ -229,6 +266,11 @@ export class OnlineScreen {
     this.peer = peer;
     const s = new NetSession(peer, role);
     this.session = s;
+    // Publish the spectator feed for anyone watching.
+    if (peer instanceof RelayTransport) {
+      const pub = new ViewPublisher(peer);
+      s.onView = (v) => pub.push(v);
+    }
     s.onLobby = () => this.lobby();
     s.onLost = () => this.lost();
     this.onConnected(s);
@@ -258,6 +300,8 @@ export class OnlineScreen {
   private cleanup(): void {
     this.stopRoom?.();
     this.stopRoom = null;
+    this.advert?.stop();
+    this.advert = null;
     if (!this.session) this.peer?.close();
     this.peer = null;
   }

@@ -21,6 +21,12 @@
           ".write": true,
           "$msg": { ".validate": "newData.isString() && newData.val().length < 300000" }
         },
+        "view": {
+          ".write": true,
+          "state": { ".validate": "newData.isString() && newData.val().length < 600000" },
+          "aim": { ".validate": "newData.isString() && newData.val().length < 4000" },
+          "$other": { ".validate": false }
+        },
         "$other": { ".validate": false }
       }
     },

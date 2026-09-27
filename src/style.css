@@ -771,6 +771,21 @@ body[data-remote='true'] .drive button {
   border-radius: 50%;
   padding: 0;
 }
+#spectate-leave {
+  display: none;
+  width: auto !important;
+  padding: 0 14px !important;
+  border-radius: 18px !important;
+  font-size: 13px;
+  font-weight: 800;
+}
+body[data-spectating='true'] #spectate-leave {
+  display: block;
+}
+body[data-spectating='true'] .pad,
+body[data-spectating='true'] .drive {
+  display: none;
+}
 #info-open {
   font: italic 800 19px/1 Georgia, 'Times New Roman', serif;
 }

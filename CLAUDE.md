@@ -132,7 +132,11 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   the result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
   `Terrain.patchSolid`), so cross-device float drift never outlives a turn (`wire.ts` keeps Infinity/NaN;
   `Rng.state` is serialisable for this). Online, the info screen doesn't pause and `main.ts` gates input
-  on `net.canAct()`. `log.ts` (`netLog`) records every step (database calls and streams, rooms, relay,
+  on `net.canAct()`. Spectators: `NetSession.onView` emits a feed (full state on start / fire / sync, with
+  the setup and terrain, plus the live aim) that `ViewPublisher` writes to the room's `view/state` and
+  `view/aim`; `watchRoom` streams it into a `Spectator` (`spectate.ts`: builds the game from any full
+  state, replays shots, snaps to results; never sends). A full room (or a nearby game marked `playing`)
+  opens as a spectator. `log.ts` (`netLog`) records every step (database calls and streams, rooms, relay,
   session) with masked addresses for the "Copy logs" button on the online screens; log new network steps
   there too. Tests use a local Firebase stand-in (`tests/support/rtdb.ts`); `?debug&db=URL&lan=X|none`
   points the game at it. `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator

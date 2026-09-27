@@ -20,6 +20,14 @@ export type NetMsg =
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
   | { k: 'bye' };
 
+/**
+ * What spectators get: the latest full state (why: a match started, a shot was fired from it, or it's a
+ * turn's result), complete with the match setup and terrain so they can join at any point; and the live aim.
+ */
+export type ViewMsg =
+  | { k: 'state'; why: 'start' | 'fire' | 'sync'; seed: number; players: PlayerConfig[]; snap: Snapshot; terrain: string }
+  | Extract<NetMsg, { k: 'preview' }>;
+
 /** How often the player whose turn it is streams their aim and position to the other phone. */
 const PREVIEW_INTERVAL = 1 / 15;
 /** If the other phone's end-of-turn result arrives while we're still animating, apply it after this long anyway. */
@@ -47,8 +55,11 @@ export class NetSession {
     throw new Error('onStart not set');
   };
   onLost: () => void = () => {};
+  /** Spectators' feed: whatever this phone is in charge of sending (see ViewMsg). */
+  onView: ((v: ViewMsg) => void) | null = null;
 
   private state: GameState | null = null;
+  private setup: { seed: number; players: PlayerConfig[] } = { seed: 0, players: [] };
   /** The turn a shot was fired in (and whose it was) until its result is synced. */
   private shot: { turn: number; owner: number } | null = null;
   private pendingSync: Extract<NetMsg, { k: 'sync' }> | null = null;
@@ -88,7 +99,9 @@ export class NetSession {
   start(seed: number, players: PlayerConfig[]): GameState {
     netLog(`session: starting a match (${players.map((p) => p.characterId).join(' vs ')})`);
     const state = this.begin(seed, players);
-    this.transport.send({ k: 'start', seed, players, terrain: encodeSolid(state.terrain) } satisfies NetMsg);
+    const terrain = encodeSolid(state.terrain);
+    this.transport.send({ k: 'start', seed, players, terrain } satisfies NetMsg);
+    this.view('start', takeSnapshot(state), terrain);
     return state;
   }
 
@@ -111,6 +124,7 @@ export class NetSession {
     this.shot = { turn: snap.turn, owner: this.localSeat };
     netLog(`session: fired on turn ${snap.turn}`);
     this.transport.send({ k: 'fire', turn: snap.turn, snap } satisfies NetMsg);
+    this.view('fire', snap, encodeSolid(s.terrain));
     return true;
   }
 
@@ -129,6 +143,7 @@ export class NetSession {
         if (key !== this.lastPreview) {
           this.lastPreview = key;
           this.transport.send(msg satisfies NetMsg);
+          this.onView?.(msg);
         }
       }
     }
@@ -143,7 +158,10 @@ export class NetSession {
     if (this.shot.owner === this.localSeat) {
       // Our shot has played out: our result is the one that counts.
       netLog(`session: sending the result of turn ${this.shot.turn}`);
-      this.transport.send({ k: 'sync', turn: s.turn, snap: takeSnapshot(s), terrain: encodeSolid(s.terrain) } satisfies NetMsg);
+      const snap = takeSnapshot(s);
+      const terrain = encodeSolid(s.terrain);
+      this.transport.send({ k: 'sync', turn: s.turn, snap, terrain } satisfies NetMsg);
+      this.view('sync', snap, terrain);
       this.shot = null;
     } else if (this.pendingSync) {
       this.applySync(this.pendingSync);
@@ -163,7 +181,12 @@ export class NetSession {
     return s.phase === 'gameover' || (s.turn > turn && s.phase === 'aiming');
   }
 
+  private view(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
+    this.onView?.({ k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
+  }
+
   private begin(seed: number, players: PlayerConfig[]): GameState {
+    this.setup = { seed, players };
     this.state = this.onStart(seed, players);
     this.shot = null;
     this.pendingSync = null;

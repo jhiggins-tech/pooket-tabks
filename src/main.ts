@@ -110,6 +110,19 @@ online.onConnected = (s) => {
     return state;
   };
 };
+// Watching someone else's match: view only.
+online.onSpectate = (sp) => {
+  sp.onStart = (seed, chosen) => {
+    state = createGame({ seed, players: chosen });
+    hud.reset();
+    sfx.tunes.stopAll();
+    online.hide();
+    setup.hide();
+    document.getElementById('gameover')!.hidden = true;
+    return state;
+  };
+};
+document.getElementById('spectate-leave')!.addEventListener('click', () => online.close());
 online.onHostStart = (s) => {
   const picks = [s.localPick!, s.remotePick!];
   const colours = assignColours(picks.map((p) => p.characterId));
@@ -133,8 +146,8 @@ if (openedRoom) void online.join(openedRoom);
 // Closing the tab or navigating away: tell the other phone straight away.
 window.addEventListener('pagehide', () => net?.leave());
 
-/** Whether this phone may control the game right now (always, in a local game). */
-const localCanAct = () => !net || net.canAct();
+/** Whether this phone may control the game right now (always, in a local game; never while watching). */
+const localCanAct = () => !online.spectator && (!net || net.canAct());
 
 bindControls(canvas, {
   canAim: () => state.phase === 'aiming' && localCanAct(),
@@ -161,13 +174,13 @@ document.getElementById('rematch')!.addEventListener('click', () => {
 });
 document.getElementById('change-players')!.addEventListener('click', () => {
   document.getElementById('gameover')!.hidden = true;
-  if (net) online.close();
+  if (net || online.spectator) online.close();
   else setup.show();
 });
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (new URLSearchParams(location.search).has('debug')) {
-  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, renderer, sfx, chip } });
+  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */
@@ -188,7 +201,7 @@ function frame(now: number): void {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   acc += dt;
-  const paused = info.isOpen && !net; // a local game waits while the info screen is up; online can't
+  const paused = info.isOpen && !net && !online.spectator; // a local game waits while the info screen is up; online can't
   if (paused) acc = 0;
   while (acc >= FIXED_DT) {
     if (localCanAct()) drive(state, driveDir, FIXED_DT);
@@ -196,13 +209,15 @@ function frame(now: number): void {
     acc -= FIXED_DT;
   }
   net?.tick(dt);
+  online.spectator?.tick(dt);
   sfx.tunes.update(dt, paused);
   if (state.sfx.length > 0) {
     for (const e of state.sfx) sfx.play(e);
     state.sfx.length = 0;
   }
   renderer.draw(state, dt);
-  hud.online = net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
+  hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
+  document.body.dataset.spectating = String(!!online.spectator);
   hud.update(state);
   requestAnimationFrame(frame);
 }
