@@ -27,8 +27,14 @@ In cloud containers, Playwright uses the preinstalled Chromium at `/opt/pw-brows
 ## Architecture
 TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/core/`: seeded RNG, `Terrain` (per-pixel solid mask + RGBA buffer with dirty-rect tracking), terrain generation.
-- `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`)
-  and physics, plus ammo/tier selection. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
+- `src/game/`: `game.ts` holds the turn state machine (`aiming → flying → settling → aiming | gameover`),
+  the fixed-step `step`, `fire` (dispatches on the weapon kind) and ammo/tier selection, and re-exports the
+  public API, so everything outside imports from `game/game`. The rest is split by mechanic: `tanks.ts`
+  (tank geometry, hit-testing `targetAt`, damage, soak), `fx.ts` (sound cues, floaters, dust, splashes),
+  `movement.ts` (driving, hops, settling), `projectiles.ts` (shells, bursts, homing, bounces, beams,
+  rain), `copies.ts` (holograms and twins), and one module per weapon mechanic (`stream`, `jetpack`,
+  `gunk`, `walkers`, `sonic`, `sew`, `runner`, `nap`, `steal`), plus `util.ts`. `targetAt` is the hot
+  path (every projectile, droplet and blob of mud, every ~1px): keep it allocation-free. Players with no ammo are skipped; if nobody has ammo, highest HP wins.
   Aiming is a full 360° (`normalizeAngle`; 0 = right, 90 = up, 270 = down), so tanks can fire downhill.
   Each tank has `FUEL_PER_MATCH` px of driving for the whole match (never refills; `drive()`, held ◀ ▶
   buttons), usable during its turn before firing. Tanks roll over lips up to `DRIVE_CLIMB` px, but stop when
