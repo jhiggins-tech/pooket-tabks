@@ -1,5 +1,5 @@
 import { netLog } from './log';
-import { Rtdb, SERVER_TIME, type RtdbEvent } from './rtdb';
+import { Rtdb, RtdbError, SERVER_TIME, type RtdbEvent } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
 import type { ViewMsg } from './session';
 import type { Transport } from './transport';
@@ -107,7 +107,7 @@ export class RelayTransport implements Transport {
   close(): void {
     if (this.closed) return;
     this.stop();
-    if (this.side === 'host') void this.db.patch(this.roomPath, ROOM_CLEARED).catch(() => {});
+    if (this.side === 'host') clearRoom(this.db, this.roomPath);
   }
 
   private stop(): void {
@@ -185,7 +185,20 @@ export class RelayTransport implements Transport {
 }
 
 /** Everything in a room, removed. */
-const ROOM_CLEARED = { host: null, guest: null, h2g: null, g2h: null, view: null };
+const ROOM_CLEARED = { host: null, guest: null, h2g: null, g2h: null };
+
+/**
+ * Empty a room. The spectator feed goes separately and best effort: a database still on rules from
+ * before spectating existed refuses any write to `view`, and that mustn't take the rest down with it.
+ */
+function clearRoom(db: Rtdb, path: string): void {
+  void db.patch(path, ROOM_CLEARED).catch(() => {});
+  clearView(db, path);
+}
+
+function clearView(db: Rtdb, path: string): void {
+  void db.remove(`${path}/view`).catch((e) => netLog(`view: couldn't clear (${e instanceof Error ? e.message : e})`));
+}
 
 /**
  * A player's spectator feed, written to the room (`view/state`: the latest full state; `view/aim`: the
@@ -299,16 +312,21 @@ export class HostedRoom {
       try {
         await db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME });
         // A clean slate (leftovers from an old game with the same code).
-        await db.patch(path, { guest: null, h2g: null, g2h: null, view: null });
+        await db.patch(path, { guest: null, h2g: null, g2h: null });
+        clearView(db, path);
         netLog(`rooms: hosting ${code}`);
         const room = new HostedRoom(db, code, path, sealer, hostId);
         room.timers.push(setInterval(() => void db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
         return room;
       } catch (e) {
-        netLog(`rooms: code ${code} is taken (${e instanceof Error ? e.message : e})`);
+        if (!(e instanceof RtdbError)) {
+          netLog(`rooms: couldn't reach the database (${e instanceof Error ? e.message : e})`);
+          throw new Error("Couldn't reach the game server. Is this phone online?");
+        }
+        netLog(`rooms: code ${code} refused (${e.message})`);
       }
     }
-    throw new Error("Couldn't open a room. Try again in a moment.");
+    throw new Error("The game server wouldn't open a room. Try again in a moment.");
   }
 
   /** Resolves with a message pipe once someone takes the guest seat. */
@@ -336,7 +354,7 @@ export class HostedRoom {
   /** Stop and remove the room entirely (nobody joined). */
   cancel(): void {
     this.stop();
-    void this.db.patch(this.path, ROOM_CLEARED).catch(() => {});
+    clearRoom(this.db, this.path);
   }
 
   get id(): string {

@@ -62,7 +62,7 @@ export class OnlineScreen {
     const [lan, opened] = await Promise.all([this.opts.lanId(), HostedRoom.open(db).catch((e: unknown) => e as Error)]);
     if (opened instanceof Error) {
       netLog(`ui: couldn't open a room: ${opened.message}`);
-      return this.fail(new Error("Couldn't reach the game server. Is this phone online?"), () => void this.host());
+      return this.fail(opened, () => void this.host());
     }
     const room = opened;
     const nearby = lan ? await lobbySealer(lan) : null;
