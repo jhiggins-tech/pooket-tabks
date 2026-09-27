@@ -41,9 +41,9 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
 
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons).toHaveCount(3);
-  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Shell, 5 left');
-  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Weasel Pop, 3 left');
-  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Trollogram, 1 left');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Weasel Pop, 5 left');
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Trollogram, 3 left');
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Steal, 1 left');
   await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
 
   // Slingshot: pull down-left from the middle of the screen => aim up-right.
@@ -60,9 +60,9 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.getByRole('button', { name: 'More power' }).tap();
   await expect(page.locator('#power')).toHaveText(String(Math.min(100, powerBefore + 1)));
 
-  // Fire a tier 2 Weasel Pop: three tumbling weasels that land and scurry towards the enemy.
-  await weapons.nth(1).tap();
-  await expect(weapons.nth(1)).toHaveAttribute('aria-pressed', 'true');
+  // Fire a tier 1 Weasel Pop: three tumbling weasels that land and scurry towards the enemy.
+  await weapons.nth(0).tap();
+  await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#fire').tap();
   type Dbg = { __pooket: { state: { projectiles: { walkDir: number }[] } } };
   await page.waitForTimeout(450);
@@ -170,8 +170,8 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
 
   // Turn 1: kie deploys Trollogram. No aiming needed.
   const weapons = page.locator('#weapons .weapon');
-  await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Trollogram, 1 left');
-  await weapons.nth(2).tap();
+  await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Trollogram, 3 left');
+  await weapons.nth(1).tap();
   await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
   await page.locator('#fire').tap();
   await page.waitForTimeout(350);
@@ -186,7 +186,8 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
 
-  // Turn 3: kie taps a decoy to swap with it after firing.
+  // Turn 3: kie switches back to Weasel Pop and taps a decoy to swap with it after firing.
+  await weapons.nth(0).tap();
   await expect(page.locator('#hint')).toHaveText('Drag to aim · tap a decoy to swap after firing');
   const [target] = await holos();
   const screen = await page.evaluate(
@@ -208,6 +209,47 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   const after = await kiePos();
   expect(after.x).toBe(target!.x);
   expect((await holos()).some((h) => h.x === before.x)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("kie's Steal roulette", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=31&debug');
+  await page.getByLabel('Player 1 character').selectOption('kie');
+  await page.getByLabel('Player 2 character').selectOption('tones');
+  await page.locator('#start').tap();
+  await page.waitForTimeout(1700); // let the turn banner fade
+
+  const weapons = page.locator('#weapons .weapon');
+  await weapons.nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
+  await page.locator('#fire').tap();
+
+  // The roulette spins over tones' weapons, one lit at a time; nothing else can be done meanwhile.
+  const heist = page.locator('#heist');
+  await expect(heist).toBeVisible();
+  await expect(page.locator('.heist-title')).toHaveText('kie is stealing from tones…');
+  await expect(page.locator('.heist-card .wname')).toHaveText(['ten-1', 'ten-2', 'ten-3']);
+  await expect(page.locator('.heist-card.lit')).toHaveCount(1);
+  await expect(page.locator('#fire')).toBeDisabled();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: 'test-results/steal-spin.png' });
+
+  // It lands: the round changes hands and Steal's slot now holds it.
+  await expect(page.locator('.heist-card.stolen')).toHaveCount(1, { timeout: 5000 });
+  const stolen = (await page.locator('.heist-card.stolen .wname').textContent())!;
+  await expect(page.locator('.heist-result')).toHaveText(`kie stole ${stolen}!`);
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'test-results/steal-landed.png' });
+  await expect(heist).toBeHidden({ timeout: 5000 });
+  await expect(weapons.nth(2)).toHaveAttribute('aria-label', `${stolen}, 1 left`);
+  await expect(weapons.nth(2)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '1'); // still kie's turn
+
+  // And kie fires it.
+  await page.locator('#fire').tap();
+  await expect(weapons.nth(2)).toBeDisabled();
   expect(errors).toEqual([]);
 });
 

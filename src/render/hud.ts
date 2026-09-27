@@ -1,6 +1,6 @@
 import { FUEL_PER_MATCH, MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { currentPlayer, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
+import { currentPlayer, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { GameState } from '../game/state';
@@ -19,6 +19,7 @@ export class Hud {
   private readonly driveEl = document.querySelector<HTMLElement>('.drive')!;
   private readonly gameOverEl = byId('gameover');
   private readonly winnerEl = byId('winner');
+  private readonly heistEl = byId('heist');
   private last = '';
   private lastTurnKey = '';
 
@@ -36,6 +37,7 @@ export class Hud {
       state.swapTargetId,
       jetCountdown(state),
       p.ammo.join(','),
+      state.heist ? `${heistIndex(state.heist)}${state.heist.locked}` : '',
       ...state.players.map(
         (pl) =>
           `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}` +
@@ -51,7 +53,9 @@ export class Hud {
     const decoys = hologramsOf(state, p.id).length;
     const countdown = jetCountdown(state);
     document.body.dataset.charging = String(countdown !== null);
-    this.hintEl.textContent = countdown !== null
+    this.hintEl.textContent = state.phase === 'stealing'
+      ? ''
+      : countdown !== null
       ? `ten-2 charging… ${countdown}`
       : aimless
       ? 'No aiming needed. Just FIRE'
@@ -107,6 +111,8 @@ export class Hud {
       }),
     );
 
+    this.renderHeist(state);
+
     this.fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
     this.fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
     this.driveEl.dataset.empty = String(p.fuel <= 0.5);
@@ -155,6 +161,44 @@ export class Hud {
     }
   }
 
+  /** kie's Steal: the victim's weapons as cards, one lit at a time, slowing down until one is stolen. */
+  private renderHeist(state: GameState): void {
+    const h = state.heist;
+    this.heistEl.hidden = !h;
+    if (!h) return;
+    const thief = state.players[h.thiefId]!;
+    const victim = state.players[h.victimId]!;
+    this.heistEl.style.setProperty('--thief', thief.colour);
+    this.heistEl.style.setProperty('--victim', victim.colour);
+    this.heistEl.classList.toggle('locked', h.locked);
+    const [title, cards, result] = [...this.heistEl.children] as HTMLElement[];
+    title!.replaceChildren(name(thief.name, thief.colour), ' is stealing from ', name(victim.name, victim.colour), '…');
+    const lit = heistIndex(h);
+    cards!.replaceChildren(
+      ...h.options.map((id, tier) => {
+        const w = getWeapon(id);
+        const card = document.createElement('div');
+        card.className = 'heist-card';
+        // The stolen round comes off their pips the moment it lands.
+        const shown = victim.ammo[tier] ?? 0;
+        card.classList.toggle('empty', shown <= 0 && !(h.locked && tier === h.victimTier));
+        card.classList.toggle('lit', tier === lit);
+        card.classList.toggle('stolen', h.locked && tier === h.victimTier);
+        const wname = document.createElement('span');
+        wname.className = 'wname';
+        wname.textContent = w.shortName;
+        const pips = document.createElement('span');
+        pips.className = 'pips';
+        const max = AMMO_PER_TIER[tier] ?? shown;
+        pips.textContent = '●'.repeat(shown) + '○'.repeat(Math.max(0, max - shown));
+        card.append(wname, pips);
+        return card;
+      }),
+    );
+    result!.textContent = h.locked ? `${thief.name} stole ${getWeapon(h.options[h.victimTier]!).shortName}!` : '• • •';
+    result!.classList.toggle('rolling', !h.locked);
+  }
+
   reset(): void {
     this.last = '';
     this.lastTurnKey = '';
@@ -181,6 +225,13 @@ export function angleLabel(angle: number): string {
   if (a < 90) return `${fmt(a)} ▸`;
   if (a > 270) return `${fmt(a - 360)} ▸`;
   return `◂ ${fmt(180 - a)}`;
+}
+
+function name(text: string, colour: string): HTMLElement {
+  const b = document.createElement('b');
+  b.textContent = text;
+  b.style.color = colour;
+  return b;
 }
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T {

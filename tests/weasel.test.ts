@@ -23,7 +23,7 @@ function game(heights?: (x: number) => number): GameState {
 
 /** Drop a single weasel owned by kie at x, just above the ground. */
 function dropWeasel(g: GameState, x: number, y = 380): Projectile {
-  selectTier(g, 1);
+  selectTier(g, 0);
   fire(g);
   const w = g.projectiles[0]!;
   Object.assign(w, { x, y, vx: 0, vy: 0 });
@@ -39,20 +39,20 @@ function tick(g: GameState, seconds: number, each?: () => void): void {
 }
 
 describe('Weasel Pop', () => {
-  it("is kie's tier 2", () => {
-    expect(game().players[0]!.loadout[1]).toBe('weasel-pop');
+  it("is kie's tier 1", () => {
+    expect(game().players[0]!.loadout[0]).toBe('weasel-pop');
   });
 
   it('launches three spinning weasels at aim −4° / 0° / +4°', () => {
     const g = game();
-    selectTier(g, 1);
+    selectTier(g, 0);
     setAim(g, 50, 60);
     fire(g);
     expect(g.projectiles).toHaveLength(3);
     const angles = g.projectiles.map((p) => Math.round((Math.atan2(-p.vy, p.vx) * 180) / Math.PI));
     expect(angles).toEqual([46, 50, 54]);
     expect(weaselPop.spin).toBeGreaterThan(0);
-    expect(g.players[0]!.ammo[1]).toBe(2);
+    expect(g.players[0]!.ammo[0]).toBe(4);
   });
 
   it('lands, walks a short way towards the enemy, then pops when time runs out', () => {

@@ -46,7 +46,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   chunks from the barrel), `sew` (`Stitch`: a zig-zag needle and thread sewn through terrain along the
   aim without cratering, power = length; each enemy it passes is hit once and pinned), `runner` (`Runner`:
   a jogger who runs one `leg` towards the nearest enemy every time anyone fires, over any terrain, and
-  explodes at the finish; a blast within reach marks it `out` (DNF)) or `sonic` (`Boom`: waves of expanding arcs along the aim that pass through
+  explodes at the finish; a blast within reach marks it `out` (DNF)), `steal` (not a shot: `startHeist` picks a
+  random enemy round (seeded) and enters the `stealing` phase, where `Heist` drives a slowing roulette
+  (`STEAL_SPIN`, then `STEAL_HOLD`); on landing the victim loses the round, it replaces Steal in the thief's
+  `loadout` slot with 1 round, and the phase returns to `aiming` for the same player) or `sonic` (`Boom`: waves of expanding arcs along the aim that pass through
   terrain without damaging it; each wave hits a target once, weaker with distance; power sets range).
   `apparition` summons a cosmetic sky effect on firing (torikloud's kookaburra in parting clouds). Jetpack propellant and spew chunks are both `Sludge` "gunk" (`WeaponDef.gunk`:
   look, pile colour, dose): it flies, slumps into piles via `Terrain.addDirt`, and doses enemies with
@@ -83,9 +86,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   the twin dictionary; twin booms phase where their arcs overlap for `PHASE_FOCUS` damage and `PHASE_RANGE`). larinovsky: Pill
   Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`debuff`: "cooks" enemies in the blast;
   `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
-  clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Shell / Weasel Pop (3 spinning weasels at aim −4/0/+4° that
-  land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (2 holograms; on later turns
-  tap one to secretly swap with it after firing). tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
+  clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Weasel Pop (3 spinning weasels at aim −4/0/+4° that
+  land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (each use adds 2 holograms; on
+  later turns tap one to secretly swap with it after firing) / Steal (see `steal` above; the roulette is the
+  `#heist` HUD overlay plus a grabbing-hand tether on the canvas). `shell` is unused but kept as the plain default weapon. tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)
   / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; a huge, wide blast of toxic mud
   propellant) / ten-3 (incredibly powerful short-range chunky spew, ~200px max; coated enemies burn

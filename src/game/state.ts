@@ -342,7 +342,27 @@ export interface Explosion {
   ring?: string;
 }
 
-export type Phase = 'aiming' | 'flying' | 'settling' | 'gameover';
+/** `stealing`: kie's Steal roulette is spinning; the turn carries on (back to `aiming`) once it lands. */
+export type Phase = 'aiming' | 'stealing' | 'flying' | 'settling' | 'gameover';
+
+/**
+ * kie's Steal: a slot-machine roulette over the victim's weapons that slows down and lands on the one
+ * being stolen. The result is decided up front (seeded); the roulette is the suspense.
+ */
+export interface Heist {
+  thiefId: number;
+  thiefTier: number;
+  victimId: number;
+  victimTier: number;
+  /** The victim's weapon ids by tier, as shown on the roulette. */
+  options: string[];
+  /** Roulette highlight: `sequence[i]` (a tier) is lit from `times[i]` s on; the last one is stolen. */
+  sequence: number[];
+  times: number[];
+  t: number;
+  /** Set once the roulette has landed and the round has changed hands. */
+  locked: boolean;
+}
 
 export interface GameState {
   seed: number;
@@ -351,6 +371,8 @@ export interface GameState {
   current: number;
   turn: number;
   phase: Phase;
+  /** kie's Steal roulette, while it spins. */
+  heist: Heist | null;
   projectiles: Projectile[];
   beams: Beam[];
   holograms: Hologram[];

@@ -48,7 +48,7 @@ function passTurn(g: GameState): void {
 /** kie fires Trollogram, kcaj passes, and it's kie's turn again with two decoys out. */
 function withDecoys(): GameState {
   const g = flatGame();
-  selectTier(g, 2);
+  selectTier(g, 1);
   fire(g);
   finishTurn(g);
   passTurn(g); // kcaj
@@ -57,16 +57,16 @@ function withDecoys(): GameState {
 }
 
 describe('Trollogram', () => {
-  it("is kie's tier 3 and needs no aiming", () => {
+  it("is kie's tier 2 and needs no aiming", () => {
     const g = flatGame();
-    expect(g.players[0]!.loadout[2]).toBe(trollogram.id);
-    selectTier(g, 2);
+    expect(g.players[0]!.loadout[1]).toBe(trollogram.id);
+    selectTier(g, 1);
     expect(isAimless(g)).toBe(true);
   });
 
   it('spawns two holograms on the ground, spread out from every tank', () => {
     const g = flatGame();
-    selectTier(g, 2);
+    selectTier(g, 1);
     fire(g);
     const holos = hologramsOf(g, 0);
     expect(holos).toHaveLength(2);
@@ -77,6 +77,23 @@ describe('Trollogram', () => {
     for (const h of holos) expect(h.y).toBe(g.terrain.surfaceY(h.x));
     finishTurn(g);
     expect(currentPlayer(g).name).toBe('kcaj');
+  });
+
+  it('has 3 uses, and each one adds two more holograms', () => {
+    const g = flatGame();
+    expect(g.players[0]!.ammo[1]).toBe(3);
+    const ids: number[][] = [];
+    for (let use = 1; use <= 3; use++) {
+      selectTier(g, 1);
+      fire(g);
+      ids.push(hologramsOf(g, 0).map((h) => h.id));
+      expect(hologramsOf(g, 0)).toHaveLength(use * 2);
+      finishTurn(g);
+      passTurn(g); // kcaj
+    }
+    // The earlier ones are still out.
+    expect(ids[2]).toEqual(expect.arrayContaining(ids[0]!));
+    expect(g.players[0]!.ammo[1]).toBe(0);
   });
 
   it('holograms are hit like real tanks', () => {
@@ -131,7 +148,7 @@ describe('Trollogram', () => {
 
   it("the opponent can't pick kie's holograms", () => {
     const g = flatGame();
-    selectTier(g, 2);
+    selectTier(g, 1);
     fire(g);
     finishTurn(g);
     expect(currentPlayer(g).name).toBe('kcaj');
@@ -221,7 +238,7 @@ describe('Trollogram', () => {
 
   it('new holograms phase in; exposed ones leave a dissolving ghost', () => {
     const g = flatGame();
-    selectTier(g, 2);
+    selectTier(g, 1);
     fire(g);
     expect(hologramsOf(g, 0).every((h) => h.age === 0)).toBe(true);
     step(g, 0.5);

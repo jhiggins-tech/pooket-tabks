@@ -74,7 +74,7 @@ export const ten1: WeaponDef = {
 };
 
 /**
- * kie's tier 3: two hologram copies of kie's tank appear across the battlefield. On later turns
+ * kie's tier 2: two more hologram copies of kie's tank appear across the battlefield each use. On later turns
  * kie can tap one to secretly swap places with it once his shot has landed. Anyone who hits a
  * hologram takes half the damage they would have dealt, and the hologram vanishes at turn end.
  */
@@ -83,7 +83,7 @@ export const trollogram: WeaponDef = {
   name: 'Trollogram',
   shortName: 'Trollogram',
   info:
-    'No aiming. 2 hologram copies of kie’s tank appear. On later turns, tap one to secretly swap places with it after you fire. Whoever hits a hologram takes half the damage themselves.',
+    'No aiming. 2 hologram copies of kie’s tank appear, and every use adds 2 more. On later turns, tap one to secretly swap places with it after you fire. Whoever hits a hologram takes half the damage themselves.',
   kind: 'decoy',
   decoys: 2,
   blastRadius: 0,
@@ -122,7 +122,7 @@ export const ten2: WeaponDef = {
 };
 
 /**
- * kie's tier 2: three weasels tumble out of the barrel at aim −4° / 0° / +4°. Each one that lands
+ * kie's tier 1: three weasels tumble out of the barrel at aim −4° / 0° / +4°. Each one that lands
  * scurries along the ground towards the nearest enemy and pops on contact, or when it runs out of steam.
  */
 export const weaselPop: WeaponDef = {
@@ -313,6 +313,22 @@ export const marathon: WeaponDef = {
   colour: '#f472b6',
 };
 
+/**
+ * kie's tier 3: a roulette spins over a random enemy's weapons and lands on one; kie takes a round of it
+ * (they lose it) and it replaces Steal in his slot, ready to fire. Stealing doesn't use up the turn.
+ */
+export const steal: WeaponDef = {
+  id: 'steal',
+  name: 'Steal',
+  shortName: 'Steal',
+  info:
+    'No aiming. A roulette spins over the enemy’s weapons and lands on one at random: kie pinches a round of it (they lose it), and it takes Steal’s place, ready to fire this turn.',
+  kind: 'steal',
+  blastRadius: 0,
+  damage: 0,
+  colour: '#4ea8ff',
+};
+
 const weapons: WeaponDef[] = [
   shell,
   doublePark,
@@ -332,6 +348,7 @@ const weapons: WeaponDef[] = [
   tattooGun,
   sew,
   marathon,
+  steal,
 ];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
@@ -345,7 +362,7 @@ export function getWeapon(id: string): WeaponDef {
 /** Weapons that don't use the aim at all: just press FIRE. */
 export function ignoresAim(w: WeaponDef): boolean {
   const kind = w.kind ?? 'ballistic';
-  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin' || kind === 'runner';
+  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin' || kind === 'runner' || kind === 'steal';
 }
 
 export function allWeapons(): readonly WeaponDef[] {

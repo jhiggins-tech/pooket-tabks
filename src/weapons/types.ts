@@ -15,6 +15,7 @@ export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'ri
  * - `sonic`: expanding arcs of sound that pass through terrain (see `sonic`).
  * - `heal`: no shot; the firer naps and wakes at full health (see `heal`). Ignores aiming.
  * - `sew`: a needle and thread stitching along the aim through terrain, pinning what it stitches (see `sew`).
+ * - `steal`: no shot; takes one round of a random enemy weapon, which replaces it in the slot. Free action.
  * - `runner`: a marathon runner jogs towards the nearest enemy a leg at a time, turn after turn (see `runner`).
  * - `twin`: no shot; a second tank appears and the firer's HP is split between the two. From then on
  *   the twin fires the same weapon with the same aim whenever its player fires. Ignores aiming.
@@ -31,7 +32,8 @@ export type WeaponKind =
   | 'heal'
   | 'twin'
   | 'sew'
-  | 'runner';
+  | 'runner'
+  | 'steal';
 
 /**
  * Sonic weapons: `waves` arcs, `interval` s apart, expand from the barrel at `speed` px/s across
