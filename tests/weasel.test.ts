@@ -81,12 +81,51 @@ describe('Weasel Pop', () => {
     expect(w.walkDir).toBe(-1);
   });
 
-  it('pops on contact when it walks into the enemy', () => {
-    const g = game();
+  it('scurries right up under the enemy and pops there, for (nearly) full damage', () => {
+    for (const side of [-1, 1]) {
+      const g = game();
+      const tones = g.players[1]!;
+      const w = dropWeasel(g, tones.x + side * 40);
+      let poppedAt = NaN;
+      tick(g, walk.duration * 0.9, () => {
+        if (g.projectiles.includes(w)) poppedAt = w.x;
+      });
+      expect(g.projectiles).toHaveLength(0);
+      expect(Math.abs(poppedAt - tones.x)).toBeLessThanOrEqual(walk.fuse + 1);
+      expect(MAX_HP - tones.hp).toBeGreaterThanOrEqual(weaselPop.damage - 2);
+    }
+  });
+
+  it("doesn't wait to touch the tank: stopped short within blast range, it pops right away", () => {
+    // tones sits up on a ledge; the weasel is stopped by the wall at its foot, just in range.
+    const ledge = 790;
+    const g = game((x) => (x >= ledge ? 385 : 400));
     const tones = g.players[1]!;
-    dropWeasel(g, tones.x - 40);
-    tick(g, walk.duration * 0.9);
+    tones.x = ledge + 14;
+    tones.y = g.terrain.surfaceY(tones.x);
+    const w = dropWeasel(g, ledge - 40);
+    let walked = 0;
+    tick(g, walk.duration, () => {
+      if (g.projectiles.includes(w)) walked = w.walkTime;
+    });
     expect(g.projectiles).toHaveLength(0);
+    expect(walked).toBeLessThan(walk.duration * 0.6); // long before its timer ran out
+    expect(tones.hp).toBeLessThan(MAX_HP);
+  });
+
+  it("pops at the foot of a pillar it can't climb: the closest it can get", () => {
+    // tones is on a narrow pillar too tall for the weasel to climb.
+    const g = game((x) => (x >= 795 && x <= 815 ? 380 : 400));
+    const tones = g.players[1]!;
+    tones.x = 805;
+    tones.y = 380;
+    const w = dropWeasel(g, 760);
+    let last = 0;
+    tick(g, walk.duration, () => {
+      if (g.projectiles.includes(w)) last = w.x;
+    });
+    expect(g.projectiles).toHaveLength(0);
+    expect(last).toBeLessThan(795); // it popped at the foot of the pillar, closest it could get
     expect(tones.hp).toBeLessThan(MAX_HP);
   });
 

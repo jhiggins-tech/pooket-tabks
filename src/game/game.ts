@@ -948,6 +948,7 @@ function startWalking(state: GameState, pr: Projectile, x: number, y: number): v
   pr.vx = 0;
   pr.vy = 0;
   pr.walkDir = directionToNearestEnemy(state, pr);
+  pr.fuseDist = undefined;
   // The first one to land strikes up the band.
   const weapon = getWeapon(pr.weaponId);
   if (weapon.tune && !state.tunes.includes(weapon.id)) {
@@ -994,17 +995,13 @@ function stepWalker(state: GameState, pr: Projectile, weapon: WeaponDef, dt: num
     const stepX = Math.min(1, budget);
     budget -= stepX;
     const nx = pr.x + pr.walkDir * stepX;
-    if (nx < 0 || nx > terrain.width - 1) return false; // stands at the map edge until it pops
-    if (targetAt(state, nx, pr.y - WALKER_BODY)) {
-      explode(state, nx, pr.y - WALKER_BODY, weapon, pr.ownerId);
-      return true;
-    }
+    if (nx < 0 || nx > terrain.width - 1) break; // stands at the map edge
     let ny = pr.y;
     if (terrain.isSolid(nx, ny - 1)) {
       // Step up if it's low enough, otherwise it's a wall: wait here.
       let up = 1;
       while (up <= walk.climb && terrain.isSolid(nx, ny - 1 - up)) up++;
-      if (up > walk.climb) return false;
+      if (up > walk.climb) break;
       ny -= up;
     } else {
       // Step down small drops; a bigger drop means it tumbles off the ledge.
@@ -1021,8 +1018,32 @@ function stepWalker(state: GameState, pr: Projectile, weapon: WeaponDef, dt: num
     }
     pr.x = nx;
     pr.y = ny;
+    // Right under an enemy: the best spot there is. Pop.
+    if (nearestEnemyDist(state, pr) <= walk.fuse) {
+      explode(state, pr.x, pr.y - WALKER_BODY, weapon, pr.ownerId);
+      return true;
+    }
+  }
+  // Within blast range but not getting any closer (a wall, a ledge, or it's walking past): pop now.
+  const d = nearestEnemyDist(state, pr);
+  const closing = pr.fuseDist === undefined || d < pr.fuseDist - 1e-6;
+  pr.fuseDist = d;
+  if (!closing && d < weapon.blastRadius + TANK_HIT_RADIUS) {
+    explode(state, pr.x, pr.y - WALKER_BODY, weapon, pr.ownerId);
+    return true;
   }
   return false;
+}
+
+/** Distance from a walker's body to the centre of the nearest enemy target (tank, twin or decoy). */
+function nearestEnemyDist(state: GameState, pr: Projectile): number {
+  let best = Infinity;
+  for (const t of allTargets(state)) {
+    if (gone(t) || targetOwner(t) === pr.ownerId) continue;
+    const pos = targetPos(t);
+    best = Math.min(best, Math.hypot(pos.x - pr.x, pos.y - TANK_BODY_HEIGHT - (pr.y - WALKER_BODY)));
+  }
+  return best;
 }
 
 /** Emits droplets for one stream. Returns true once its pressure profile has finished. */

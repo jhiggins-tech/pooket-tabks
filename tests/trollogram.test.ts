@@ -121,7 +121,7 @@ describe('Trollogram', () => {
     expect(g.swapTargetId).toBe(h.id);
 
     selectTier(g, 0);
-    setAim(g, 180, 100); // straight off the left edge of the flat map
+    setAim(g, 165, 100); // all three weasels sail off the left edge of the flat map
     fire(g);
     // Mid-turn: nothing has moved yet, and the pick can't be changed any more.
     step(g, FIXED_DT);

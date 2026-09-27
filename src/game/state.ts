@@ -127,6 +127,8 @@ export interface Projectile {
   walkDir: number;
   /** Walkers: seconds spent walking so far (they pop when it reaches the weapon's walk duration). */
   walkTime: number;
+  /** Walkers: distance to the nearest enemy at the end of the last step (to tell when it's as close as it'll get). */
+  fuseDist?: number;
   /** Word fire: the letter this round is, and its colour. */
   glyph?: string;
   glyphColour?: string;

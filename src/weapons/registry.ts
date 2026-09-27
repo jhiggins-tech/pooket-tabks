@@ -123,21 +123,22 @@ export const ten2: WeaponDef = {
 
 /**
  * kie's tier 1: three weasels tumble out of the barrel at aim −4° / 0° / +4°. Each one that lands
- * scurries along the ground towards the nearest enemy and pops on contact, or when it runs out of steam.
+ * scurries along the ground towards the nearest enemy and pops right under it (or as close as it can get
+ * within blast range), or when it runs out of steam.
  */
 export const weaselPop: WeaponDef = {
   id: 'weasel-pop',
   name: 'Weasel Pop',
   shortName: 'Weasel Pop',
   info:
-    '3 tumbling weasels at your aim and ±4°. Where they land they scurry towards the nearest enemy and pop on contact (up to 20 each), or after 2.5s.',
+    '3 tumbling weasels at your aim and ±4°. Where they land they scurry towards the nearest enemy, right up under it, and pop for up to 20 each. Stopped short but in range, they pop there; otherwise after 2.5s.',
   blastRadius: 20,
   damage: 20,
   volley: { count: 3, spreadDeg: 4 },
   sprite: 'weasel',
   spin: 12,
   trail: false,
-  walk: { speed: 40, duration: 2.5, climb: 6 },
+  walk: { speed: 40, duration: 2.5, climb: 6, fuse: 3 },
   tune: 'pop-goes-the-weasel',
 };
 

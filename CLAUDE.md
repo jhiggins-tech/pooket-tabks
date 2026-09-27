@@ -61,7 +61,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   lands that burn enemies touching them until they expire; the turn waits for them. Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
   (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `spin` (tumble the sprite in
   flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
-  small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`), `trail`.
+  small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`; proximity fuse: they
+  pop within `walk.fuse` px of the enemy's centre for near-full damage, or within blast range as soon as
+  they stop getting closer, `Projectile.fuseDist`), `trail`.
 - Outgoing damage is scaled by the shooter's `offence()` (1, or 0.5 while cooked) at every source: blasts,
   beams, burns, sonic waves, stream soak, gunk doses and puddles. Incoming damage is scaled by the victim's
   `vulnerable()` (×`tattoo.multiplier` while tattooed) in `damagePlayer`/`damageTwin`.
@@ -89,7 +91,7 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`debuff`: "cooks" enemies in the blast;
   `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
   clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Weasel Pop (3 spinning weasels at aim −4/0/+4° that
-  land, walk towards the enemy and pop on contact or after 2.5s) / Trollogram (each use adds 2 holograms; on
+  land, scurry right up under the enemy and pop, or as close as they can get in range, or after 2.5s) / Trollogram (each use adds 2 holograms; on
   later turns tap one to secretly swap with it after firing) / Steal (see `steal` above; the roulette is the
   `#heist` HUD overlay plus a grabbing-hand tether on the canvas). `shell` is unused but kept as the plain default weapon. tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`)

@@ -152,9 +152,11 @@ export interface WeaponDef {
   spin?: number;
   /**
    * Walkers: instead of exploding on landing, walk along the ground towards the nearest enemy at
-   * `speed` px/s, climbing steps up to `climb` px, and detonate on touching a target or after `duration`.
+   * `speed` px/s, climbing steps up to `climb` px. They scurry right up under an enemy and detonate within
+   * `fuse` px of its centre (near full damage), or wherever they're within blast range and can't get any
+   * closer (a wall, a ledge, walking past); otherwise after `duration`.
    */
-  walk?: { speed: number; duration: number; climb: number };
+  walk?: { speed: number; duration: number; climb: number; fuse: number };
   /** A chiptune that plays while this weapon's walkers are walking, cut off when the last one is gone. */
   tune?: TuneId;
   /** Draw a dotted trail behind projectiles. Default true. */
