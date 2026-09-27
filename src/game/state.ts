@@ -129,6 +129,8 @@ export interface Projectile {
   walkTime: number;
   /** Walkers: distance to the nearest enemy at the end of the last step (to tell when it's as close as it'll get). */
   fuseDist?: number;
+  /** Which of the weapon's `spriteVariants` it looks like (its place in the burst or volley). Cosmetic. */
+  variant?: number;
   /** Homing weapons: locked on to an enemy. */
   homing?: boolean;
   /** Word fire: the letter this round is, and its colour. */

@@ -62,7 +62,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   after leaving the nozzle (else mud stacks up in mid-air behind a flying tank), slumps up to 3px sideways
   into mounds, and never piles onto a tank's hull. `gunk.puddle` (ten-3) leaves toxic `Puddle`s where it
   lands that burn enemies touching them until they expire; the turn waits for them. Other optional fields: `volley`, `bounces`/`restitution`, `friendlyFire`, `sprite`
-  (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`), `spin` (tumble the sprite in
+  (SVGs in `src/assets/sprites/`, registered in `src/render/sprites.ts`; `spriteVariants` gives each round of
+  a burst or shot of a volley its own look by `Projectile.variant`, e.g. Pill Pusher's four different pills),
+  `spin` (tumble the sprite in
   flight), `walk` (walkers land and scurry along the ground towards the nearest enemy target, climbing
   small steps and falling off ledges; `stepWalker`, `Projectile.walkDir/walkTime`; proximity fuse: they
   pop within `walk.fuse` px of the enemy's centre for near-full damage, or within blast range as soon as

@@ -806,7 +806,8 @@ export class Renderer {
    */
   private drawSprite(pr: Projectile): boolean {
     const weapon = getWeapon(pr.weaponId);
-    const id = weapon.sprite;
+    const variants = weapon.spriteVariants;
+    const id = variants?.length ? variants[(pr.variant ?? 0) % variants.length] : weapon.sprite;
     const sprite = id && this.sprites[id];
     if (!sprite || !sprite.image.complete || sprite.image.naturalWidth === 0) return false;
     const { ctx } = this;

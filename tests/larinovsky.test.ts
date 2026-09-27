@@ -54,6 +54,10 @@ describe('Pill Pusher', () => {
       }
     }
     expect(seen.size).toBe(pillPusher.burst!.count);
+    // A mixed handful: each pill in the series looks different.
+    const looks = [...seen].map((pr) => pillPusher.spriteVariants![(pr as { variant?: number }).variant ?? 0]);
+    expect(new Set(looks).size).toBe(pillPusher.burst!.count);
+    expect(looks).toContain('pill-round');
     expect(lastAt - firstAt).toBeCloseTo(pillPusher.burst!.interval * (pillPusher.burst!.count - 1), 1);
     expect(g.players[0]!.ammo[0]).toBe(4);
   });

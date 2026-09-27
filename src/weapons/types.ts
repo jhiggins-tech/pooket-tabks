@@ -1,7 +1,7 @@
 import type { DictionaryId } from './dictionaries';
 
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle';
+export type SpriteId = 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle';
 
 /**
  * How a weapon is delivered:
@@ -154,6 +154,8 @@ export interface WeaponDef {
   friendlyFire?: boolean;
   /** Draw the projectile as a sprite pointing along its flight path; default is a plain shell. */
   sprite?: SpriteId;
+  /** A mix of looks: round n of a burst (or shot n of a volley) is drawn with `spriteVariants[n % length]`. */
+  spriteVariants?: SpriteId[];
   /** Tumble the sprite around its centre at this many radians per second in flight (instead of pointing along the path). */
   spin?: number;
   /**

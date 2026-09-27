@@ -494,17 +494,17 @@ export function fire(state: GameState): boolean {
   return true;
 }
 
-function spawnProjectile(state: GameState, owner: Player, weapon: WeaponDef, x: number, y: number, vx: number, vy: number): void {
-  state.projectiles.push({ x, y, vx, vy, weaponId: weapon.id, ownerId: owner.id, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 });
+function spawnProjectile(state: GameState, owner: Player, weapon: WeaponDef, x: number, y: number, vx: number, vy: number, variant = 0): void {
+  state.projectiles.push({ x, y, vx, vy, weaponId: weapon.id, ownerId: owner.id, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0, variant });
 }
 
 function fireBallistic(state: GameState, p: Player, weapon: WeaponDef): void {
   const speed = (p.power / 100) * MAX_SPEED;
   const m = muzzle(p);
-  for (const offset of volleyOffsets(weapon)) {
+  volleyOffsets(weapon).forEach((offset, i) => {
     const a = ((p.angle + offset) * Math.PI) / 180;
-    spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
-  }
+    spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed, i);
+  });
 }
 
 /** The player's twin as a stand-in shooter: same aim and power, the twin's position. */
@@ -1318,7 +1318,7 @@ function stepBurst(state: GameState, b: Burst, dt: number): boolean {
     const m = muzzle({ ...gun, angle: b.angle });
     const a = ((b.angle + randRange(state.rng, -1, 1)) * Math.PI) / 180;
     const speed = (b.power / 100) * MAX_SPEED * (1 + randRange(state.rng, -spec.powerJitter, spec.powerJitter));
-    spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
+    spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed, b.fired);
     sound(state, 'round', weapon.id);
     if (b.word) {
       const pr = state.projectiles[state.projectiles.length - 1]!;

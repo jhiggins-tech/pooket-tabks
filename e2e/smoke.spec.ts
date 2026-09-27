@@ -389,7 +389,7 @@ test('drive with fuel before firing', async ({ page }) => {
 test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777');
+  await page.goto('./?seed=777&debug');
   await page.getByLabel('Player 1 character').selectOption('larinovsky');
   await page.locator('#start').tap();
   const weapons = page.locator('#weapons .weapon');
@@ -401,7 +401,22 @@ test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) =>
   await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
   await weapons.nth(0).tap();
   await page.locator('#fire').tap();
-  await page.waitForTimeout(700);
+  // A close-up of the pills in flight: four different ones.
+  type PillDbg = { __pooket: { state: { projectiles: { x: number; y: number; variant?: number }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
+  await page.waitForFunction(() => (window as unknown as PillDbg).__pooket.state.projectiles.length === 4, undefined, { timeout: 5_000, polling: 16 });
+  await page.waitForTimeout(260);
+  const pills = await page.evaluate(() => {
+    const d = (window as unknown as PillDbg).__pooket;
+    return d.state.projectiles.map((p) => ({ ...d.renderer.worldToScreen(p.x, p.y), variant: p.variant }));
+  });
+  expect(new Set(pills.map((p) => p.variant))).toEqual(new Set([0, 1, 2, 3]));
+  const xs = pills.map((p) => p.x);
+  const ys = pills.map((p) => p.y);
+  await page.screenshot({
+    path: 'test-results/pill-pusher-pills.png',
+    clip: { x: Math.min(...xs) - 30, y: Math.min(...ys) - 30, width: Math.max(...xs) - Math.min(...xs) + 60, height: Math.max(...ys) - Math.min(...ys) + 60 },
+  });
+  await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/pill-pusher.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   expect(errors).toEqual([]);

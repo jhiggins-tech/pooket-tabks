@@ -203,6 +203,8 @@ export const pillPusher: WeaponDef = {
   damage: 12,
   burst: { count: 4, interval: 0.15, powerJitter: 0.05 },
   sprite: 'pill',
+  // A mixed handful: a red and white capsule, a round mint tablet, a blue and yellow capsule, a lilac caplet.
+  spriteVariants: ['pill-red', 'pill-round', 'pill-blue', 'pill-oval'],
   trail: false,
 };
 

@@ -13,6 +13,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 11,
+    title: 'Pick a pill',
+    items: ['larinovsky’s Pill Pusher lobs a mixed handful: a red and white capsule, a round mint tablet, a blue and yellow capsule and a lilac caplet.'],
+  },
+  {
     version: 10,
     title: 'Big frog energy',
     items: ['ciarra’s frog hops are much bigger: longer leaps, up cliffs no tank can climb, and twice as far on the same fuel.'],
