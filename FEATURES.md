@@ -12,7 +12,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 5. ✅ **Info screen** and **smoother driving**, shipped (see below).
 6. ✅ **kie's new kit**: Weasel Pop / Trollogram / Steal, shipped (see below).
 7. ✅ **8-bit sound effects**, shipped (see below).
-8. _(empty; next requests go here)_
+8. ✅ **Two phones over Wi-Fi** (WebRTC, no server), shipped (see below).
+9. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -21,6 +22,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
+- Online: reconnect after a dropped connection (it currently ends the match); a relay (TURN) server for
+  play over mobile data, which carrier networks often block for direct connections.
 
 ## Shipped
 
@@ -30,6 +33,13 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Two phones over Wi-Fi**: 📶 Host on one phone shows a QR code (and a link to copy or share); the
+  other phone scans it with its camera, which opens the game and shows a reply QR; the host scans that
+  back (with the camera app, which hands it to the game tab, or in-game on Android, or by pasting).
+  Then a lobby (each picks their own character; the host starts) and each plays on their own phone:
+  the other phone watches your aim live, and its controls step aside until it's its turn. WebRTC
+  data channel with free public STUN only, no server: same Wi-Fi is the baseline; over mobile data
+  it's a bonus if the carrier allows it. Leaving or dropping out shows "Connection lost".
 - **8-bit sound effects**: kitschy Game Boy style bleeps, synthesised live (pulse waves and LFSR noise,
   no audio files). Every weapon has its own firing sound (an ice cream van jingle for Double Park, a
   wolf whistle for the Rizzler, BLEURGH for ten-3, a snore for Take a Nap, a sewing machine for Sew…),

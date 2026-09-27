@@ -117,6 +117,19 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   scheduled a little ahead so it pauses with the game and cuts instantly) that plays while that weapon's
   walkers walk: the game cues `tune` when the first starts walking (`state.tunes`) and `tune-end` the
   step the last one is gone. `new Chip(offlineCtx)` renders sounds offline for previews.
+- `src/net/`: two phones over Wi-Fi, no server. `sdp.ts` squeezes an offer/answer to a ~130-char code
+  (ICE creds, DTLS fingerprint, role, UDP host/srflx candidates) and rebuilds a minimal data-channel SDP;
+  `peer.ts` is the RTCPeerConnection/data channel (public STUN only, non-trickle, chunked messages,
+  `wire.ts` keeps Infinity/NaN); `links.ts` wraps codes as `#join=`/`#answer=` links (so a phone's camera
+  app can scan them; a reply tab relays to the host tab via localStorage/BroadcastChannel) and scans QR
+  in-app via BarcodeDetector where available; `qr.ts` is a hand-written QR encoder (tests decode it with
+  jsQR, a dev dependency only). `session.ts` (`NetSession`, DOM-free, tested over `loopback()`): host is
+  seat 0. The phone whose turn it is streams aim previews (never the secret swap target) and, on fire,
+  sends a pre-fire `takeSnapshot` so both fire from identical state; when the turn resolves it sends the
+  result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
+  `Terrain.patchSolid`), so cross-device float drift never outlives a turn. `Rng.state` is serialisable
+  for this. Online, the info screen doesn't pause and `main.ts` gates input on `net.canAct()`.
+  `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator view (`body[data-remote]`).
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`

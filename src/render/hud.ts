@@ -22,6 +22,8 @@ export class Hud {
   private readonly heistEl = byId('heist');
   private last = '';
   private lastTurnKey = '';
+  /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
+  online: { localSeat: number; syncing: boolean } | null = null;
 
   update(state: GameState): void {
     const p = currentPlayer(state);
@@ -37,6 +39,7 @@ export class Hud {
       state.swapTargetId,
       jetCountdown(state),
       p.ammo.join(','),
+      this.online ? `${this.online.localSeat}${this.online.syncing}` : '',
       state.heist ? `${heistIndex(state.heist)}${state.heist.locked}` : '',
       ...state.players.map(
         (pl) =>
@@ -48,12 +51,19 @@ export class Hud {
     this.last = key;
 
     document.body.dataset.phase = state.phase;
+    // Online: when it isn't this phone's turn, the controls step aside and it just watches.
+    const remote = !!this.online && (state.current !== this.online.localSeat || this.online.syncing);
+    document.body.dataset.remote = String(remote);
     const aimless = isAimless(state);
     document.body.dataset.aimless = String(aimless);
     const decoys = hologramsOf(state, p.id).length;
     const countdown = jetCountdown(state);
     document.body.dataset.charging = String(countdown !== null);
-    this.hintEl.textContent = state.phase === 'stealing'
+    this.hintEl.textContent = remote && this.online?.syncing
+      ? 'Syncing…'
+      : remote && state.phase !== 'gameover'
+      ? `${p.name} is ${state.phase === 'aiming' ? 'aiming' : 'firing'}…`
+      : state.phase === 'stealing'
       ? ''
       : countdown !== null
       ? `ten-2 charging… ${countdown}`
@@ -146,7 +156,7 @@ export class Hud {
 
     const turnKey = `${state.turn}:${state.phase === 'gameover'}`;
     if (turnKey !== this.lastTurnKey && state.phase === 'aiming') {
-      this.bannerEl.textContent = `${p.name}'s turn`;
+      this.bannerEl.textContent = this.online && state.current === this.online.localSeat ? 'Your turn!' : `${p.name}'s turn`;
       this.bannerEl.style.color = p.colour;
       this.bannerEl.classList.remove('show');
       void this.bannerEl.offsetWidth; // restart the CSS animation
@@ -155,6 +165,15 @@ export class Hud {
     this.lastTurnKey = turnKey;
 
     this.gameOverEl.hidden = state.phase !== 'gameover';
+    // Online, only the host can start a rematch.
+    const rematch = document.getElementById('rematch') as HTMLButtonElement | null;
+    const guest = !!this.online && this.online.localSeat !== 0;
+    if (rematch) {
+      rematch.disabled = guest;
+      rematch.textContent = guest ? 'Host rematches' : 'Rematch';
+    }
+    const change = document.getElementById('change-players');
+    if (change) change.textContent = this.online ? 'Leave' : 'Change players';
     if (state.phase === 'gameover') {
       this.winnerEl.textContent = state.winner ? `${state.winner.name} wins!` : 'Draw!';
       this.winnerEl.style.color = state.winner?.colour ?? '#fff';

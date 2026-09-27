@@ -175,6 +175,53 @@ export class Terrain {
     return removed;
   }
 
+  /**
+   * Make the solid mask match `mask` (from the other phone): cleared pixels vanish, new ones are
+   * coloured like the soil nearest them. Returns how many pixels changed.
+   */
+  patchSolid(mask: Uint8Array): number {
+    const { width, height } = this;
+    let changed = 0;
+    let x0 = width;
+    let y0 = height;
+    let x1 = -1;
+    let y1 = -1;
+    for (let i = 0; i < mask.length && i < this.solid.length; i++) {
+      if (mask[i] === this.solid[i]) continue;
+      const x = i % width;
+      const y = (i - x) / width;
+      const p = i * 4;
+      if (mask[i]) {
+        // Borrow the colour of the nearest soil below (or above), else plain earth.
+        let from = -1;
+        for (let d = 1; d < 12 && from < 0; d++) {
+          for (const yy of [y + d, y - d]) {
+            const j = yy * width + x;
+            if (yy >= 0 && yy < height && this.solid[j] && mask[j]) {
+              from = j;
+              break;
+            }
+          }
+        }
+        const c = from >= 0 ? [this.pixels[from * 4]!, this.pixels[from * 4 + 1]!, this.pixels[from * 4 + 2]!] : [139, 94, 60];
+        this.pixels[p] = c[0]!;
+        this.pixels[p + 1] = c[1]!;
+        this.pixels[p + 2] = c[2]!;
+        this.pixels[p + 3] = 255;
+      } else {
+        this.pixels[p + 3] = 0;
+      }
+      this.solid[i] = mask[i]!;
+      changed++;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+    if (changed > 0) this.markDirty({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    return changed;
+  }
+
   /** Returns and clears the region changed since the last call. */
   takeDirty(): Rect | null {
     const d = this.dirty;

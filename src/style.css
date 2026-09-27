@@ -573,6 +573,125 @@ button.big {
   .heist-card { width: 90px; height: 50px; }
 }
 
+/* ---------- Online (two phones over Wi-Fi) ---------- */
+body[data-remote='true'] .pad,
+body[data-remote='true'] .drive {
+  opacity: 0.3;
+  pointer-events: none;
+}
+body[data-remote='true'] .pad button,
+body[data-remote='true'] .drive button {
+  pointer-events: none !important;
+}
+.online-actions {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.online-label {
+  font-size: 12px;
+  opacity: 0.7;
+}
+#online {
+  z-index: 14;
+  justify-content: safe center;
+  overflow-y: auto;
+  touch-action: pan-y;
+  gap: 8px;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+}
+#online h2 {
+  margin: 0;
+  font-size: 22px;
+}
+#online h3 {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+#online p {
+  max-width: 480px;
+  font-size: 13px;
+}
+.online-row {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.online-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 340px;
+}
+.online-qr {
+  width: min(52vh, 220px);
+  height: min(52vh, 220px);
+  image-rendering: pixelated;
+  border-radius: 8px;
+}
+.online-share,
+.online-paste {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.online-share input,
+.online-paste input,
+.online-seat select {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font: 600 16px system-ui, -apple-system, sans-serif;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
+.online-share button,
+.online-paste button,
+.online-cancel,
+#online button:not(.big) {
+  height: 38px;
+  padding: 0 14px;
+  flex: none;
+}
+.online-video {
+  width: 220px;
+  max-height: 40vh;
+  border-radius: 8px;
+  background: #000;
+}
+.online-video[hidden] {
+  display: none;
+}
+.online-seat {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: var(--panel);
+  min-width: 280px;
+}
+.online-seat b {
+  font-size: 12px;
+  opacity: 0.7;
+  min-width: 70px;
+  text-align: left;
+}
+.online-status-line {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
 /* ---------- Info ---------- */
 .top-mid {
   position: absolute;

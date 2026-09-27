@@ -1,7 +1,7 @@
 import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
-import { getCharacter } from './characters/roster';
+import { assignColours, getCharacter } from './characters/roster';
 import { adjustAim, createGame, currentPlayer, drive, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
@@ -9,7 +9,10 @@ import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
+import { takeHashCode } from './net/links';
+import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
+import { OnlineScreen } from './ui/online';
 import { SetupScreen } from './ui/setup';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -78,8 +81,55 @@ function newGame(): void {
   sfx.tunes.stopAll();
 }
 
+// ---- Over Wi-Fi: two phones, one each. Null in a local (hotseat) game. ----
+let net: NetSession | null = null;
+const online = new OnlineScreen(() => {
+  const p = setup.players()[0]!;
+  return { name: p.name, characterId: p.characterId };
+});
+online.onConnected = (s) => {
+  net = s;
+  s.onStart = (seed, chosen) => {
+    // Both phones build the same game from the same seed; the session keeps them in step.
+    state = createGame({ seed, players: chosen });
+    hud.reset();
+    sfx.tunes.stopAll();
+    online.hide();
+    setup.hide();
+    document.getElementById('gameover')!.hidden = true;
+    void goFullscreen();
+    return state;
+  };
+};
+online.onHostStart = (s) => {
+  const picks = [s.localPick!, s.remotePick!];
+  const colours = assignColours(picks.map((p) => p.characterId));
+  s.start(randomSeed(), picks.map((p, i) => ({ name: p.name, characterId: p.characterId, colour: colours[i]! })));
+};
+online.onClosed = () => {
+  net = null;
+  // Back to the setup screen, with a fresh battlefield behind it.
+  state = createGame({ seed: randomSeed(), players: setup.players() });
+  hud.reset();
+  sfx.tunes.stopAll();
+  document.getElementById('gameover')!.hidden = true;
+  setup.show();
+};
+document.getElementById('host-online')!.addEventListener('click', () => void online.host());
+document.getElementById('join-online')!.addEventListener('click', () => void online.join());
+// Opened from a QR code or link: a host's code (join it) or a reply (hand it to the host's tab).
+const opened = takeHashCode();
+if (opened?.kind === 'join') void online.join(opened.code);
+else if (opened?.kind === 'answer') online.relay(opened.code);
+
+// Closing the tab or navigating away: tell the other phone straight away.
+window.addEventListener('pagehide', () => net?.leave());
+
+/** Whether this phone may control the game right now (always, in a local game). */
+const localCanAct = () => !net || net.canAct();
+
 bindControls(canvas, {
-  canAim: () => state.phase === 'aiming',
+  canAim: () => state.phase === 'aiming' && localCanAct(),
   setAim: (a, p) => setAim(state, a, p),
   adjust: (da, dp) => adjustAim(state, da, dp),
   selectTier: (t) => selectTier(state, t),
@@ -90,22 +140,26 @@ bindControls(canvas, {
     const holo = hologramAt(state, w.x, w.y, 30 / renderer.cssScale);
     if (holo) toggleSwapTarget(state, holo.id);
   },
-  fire: () => fire(state),
+  fire: () => (net ? net.fire() : fire(state)),
 });
 
 const onResize = () => renderer.resize();
 window.addEventListener('resize', onResize);
 window.visualViewport?.addEventListener('resize', onResize);
 
-document.getElementById('rematch')!.addEventListener('click', newGame);
+document.getElementById('rematch')!.addEventListener('click', () => {
+  if (!net) newGame();
+  else if (net.isHost) online.onHostStart(net);
+});
 document.getElementById('change-players')!.addEventListener('click', () => {
   document.getElementById('gameover')!.hidden = true;
-  setup.show();
+  if (net) online.close();
+  else setup.show();
 });
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (new URLSearchParams(location.search).has('debug')) {
-  Object.assign(window, { __pooket: { get state() { return state; }, renderer, sfx, chip } });
+  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, renderer, sfx, chip } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */
@@ -126,18 +180,21 @@ function frame(now: number): void {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   acc += dt;
-  if (info.isOpen) acc = 0; // the game waits while the info screen is up
+  const paused = info.isOpen && !net; // a local game waits while the info screen is up; online can't
+  if (paused) acc = 0;
   while (acc >= FIXED_DT) {
-    drive(state, driveDir, FIXED_DT);
+    if (localCanAct()) drive(state, driveDir, FIXED_DT);
     step(state, FIXED_DT);
     acc -= FIXED_DT;
   }
-  sfx.tunes.update(dt, info.isOpen);
+  net?.tick(dt);
+  sfx.tunes.update(dt, paused);
   if (state.sfx.length > 0) {
     for (const e of state.sfx) sfx.play(e);
     state.sfx.length = 0;
   }
   renderer.draw(state, dt);
+  hud.online = net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
   hud.update(state);
   requestAnimationFrame(frame);
 }
