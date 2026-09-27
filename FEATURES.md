@@ -68,6 +68,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
   again within 10 minutes, and after that the setup screen offers ↩ Rejoin CODE (for 2 hours). Typing the
   code or tapping the game in the nearby list also rejoins (rather than watching). The rejoining phone
   is caught up from the other's game (after any shot in flight has played out). Leave ends it for both.
+- **Invite links ask first**: opening a room link shows "Join a game? … Join game / Not now" instead of
+  joining straight away, so a messaging app's link preview can't grab the seat. And if a guest joins and
+  goes quiet in the lobby before the match starts, the host frees the seat and keeps waiting (same code).
 - **Random first player**: who goes first is picked at random for every match, hotseat and online
   (from the match seed, so both phones agree).
 - **What's new popup**: on opening, a card lists what's changed since this phone last looked (a first

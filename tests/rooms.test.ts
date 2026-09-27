@@ -118,6 +118,27 @@ describe('rooms through Firebase', () => {
     again.close();
   });
 
+  it('a host can free the guest seat (a ghost that joined and vanished) and a real player can then join', async () => {
+    const room = await HostedRoom.open(db);
+    const first = room.waitForGuest();
+    const ghost = await joinRoom(db, room.code);
+    const hostToGhost = await first;
+    ghost.send({ k: 'hello' });
+    hostToGhost.detach();
+    ghost.close();
+    await room.reopen();
+    const second = room.waitForGuest();
+    const real = await joinRoom(db, room.code);
+    const host = await second;
+    const got: unknown[] = [];
+    host.onMessage = (m) => got.push(m);
+    real.send({ n: 1 });
+    await until(() => got.length === 1);
+    expect(got).toEqual([{ n: 1 }]); // nothing left over from the ghost
+    host.close();
+    real.close();
+  });
+
   it('a last message sent just before closing still gets through (even with another send in flight)', async () => {
     const room = await HostedRoom.open(db);
     const hostSide = room.waitForGuest();

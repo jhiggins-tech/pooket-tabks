@@ -132,6 +132,12 @@ export class RelayTransport implements Transport {
     void this.flush();
   }
 
+  /** Stop using this pipe but leave the room as it is (the host is about to wait for someone else). */
+  detach(): void {
+    if (this.closed) return;
+    this.stop();
+  }
+
   /** Start a new epoch: numbering from 1 again, and whatever wasn't sent yet dropped. */
   restart(): void {
     this.epoch = Math.max(Date.now(), this.epoch + 1);
@@ -390,6 +396,18 @@ export class HostedRoom {
         resolve(new RelayTransport(this.db, this.path, 'host', this.sealer, opts).start());
       });
     });
+  }
+
+  /**
+   * The guest turned out not to be a real player (a link preview that joined and vanished): free the
+   * guest seat and its queues, ready for `waitForGuest` again.
+   */
+  async reopen(): Promise<void> {
+    this.stopped = false;
+    this.guestStream?.close();
+    await this.db.patch(this.path, { guest: null, h2g: null, g2h: null, view: null });
+    this.timers.push(setInterval(() => void this.db.put(`${this.path}/host`, { id: this.hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
+    netLog('rooms: guest seat freed');
   }
 
   /** Stop waiting and close the room (not once a game has started: the transport owns it then). */

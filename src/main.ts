@@ -177,7 +177,7 @@ document.getElementById('join-online')!.addEventListener('click', () => void onl
 const openedRoom = takeRoomCode();
 const droppedSeat = loadSeat();
 const autoRejoin = !openedRoom && !!droppedSeat && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
-if (openedRoom) void online.join(openedRoom);
+if (openedRoom) online.invite(openedRoom);
 else if (autoRejoin) void online.rejoin(droppedSeat!);
 showRejoin();
 

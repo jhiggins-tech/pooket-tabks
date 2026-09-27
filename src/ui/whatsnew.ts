@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 12,
+    title: 'No more ghost players',
+    items: [
+      'Opening a game link now asks “Join game?” first, so a messaging app’s link preview can’t sneak into your seat.',
+      'If someone joins and vanishes before the match starts, the host’s room frees up for a real player.',
+    ],
+  },
+  {
     version: 11,
     title: 'Pick a pill',
     items: ['larinovsky’s Pill Pusher lobs a mixed handful: a red and white capsule, a round mint tablet, a blue and yellow capsule and a lilac caplet.'],

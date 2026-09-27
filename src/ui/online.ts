@@ -79,29 +79,46 @@ export class OnlineScreen {
     const ad = nearby ? advertise(db, nearby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code }) : null;
     netLog(`ui: room ${room.code} open${nearby ? ', on the nearby list' : ' (no nearby list: public address unknown)'}`);
     this.advert = ad;
-    this.stopRoom = () => room.cancel();
-    void room.waitForGuest(this.opts.relay).then((t) => {
-      ad?.update({ playing: true }); // stays listed, for anyone who wants to watch
-      room.stop();
-      this.stopRoom = null;
-      this.startSession(t, { code: room.code, role: 'host', id: room.id });
-    });
     const link = roomLink(room.code);
-    const big = el('div', 'online-code', room.code);
-    big.id = 'online-room-code';
-    this.show([
-      heading('Host a game'),
-      row(
-        col(
-          heading('Room code', 'h3'),
-          big,
-          text(nearby ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code (any network).' : 'On the other phone tap Join and type this code.'),
+    const waiting = () => {
+      this.stopRoom = () => room.cancel();
+      const big = el('div', 'online-code', room.code);
+      big.id = 'online-room-code';
+      this.show([
+        heading('Host a game'),
+        row(
+          col(
+            heading('Room code', 'h3'),
+            big,
+            text(nearby ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code (any network).' : 'On the other phone tap Join and type this code.'),
+          ),
+          col(heading('Or send them the link', 'h3'), shareRow(link, 'Join my Pooket Tabks game')),
         ),
-        col(heading('Or send them the link', 'h3'), shareRow(link, 'Join my Pooket Tabks game')),
-      ),
-      status('Waiting for someone to join…', 'online-status'),
-      buttons(cancelButton(() => this.close())),
-    ]);
+        status('Waiting for someone to join…', 'online-status'),
+        buttons(cancelButton(() => this.close())),
+      ]);
+      void room.waitForGuest(this.opts.relay).then((t) => {
+        if (this.stopRoom === null) return t.close(); // cancelled meanwhile
+        ad?.update({ playing: true }); // stays listed, for anyone who wants to watch
+        room.stop();
+        this.stopRoom = null;
+        const s = this.startSession(t, { code: room.code, role: 'host', id: room.id });
+        // Someone who joins and goes quiet before the match starts was probably never there (a link
+        // preview in a messaging app): free the seat and wait for a real player.
+        const onAway = s.onPeerAway;
+        s.onPeerAway = (away) => {
+          if (!away || s.game || s.lost || this.session !== s) return onAway(away);
+          netLog('ui: the guest went quiet in the lobby: freeing the seat');
+          t.detach();
+          this.session = null;
+          this.peer = null;
+          clearSeat();
+          ad?.update({ playing: false });
+          void room.reopen().then(waiting, (e: unknown) => this.fail(e, () => void this.host()));
+        };
+      });
+    };
+    waiting();
   }
 
   /** Join: nearby games to tap, or type a room code. With a code (from a link), go straight in. */
@@ -189,6 +206,21 @@ export class OnlineScreen {
       ),
       buttons(cancelButton(() => this.close())),
     ]);
+  }
+
+  /**
+   * Opened from an invite link: ask before joining. (Messaging apps open links in a hidden browser to
+   * build a preview; joining straight away would let that grab the seat and then vanish.)
+   */
+  invite(code: string): void {
+    this.reset();
+    netLog(`ui: invited to ${code}`);
+    const seat = loadSeat();
+    if (seat?.code === code) return void this.rejoin(seat); // our own match
+    const go = el('button', 'big', 'Join game');
+    go.id = 'online-accept';
+    go.addEventListener('click', () => void this.join(code));
+    this.show([heading('Join a game?'), text(`You've been invited to a Pooket Tabks game (room ${code}).`), go, cancelButton(() => this.close(), 'Not now')]);
   }
 
   /** Back into a match this phone dropped out of: take the seat back and get caught up. */
@@ -313,12 +345,13 @@ export class OnlineScreen {
   }
 
   /** Connected through the room: start the match session and show the lobby. */
-  private startSession(peer: Transport, seat: Omit<Seat, 'ts'>): void {
+  private startSession(peer: Transport, seat: Omit<Seat, 'ts'>): NetSession {
     netLog(`ui: connected as ${seat.role}`);
     this.stopRoom?.();
     this.stopRoom = null;
     const s = this.setupSession(peer, seat);
     s.setPick(this.pick());
+    return s;
   }
 
   /** A session on this pipe, remembered as our seat (so this phone can rejoin if it drops out). */

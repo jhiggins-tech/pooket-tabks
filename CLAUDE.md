@@ -151,7 +151,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `#setup-rejoin`; typing the code or tapping it in the nearby list rejoins too. No goodbye on `pagehide`
   (a reload must be rejoinable). `advertise`/`watchLobby` list games on the same
   Wi-Fi, keyed by the STUN public address (`lan.ts`). Everything stored is sealed with AES-GCM (`seal.ts`).
-  `links.ts` makes `#room=CODE` links. `session.ts` (`NetSession`, DOM-free, tested over `loopback()`):
+  `links.ts` makes `#room=CODE` links; opening one asks first (`OnlineScreen.invite`: Join game / Not now),
+  because messaging apps load links in a hidden browser for previews and that must not take the seat.
+  A guest that goes quiet in the lobby (before a match) is taken for such a ghost: the host `detach()`es
+  its pipe, `HostedRoom.reopen()`s the guest seat and waits again under the same code. `session.ts` (`NetSession`, DOM-free, tested over `loopback()`):
   host is seat 0. The phone whose turn it is streams aim previews (never the secret swap target) and, on
   fire, sends a pre-fire `takeSnapshot` so both fire from identical state; when the turn resolves it sends
   the result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
