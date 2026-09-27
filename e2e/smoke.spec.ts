@@ -69,10 +69,15 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.state.projectiles.length)).toBe(3);
   await page.screenshot({ path: 'test-results/weasel-flight.png' });
   await page.waitForFunction(() => (window as unknown as Dbg).__pooket.state.projectiles.some((p) => p.walkDir !== 0), undefined, { timeout: 10_000, polling: 16 });
+  // Pop Goes the Weasel plays while they scurry…
+  type Tunes = { __pooket: { sfx: { tunes: { isPlaying(id: string): boolean } } } };
+  const tuneOn = () => page.evaluate(() => (window as unknown as Tunes).__pooket.sfx.tunes.isPlaying('pop-goes-the-weasel'));
+  await expect.poll(tuneOn).toBe(true);
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/weasel-walk.png' });
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  expect(await tuneOn()).toBe(false); // …and stops dead when the last one pops
   await expect(page.locator('.chip.active .name')).toHaveText('kcaj');
   // Player 2 (kcaj) has their own full inventory.
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Double Park, 5 left');

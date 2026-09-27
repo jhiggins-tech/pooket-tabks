@@ -52,6 +52,9 @@ export interface SonicSpec {
   refDistance: number;
 }
 
+/** Chiptunes a weapon can play (see src/audio/tunes.ts). */
+export type TuneId = 'pop-goes-the-weasel';
+
 /** Cosmetic apparitions a weapon can summon in the sky when fired. */
 export type ApparitionKind = 'kookaburra';
 
@@ -152,6 +155,8 @@ export interface WeaponDef {
    * `speed` px/s, climbing steps up to `climb` px, and detonate on touching a target or after `duration`.
    */
   walk?: { speed: number; duration: number; climb: number };
+  /** A chiptune that plays while this weapon's walkers are walking, cut off when the last one is gone. */
+  tune?: TuneId;
   /** Draw a dotted trail behind projectiles. Default true. */
   trail?: boolean;
   /** Decoy weapons: how many hologram copies to spawn. */

@@ -138,6 +138,7 @@ export const weaselPop: WeaponDef = {
   spin: 12,
   trail: false,
   walk: { speed: 40, duration: 2.5, climb: 6 },
+  tune: 'pop-goes-the-weasel',
 };
 
 /**

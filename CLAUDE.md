@@ -109,7 +109,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `main.ts` drains them each frame into `SfxPlayer` (throttles repeats), which plays recipes on `Chip`
   (Web Audio pulse/triangle/LFSR-noise synth, unlocked on the first tap). `FIRE_SOUNDS` needs an entry per
   weapon id and `ROUND_SOUNDS` per burst weapon (tests enforce it); `CUE_SOUNDS` covers game events.
-  Keep them kitschy.
+  Keep them kitschy. `WeaponDef.tune` names a looping chiptune (`src/audio/tunes.ts`, `TunePlayer`: notes
+  scheduled a little ahead so it pauses with the game and cuts instantly) that plays while that weapon's
+  walkers walk: the game cues `tune` when the first starts walking (`state.tunes`) and `tune-end` the
+  step the last one is gone. `new Chip(offlineCtx)` renders sounds offline for previews.
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`

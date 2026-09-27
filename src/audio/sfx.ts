@@ -1,6 +1,7 @@
 import type { Sfx, SfxCue } from '../game/state';
 import { getWeapon } from '../weapons/registry';
 import { midi, type Synth } from './chip';
+import { TunePlayer } from './tunes';
 
 /**
  * Kitschy 8-bit sound effects. Every weapon has a firing sound (`FIRE_SOUNDS`), burst weapons blip on
@@ -150,7 +151,7 @@ export const ROUND_SOUNDS: Record<string, Recipe> = {
   'tattoo-gun': (s) => s.tone({ dur: 0.045, from: 118, duty: 0.125, vol: 0.14 }),
 };
 
-export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round'>, Recipe> = {
+export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Recipe> = {
   // Crunchy noise explosion, bigger blasts longer and lower; tiny ones just pop.
   boom: (s, e) => {
     const r = e.size ?? 20;
@@ -225,6 +226,11 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round'>, Recipe> = {
       s.tone({ at: 0.35 + i * 0.075, dur: 0.06, from: up ? 1150 : 1700, to: up ? 1750 : 1050, duty: 0.25, vol: 0.05 + i * 0.008 });
     }
   },
+  // A walker tune has just been cut off: POP!
+  'tune-end': (s) => {
+    s.tone({ dur: 0.07, from: midi(93), to: midi(105), duty: 0.5, vol: 0.2 });
+    s.noise({ dur: 0.06, rate: 1.8, vol: 0.12 });
+  },
   // Victory!
   gameover: (s) => {
     arp(s, [72, 76, 79, 84], 0.11, { duty: 0.25, vol: 0.15 });
@@ -239,14 +245,25 @@ const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round
 /** Plays queued cues on a synth, throttling rapid repeats. */
 export class SfxPlayer {
   private readonly last = new Map<string, number>();
+  readonly tunes: TunePlayer;
   played = 0;
 
   constructor(
     private readonly synth: Synth,
     private readonly clock: () => number,
-  ) {}
+  ) {
+    this.tunes = new TunePlayer(synth);
+  }
 
   play(e: Sfx): void {
+    // Walker chiptunes: strike up while they walk, stop dead when the last one is gone.
+    const tune = e.weaponId ? getWeapon(e.weaponId).tune : undefined;
+    if (e.cue === 'tune') {
+      if (tune) this.tunes.start(tune);
+      this.played++;
+      return;
+    }
+    if (e.cue === 'tune-end' && tune) this.tunes.stop(tune);
     const recipe = e.cue === 'fire' ? FIRE_SOUNDS[e.weaponId ?? ''] : e.cue === 'round' ? ROUND_SOUNDS[e.weaponId ?? ''] : CUE_SOUNDS[e.cue];
     if (!recipe) return;
     const key = `${e.cue}:${e.weaponId ?? ''}`;

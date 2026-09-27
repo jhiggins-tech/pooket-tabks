@@ -75,6 +75,7 @@ function newGame(): void {
   state = createGame({ seed: nextSeed, players });
   nextSeed = randomSeed();
   hud.reset();
+  sfx.tunes.stopAll();
 }
 
 bindControls(canvas, {
@@ -131,6 +132,7 @@ function frame(now: number): void {
     step(state, FIXED_DT);
     acc -= FIXED_DT;
   }
+  sfx.tunes.update(dt, info.isOpen);
   if (state.sfx.length > 0) {
     for (const e of state.sfx) sfx.play(e);
     state.sfx.length = 0;

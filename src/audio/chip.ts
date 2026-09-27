@@ -34,10 +34,15 @@ export interface NoiseOpts {
   env?: [number, number][];
 }
 
+/** A scheduled sound that can be cut off early. */
+export interface Voice {
+  cut(): void;
+}
+
 /** What a sound recipe can play. The real Chip, or a recorder in tests. */
 export interface Synth {
-  tone(o: ToneOpts): void;
-  noise(o: NoiseOpts): void;
+  tone(o: ToneOpts): Voice | void;
+  noise(o: NoiseOpts): Voice | void;
 }
 
 /** Frequency of a MIDI note (69 = A4 = 440 Hz). */
@@ -48,31 +53,36 @@ export function midi(n: number): number {
 const MASTER_VOLUME = 0.5;
 
 export class Chip implements Synth {
-  private ctx: AudioContext | null = null;
+  private ctx: BaseAudioContext | null = null;
   private master: GainNode | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private readonly pulses = new Map<number, PeriodicWave>();
   private muted = false;
 
+  /** Pass an OfflineAudioContext to render sounds to a buffer (previews, tests). */
+  constructor(private readonly offline?: OfflineAudioContext) {}
+
   /** Browsers only allow audio after a user gesture: call this from one. */
   unlock(): void {
     if (!this.ctx) {
       const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (!Ctor) return;
-      this.ctx = new Ctor();
-      const comp = this.ctx.createDynamicsCompressor(); // keeps a pill storm from clipping
+      if (!this.offline && !Ctor) return;
+      const ctx: BaseAudioContext = this.offline ?? new Ctor();
+      const comp = ctx.createDynamicsCompressor(); // keeps a pill storm from clipping
       comp.threshold.value = -18;
       comp.ratio.value = 6;
-      this.master = this.ctx.createGain();
+      this.master = ctx.createGain();
       this.master.gain.value = this.muted ? 0 : MASTER_VOLUME;
-      this.master.connect(comp).connect(this.ctx.destination);
-      this.noiseBuf = lfsrNoise(this.ctx);
+      this.master.connect(comp).connect(ctx.destination);
+      this.noiseBuf = lfsrNoise(ctx);
+      this.ctx = ctx;
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    const live = this.ctx as AudioContext;
+    if (!this.offline && live.state === 'suspended') void live.resume();
   }
 
   get ready(): boolean {
-    return !!this.ctx && this.ctx.state === 'running' && !this.muted;
+    return !!this.ctx && (!!this.offline || this.ctx.state === 'running') && !this.muted;
   }
 
   /** Audio clock in seconds (0 before unlocking). */
@@ -85,7 +95,7 @@ export class Chip implements Synth {
     if (this.master && this.ctx) this.master.gain.setValueAtTime(muted ? 0 : MASTER_VOLUME, this.ctx.currentTime);
   }
 
-  tone(o: ToneOpts): void {
+  tone(o: ToneOpts): Voice | void {
     const { ctx, master } = this;
     if (!ctx || !master || !this.ready) return;
     const t0 = ctx.currentTime + 0.01 + (o.at ?? 0);
@@ -113,9 +123,10 @@ export class Chip implements Synth {
     osc.connect(g).connect(master);
     osc.start(t0);
     osc.stop(t0 + o.dur + 0.02);
+    return this.voice(osc, g);
   }
 
-  noise(o: NoiseOpts): void {
+  noise(o: NoiseOpts): Voice | void {
     const { ctx, master, noiseBuf } = this;
     if (!ctx || !master || !noiseBuf || !this.ready) return;
     const t0 = ctx.currentTime + 0.01 + (o.at ?? 0);
@@ -129,6 +140,23 @@ export class Chip implements Synth {
     src.connect(g).connect(master);
     src.start(t0, Math.random() * noiseBuf.duration);
     src.stop(t0 + o.dur + 0.02);
+    return this.voice(src, g);
+  }
+
+  /** A handle that silences a sound right now (abruptly, on purpose). */
+  private voice(node: AudioScheduledSourceNode, g: GainNode): Voice {
+    return {
+      cut: () => {
+        const now = this.ctx!.currentTime;
+        g.gain.cancelScheduledValues(now);
+        g.gain.setValueAtTime(0, now);
+        try {
+          node.stop(now);
+        } catch {
+          /* already stopped */
+        }
+      },
+    };
   }
 
   private envelope(t0: number, dur: number, vol: number, env?: [number, number][]): GainNode {
@@ -160,7 +188,7 @@ export class Chip implements Synth {
 }
 
 /** One second of 15-bit LFSR noise, each bit held for a few samples: the crunchy Game Boy hiss. */
-function lfsrNoise(ctx: AudioContext): AudioBuffer {
+function lfsrNoise(ctx: BaseAudioContext): AudioBuffer {
   const buf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
   const data = buf.getChannelData(0);
   let lfsr = 0x7fff;

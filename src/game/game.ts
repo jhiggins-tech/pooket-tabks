@@ -128,6 +128,7 @@ export function createGame(cfg: GameConfig): GameState {
     phase: 'aiming',
     heist: null,
     sfx: [],
+    tunes: [],
     projectiles: [],
     beams: [],
     holograms: [],
@@ -806,6 +807,7 @@ export function step(state: GameState, dt: number): void {
 
   if (state.phase === 'flying') {
     state.projectiles = state.projectiles.filter((pr) => !stepProjectile(state, pr, dt));
+    if (state.tunes.length > 0) stopFinishedTunes(state);
     for (const b of state.beams) b.age += dt;
     state.beams = state.beams.filter((b) => b.age < b.duration);
     state.streams = state.streams.filter((st) => !stepStream(state, st, dt));
@@ -916,6 +918,21 @@ function startWalking(state: GameState, pr: Projectile, x: number, y: number): v
   pr.vx = 0;
   pr.vy = 0;
   pr.walkDir = directionToNearestEnemy(state, pr);
+  // The first one to land strikes up the band.
+  const weapon = getWeapon(pr.weaponId);
+  if (weapon.tune && !state.tunes.includes(weapon.id)) {
+    state.tunes.push(weapon.id);
+    sound(state, 'tune', weapon.id);
+  }
+}
+
+/** A walker tune stops dead the moment the last of its walkers is gone. */
+function stopFinishedTunes(state: GameState): void {
+  for (const id of state.tunes) {
+    if (state.phase === 'flying' && state.projectiles.some((pr) => pr.weaponId === id)) continue;
+    state.tunes = state.tunes.filter((t) => t !== id);
+    sound(state, 'tune-end', id);
+  }
 }
 
 /** −1 / +1 towards the nearest target (tank or hologram) not owned by the walker's owner. */

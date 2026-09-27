@@ -35,7 +35,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   wolf whistle for the Rizzler, BLEURGH for ten-3, a snore for Take a Nap, a sewing machine for Sew…),
   plus explosions, damage oofs, typewriter clacks for Debate letters, the kookaburra's laugh, Steal's
   roulette ticks and ka-ching, a sad trombone for a Marathon DNF, frog-hop boings and a victory tune.
-  🔊 / 🔇 next to ⓘ toggles it (remembered).
+  🔊 / 🔇 next to ⓘ toggles it (remembered). While Weasel Pop's weasels scurry, a chiptune of Pop Goes
+  the Weasel plays, cut off dead (with a POP!) the moment the last one pops.
 - **Info screen**: the ⓘ button (top centre in battle, and on the setup screen) opens a guide: how to
   play, what the status icons mean, and a page per character with their movement and a card for each
   weapon (tier, rounds, aimed or not, what it does). It opens on the current player's character and

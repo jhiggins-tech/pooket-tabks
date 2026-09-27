@@ -362,6 +362,8 @@ export type SfxCue =
   | 'nothing'
   | 'busted'
   | 'kookaburra'
+  | 'tune'
+  | 'tune-end'
   | 'gameover';
 
 export interface Sfx {
@@ -405,6 +407,8 @@ export interface GameState {
   heist: Heist | null;
   /** Sound cues since the audio layer last drained them (capped). */
   sfx: Sfx[];
+  /** Weapons whose walker chiptune is playing (cosmetic). */
+  tunes: string[];
   projectiles: Projectile[];
   beams: Beam[];
   holograms: Hologram[];
