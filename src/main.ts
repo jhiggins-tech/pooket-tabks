@@ -14,6 +14,7 @@ import { takeRoomCode } from './net/links';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
+import { WhatsNew } from './ui/whatsnew';
 import { OnlineScreen } from './ui/online';
 import { SetupScreen } from './ui/setup';
 
@@ -142,6 +143,11 @@ document.getElementById('join-online')!.addEventListener('click', () => void onl
 // Opened from a room link: join that room.
 const openedRoom = takeRoomCode();
 if (openedRoom) void online.join(openedRoom);
+
+// What's new since this phone last looked (not over a room link, nor in automated tests unless asked).
+const whatsNew = new WhatsNew();
+document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
+if (!openedRoom && (!navigator.webdriver || query.has('whatsnew'))) whatsNew.showUnseen();
 
 // Closing the tab or navigating away: tell the other phone straight away.
 window.addEventListener('pagehide', () => net?.leave());

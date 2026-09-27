@@ -540,3 +540,25 @@ test('asks to rotate when held in portrait', async ({ page }) => {
   await expect(page.locator('#rotate')).toBeVisible();
   await page.screenshot({ path: 'test-results/phone-portrait.png' });
 });
+
+test("what's new shows once per version, and can be reopened from setup", async ({ page }) => {
+  await page.goto('./?whatsnew');
+  const popup = page.locator('#whatsnew');
+  await expect(popup).toBeVisible();
+  await expect(popup.locator('h3').first()).not.toBeEmpty();
+  await page.screenshot({ path: 'test-results/whatsnew.png' });
+  await page.locator('#whatsnew-ok').tap();
+  await expect(popup).toBeHidden();
+
+  // Already seen: it stays away.
+  await page.reload();
+  await expect(page.locator('#setup')).toBeVisible();
+  await expect(popup).toBeHidden();
+
+  // The setup screen's button brings back the whole changelog.
+  await page.locator('#setup-whatsnew').tap();
+  await expect(popup).toBeVisible();
+  expect(await popup.locator('h3').count()).toBeGreaterThan(1);
+  await page.locator('#whatsnew-ok').tap();
+  await expect(popup).toBeHidden();
+});

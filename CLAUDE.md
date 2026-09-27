@@ -107,6 +107,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/ui/setup.ts` + `src/ui/seats.ts`: setup screen. PoC matches are exactly 2 players (`PLAYER_COUNT`),
   each picking a character; the name field pre-fills with the character name and stays editable.
   Remembered in localStorage. The engine itself supports more players.
+- `src/ui/whatsnew.ts`: the "What's new" popup. `CHANGELOG` (newest first, `version` + 1 per release) is
+  shown once per version (localStorage `pooket.whatsNew`); add a release there when shipping something
+  players will notice. Skipped under `navigator.webdriver` (e2e) unless `?whatsnew`.
 - `src/ui/info.ts`: the info overlay (ⓘ in the HUD and on setup): how to play, status effects, and a page
   per character built from the roster and each weapon's required `info` text, so a new weapon must
   describe itself. The game loop pauses while it's open. `ignoresAim()` (registry) decides "No aiming".

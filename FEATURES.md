@@ -17,9 +17,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 10. ✅ **Online play switched on**: the Firebase database is live (rooms, relay and nearby list checked
     against the real database).
 11. ✅ **Spectator mode**, shipped (see below).
-12. **"What's new" popup**: on opening, show a changelog of the latest updates; remember (localStorage)
-    which version the player has seen, so it only pops up once per new version.
-13. **Marathon info text**: explain how far "a leg" is (150px, roughly a fifth of the map width).
+12. ✅ **"What's new" popup**, shipped (see below).
+13. **Marathon info text**: explain how far "a leg" is (150px, about a seventh of the map width).
 14. **Trollogram swap on the casting turn**: be able to pick a hologram to swap with before the turn ends,
     on the same turn it's cast (not only on later turns).
 15. **ten-1 spread**: more spread and variance in the jet so it isn't so concentrated at close range.
@@ -55,6 +54,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it in
   the nearby list, where it shows as "in progress · watch") to watch it live, view only: aim, shots and
   results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
+- **What's new popup**: on opening, a card lists what's changed since this phone last looked (a first
+  visit sees just the latest release), then stays away until the next release; ✨ What's new on the setup
+  screen shows the whole changelog.
 - **8-bit sound effects**: kitschy Game Boy style bleeps, synthesised live (pulse waves and LFSR noise,
   no audio files). Every weapon has its own firing sound (an ice cream van jingle for Double Park, a
   wolf whistle for the Rizzler, BLEURGH for ten-3, a snore for Take a Nap, a sewing machine for Sew…),
