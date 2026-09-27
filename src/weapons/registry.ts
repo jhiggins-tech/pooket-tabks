@@ -215,10 +215,11 @@ export const theRizzler: WeaponDef = {
   name: 'the Rizzler',
   shortName: 'the Rizzler',
   info:
-    'A spinning heart in shades. Up to 18 damage, and enemies in the blast are cooked: everything they fire on their next turn does half damage.',
+    'A spinning heart in shades that can’t resist a tank: get it within about 100px of an enemy and it homes straight in. Up to 18 damage, and enemies in the blast are cooked: everything they fire on their next turn does half damage.',
   blastRadius: 26,
   damage: 18,
   debuff: { offenceMultiplier: 0.5 },
+  homing: { radius: 100, turnRate: 720, minSpeed: 240 },
   sprite: 'rizz',
   spin: 5,
   colour: '#ff6fb5',

@@ -227,6 +227,8 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     }
   },
   // The classic coin: bling-bling.
+  // The Rizzler has spotted someone: a little "ooh-la-la" trill.
+  'lock-on': (s) => arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 }),
   refund: (s) => {
     s.tone({ dur: 0.07, from: midi(83), duty: 0.5, vol: 0.14 });
     s.tone({ at: 0.07, dur: 0.35, from: midi(88), duty: 0.5, vol: 0.14 });

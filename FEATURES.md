@@ -24,8 +24,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 16. ✅ **Random first player**, shipped (see below).
 17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
 18. ✅ **Rejoin a match**, shipped (see below).
-19. **the Rizzler homes in**: a generous homing perimeter; once the projectile comes within X px of an
-    enemy tank, it changes course towards it.
+19. ✅ **the Rizzler homes in**, shipped (see Balance below).
 20. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
@@ -39,6 +38,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Shipped
 
 ### Balance
+- **the Rizzler homes in**: once the heart comes within 100px of an enemy tank (or its decoy or twin) it
+  locks on (an "ooh-la-la" trill), drops gravity and turns up to 720°/s towards it, so near misses hit.
 - **ten-1 spread** (user feedback: too concentrated at close range): while the pressure is low the jet
   sprays (up to ±40° and ±35% speed, tightening to a clean line at full), and a droplet's damage scales
   with its pressure (×0.1 dribbling … ×1 at full). Best case point-blank ~63 (was ~90), 150px ~55 (62);
@@ -110,4 +111,4 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
 | **ciarra** (moves in frog hops) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
-| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target | the Rizzler: blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |
+| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |

@@ -13,6 +13,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 9,
+    title: 'The Rizzler can’t resist',
+    items: ['larinovsky’s Rizzler homes in: get it within about 100px of an enemy tank and it swoops straight at them.'],
+  },
+  {
     version: 8,
     title: 'Dropped out? Jump back in',
     items: [

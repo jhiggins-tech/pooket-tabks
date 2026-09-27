@@ -129,6 +129,8 @@ export interface Projectile {
   walkTime: number;
   /** Walkers: distance to the nearest enemy at the end of the last step (to tell when it's as close as it'll get). */
   fuseDist?: number;
+  /** Homing weapons: locked on to an enemy. */
+  homing?: boolean;
   /** Word fire: the letter this round is, and its colour. */
   glyph?: string;
   glyphColour?: string;
@@ -367,6 +369,7 @@ export type SfxCue =
   | 'tune'
   | 'tune-end'
   | 'refund'
+  | 'lock-on'
   | 'gameover';
 
 export interface Sfx {

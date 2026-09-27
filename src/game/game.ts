@@ -930,7 +930,8 @@ function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
     return true;
   }
   if (pr.walkDir !== 0) return stepWalker(state, pr, weapon, dt);
-  pr.vy += GRAVITY * dt;
+  if (weapon.homing) steerHoming(state, pr, weapon.homing, dt);
+  if (!pr.homing) pr.vy += GRAVITY * dt;
   const nx = pr.x + pr.vx * dt;
   const ny = pr.y + pr.vy * dt;
 
@@ -1801,6 +1802,35 @@ function gone(t: Target): boolean {
 
 function targetOwner(t: Target): number {
   return t.kind === 'hologram' ? t.holo.ownerId : t.player.id;
+}
+
+/** Homing: lock on to the nearest enemy within range, then turn towards it (keeping up speed). */
+function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<WeaponDef['homing']>, dt: number): void {
+  let best: { x: number; y: number } | null = null;
+  let bestD = pr.homing ? Infinity : spec.radius;
+  for (const t of allTargets(state)) {
+    if (targetOwner(t) === pr.ownerId) continue;
+    const p = targetPos(t);
+    const c = { x: p.x, y: p.y - TANK_BODY_HEIGHT / 2 };
+    const d = Math.hypot(c.x - pr.x, c.y - pr.y);
+    if (d < bestD) {
+      best = c;
+      bestD = d;
+    }
+  }
+  if (!best) return; // (locked on, but there's nobody left to chase: carry straight on)
+  if (!pr.homing) {
+    pr.homing = true;
+    sound(state, 'lock-on', pr.weaponId);
+  }
+  const speed = Math.max(Math.hypot(pr.vx, pr.vy), spec.minSpeed);
+  const have = Math.atan2(pr.vy, pr.vx);
+  const want = Math.atan2(best.y - pr.y, best.x - pr.x);
+  const diff = ((((want - have) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
+  const max = ((spec.turnRate * Math.PI) / 180) * dt;
+  const a = have + Math.max(-max, Math.min(max, diff));
+  pr.vx = Math.cos(a) * speed;
+  pr.vy = Math.sin(a) * speed;
 }
 
 function targetKey(t: Target): string {

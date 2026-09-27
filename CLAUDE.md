@@ -91,7 +91,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `src/weapons/dictionaries.ts`, one letter per round) / Sonic Boom / Twins (`twin` kind: `Player.twin`, a
   second tank with its own HP; the HP is split on spawning; it mirrors every shot with the same aim, using
   the twin dictionary; twin booms phase where their arcs overlap for `PHASE_FOCUS` damage and `PHASE_RANGE`). larinovsky: Pill
-  Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`debuff`: "cooks" enemies in the blast;
+  Pusher (`burst`: 4 pills in series along the aim) / the Rizzler (`homing`: within `radius` px of an enemy
+  target it locks on, `Projectile.homing`, and steers at it without gravity; `debuff`: "cooks" enemies in the blast;
   `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
   clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Weasel Pop (3 spinning weasels at aim −4/0/+4° that
   land, scurry right up under the enemy and pop, or as close as they can get in range, or after 2.5s) / Trollogram (each use adds 2 holograms; on

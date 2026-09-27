@@ -3,7 +3,7 @@ import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { createGame, currentPlayer, explode, fire, isAimless, offence, selectTier, setAim, step } from '../src/game/game';
-import type { GameState } from '../src/game/state';
+import type { GameState, Projectile } from '../src/game/state';
 import { pillPusher, shell, takeANap, theRizzler } from '../src/weapons/registry';
 
 const players = [
@@ -163,5 +163,69 @@ describe('Take a Nap', () => {
     expect(lari.ammo[2]).toBe(0);
     for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
     expect(currentPlayer(g).name).toBe('kie');
+  });
+});
+
+describe('the Rizzler homes in', () => {
+  /** Throw a projectile of `weaponId` from larinovsky along a fixed path; returns its closest approach to kie. */
+  function lob(g: GameState, weaponId: string, from: { x: number; y: number }, v: { x: number; y: number }): number {
+    const kie = g.players[1]!;
+    const pr: Projectile = { x: from.x, y: from.y, vx: v.x, vy: v.y, weaponId, ownerId: 0, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 };
+    g.projectiles.push(pr);
+    g.phase = 'flying';
+    let closest = Infinity;
+    for (let t = 0; t < 10 && g.projectiles.includes(pr); t += FIXED_DT) {
+      closest = Math.min(closest, Math.hypot(pr.x - kie.x, pr.y - (kie.y - TANK_BODY_HEIGHT / 2)));
+      step(g, FIXED_DT);
+    }
+    return closest;
+  }
+  // Sails over kie's head, a little too high.
+  const PATH = [{ x: 450, y: 300 }, { x: 450, y: -100 }] as const;
+
+  it('a near miss (within its range) curves in and hits, even a fast one', () => {
+    const control = game();
+    const closest = lob(control, shell.id, ...PATH);
+    expect(control.players[1]!.hp).toBe(MAX_HP); // a plain shell on this path misses...
+    expect(closest).toBeGreaterThan(40);
+    expect(closest).toBeLessThan(theRizzler.homing!.radius); // ...but passes within range
+
+    const g = game();
+    lob(g, theRizzler.id, ...PATH);
+    const kie = g.players[1]!;
+    expect(kie.hp).toBeLessThan(MAX_HP - theRizzler.damage * 0.6);
+    expect(kie.cooked).not.toBeNull();
+    expect(g.sfx.some((e) => e.cue === 'lock-on')).toBe(true);
+
+    const quick = game();
+    expect(lob(quick, shell.id, { x: 450, y: 300 }, { x: 550, y: -100 })).toBeLessThan(theRizzler.homing!.radius);
+    expect(quick.players[1]!.hp).toBe(MAX_HP);
+    const fastOne = game();
+    lob(fastOne, theRizzler.id, { x: 450, y: 300 }, { x: 550, y: -100 });
+    expect(fastOne.players[1]!.hp).toBeLessThan(MAX_HP);
+  });
+
+  it('a wide miss (out of range) flies on by', () => {
+    const g = game();
+    const closest = lob(g, theRizzler.id, { x: 450, y: 300 }, { x: 550, y: -250 });
+    expect(closest).toBeGreaterThan(theRizzler.homing!.radius);
+    expect(g.players[1]!.hp).toBe(MAX_HP);
+    expect(g.sfx.some((e) => e.cue === 'lock-on')).toBe(false);
+  });
+
+  it('never homes in on its own side', () => {
+    const g = game();
+    const lari = g.players[0]!;
+    // Right past larinovsky's own tank.
+    const pr: Projectile = { x: lari.x - 60, y: lari.y - 90, vx: 200, vy: 0, weaponId: theRizzler.id, ownerId: 0, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 };
+    g.projectiles.push(pr);
+    g.phase = 'flying';
+    for (let i = 0; i < 20; i++) step(g, FIXED_DT);
+    expect(pr.homing).toBeFalsy();
+  });
+
+  it('says so in its info', () => {
+    expect(theRizzler.info).toMatch(/homes/);
+    expect(theRizzler.info).toContain(`${theRizzler.homing!.radius}px`);
   });
 });

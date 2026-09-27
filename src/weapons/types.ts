@@ -188,6 +188,12 @@ export interface WeaponDef {
    */
   debuff?: { offenceMultiplier: number };
   /**
+   * Homing: once the projectile comes within `radius` px of an enemy tank (or one of its decoys or twin),
+   * it locks on and flies at it, turning up to `turnRate` degrees a second at `minSpeed` px/s or more
+   * (no gravity once locked).
+   */
+  homing?: { radius: number; turnRate: number; minSpeed: number };
+  /**
    * Word fire (with `burst`): pick a random word from the dictionary and fire it one letter per round,
    * so the round count is the word's length. A twin fires from its own dictionary.
    */
