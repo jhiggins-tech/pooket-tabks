@@ -14,7 +14,16 @@ The running features list and work queue. Newest shipped items first; the **Queu
 7. ✅ **8-bit sound effects**, shipped (see below).
 8. ✅ **Two phones online** (first built on WebRTC; now through Firebase), shipped (see below).
 9. ✅ **Room codes and a nearby-games list** through Firebase (any network); QR/direct codes dropped, shipped (see below).
-10. _(empty; next requests go here)_
+10. ✅ **Online play switched on**: the Firebase database is live (rooms, relay and nearby list checked
+    against the real database).
+11. **"What's new" popup**: on opening, show a changelog of the latest updates; remember (localStorage)
+    which version the player has seen, so it only pops up once per new version.
+12. **Marathon info text**: explain how far "a leg" is (150px, roughly a fifth of the map width).
+13. **Trollogram swap on the casting turn**: be able to pick a hologram to swap with before the turn ends,
+    on the same turn it's cast (not only on later turns).
+14. **ten-1 spread**: more spread and variance in the jet so it isn't so concentrated at close range.
+15. **Random first player**: randomise who goes first in a match (hotseat and online).
+16. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
