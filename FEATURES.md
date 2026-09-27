@@ -20,7 +20,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 12. ✅ **"What's new" popup**, shipped (see below).
 13. ✅ **Marathon info text**: says a leg is 150px, about a seventh of the stage's width.
 14. ✅ **Trollogram swap on the casting turn**, shipped (see kie's kit below).
-15. **ten-1 spread**: more spread and variance in the jet so it isn't so concentrated at close range.
+15. ✅ **ten-1 spread**, shipped (see Balance below).
 16. **Random first player**: randomise who goes first in a match (hotseat and online).
 17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
 18. _(empty; next requests go here)_
@@ -37,6 +37,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Shipped
 
 ### Balance
+- **ten-1 spread** (user feedback: too concentrated at close range): while the pressure is low the jet
+  sprays (up to ±40° and ±35% speed, tightening to a clean line at full), and a droplet's damage scales
+  with its pressure (×0.1 dribbling … ×1 at full). Best case point-blank ~63 (was ~90), 150px ~55 (62);
+  250px and beyond unchanged (~51 / 45 / 37 at 250 / 400 / 600px).
 - **tones buff** (user testing: felt underpowered): ten-2's exhaust is ~3× bigger and much wider (1s at
   900 particles/s, ±43° fan), carpeting ~300px of ground in mud; ten-3's chunks now leave toxic sludge
   that burns enemies touching it at 10 HP/s for the rest of the turn.

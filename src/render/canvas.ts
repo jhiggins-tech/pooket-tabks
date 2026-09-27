@@ -846,13 +846,16 @@ export class Renderer {
     const width = (d: Droplet) => 1.5 + 5.5 * d.pressure;
     const JOIN_DIST = 14;
 
-    // Link each droplet to the previous one in emission order if they're still close.
+    // Link each droplet to the previous one in emission order if they're still close and heading the
+    // same way (a sputtering spray flies apart, so it shows as beads rather than a scribble).
+    const heading = (d: Droplet) => Math.atan2(d.vy, d.vx);
     const linked: boolean[] = new Array(drops.length).fill(false);
     const joins: [Droplet, Droplet][] = [];
     for (let i = 1; i < drops.length; i++) {
       const a = drops[i - 1]!;
       const b = drops[i]!;
-      if (a.streamId === b.streamId && Math.hypot(a.x - b.x, a.y - b.y) < JOIN_DIST) {
+      const turn = Math.abs(((heading(a) - heading(b) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+      if (a.streamId === b.streamId && Math.hypot(a.x - b.x, a.y - b.y) < JOIN_DIST && turn < 0.12) {
         joins.push([a, b]);
         linked[i - 1] = linked[i] = true;
       }

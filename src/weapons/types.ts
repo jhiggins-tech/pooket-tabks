@@ -117,6 +117,12 @@ export interface StreamSpec {
   dropsPerSecond: number;
   /** Damage each droplet adds when it hits a tank (accumulated and shown in small batches). */
   damagePerDrop: number;
+  /**
+   * Scatter at low pressure: each droplet leaves up to ± `spray` degrees off the aim and ± `speedSpread`
+   * (a fraction) off its speed; the jet tightens to a clean line as the pressure reaches full.
+   */
+  spray?: number;
+  speedSpread?: number;
 }
 
 export interface WeaponDef {

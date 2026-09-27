@@ -227,3 +227,41 @@ describe('ten-1 refund on a miss', () => {
     expect(tones.ammo[2]).toBe(0);
   });
 });
+
+describe('ten-1 spread', () => {
+  /** tones at x = 200 and kie `dist` px to the right, on flat ground; returns kie's damage. */
+  const shot = (dist: number, angle: number, power: number, seed: number): number => {
+    const g = createGame({ seed, players });
+    const w = g.terrain.width;
+    g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
+    g.players[0]!.x = 200;
+    g.players[1]!.x = 200 + dist;
+    for (const p of g.players) p.y = 400;
+    Object.assign(g.players[0]!, { angle, power });
+    fire(g);
+    runTurn(g);
+    return MAX_HP - g.players[1]!.hp;
+  };
+
+  it('sprays wide while the pressure is low, and tightens to a clean line at full', () => {
+    const g = flatGame();
+    Object.assign(g.players[0]!, { angle: 30, power: 80 });
+    fire(g);
+    const launch: { p: number; angle: number }[] = [];
+    let seen = 0;
+    runTurn(g, (s) => {
+      for (const d of s.droplets.slice(seen)) launch.push({ p: d.pressure, angle: (Math.atan2(-d.vy, d.vx) * 180) / Math.PI });
+      seen = s.droplets.length;
+    });
+    const spread = (list: typeof launch) => Math.max(...list.map((l) => l.angle)) - Math.min(...list.map((l) => l.angle));
+    expect(spread(launch.filter((l) => l.p > 0.05 && l.p < 0.4))).toBeGreaterThan(25);
+    expect(spread(launch.filter((l) => l.p === 1))).toBeLessThan(0.5);
+  });
+
+  it("isn't so concentrated point-blank, but still reaches as far as ever", () => {
+    const close = [1, 2, 3].map((s) => shot(60, 0, 75, s));
+    const far = [1, 2, 3].map((s) => shot(400, 10, 95, s));
+    for (const d of close) expect(d).toBeLessThan(72); // was ~90: nearly a one-shot
+    for (const d of far) expect(d).toBeGreaterThan(38);
+  });
+});

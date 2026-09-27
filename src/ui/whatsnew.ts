@@ -13,6 +13,13 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 6,
+    title: 'ten-1 sprays',
+    items: [
+      'tones’ ten-1 sprays about while the pressure is low, and that weak dribble barely stings, so point-blank it’s no longer nearly a one-shot (about 60 at best, down from about 90). At range it hits as hard as before.',
+    ],
+  },
+  {
     version: 5,
     title: 'Sneakier Trollograms',
     items: ['Trollogram: pick a decoy to swap into on the very turn you cast it (tap one, then DONE).'],

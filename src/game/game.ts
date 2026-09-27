@@ -1080,9 +1080,13 @@ function stepStream(state: GameState, st: Stream, dt: number): boolean {
   st.emitCarry += spec.dropsPerSecond * (0.2 + 0.8 * pressure) * dt;
   while (st.emitCarry >= 1) {
     st.emitCarry -= 1;
-    // Just enough jitter that it isn't a laser; more than this and the drawn ribbon zigzags.
-    const a = ((st.angle + randRange(state.rng, -0.12, 0.12)) * Math.PI) / 180;
-    const speed = st.fullSpeed * pressure * randRange(state.rng, 0.998, 1.002);
+    // A clean line at full pressure (just enough jitter that it isn't a laser: more and the drawn ribbon
+    // zigzags), but a weak flow sprays, so the dribble that would otherwise all land on a close target
+    // scatters around it.
+    const loose = (1 - pressure) ** 1.5;
+    const scatter = (spread: number) => ((randRange(state.rng, -1, 1) + randRange(state.rng, -1, 1)) / 2) * spread;
+    const a = ((st.angle + 0.12 * scatter(1) + scatter((spec.spray ?? 0) * loose)) * Math.PI) / 180;
+    const speed = st.fullSpeed * pressure * (1 + 0.002 * scatter(1) + scatter((spec.speedSpread ?? 0) * loose));
     state.droplets.push({
       streamId: st.id,
       weaponId: st.weaponId,
@@ -1113,7 +1117,9 @@ function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const target = targetAt(state, x, y);
     if (target && state.refund?.playerId === d.ownerId && targetOwner(target) !== d.ownerId) state.refund.hit = true;
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
-      soakTarget(target, (weapon.stream?.damagePerDrop ?? 0) * offence(state, d.ownerId), tint(d.colour, 0.35), d.ownerId);
+      // A weak dribble stings much less than the full-pressure jet.
+      const drop = (weapon.stream?.damagePerDrop ?? 0) * (0.1 + 0.9 * d.pressure ** 2);
+      soakTarget(target, drop * offence(state, d.ownerId), tint(d.colour, 0.35), d.ownerId);
       spawnSplash(state, x, y, d, 3);
       return true;
     }

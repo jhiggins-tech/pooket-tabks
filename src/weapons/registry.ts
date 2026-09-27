@@ -64,11 +64,11 @@ export const ten1: WeaponDef = {
   name: 'ten-1',
   shortName: 'ten-1',
   info:
-    'A yellow water jet. The pressure builds in spurts over 2s, holds at full for a moment, then sputters out. Trickles damage onto anything it soaks; doesn’t dig. Miss completely and you get the round back.',
+    'A yellow water jet. The pressure builds in spurts over 2s, holds at full for a moment, then sputters out. While it’s weak it sprays all over and barely stings; the full-pressure jet is a clean line that does the real damage. Trickles damage onto anything it soaks; doesn’t dig. Miss completely and you get the round back.',
   kind: 'stream',
   blastRadius: 0,
   damage: 0,
-  stream: { rampUp: 2, hold: 0.7, rampDown: 1.2, dropsPerSecond: 110, damagePerDrop: 0.35 },
+  stream: { rampUp: 2, hold: 0.7, rampDown: 1.2, dropsPerSecond: 110, damagePerDrop: 0.35, spray: 40, speedSpread: 0.35 },
   refundOnMiss: true,
   friendlyFire: false,
   colour: '#ffcc1f',

@@ -98,6 +98,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   arriving closes the other phone's window) / Steal (see `steal` above; the roulette is the
   `#heist` HUD overlay plus a grabbing-hand tether on the canvas). `shell` is unused but kept as the plain default weapon. tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`;
+  low pressure sprays (`StreamSpec.spray`/`speedSpread`, scaled by (1 − pressure)^1.5) and each droplet's
+  damage scales with its pressure (0.1 + 0.9·p²), so point-blank isn't a near one-shot;
   `refundOnMiss`: if no droplet soaks an enemy, `endTurn` gives the round back via `state.refund`)
   / ten-2 (shakes for 10s, then jetpacks to a new spot; power = thrust; a huge, wide blast of toxic mud
   propellant) / ten-3 (incredibly powerful short-range chunky spew, ~200px max; coated enemies burn
