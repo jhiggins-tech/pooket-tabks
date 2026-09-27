@@ -1,3 +1,4 @@
+import { describeCandidate, maskAddress, netLog } from './log';
 import { compressSdp, expandCode } from './sdp';
 import type { Transport } from './transport';
 import { decodeMsg, encodeMsg } from './wire';
@@ -26,8 +27,17 @@ export class Peer implements Transport {
 
   private constructor(private readonly pc: RTCPeerConnection) {
     let grace: ReturnType<typeof setTimeout> | null = null;
+    pc.addEventListener('icegatheringstatechange', () => netLog(`webrtc: gathering ${pc.iceGatheringState}`));
+    pc.addEventListener('icecandidate', (e) => e.candidate?.candidate && netLog(`webrtc: local candidate ${describeCandidate(e.candidate.candidate)}`));
+    pc.addEventListener('icecandidateerror', (e) => {
+      const ev = e as RTCPeerConnectionIceErrorEvent;
+      netLog(`webrtc: candidate error ${ev.errorCode} ${ev.errorText} (${ev.url})`);
+    });
+    pc.addEventListener('iceconnectionstatechange', () => netLog(`webrtc: ice ${pc.iceConnectionState}`));
     pc.addEventListener('connectionstatechange', () => {
       const st = pc.connectionState;
+      netLog(`webrtc: connection ${st}`);
+      if (st === 'connected') void this.logRoute();
       if (grace) clearTimeout(grace);
       grace = null;
       if (st === 'failed' || st === 'closed') this.handleClose();
@@ -36,8 +46,26 @@ export class Peer implements Transport {
     });
   }
 
+  /** Log which candidate pair actually connected (host/srflx on each side). */
+  private async logRoute(): Promise<void> {
+    try {
+      const stats = await this.pc.getStats();
+      const byId = new Map<string, { candidateType?: string; address?: string; protocol?: string }>();
+      stats.forEach((s: { id: string }) => byId.set(s.id, s as never));
+      stats.forEach((s: { type: string; state?: string; nominated?: boolean; localCandidateId?: string; remoteCandidateId?: string }) => {
+        if (s.type !== 'candidate-pair' || s.state !== 'succeeded' || !s.nominated) return;
+        const l = byId.get(s.localCandidateId!);
+        const r = byId.get(s.remoteCandidateId!);
+        netLog(`webrtc: route ${l?.candidateType} ${maskAddress(l?.address ?? '')} <-> ${r?.candidateType} ${maskAddress(r?.address ?? '')}`);
+      });
+    } catch {
+      /* stats not available */
+    }
+  }
+
   /** Host: make an offer. Returns the peer and the code to hand to the other phone. */
   static async host(): Promise<{ peer: Peer; code: string }> {
+    netLog('webrtc: making an offer');
     const peer = new Peer(new RTCPeerConnection({ iceServers: ICE_SERVERS }));
     peer.attach(peer.pc.createDataChannel('pooket', { ordered: true }));
     await peer.pc.setLocalDescription(await peer.pc.createOffer());
@@ -49,6 +77,7 @@ export class Peer implements Transport {
   static async join(offerCode: string): Promise<{ peer: Peer; code: string }> {
     const offer = expandCode(offerCode);
     if (offer.kind !== 'offer') throw new Error("That's an answer code; scan the host's code instead");
+    netLog(`webrtc: answering an offer with candidates: ${offer.sdp.split('\r\n').filter((l) => l.startsWith('a=candidate')).map(describeCandidate).join(', ') || 'NONE'}`);
     const peer = new Peer(new RTCPeerConnection({ iceServers: ICE_SERVERS }));
     peer.pc.addEventListener('datachannel', (e) => peer.attach(e.channel));
     await peer.pc.setRemoteDescription({ type: 'offer', sdp: offer.sdp });
@@ -61,6 +90,7 @@ export class Peer implements Transport {
   async accept(answerCode: string): Promise<void> {
     const answer = expandCode(answerCode);
     if (answer.kind !== 'answer') throw new Error("That's the host's code; scan the other phone's reply code");
+    netLog(`webrtc: got an answer with candidates: ${answer.sdp.split('\r\n').filter((l) => l.startsWith('a=candidate')).map(describeCandidate).join(', ') || 'NONE'}`);
     await this.pc.setRemoteDescription({ type: 'answer', sdp: answer.sdp });
   }
 
@@ -88,8 +118,14 @@ export class Peer implements Transport {
 
   private attach(ch: RTCDataChannel): void {
     this.channel = ch;
-    ch.addEventListener('open', () => this.onOpen());
-    ch.addEventListener('close', () => this.handleClose());
+    ch.addEventListener('open', () => {
+      netLog('webrtc: data channel open');
+      this.onOpen();
+    });
+    ch.addEventListener('close', () => {
+      netLog('webrtc: data channel closed');
+      this.handleClose();
+    });
     ch.addEventListener('message', (e) => this.receive(String(e.data)));
   }
 
@@ -128,7 +164,10 @@ export class Peer implements Transport {
         if (pc.iceGatheringState === 'complete') resolve();
       };
       pc.addEventListener('icegatheringstatechange', done);
-      setTimeout(resolve, GATHER_TIMEOUT_MS);
+      setTimeout(() => {
+        if (pc.iceGatheringState !== 'complete') netLog(`webrtc: gathering still ${pc.iceGatheringState} after ${GATHER_TIMEOUT_MS}ms; going with what we have`);
+        resolve();
+      }, GATHER_TIMEOUT_MS);
     });
   }
 }
@@ -138,6 +177,12 @@ export class Peer implements Transport {
  * to find games on the same Wi-Fi. Null if STUN can't be reached in time.
  */
 export async function publicAddress(timeoutMs = 3000): Promise<string | null> {
+  const found = await probePublicAddress(timeoutMs);
+  netLog(`wifi: public address ${found ? maskAddress(found) : 'unknown (no STUN reply)'}`);
+  return found;
+}
+
+async function probePublicAddress(timeoutMs: number): Promise<string | null> {
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   try {
     pc.createDataChannel('probe');

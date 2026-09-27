@@ -1,3 +1,4 @@
+import { netLog } from './log';
 import { MqttClient } from './mqtt';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
 
@@ -7,8 +8,19 @@ import { seal, sealerFor, unseal, type Sealer } from './seal';
  * same Wi-Fi (same public address). Once the data channel opens, the brokers are done with.
  */
 
-/** Free public brokers (WebSocket over TLS). Several at once, so one being down doesn't matter. */
-export const DEFAULT_BROKERS = ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];
+/** A broker to use: its WebSocket URL, and a (public) login if it wants one. */
+export type BrokerSpec = string | { url: string; username?: string; password?: string };
+
+/**
+ * Free public brokers (WebSocket over TLS). Several at once, so one being down doesn't matter; shiftr.io
+ * listens on the usual HTTPS port, for Wi-Fi that blocks the others' ports.
+ */
+export const DEFAULT_BROKERS: BrokerSpec[] = [
+  'wss://broker.hivemq.com:8884/mqtt',
+  'wss://broker.emqx.io:8084/mqtt',
+  'wss://test.mosquitto.org:8081/mqtt',
+  { url: 'wss://public.cloud.shiftr.io', username: 'public', password: 'public' },
+];
 
 const PREFIX = 'pooket-tabks/v1';
 /** Room codes: 4 letters (letters only, so a typed 0 or 1 can only mean O or I). */
@@ -56,8 +68,11 @@ export class Bus {
   private constructor(private readonly clients: MqttClient[]) {}
 
   /** Connect to the brokers; resolves as soon as one accepts (the rest keep trying). */
-  static open(urls: string[], clientId: string, will?: { topic: string; payload: Uint8Array; retain: boolean }, timeoutMs = 6000): Promise<Bus> {
-    const clients = urls.map((url, i) => new MqttClient(url, { clientId: `${clientId}-${i}`, will }));
+  static open(brokers: BrokerSpec[], clientId: string, will?: { topic: string; payload: Uint8Array; retain: boolean }, timeoutMs = 6000): Promise<Bus> {
+    const clients = brokers.map((b, i) => {
+      const spec = typeof b === 'string' ? { url: b } : b;
+      return new MqttClient(spec.url, { clientId: `${clientId}-${i}`, will, username: spec.username, password: spec.password });
+    });
     const bus = new Bus(clients);
     return new Promise((resolve, reject) => {
       let failed = 0;
@@ -75,6 +90,7 @@ export class Bus {
           () => {
             if (++failed === clients.length && !done) {
               done = true;
+              netLog('bus: no lobby server reachable');
               reject(new Error("Couldn't reach the lobby servers (is this phone online?)"));
             }
           },
@@ -93,7 +109,9 @@ export class Bus {
   }
 
   publish(topic: string, payload: Uint8Array, retain = false): void {
-    for (const c of this.clients) if (c.isConnected) c.publish(topic, payload, retain);
+    const via = this.clients.filter((c) => c.isConnected);
+    netLog(`bus: publish ${shortTopic(topic)} (${payload.length}B${retain ? ', retained' : ''}) via ${via.map((c) => c.name).join(', ') || 'NOBODY'}`);
+    for (const c of via) c.publish(topic, payload, retain);
   }
 
   close(): void {
@@ -107,8 +125,14 @@ export class Bus {
     for (const [k, t] of this.seen) if (now - t > 5000) this.seen.delete(k);
     if (this.seen.has(key)) return;
     this.seen.set(key, now);
+    netLog(`bus: got ${shortTopic(topic)} (${payload.length}B)`);
     this.onMessage(topic, payload);
   }
+}
+
+/** Topics are hashes: keep enough to tell them apart in a log. */
+function shortTopic(t: string): string {
+  return t.replace(PREFIX, '').replace(/[0-9a-f]{24}/, (h) => `${h.slice(0, 6)}…`);
 }
 
 type RoomMsg =
@@ -125,11 +149,21 @@ async function roomChannel(bus: Bus, code: string, me: string, onMsg: (m: RoomMs
     if (t !== topic) return prev(t, p);
     void unseal(sealer, p).then((m) => {
       const msg = m as RoomMsg | null;
-      if (msg && typeof msg === 'object' && msg.from !== me && (!('to' in msg) || msg.to === me)) onMsg(msg);
+      if (!msg || typeof msg !== 'object') return netLog('room: a message that did not unseal (wrong code?)');
+      if (msg.from === me) return; // our own, echoed back
+      if ('to' in msg && msg.to !== me) return netLog(`room: ${msg.t} for someone else`);
+      netLog(`room: received ${msg.t} from ${msg.from.slice(0, 4)}`);
+      onMsg(msg);
     });
   };
   bus.subscribe(topic);
-  return { send: async (m: RoomMsg) => bus.publish(topic, await seal(sealer, m)) };
+  netLog(`room: listening as ${me.slice(0, 4)} on ${shortTopic(topic)}`);
+  return {
+    send: async (m: RoomMsg) => {
+      netLog(`room: sending ${m.t}${'to' in m ? ` to ${m.to.slice(0, 4)}` : ''}`);
+      bus.publish(topic, await seal(sealer, m));
+    },
+  };
 }
 
 /** Host a room: answer the first phone that knocks with an offer; resolve its peer once connected. */
@@ -166,7 +200,10 @@ export function hostRoom<P extends PeerLike>(bus: Bus, code: string, factory: Pe
     } else if (m.t === 'answer' && m.from === guest && offer && !accepted) {
       accepted = true;
       const { peer } = await offer;
-      await peer.accept(m.code).catch(() => reset());
+      await peer.accept(m.code).catch((e) => {
+        netLog(`room: accepting the answer failed: ${e}`);
+        reset();
+      });
       // If it doesn't connect, free the room for another try.
       giveUp = setTimeout(() => !stopped && reset(), CONNECT_MS);
     }
@@ -197,6 +234,7 @@ export function joinRoom<P extends PeerLike>(
     const finish = (err: Error | null, peer?: P) => {
       if (finished) return;
       finished = true;
+      netLog(err ? `join: gave up: ${err.message}` : 'join: connected');
       timers.forEach(clearTimeout);
       clearInterval(knocking);
       if (err) {

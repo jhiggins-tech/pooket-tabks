@@ -742,6 +742,30 @@ body[data-remote='true'] .drive button {
 @media (max-height: 340px) {
   .online-code { font-size: 40px; }
 }
+.online-logs {
+  position: absolute;
+  right: var(--safe-r);
+  bottom: var(--safe-b);
+  height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.online-logs-text {
+  position: absolute;
+  right: var(--safe-r);
+  bottom: var(--safe-b);
+  width: min(60vw, 420px);
+  height: 40vh;
+  font: 11px ui-monospace, Menlo, Consolas, monospace;
+  color: var(--text);
+  background: #0b0f22;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: auto;
+}
 .online-status-line {
   font-size: 13px;
   opacity: 0.8;

@@ -1,3 +1,5 @@
+import { netLog } from './log';
+
 /**
  * A minimal MQTT 3.1.1 client over WebSocket: just enough to use free public brokers as a signalling
  * relay. QoS 0 only; supports retained messages and a "last will" (sent by the broker if we vanish).
@@ -8,6 +10,9 @@ export interface MqttOptions {
   /** Published by the broker if this client disconnects without saying goodbye. */
   will?: { topic: string; payload: Uint8Array; retain: boolean };
   keepAlive?: number;
+  /** Some public brokers want a (public) username and password. */
+  username?: string;
+  password?: string;
 }
 
 const CONNECT = 1;
@@ -36,13 +41,25 @@ export class MqttClient {
     return this.connected;
   }
 
+  /** Short name for logs. */
+  get name(): string {
+    try {
+      return new URL(this.url).host;
+    } catch {
+      return this.url;
+    }
+  }
+
   /** Connect; resolves once the broker accepts us. */
   connect(timeoutMs = 6000): Promise<void> {
+    netLog(`mqtt ${this.name}: connecting`);
+    const t0 = Date.now();
     return new Promise((resolve, reject) => {
       let settled = false;
       const fail = (why: string) => {
         if (settled) return;
         settled = true;
+        netLog(`mqtt ${this.name}: FAILED after ${Date.now() - t0}ms: ${why}`);
         this.teardown();
         reject(new Error(why));
       };
@@ -57,13 +74,17 @@ export class MqttClient {
       }
       this.ws = ws;
       ws.binaryType = 'arraybuffer';
-      ws.onopen = () => ws.send(this.connectPacket());
+      ws.onopen = () => {
+        netLog(`mqtt ${this.name}: websocket open (${Date.now() - t0}ms), protocol "${ws.protocol}"`);
+        ws.send(this.connectPacket());
+      };
       ws.onerror = () => {
         clearTimeout(timer);
         fail(`Couldn't reach ${this.url}`);
       };
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         clearTimeout(timer);
+        netLog(`mqtt ${this.name}: websocket closed code=${e.code} reason="${e.reason}" clean=${e.wasClean}`);
         if (!settled) fail(`${this.url} closed`);
         else this.teardown();
       };
@@ -73,10 +94,12 @@ export class MqttClient {
           if (settled) return;
           settled = true;
           if (!ok) {
+            netLog(`mqtt ${this.name}: CONNACK refused`);
             this.teardown();
             reject(new Error(`${this.url} refused the connection`));
             return;
           }
+          netLog(`mqtt ${this.name}: connected (${Date.now() - t0}ms)`);
           this.connected = true;
           const ka = this.opts.keepAlive ?? 30;
           this.ping = setInterval(() => this.send(packet(PINGREQ, 0, [])), ka * 600);
@@ -126,11 +149,15 @@ export class MqttClient {
   }
 
   private connectPacket(): Uint8Array<ArrayBuffer> {
-    const { clientId, will } = this.opts;
+    const { clientId, will, username, password } = this.opts;
     let flags = 0x02; // clean session
     if (will) flags |= 0x04 | (will.retain ? 0x20 : 0);
+    if (username !== undefined) flags |= 0x80;
+    if (password !== undefined) flags |= 0x40;
     const parts = [str('MQTT'), Uint8Array.of(4, flags), u16(this.opts.keepAlive ?? 30), str(clientId)];
     if (will) parts.push(str(will.topic), u16(will.payload.length), will.payload);
+    if (username !== undefined) parts.push(str(username));
+    if (password !== undefined) parts.push(str(password));
     return packet(CONNECT, 0, parts);
   }
 
@@ -160,7 +187,10 @@ export class MqttClient {
       if (!complete || q + len > b.length) break; // wait for the rest
       const body = b.subarray(q, q + len);
       p = q + len;
-      if (type === CONNACK) onConnack(body[1] === 0);
+      if (type === CONNACK) {
+        if (body[1] !== 0) netLog(`mqtt ${this.name}: CONNACK return code ${body[1]}`);
+        onConnack(body[1] === 0);
+      }
       else if (type === PUBLISH) {
         const tlen = (body[0]! << 8) | body[1]!;
         const topic = new TextDecoder().decode(body.subarray(2, 2 + tlen));

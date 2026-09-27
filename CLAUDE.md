@@ -135,7 +135,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `hostRoom`/`joinRoom` swap the offer/answer codes on a topic hashed from the 4-letter room code,
   sealed with AES-GCM (`seal.ts`); `advertise`/`watchLobby` list games on the same Wi-Fi, keyed by the
   STUN public address (`publicAddress()`), as retained messages cleared on stop or by the MQTT will.
-  If no broker answers, the UI falls back to direct codes. Tests use a local broker
+  If no broker answers, the UI falls back to direct codes. `log.ts` (`netLog`) records every step
+  (brokers, room messages, WebRTC candidates/states/route, session) with masked addresses for the
+  "Copy logs" button on the online screens; log new network steps there too. Tests use a local broker
   (`tests/support/broker.ts`, the `ws` dev dependency); `?debug&broker=ws://…&lan=X|none` points the
   game at it. `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator view
   (`body[data-remote]`).

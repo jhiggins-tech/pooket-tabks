@@ -170,6 +170,17 @@ test('same Wi-Fi: the host shows up in the Join list, one tap to connect', async
   await expect(game).toContainText(code);
   await guest.screenshot({ path: 'test-results/room-join-list.png' });
   await game.tap();
+  await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
+
+  // The logs button copies a readable account of what happened, for bug reports.
+  await host.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await host.locator('#online-logs').tap();
+  await expect(host.locator('#online-logs')).toHaveText('✓ Logs copied');
+  const log = await host.evaluate(() => navigator.clipboard.readText());
+  for (const line of ['Pooket Tabks network log', 'mqtt 127.0.0.1', 'connected (', `room ${code} open, on the Wi-Fi list`, 'room: received knock', 'room: sending offer', 'webrtc: data channel open', 'ui: connected as host']) {
+    expect(log).toContain(line);
+  }
+  console.log(log);
   await playFromLobby(host, guest);
   // Once connected, the game is off the list for anyone else.
   expect(errors).toEqual([]);

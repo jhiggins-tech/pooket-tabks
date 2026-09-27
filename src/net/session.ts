@@ -1,5 +1,6 @@
 import { currentPlayer, fire } from '../game/game';
 import type { GameState, Hop, PlayerConfig } from '../game/state';
+import { netLog } from './log';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
 import type { Transport } from './transport';
 
@@ -85,6 +86,7 @@ export class NetSession {
 
   /** Host: start (or restart) the match. Players are [host, guest]; colours are resolved by the caller. */
   start(seed: number, players: PlayerConfig[]): GameState {
+    netLog(`session: starting a match (${players.map((p) => p.characterId).join(' vs ')})`);
     const state = this.begin(seed, players);
     this.transport.send({ k: 'start', seed, players, terrain: encodeSolid(state.terrain) } satisfies NetMsg);
     return state;
@@ -107,6 +109,7 @@ export class NetSession {
     const snap = takeSnapshot(s);
     if (!fire(s)) return false;
     this.shot = { turn: snap.turn, owner: this.localSeat };
+    netLog(`session: fired on turn ${snap.turn}`);
     this.transport.send({ k: 'fire', turn: snap.turn, snap } satisfies NetMsg);
     return true;
   }
@@ -139,6 +142,7 @@ export class NetSession {
     }
     if (this.shot.owner === this.localSeat) {
       // Our shot has played out: our result is the one that counts.
+      netLog(`session: sending the result of turn ${this.shot.turn}`);
       this.transport.send({ k: 'sync', turn: s.turn, snap: takeSnapshot(s), terrain: encodeSolid(s.terrain) } satisfies NetMsg);
       this.shot = null;
     } else if (this.pendingSync) {
@@ -169,6 +173,7 @@ export class NetSession {
 
   private applySync(msg: Extract<NetMsg, { k: 'sync' }>): void {
     const s = this.state!;
+    netLog(`session: applying the other phone's result (now turn ${msg.snap.turn})`);
     applySnapshot(s, msg.snap);
     s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
     this.shot = null;
@@ -180,7 +185,9 @@ export class NetSession {
     if (this.lost) return;
     switch (msg.k) {
       case 'hello':
+        netLog(`session: hello from the other phone (${msg.pick.characterId})`);
         if (msg.v !== PROTOCOL) {
+          netLog(`session: other phone runs protocol ${msg.v}, this one ${PROTOCOL}`);
           this.drop();
           return;
         }
@@ -204,6 +211,7 @@ export class NetSession {
       case 'fire': {
         const s = this.state;
         if (!s) return;
+        netLog(`session: the other phone fired on turn ${msg.turn}`);
         // Their shot supersedes anything still pending from before.
         this.pendingSync = null;
         applySnapshot(s, msg.snap);
@@ -217,6 +225,7 @@ export class NetSession {
         this.waitedForSync = 0;
         return;
       case 'bye':
+        netLog('session: the other phone left');
         this.drop();
         return;
     }

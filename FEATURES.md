@@ -40,7 +40,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   just open the link: one trip, nothing to send back. Free public MQTT brokers (HiveMQ, EMQX, Mosquitto,
   all at once) pass the connection details between the phones, sealed with a key from the code, and
   are dropped once connected. If they can't be reached, it falls back to swapping direct QR codes both
-  ways (scan with the camera app, in-game on Android, or paste). Then a lobby (each picks their own character; the host starts) and each plays on their own phone:
+  ways (scan with the camera app, in-game on Android, or paste). Every online screen has a 📋 Copy
+  logs button (lobby servers, room messages, WebRTC states; addresses masked) for bug reports. Then a lobby (each picks their own character; the host starts) and each plays on their own phone:
   the other phone watches your aim live, and its controls step aside until it's its turn. WebRTC
   data channel with free public STUN only, no server: same Wi-Fi is the baseline; over mobile data
   it's a bonus if the carrier allows it. Leaving or dropping out shows "Connection lost".
