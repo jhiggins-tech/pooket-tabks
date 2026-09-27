@@ -911,12 +911,12 @@ export function step(state: GameState, dt: number): void {
       state.spews.length +
       state.bursts.length +
       state.stitches.length +
-      state.runners.filter((r) => r.legLeft > 0).length +
+      (state.runners.some((r) => r.legLeft > 0) ? 1 : 0) +
       state.naps.length +
       state.booms.length +
       state.sludge.length +
       state.puddles.length +
-      state.players.filter((p) => p.toxin > 0).length;
+      (state.players.some((p) => p.toxin > 0) ? 1 : 0);
     if (busy === 0) {
       stepSoak(state, dt, true);
       state.phase = 'settling';
@@ -1793,11 +1793,19 @@ function bounce(state: GameState, pr: Projectile, weapon: WeaponDef, hitX: numbe
 
 /** The real tank, twin or hologram whose hit circle contains (x, y). */
 export function targetAt(state: GameState, x: number, y: number): Target | undefined {
-  for (const t of allTargets(state)) {
-    const pos = targetPos(t);
-    if (Math.hypot(x - pos.x, y - (pos.y - TANK_BODY_HEIGHT)) <= TANK_HIT_RADIUS) return t;
-  }
+  // The hottest path in the game (every projectile, droplet and blob of mud, every ~1px): no allocations
+  // unless something is hit. Same order as allTargets: tanks, then twins, then holograms.
+  for (const player of state.players) if (player.alive && overHull(x, y, player)) return { kind: 'player', player };
+  for (const player of state.players) if (player.alive && player.twin && overHull(x, y, player.twin)) return { kind: 'twin', player };
+  for (const holo of state.holograms) if (state.players[holo.ownerId]?.alive && overHull(x, y, holo)) return { kind: 'hologram', holo };
   return undefined;
+}
+
+/** Is (x, y) within hit range of a hull resting at `at`? */
+function overHull(x: number, y: number, at: { x: number; y: number }): boolean {
+  const dx = x - at.x;
+  const dy = y - (at.y - TANK_BODY_HEIGHT);
+  return dx * dx + dy * dy <= TANK_HIT_RADIUS * TANK_HIT_RADIUS;
 }
 
 /** Where a target's hull rests (x centre, y = ground contact). */
