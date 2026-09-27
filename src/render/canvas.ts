@@ -3,6 +3,7 @@ import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../game/consta
 import {
   boomPhaseArcs,
   boomRadii,
+  canPickDecoy,
   currentPlayer,
   HOLOGRAM_PHASE_IN,
   hologramsOf,
@@ -127,7 +128,7 @@ export class Renderer {
       for (const h of hologramsOf(state, p.id)) {
         const phaseIn = Math.min(1, h.age / HOLOGRAM_PHASE_IN);
         this.drawGlitchedTank(p, state, h, Math.max(shimmerAmt, 1 - phaseIn), phaseIn, 1);
-        if (state.swapTargetId === h.id && state.phase === 'aiming' && currentPlayer(state) === p) this.drawSwapMarker(h);
+        if (state.swapTargetId === h.id && canPickDecoy(state) && currentPlayer(state) === p) this.drawSwapMarker(h);
       }
       if (p.twin && p.alive) {
         // Twins: an identical second tank, phasing in when it first appears.

@@ -3,9 +3,13 @@ import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import {
+  canPickDecoy,
   createGame,
   currentPlayer,
+  DECOY_PICK_TIME,
+  decoyPickLeft,
   explode,
+  finishDecoyPick,
   fire,
   hologramAt,
   hologramsOf,
@@ -254,5 +258,64 @@ describe('Trollogram', () => {
     expect(g.ghosts[0]).toMatchObject({ x: h.x, y: h.y, ownerId: 0 });
     step(g, 1);
     expect(g.ghosts).toHaveLength(0);
+  });
+
+  describe('picking a decoy on the turn it is cast', () => {
+    it('holds the turn open for a moment to tap one of the new decoys, then swaps into it', () => {
+      const g = flatGame();
+      const kie = g.players[0]!;
+      const start = { x: kie.x, y: kie.y };
+      selectTier(g, 1);
+      fire(g);
+      expect(decoyPickLeft(g)).toBe(DECOY_PICK_TIME);
+      const target = hologramsOf(g, 0)[1]!;
+      const spot = { x: target.x, y: target.y };
+      // A few seconds in, the turn is still open and a decoy can be picked.
+      for (let t = 0; t < 3; t += FIXED_DT) step(g, FIXED_DT);
+      expect(g.turn).toBe(1);
+      expect(canPickDecoy(g)).toBe(true);
+      expect(toggleSwapTarget(g, target.id)).toBe(true);
+      finishTurn(g);
+      expect(currentPlayer(g).name).toBe('kcaj');
+      expect({ x: kie.x, y: kie.y }).toEqual(spot);
+      expect(hologramsOf(g, 0).some((h) => h.x === start.x)).toBe(true);
+      expect(canPickDecoy(g)).toBe(true); // kcaj aiming...
+      expect(toggleSwapTarget(g, target.id)).toBe(false); // ...but it's not kcaj's decoy
+    });
+
+    it('closes after DECOY_PICK_TIME, or straight away when the caster is done', () => {
+      const g = flatGame();
+      selectTier(g, 1);
+      fire(g);
+      let t = 0;
+      while (g.turn === 1 && t < 30) {
+        step(g, FIXED_DT);
+        t += FIXED_DT;
+      }
+      expect(t).toBeGreaterThan(DECOY_PICK_TIME);
+      expect(t).toBeLessThan(DECOY_PICK_TIME + 3);
+
+      passTurn(g); // kcaj
+      selectTier(g, 1);
+      fire(g);
+      step(g, FIXED_DT);
+      finishDecoyPick(g);
+      expect(decoyPickLeft(g)).toBeNull();
+      expect(canPickDecoy(g)).toBe(false);
+      t = 0;
+      while (g.turn === 3 && t < 30) {
+        step(g, FIXED_DT);
+        t += FIXED_DT;
+      }
+      expect(t).toBeLessThan(DECOY_PICK_TIME);
+    });
+
+    it('other weapons give no pick window once fired', () => {
+      const g = withDecoys();
+      selectTier(g, 0);
+      fire(g);
+      expect(canPickDecoy(g)).toBe(false);
+      expect(toggleSwapTarget(g, hologramsOf(g, 0)[0]!.id)).toBe(false);
+    });
   });
 });

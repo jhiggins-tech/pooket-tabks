@@ -2,7 +2,20 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { assignColours, getCharacter } from './characters/roster';
-import { adjustAim, createGame, currentPlayer, drive, fire, hologramAt, selectTier, setAim, step, toggleSwapTarget } from './game/game';
+import {
+  adjustAim,
+  canPickDecoy,
+  createGame,
+  currentPlayer,
+  drive,
+  finishDecoyPick,
+  fire,
+  hologramAt,
+  selectTier,
+  setAim,
+  step,
+  toggleSwapTarget,
+} from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -161,6 +174,7 @@ bindControls(canvas, {
   adjust: (da, dp) => adjustAim(state, da, dp),
   selectTier: (t) => selectTier(state, t),
   setDrive: (dir) => (driveDir = dir),
+  canTap: () => canPickDecoy(state) && localCanAct(),
   tap: (x, y) => {
     const w = renderer.screenToWorld(x, y);
     // Generous finger-sized radius (~30 CSS px).
@@ -168,6 +182,7 @@ bindControls(canvas, {
     if (holo) toggleSwapTarget(state, holo.id);
   },
   fire: () => (net ? net.fire() : fire(state)),
+  done: () => finishDecoyPick(state),
 });
 
 const onResize = () => renderer.resize();

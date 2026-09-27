@@ -92,7 +92,10 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   `Player.cooked` becomes active on their next turn, when `offence()` halves everything they fire, then
   clears) / Take a Nap (`heal` kind: dozes 2s, wakes at full HP). kie: Weasel Pop (3 spinning weasels at aim −4/0/+4° that
   land, scurry right up under the enemy and pop, or as close as they can get in range, or after 2.5s) / Trollogram (each use adds 2 holograms; on
-  later turns tap one to secretly swap with it after firing) / Steal (see `steal` above; the roulette is the
+  later turns tap one to secretly swap with it after firing; right after casting there's a `DECOY_PICK_TIME`
+  window (`state.decoyPick`, counted as busy; FIRE becomes DONE → `finishDecoyPick`) to pick one of the new ones.
+  `NetSession.fire` blanks `swapTargetId` in the pre-fire snapshot so the pick stays secret; a result
+  arriving closes the other phone's window) / Steal (see `steal` above; the roulette is the
   `#heist` HUD overlay plus a grabbing-hand tether on the canvas). `shell` is unused but kept as the plain default weapon. tones: ten-1 (yellow water jet: pressure builds 0→full over 2s
   in uneven seeded spurts, holds at exactly full for 0.7s, sputters off over 1.2s; see `streamPressure`;
   `refundOnMiss`: if no droplet soaks an enemy, `endTurn` gives the round back via `state.refund`)

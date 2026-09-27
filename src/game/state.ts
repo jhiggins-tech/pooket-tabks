@@ -419,6 +419,8 @@ export interface GameState {
   holograms: Hologram[];
   /** Hologram the current player will swap with once their shot has resolved. */
   swapTargetId: number | null;
+  /** Seconds left to pick a decoy to swap with on the turn Trollogram is cast (0: no window open). */
+  decoyPick: number;
   shimmers: PhaseShimmer[];
   ghosts: HologramGhost[];
   streams: Stream[];

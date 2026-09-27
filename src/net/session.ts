@@ -1,4 +1,4 @@
-import { currentPlayer, fire } from '../game/game';
+import { currentPlayer, finishDecoyPick, fire } from '../game/game';
 import type { GameState, Hop, PlayerConfig } from '../game/state';
 import { netLog } from './log';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
@@ -120,6 +120,8 @@ export class NetSession {
     const s = this.state;
     if (!s || !this.canAct()) return false;
     const snap = takeSnapshot(s);
+    // The swap target is a secret: the other phone learns where we went from the result.
+    snap.swapTargetId = null;
     if (!fire(s)) return false;
     this.shot = { turn: snap.turn, owner: this.localSeat };
     netLog(`session: fired on turn ${snap.turn}`);
@@ -246,6 +248,7 @@ export class NetSession {
         if (!this.state) return;
         this.pendingSync = msg;
         this.waitedForSync = 0;
+        finishDecoyPick(this.state); // they've finished picking a decoy, if they were
         return;
       case 'bye':
         netLog('session: the other phone left');

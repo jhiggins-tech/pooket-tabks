@@ -1,4 +1,4 @@
-import { currentPlayer, fire } from '../game/game';
+import { currentPlayer, finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
 import { netLog } from './log';
 import type { ViewMsg } from './session';
@@ -57,6 +57,7 @@ export class Spectator {
     else {
       this.pending = v;
       this.waited = 0;
+      finishDecoyPick(this.state); // the shooter has finished picking a decoy, if they were
     }
   }
 

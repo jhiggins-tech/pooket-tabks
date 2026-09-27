@@ -5,9 +5,13 @@ export interface ControlHandlers {
   selectTier(tier: number): void;
   /** Drive button held (−1 / +1) or released (0). */
   setDrive(dir: number): void;
+  /** Whether taps on the battlefield count right now (aiming, or picking a decoy just after casting). */
+  canTap(): boolean;
   /** A tap (no drag) on the battlefield, in screen CSS pixels. */
   tap(clientX: number, clientY: number): void;
   fire(): void;
+  /** FIRE pressed while picking a decoy after casting: done choosing. */
+  done(): void;
 }
 
 const DRAG_DEADZONE_PX = 10;
@@ -50,7 +54,7 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
   let drag: { id: number; x: number; y: number; moved: boolean } | null = null;
 
   canvas.addEventListener('pointerdown', (e) => {
-    if (!h.canAim() || drag) return;
+    if (!(h.canAim() || h.canTap()) || drag) return;
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     canvas.setPointerCapture(e.pointerId);
   });
@@ -69,7 +73,7 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
 
   canvas.addEventListener('pointerup', (e) => {
     if (!drag || e.pointerId !== drag.id) return;
-    if (!drag.moved && h.canAim()) h.tap(e.clientX, e.clientY);
+    if (!drag.moved && h.canTap()) h.tap(e.clientX, e.clientY);
     drag = null;
   });
   canvas.addEventListener('pointercancel', (e) => {
@@ -110,6 +114,7 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
 
   document.getElementById('fire')?.addEventListener('click', () => {
     if (h.canAim()) h.fire();
+    else if (h.canTap()) h.done();
   });
 }
 

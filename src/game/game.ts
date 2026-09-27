@@ -63,6 +63,8 @@ const MAX_SPLASHES = 220;
 const HOLOGRAM_COLOUR = '#7cf7d4';
 /** Share of the would-be damage a shooter takes for hitting a hologram. */
 export const HOLOGRAM_PENALTY = 0.5;
+/** After casting Trollogram, how long the caster has to tap a decoy to swap into (FIRE ends it early). */
+export const DECOY_PICK_TIME = 6;
 const HOLOGRAM_MIN_SPACING = 70;
 
 export interface GameConfig {
@@ -134,6 +136,7 @@ export function createGame(cfg: GameConfig): GameState {
     beams: [],
     holograms: [],
     swapTargetId: null,
+    decoyPick: 0,
     shimmers: [],
     ghosts: [],
     streams: [],
@@ -612,6 +615,8 @@ function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void {
     state.holograms.push(holo);
     ring(state, holo.x, holo.y - TANK_BODY_HEIGHT, colour);
   }
+  // A moment to pick one of them to swap into this turn.
+  state.decoyPick = DECOY_PICK_TIME;
 }
 
 // ---- Steal (kie) ----------------------------------------------------------------------------------
@@ -743,9 +748,24 @@ export function hologramAt(state: GameState, x: number, y: number, radius: numbe
   return best;
 }
 
-/** Pick (or un-pick) the hologram to swap with after this turn's shot. Only on your own turn, before firing. */
+/** Can the current player pick a decoy to swap with right now? Before firing, or just after casting Trollogram. */
+export function canPickDecoy(state: GameState): boolean {
+  return state.phase === 'aiming' || (state.phase === 'flying' && state.decoyPick > 0);
+}
+
+/** Seconds left to pick a decoy on the turn Trollogram was cast, or null when that isn't happening. */
+export function decoyPickLeft(state: GameState): number | null {
+  return state.phase === 'flying' && state.decoyPick > 0 ? state.decoyPick : null;
+}
+
+/** Close the casting-turn pick window early (the caster is done choosing). */
+export function finishDecoyPick(state: GameState): void {
+  if (state.phase === 'flying') state.decoyPick = 0;
+}
+
+/** Pick (or un-pick) the hologram to swap with when this turn ends. Only on your own turn (see canPickDecoy). */
 export function toggleSwapTarget(state: GameState, holoId: number): boolean {
-  if (state.phase !== 'aiming') return false;
+  if (!canPickDecoy(state)) return false;
   const h = state.holograms.find((x) => x.id === holoId);
   if (!h || h.ownerId !== currentPlayer(state).id) return false;
   state.swapTargetId = state.swapTargetId === holoId ? null : holoId;
@@ -856,7 +876,9 @@ export function step(state: GameState, dt: number): void {
     state.sludge = state.sludge.filter((sl) => !stepSludge(state, sl, dt));
     stepPuddles(state, dt);
     drainToxin(state, dt);
+    state.decoyPick = Math.max(0, state.decoyPick - dt);
     const busy =
+      (state.decoyPick > 0 ? 1 : 0) +
       state.projectiles.length +
       state.beams.length +
       state.streams.length +

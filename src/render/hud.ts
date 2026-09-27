@@ -1,6 +1,6 @@
 import { FUEL_PER_MATCH, MAX_HP } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { currentPlayer, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
+import { currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { GameState } from '../game/state';
@@ -27,7 +27,9 @@ export class Hud {
 
   update(state: GameState): void {
     const p = currentPlayer(state);
+    const picking = decoyPickLeft(state);
     const key = [
+      picking === null ? '' : Math.ceil(picking),
       state.phase,
       state.current,
       state.turn,
@@ -59,12 +61,15 @@ export class Hud {
     const decoys = hologramsOf(state, p.id).length;
     const countdown = jetCountdown(state);
     document.body.dataset.charging = String(countdown !== null);
+    document.body.dataset.picking = String(picking !== null && !remote);
     this.hintEl.textContent = remote && this.online?.syncing
       ? 'Syncing…'
       : remote && state.phase !== 'gameover'
       ? `${p.name} is ${state.phase === 'aiming' ? 'aiming' : 'firing'}…`
       : state.phase === 'stealing'
       ? ''
+      : picking !== null
+      ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
       ? `ten-2 charging… ${countdown}`
       : aimless
@@ -129,7 +134,10 @@ export class Hud {
     for (const b of this.driveEl.querySelectorAll('button')) b.disabled = state.phase !== 'aiming' || p.fuel <= 0.5;
     this.angleEl.textContent = `${angleLabel(p.angle)}`;
     this.powerEl.textContent = `${p.power}`;
-    this.fireEl.disabled = state.phase !== 'aiming' || (p.ammo[p.selectedTier] ?? 0) <= 0;
+    // Just after casting Trollogram, FIRE becomes DONE: finished picking a decoy to swap into.
+    const done = picking !== null && !remote;
+    this.fireEl.textContent = done ? 'DONE' : 'FIRE';
+    this.fireEl.disabled = !done && (state.phase !== 'aiming' || (p.ammo[p.selectedTier] ?? 0) <= 0);
     this.weaponsEl.replaceChildren(
       ...p.loadout.map((_, tier) => {
         const w = weaponForTier(p, tier);

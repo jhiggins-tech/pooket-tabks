@@ -84,7 +84,7 @@ export const trollogram: WeaponDef = {
   name: 'Trollogram',
   shortName: 'Trollogram',
   info:
-    'No aiming. 2 hologram copies of kie’s tank appear, and every use adds 2 more. On later turns, tap one to secretly swap places with it after you fire. Whoever hits a hologram takes half the damage themselves.',
+    'No aiming. 2 hologram copies of kie’s tank appear, and every use adds 2 more. Tap one to secretly swap places with it: right after casting (then DONE), or on a later turn before you fire. Whoever hits a hologram takes half the damage themselves.',
   kind: 'decoy',
   decoys: 2,
   blastRadius: 0,

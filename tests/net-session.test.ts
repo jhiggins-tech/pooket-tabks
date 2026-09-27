@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { createGame, currentPlayer, drive, selectTier, setAim, step } from '../src/game/game';
+import { createGame, currentPlayer, drive, finishDecoyPick, hologramsOf, selectTier, setAim, step, toggleSwapTarget } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { NetSession } from '../src/net/session';
 import { takeSnapshot } from '../src/net/snapshot';
@@ -45,7 +45,12 @@ async function playOut(a: NetSession, b: NetSession, A: GameState, B: GameState,
 const same = (A: GameState, B: GameState) => {
   const strip = (s: GameState) => {
     const snap = takeSnapshot(s) as Record<string, unknown>;
-    delete snap.floaters; // cosmetic drift is allowed to differ mid-way
+    // Cosmetics are allowed to differ mid-way: the other phone snaps to the result as it was when the
+    // shooter's turn ended, while the shooter's own animations kept going.
+    delete snap.floaters;
+    delete snap.shimmers;
+    delete snap.ghosts;
+    snap.holograms = (snap.holograms as Record<string, unknown>[]).map(({ age: _age, ...h }) => h);
     return snap;
   };
   expect(strip(B)).toEqual(strip(A));
@@ -72,6 +77,43 @@ describe('networked match', { timeout: 30_000 }, () => {
     const [pa, pb] = [currentPlayer(A), currentPlayer(B)];
     expect({ x: pb.x, angle: pb.angle, power: pb.power, tier: pb.selectedTier, fuel: pb.fuel }).toEqual({ x: pa.x, angle: pa.angle, power: pa.power, tier: pa.selectedTier, fuel: pa.fuel });
     expect(B.swapTargetId).toBeNull();
+  });
+
+  it('a decoy picked on the casting turn stays secret until the result, then both phones agree', async () => {
+    const { a, b, A, B } = await connected('kie', 'tones');
+    selectTier(A, 1); // Trollogram
+    expect(a.fire()).toBe(true);
+    await flush();
+    const target = hologramsOf(A, 0)[0]!;
+    const spot = target.x;
+    toggleSwapTarget(A, target.id);
+    for (let i = 0; i < 60; i++) {
+      step(A, FIXED_DT);
+      step(B, FIXED_DT);
+    }
+    finishDecoyPick(A);
+    expect(B.swapTargetId).toBeNull();
+    await playOut(a, b, A, B);
+    same(A, B);
+    expect(B.players[0]!.x).toBe(spot);
+  });
+
+  it('never sends the secret swap target with a shot', async () => {
+    const { a, b, A, B } = await connected('kie', 'tones');
+    selectTier(A, 1);
+    a.fire();
+    await playOut(a, b, A, B);
+    selectTier(B, 0);
+    setAim(B, 90, 10); // straight up, well away from the decoys
+    b.fire();
+    await playOut(a, b, A, B);
+    toggleSwapTarget(A, hologramsOf(A, 0)[0]!.id);
+    expect(A.swapTargetId).not.toBeNull();
+    a.fire();
+    await flush();
+    expect(B.swapTargetId).toBeNull();
+    await playOut(a, b, A, B);
+    same(A, B);
   });
 
   it('only the phone whose turn it is can fire; turns alternate and both stay identical', async () => {

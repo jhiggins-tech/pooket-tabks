@@ -13,6 +13,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 5,
+    title: 'Sneakier Trollograms',
+    items: ['Trollogram: pick a decoy to swap into on the very turn you cast it (tap one, then DONE).'],
+  },
+  {
     version: 4,
     title: 'Clearer weapon info',
     items: [

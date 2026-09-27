@@ -290,6 +290,10 @@ body:not([data-phase='aiming']) .hint,
 body:not([data-phase='aiming']) .pad {
   opacity: 0.35;
 }
+body[data-picking='true'] .hint,
+body[data-picking='true'] .pad.right {
+  opacity: 1;
+}
 body[data-charging='true'] .hint {
   opacity: 1;
   color: #9be22d;

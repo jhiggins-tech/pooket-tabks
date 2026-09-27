@@ -178,15 +178,34 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Trollogram, 3 left');
   await weapons.nth(1).tap();
   await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
+  const start = await kiePos();
   await page.locator('#fire').tap();
   await page.waitForTimeout(350);
   await page.screenshot({ path: 'test-results/trollogram-deploy.png' });
-  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
-  expect(await holos()).toHaveLength(2);
+
+  // Right away, kie can pick one of the new decoys to swap into this turn; FIRE says DONE.
+  await expect(page.locator('#hint')).toHaveText(/^Tap a decoy to swap into it · DONE when ready \(\d\)$/);
+  await expect(page.locator('#fire')).toHaveText('DONE');
+  const fresh = await holos();
+  expect(fresh).toHaveLength(2);
+  const tapWorld = async (x: number, y: number) => {
+    const at = await page.evaluate(([wx, wy]) => (window as unknown as { __pooket: Debug }).__pooket.renderer.worldToScreen(wx, wy), [x, y] as const);
+    await page.touchscreen.tap(at.x, at.y);
+  };
+  await tapWorld(fresh[1]!.x, fresh[1]!.y - 8);
+  await expect(page.locator('#hint')).toHaveText(/^Swapping into that decoy · DONE when ready/);
+  await page.screenshot({ path: 'test-results/trollogram-cast-pick.png' });
+  await page.locator('#fire').tap(); // DONE
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 5_000 });
+  await expect(page.locator('#fire')).toHaveText('FIRE');
+  expect((await kiePos()).x).toBe(fresh[1]!.x);
+  expect((await holos()).some((h) => h.x === start.x)).toBe(true);
 
   // Turn 2: kcaj fires a laser straight up, missing everything.
   await weapons.nth(1).tap();
-  for (let i = 0; i < 45; i++) await page.getByRole('button', { name: 'Rotate barrel clockwise' }).tap();
+  const angle = () => page.evaluate(() => (window as unknown as { __pooket: { state: { players: { angle: number }[] } } }).__pooket.state.players[1]!.angle);
+  const turn = (await angle()) > 90 ? 'Rotate barrel clockwise' : 'Rotate barrel anticlockwise';
+  for (let i = 0; i < 90 && (await angle()) !== 90; i++) await page.getByRole('button', { name: turn }).tap();
   await expect(page.locator('#angle')).toHaveText('90° ▴');
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
