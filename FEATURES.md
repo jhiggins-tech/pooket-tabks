@@ -18,12 +18,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
     against the real database).
 11. ✅ **Spectator mode**, shipped (see below).
 12. ✅ **"What's new" popup**, shipped (see below).
-13. **Marathon info text**: explain how far "a leg" is (150px, about a seventh of the map width).
+13. ✅ **Marathon info text**: says a leg is 150px, about a seventh of the stage's width.
 14. **Trollogram swap on the casting turn**: be able to pick a hologram to swap with before the turn ends,
     on the same turn it's cast (not only on later turns).
 15. **ten-1 spread**: more spread and variance in the jet so it isn't so concentrated at close range.
 16. **Random first player**: randomise who goes first in a match (hotseat and online).
-17. **Hyperfixate info text**: say the laser doesn't go through the ground.
+17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
 18. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)

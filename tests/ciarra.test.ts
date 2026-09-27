@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
-import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
+import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT, WORLD_W } from '../src/game/constants';
 import {
   createGame,
   currentPlayer,
@@ -219,5 +219,14 @@ describe('frog hops', () => {
     const x = g.players[0]!.x;
     hold(g, 1, 1);
     expect(g.players[0]!.x).toBe(x);
+  });
+});
+
+describe('Marathon info text', () => {
+  it('says how far a leg is, matching the runner and the stage', () => {
+    const leg = marathon.runner!.leg;
+    const fraction = ['half', 'third', 'quarter', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth'][Math.round(WORLD_W / leg) - 2];
+    expect(marathon.info).toContain(`${leg}px`);
+    expect(marathon.info).toContain(`about a ${fraction} of the stage`);
   });
 });

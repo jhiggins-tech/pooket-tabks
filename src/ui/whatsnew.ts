@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 4,
+    title: 'Clearer weapon info',
+    items: [
+      'Marathon’s info says how far a leg is (150px, about a seventh of the stage).',
+      'Hyperfixate’s info says the laser stops at the ground: you need a clear line of sight.',
+    ],
+  },
+  {
     version: 3,
     title: 'Watch a match',
     items: [

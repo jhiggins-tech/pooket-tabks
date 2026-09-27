@@ -29,7 +29,7 @@ export const hyperfixate: WeaponDef = {
   name: 'Hyperfixate',
   shortName: 'Hyperfixate',
   info:
-    'A laser straight out of the barrel: no arc, and power doesn’t matter. A direct hit does 15, then burns for 8 at the start of the victim’s next 3 turns.',
+    'A laser straight out of the barrel: no arc, and power doesn’t matter. It stops at the first ground in its way (no shooting through hills), so you need a clear line. A direct hit does 15, then burns for 8 at the start of the victim’s next 3 turns.',
   kind: 'beam',
   blastRadius: 7,
   damage: 15,
@@ -308,7 +308,7 @@ export const marathon: WeaponDef = {
   name: 'Marathon',
   shortName: 'Marathon',
   info:
-    'No aiming. A runner sets off towards the nearest enemy and runs a leg every time anyone fires, over any hill. At the finish: a 50 damage blast. A blast near the runner means a DNF.',
+    'No aiming. A runner sets off towards the nearest enemy and runs a leg every time anyone fires, over any hill. A leg is 150px, about a seventh of the stage’s width, so a far-off enemy is several shots away. At the finish: a 50 damage blast. A blast near the runner means a DNF.',
   kind: 'runner',
   blastRadius: 0,
   damage: 0,
