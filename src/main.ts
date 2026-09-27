@@ -11,7 +11,7 @@ import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
 import { takeHashCode } from './net/links';
 import { publicAddress } from './net/peer';
-import { DEFAULT_BROKERS } from './net/rendezvous';
+import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
 import { OnlineScreen } from './ui/online';
@@ -85,7 +85,7 @@ function newGame(): void {
 
 // ---- Over Wi-Fi: two phones, one each. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
-// `?debug&broker=ws://…` points at a test broker; `&lan=X` fakes the Wi-Fi's shared address (`none`: unknown).
+// `?debug&db=URL` points at a test database; `&lan=X` fakes the Wi-Fi's shared address (`none`: unknown).
 const query = new URLSearchParams(location.search);
 const debugNet = query.has('debug');
 const online = new OnlineScreen({
@@ -93,7 +93,7 @@ const online = new OnlineScreen({
     const p = setup.players()[0]!;
     return { name: p.name, characterId: p.characterId };
   },
-  brokers: debugNet && query.getAll('broker').length ? query.getAll('broker') : DEFAULT_BROKERS,
+  dbUrl: (debugNet && query.get('db')) || FIREBASE_DATABASE_URL || null,
   lanId: async () => (debugNet && query.has('lan') ? (query.get('lan') === 'none' ? null : query.get('lan')) : publicAddress()),
 });
 online.onConnected = (s) => {

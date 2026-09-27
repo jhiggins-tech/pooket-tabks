@@ -1,7 +1,7 @@
 /**
- * Public brokers are readable by anyone, so everything we put there is sealed with AES-GCM under a key
- * derived from a shared secret (the room code, or the Wi-Fi's public address), on a topic that's a hash
- * of it: without the secret you can't find the messages, let alone read them. (A 4-letter room code
+ * The game server's database is open to anyone with its address, so everything we put there is sealed
+ * with AES-GCM under a key derived from a shared secret (the room code, or the Wi-Fi's public address),
+ * at a path that's a hash of it: without the secret you can't find the messages, let alone read them. (A 4-letter room code
  * won't stop a determined attacker; it's to keep casual eyes out of a game lobby, not a bank.)
  */
 

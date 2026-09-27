@@ -1,5 +1,5 @@
 import { devices, expect, test, type Browser, type Page } from '@playwright/test';
-import { startBroker, type TestBroker } from '../tests/support/broker';
+import { startRtdb, type FakeRtdb } from '../tests/support/rtdb';
 
 type Dbg = {
   __pooket: {
@@ -22,10 +22,10 @@ const summary = (page: Page) =>
 
 const canAct = (page: Page) => page.evaluate(() => (window as unknown as Dbg).__pooket.net?.canAct() ?? false);
 
-/** No lobby servers reachable: Host falls back to swapping direct codes. */
-const OFFLINE = 'debug&broker=ws%3A%2F%2F127.0.0.1%3A1%2Fmqtt&lan=none';
+/** Game server unreachable: Host falls back to swapping direct codes. */
+const OFFLINE = 'debug&db=http%3A%2F%2F127.0.0.1%3A1&lan=none';
 
-test('direct codes (no lobby servers): QR link to join, reply relayed back, lobby, turns stay in sync', async ({ browser }) => {
+test('direct codes (no game server): QR link to join, reply relayed back, lobby, turns stay in sync', async ({ browser }) => {
   test.setTimeout(120_000);
   const phone = devices['Pixel 7 landscape'];
   const hostCtx = await browser.newContext(phone);
@@ -39,7 +39,7 @@ test('direct codes (no lobby servers): QR link to join, reply relayed back, lobb
   await host.goto(`./?${OFFLINE}`);
   await host.getByLabel('Player 1 character').selectOption('kcaj');
   await host.locator('#host-online').tap();
-  await expect(host.locator('#online')).toContainText("Couldn't reach the lobby servers", { timeout: 10_000 });
+  await expect(host.locator('#online')).toContainText("Couldn't reach the game server", { timeout: 10_000 });
   const qr = host.locator('#online canvas.online-qr');
   await expect(qr).toBeVisible({ timeout: 10_000 });
   const joinLink = (await qr.getAttribute('data-link'))!;
@@ -118,18 +118,18 @@ test('joining by pasting the code, and a bad code is refused kindly', async ({ p
   await expect(page.locator('#setup')).toBeVisible();
 });
 
-// ---- Rooms through a lobby server (a local test broker standing in for the public ones) ----
+// ---- Rooms through the game server (a local stand-in for Firebase) ----
 
-let broker: TestBroker;
+let db: FakeRtdb;
 test.beforeAll(async () => {
-  broker = await startBroker();
+  db = await startRtdb();
 });
 test.afterAll(async () => {
-  await broker.close();
+  await db.close();
 });
 
 async function phones(browser: Browser, lan: string) {
-  const q = `debug&broker=${encodeURIComponent(broker.url)}&lan=${lan}`;
+  const q = `debug&db=${encodeURIComponent(db.url)}&lan=${lan}`;
   const hostCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const guestCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const host = await hostCtx.newPage();
@@ -151,7 +151,7 @@ async function playFromLobby(host: Page, guest: Page) {
   expect(await summary(guest)).toEqual(await summary(host));
 }
 
-test('same Wi-Fi: the host shows up in the Join list, one tap to connect', async ({ browser }) => {
+test('same Wi-Fi: the host shows up in the Join list, one tap to connect (through the game server)', async ({ browser }) => {
   test.setTimeout(90_000);
   const { host, guest, q, errors, close } = await phones(browser, 'home-wifi');
   await host.goto(`./?${q}`);
@@ -177,7 +177,7 @@ test('same Wi-Fi: the host shows up in the Join list, one tap to connect', async
   await host.locator('#online-logs').tap();
   await expect(host.locator('#online-logs')).toHaveText('✓ Logs copied');
   const log = await host.evaluate(() => navigator.clipboard.readText());
-  for (const line of ['Pooket Tabks network log', 'mqtt 127.0.0.1', 'connected (', `room ${code} open, on the Wi-Fi list`, 'room: received knock', 'room: sending offer', 'webrtc: data channel open', 'ui: connected as host']) {
+  for (const line of ['Pooket Tabks network log', `rooms: hosting ${code}`, `ui: room ${code} open, on the nearby list`, 'db: streaming', 'joined', 'ui: connected as host', 'session: hello from the other phone']) {
     expect(log).toContain(line);
   }
   console.log(log);

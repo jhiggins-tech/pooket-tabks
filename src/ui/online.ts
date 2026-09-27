@@ -2,47 +2,33 @@ import { getCharacter, ROSTER } from '../characters/roster';
 import { answerLink, canScanInApp, extractCode, joinLink, listenForAnswer, relayAnswer, roomLink, scanQr } from '../net/links';
 import { netLog, netLogText } from '../net/log';
 import { Peer } from '../net/peer';
-import {
-  advertise,
-  advertTopic,
-  Bus,
-  hostRoom,
-  joinRoom,
-  newRoomCode,
-  normaliseRoomCode,
-  randomId,
-  watchLobby,
-  wifiSealer,
-  type Advert,
-  type BrokerSpec,
-  type PeerFactory,
-} from '../net/rendezvous';
 import { encodeQr } from '../net/qr';
+import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, watchLobby, type Advert } from '../net/rooms';
+import { Rtdb } from '../net/rtdb';
 import { NetSession, type Pick } from '../net/session';
-
-const peers: PeerFactory<Peer> = { host: () => Peer.host(), join: (code) => Peer.join(code) };
+import type { Transport } from '../net/transport';
 
 export interface OnlineOptions {
   /** This phone's pick (character and name). */
   pick: () => Pick;
-  /** MQTT brokers used as a meeting point. */
-  brokers: BrokerSpec[];
+  /** The Firebase Realtime Database rooms go through, or null if it isn't set up. */
+  dbUrl: string | null;
   /** Something the phones on one Wi-Fi share (their public address), or null if unknown. */
   lanId: () => Promise<string | null>;
 }
 
 /**
- * Setting up a match over Wi-Fi. Normally through a room: the host gets a 4-letter code (also shown to
- * phones on the same Wi-Fi as a game to tap), and public brokers pass the connection details between the
- * phones. If the brokers can't be reached, the phones swap direct codes instead (QR / link, both ways).
- * Then both land in a little lobby where the host starts the battle.
+ * Setting up a two-phone match. Normally through a room on Firebase: the host gets a 4-letter code (also
+ * shown to phones on the same Wi-Fi as a game to tap), and the game's messages go through the room, so
+ * any network works. If Firebase isn't set up or reachable, the phones swap direct WebRTC codes instead
+ * (QR / link, both ways; same Wi-Fi). Then both land in a little lobby where the host starts the battle.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
   private stopRoom: (() => void) | null = null;
   private stopListening: (() => void) | null = null;
   private stopScan: (() => void) | null = null;
-  private peer: Peer | null = null;
+  private peer: Transport | null = null;
   session: NetSession | null = null;
 
   /** A session is connected and both picks can be exchanged. */
@@ -64,34 +50,35 @@ export class OnlineScreen {
     return !this.root.hidden;
   }
 
-  /** Host a room: a code to type, a link to open, and a spot on the Wi-Fi game list. */
+  /** Host a room: a code to type, a link to open, and a spot on the nearby game list. */
   async host(): Promise<void> {
     this.reset();
     netLog('ui: Host');
+    if (!this.opts.dbUrl) return this.hostDirect("Online rooms aren't switched on yet, so swap direct codes instead.");
     this.show([heading('Host a game'), status('Opening a room…')]);
-    const hostId = randomId();
-    const lan = await this.opts.lanId();
-    const wifi = lan ? await wifiSealer(lan) : null;
-    let bus: Bus;
-    try {
-      // If this phone vanishes, the brokers take its game off the list.
-      const will = wifi ? { topic: advertTopic(wifi, hostId), payload: new Uint8Array(0), retain: true } : undefined;
-      bus = await Bus.open(this.opts.brokers, `pt-${hostId}`, will);
-    } catch {
-      return this.hostDirect("Couldn't reach the lobby servers, so swap direct codes instead.");
+    const db = new Rtdb(this.opts.dbUrl);
+    const [lan, opened] = await Promise.all([this.opts.lanId(), HostedRoom.open(db).catch((e: unknown) => e as Error)]);
+    if (opened instanceof Error) {
+      netLog(`ui: couldn't open a room: ${opened.message}`);
+      return this.hostDirect("Couldn't reach the game server, so swap direct codes instead.");
     }
-    const code = newRoomCode();
-    netLog(`ui: room ${code} open${wifi ? ', on the Wi-Fi list' : ' (no Wi-Fi list: public address unknown)'}`);
-    const room = hostRoom(bus, code, peers, (peer) => this.startSession(peer, 'host'));
+    const room = opened;
+    const nearby = lan ? await lobbySealer(lan) : null;
     const pick = this.pick();
-    const ad = wifi ? advertise(bus, wifi, { hostId, name: pick.name, characterId: pick.characterId, room: code }) : null;
+    const ad = nearby ? advertise(db, nearby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code }) : null;
+    netLog(`ui: room ${room.code} open${nearby ? ', on the nearby list' : ' (no nearby list: public address unknown)'}`);
     this.stopRoom = () => {
-      room.stop();
+      room.cancel();
       ad?.stop();
-      bus.close();
     };
-    const link = roomLink(code);
-    const big = el('div', 'online-code', code);
+    void room.waitForGuest().then((t) => {
+      ad?.stop();
+      room.stop();
+      this.stopRoom = null;
+      this.startSession(t, 'host');
+    });
+    const link = roomLink(room.code);
+    const big = el('div', 'online-code', room.code);
     big.id = 'online-room-code';
     this.show([
       heading('Host a game'),
@@ -99,7 +86,7 @@ export class OnlineScreen {
         col(
           heading('Room code', 'h3'),
           big,
-          text(wifi ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code.' : 'On the other phone tap Join and type this code.'),
+          text(nearby ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code (any network).' : 'On the other phone tap Join and type this code.'),
         ),
         col(heading('Or scan this / send the link', 'h3'), qrCanvas(link), shareRow(link, 'Join my Pooket Tabks game')),
       ),
@@ -108,45 +95,40 @@ export class OnlineScreen {
     ]);
   }
 
-  /** Join: games on this Wi-Fi to tap, or type a room code. With a code (from a link), go straight in. */
+  /** Join: nearby games to tap, or type a room code. With a code (from a link), go straight in. */
   async join(code?: string): Promise<void> {
     this.reset();
     netLog(`ui: Join${code ? ` ${code}` : ''}`);
-    this.show([heading('Join a game'), status('Looking for games…')]);
-    const lan = await this.opts.lanId();
-    const wifi = lan ? await wifiSealer(lan) : null;
-    let bus: Bus;
-    try {
-      bus = await Bus.open(this.opts.brokers, `pt-${randomId()}`);
-    } catch {
-      return this.joinDirect(undefined, "Couldn't reach the lobby servers, so scan or paste the host's direct code instead.");
-    }
+    if (!this.opts.dbUrl) return this.joinDirect(undefined, "Online rooms aren't switched on yet, so scan or paste the host's direct code instead.");
+    const db = new Rtdb(this.opts.dbUrl);
     let stopWatch = () => {};
-    let cancelJoin = () => {};
+    let cancelled = false;
     this.stopRoom = () => {
+      cancelled = true;
       stopWatch();
-      cancelJoin();
-      bus.close();
     };
     const joinCode = (c: string) => {
       netLog(`ui: joining room ${c}`);
       stopWatch();
       this.show([heading('Join a game'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
-      const j = joinRoom(bus, c, peers);
-      cancelJoin = j.cancel;
-      j.result.then(
-        (peer) => this.startSession(peer, 'guest'),
-        (e) => message(e) !== 'cancelled' && this.fail(e, () => void this.join()),
+      joinRoom(db, c).then(
+        (t) => (cancelled ? t.close() : this.startSession(t, 'guest')),
+        (e) => !cancelled && this.fail(e, () => void this.join()),
       );
     };
     const typed = normaliseRoomCode(code ?? '');
     if (typed) return joinCode(typed);
 
+    this.show([heading('Join a game'), status('Looking for games…')]);
+    const [lan, up] = await Promise.all([this.opts.lanId(), db.reachable()]);
+    if (cancelled) return;
+    if (!up) return this.joinDirect(undefined, "Couldn't reach the game server, so scan or paste the host's direct code instead.");
+    const nearby = lan ? await lobbySealer(lan) : null;
     const list = el('div', 'online-games');
     list.id = 'online-games';
     let lastCount = -1;
     const render = (games: Advert[]) => {
-      if (games.length !== lastCount) netLog(`ui: Wi-Fi list shows ${games.length} game(s)`);
+      if (games.length !== lastCount) netLog(`ui: nearby list shows ${games.length} game(s)`);
       lastCount = games.length;
       list.replaceChildren(
         ...(games.length
@@ -159,7 +141,7 @@ export class OnlineScreen {
           : [el('p', 'online-none', 'No games yet. Ask the other phone to tap Host.')]),
       );
     };
-    if (wifi) stopWatch = watchLobby(bus, wifi, render).stop;
+    if (nearby) stopWatch = watchLobby(db, nearby, render).stop;
     const input = el('input', 'online-code-input') as HTMLInputElement;
     input.placeholder = 'CODE';
     input.maxLength = 6;
@@ -180,14 +162,14 @@ export class OnlineScreen {
     this.show([
       heading('Join a game'),
       row(
-        ...(wifi ? [col(heading('Games on your Wi-Fi', 'h3'), list)] : []),
-        col(heading(wifi ? 'Or type the room code' : 'Type the room code', 'h3'), codeRow),
+        ...(nearby ? [col(heading('Games on your Wi-Fi', 'h3'), list)] : []),
+        col(heading(nearby ? 'Or type the room code' : 'Type the room code', 'h3'), codeRow),
       ),
       buttons(cancelButton(() => this.close()), linkButton('Have a direct code instead?', () => void this.joinDirect())),
     ]);
   }
 
-  /** Direct codes (no lobby servers): the host shows a code, the other phone replies with its own. */
+  /** Direct codes (no game server): the host shows a code, the other phone replies with its own. */
   async hostDirect(note?: string): Promise<void> {
     this.reset();
     netLog(`ui: Host with direct codes${note ? ` (${note})` : ''}`);
@@ -322,7 +304,7 @@ export class OnlineScreen {
   private async accept(text: string): Promise<void> {
     const { code } = extractCode(text);
     try {
-      await this.peer?.accept(code);
+      await (this.peer as Peer | null)?.accept(code); // direct codes: always a WebRTC peer
       this.setStatus('Connecting…');
     } catch (e) {
       this.setStatus(message(e));
@@ -338,7 +320,7 @@ export class OnlineScreen {
   }
 
   /** The data channel is open: start the match session and show the lobby. */
-  private startSession(peer: Peer, role: 'host' | 'guest'): void {
+  private startSession(peer: Transport, role: 'host' | 'guest'): void {
     netLog(`ui: connected as ${role}`);
     this.stopRoom?.();
     this.stopRoom = null;

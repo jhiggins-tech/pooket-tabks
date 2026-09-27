@@ -1,0 +1,40 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$room": {
+        ".read": true,
+        "host": {
+          ".write": "!data.exists() || !newData.exists() || data.child('id').val() === newData.child('id').val() || data.child('ts').val() < now - 3600000",
+          ".validate": "newData.hasChildren(['id', 'ts']) && newData.child('id').isString() && newData.child('id').val().length <= 32 && newData.child('ts').isNumber() && newData.child('ts').val() <= now"
+        },
+        "guest": {
+          ".write": "!data.exists() || !newData.exists() || data.child('id').val() === newData.child('id').val()",
+          ".validate": "newData.hasChildren(['id', 'ts']) && newData.child('id').isString() && newData.child('id').val().length <= 32 && newData.child('ts').isNumber() && newData.child('ts').val() <= now"
+        },
+        "h2g": {
+          ".write": true,
+          "$msg": { ".validate": "newData.isString() && newData.val().length < 300000" }
+        },
+        "g2h": {
+          ".write": true,
+          "$msg": { ".validate": "newData.isString() && newData.val().length < 300000" }
+        },
+        "$other": { ".validate": false }
+      }
+    },
+    "lobby": {
+      "$lan": {
+        ".read": true,
+        "$host": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 4096 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+          "m": { ".validate": true },
+          "ts": { ".validate": true },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
