@@ -13,7 +13,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 6. ✅ **kie's new kit**: Weasel Pop / Trollogram / Steal, shipped (see below).
 7. ✅ **8-bit sound effects**, shipped (see below).
 8. ✅ **Two phones over Wi-Fi** (WebRTC, no server), shipped (see below).
-9. _(empty; next requests go here)_
+9. ✅ **Room codes and a Wi-Fi game list** for two-phone play (public MQTT brokers), shipped (see below).
+10. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -23,7 +24,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
 - Online: reconnect after a dropped connection (it currently ends the match); a relay (TURN) server for
-  play over mobile data, which carrier networks often block for direct connections.
+  play over mobile data, which carrier networks often block for direct connections; if the free public
+  brokers prove flaky, swap them for Firebase or a tiny Cloudflare Worker (only `rendezvous.ts` changes).
 
 ## Shipped
 
@@ -33,10 +35,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
-- **Two phones over Wi-Fi**: 📶 Host on one phone shows a QR code (and a link to copy or share); the
-  other phone scans it with its camera, which opens the game and shows a reply QR; the host scans that
-  back (with the camera app, which hands it to the game tab, or in-game on Android, or by pasting).
-  Then a lobby (each picks their own character; the host starts) and each plays on their own phone:
+- **Two phones over Wi-Fi**: 📶 Host on one phone opens a room with a 4-letter code (plus a QR code
+  and a link of it). On the other phone, Join lists games on the same Wi-Fi to tap, or type the code, or
+  just open the link: one trip, nothing to send back. Free public MQTT brokers (HiveMQ, EMQX, Mosquitto,
+  all at once) pass the connection details between the phones, sealed with a key from the code, and
+  are dropped once connected. If they can't be reached, it falls back to swapping direct QR codes both
+  ways (scan with the camera app, in-game on Android, or paste). Then a lobby (each picks their own character; the host starts) and each plays on their own phone:
   the other phone watches your aim live, and its controls step aside until it's its turn. WebRTC
   data channel with free public STUN only, no server: same Wi-Fi is the baseline; over mobile data
   it's a bonus if the carrier allows it. Leaving or dropping out shows "Connection lost".

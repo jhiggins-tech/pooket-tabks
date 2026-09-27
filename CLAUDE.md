@@ -129,7 +129,15 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   result (snapshot + `encodeSolid` terrain) and the other phone snaps to it (`applySnapshot`,
   `Terrain.patchSolid`), so cross-device float drift never outlives a turn. `Rng.state` is serialisable
   for this. Online, the info screen doesn't pause and `main.ts` gates input on `net.canAct()`.
-  `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator view (`body[data-remote]`).
+  Finding each other: `rendezvous.ts` uses free public MQTT brokers (`DEFAULT_BROKERS`, all at once
+  via `Bus`; `mqtt.ts` is a minimal hand-written MQTT 3.1.1-over-WebSocket client) as a meeting point.
+  `hostRoom`/`joinRoom` swap the offer/answer codes on a topic hashed from the 4-letter room code,
+  sealed with AES-GCM (`seal.ts`); `advertise`/`watchLobby` list games on the same Wi-Fi, keyed by the
+  STUN public address (`publicAddress()`), as retained messages cleared on stop or by the MQTT will.
+  If no broker answers, the UI falls back to direct codes. Tests use a local broker
+  (`tests/support/broker.ts`, the `ws` dev dependency); `?debug&broker=ws://…&lan=X|none` points the
+  game at it. `src/ui/online.ts` is the host/join/lobby overlay; the HUD shows a spectator view
+  (`body[data-remote]`).
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`

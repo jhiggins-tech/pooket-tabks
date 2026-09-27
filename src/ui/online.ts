@@ -1,15 +1,43 @@
 import { getCharacter, ROSTER } from '../characters/roster';
-import { answerLink, canScanInApp, extractCode, joinLink, listenForAnswer, relayAnswer, scanQr } from '../net/links';
+import { answerLink, canScanInApp, extractCode, joinLink, listenForAnswer, relayAnswer, roomLink, scanQr } from '../net/links';
 import { Peer } from '../net/peer';
+import {
+  advertise,
+  advertTopic,
+  Bus,
+  hostRoom,
+  joinRoom,
+  newRoomCode,
+  normaliseRoomCode,
+  randomId,
+  watchLobby,
+  wifiSealer,
+  type Advert,
+  type PeerFactory,
+} from '../net/rendezvous';
 import { encodeQr } from '../net/qr';
 import { NetSession, type Pick } from '../net/session';
 
+const peers: PeerFactory<Peer> = { host: () => Peer.host(), join: (code) => Peer.join(code) };
+
+export interface OnlineOptions {
+  /** This phone's pick (character and name). */
+  pick: () => Pick;
+  /** MQTT brokers used as a meeting point. */
+  brokers: string[];
+  /** Something the phones on one Wi-Fi share (their public address), or null if unknown. */
+  lanId: () => Promise<string | null>;
+}
+
 /**
- * Setting up a match over Wi-Fi: the host shows a code (QR / link), the other phone replies with its
- * own, then both land in a little lobby where the host starts the battle.
+ * Setting up a match over Wi-Fi. Normally through a room: the host gets a 4-letter code (also shown to
+ * phones on the same Wi-Fi as a game to tap), and public brokers pass the connection details between the
+ * phones. If the brokers can't be reached, the phones swap direct codes instead (QR / link, both ways).
+ * Then both land in a little lobby where the host starts the battle.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
+  private stopRoom: (() => void) | null = null;
   private stopListening: (() => void) | null = null;
   private stopScan: (() => void) | null = null;
   private peer: Peer | null = null;
@@ -21,7 +49,10 @@ export class OnlineScreen {
   onHostStart: (s: NetSession) => void = () => {};
   onClosed: () => void = () => {};
 
-  constructor(private readonly pick: () => Pick) {
+  private readonly pick: () => Pick;
+
+  constructor(private readonly opts: OnlineOptions) {
+    this.pick = opts.pick;
     this.root.id = 'online';
     this.root.hidden = true;
     document.body.append(this.root);
@@ -31,7 +62,123 @@ export class OnlineScreen {
     return !this.root.hidden;
   }
 
+  /** Host a room: a code to type, a link to open, and a spot on the Wi-Fi game list. */
   async host(): Promise<void> {
+    this.reset();
+    this.show([heading('Host a game'), status('Opening a room…')]);
+    const hostId = randomId();
+    const lan = await this.opts.lanId();
+    const wifi = lan ? await wifiSealer(lan) : null;
+    let bus: Bus;
+    try {
+      // If this phone vanishes, the brokers take its game off the list.
+      const will = wifi ? { topic: advertTopic(wifi, hostId), payload: new Uint8Array(0), retain: true } : undefined;
+      bus = await Bus.open(this.opts.brokers, `pt-${hostId}`, will);
+    } catch {
+      return this.hostDirect("Couldn't reach the lobby servers, so swap direct codes instead.");
+    }
+    const code = newRoomCode();
+    const room = hostRoom(bus, code, peers, (peer) => this.startSession(peer, 'host'));
+    const pick = this.pick();
+    const ad = wifi ? advertise(bus, wifi, { hostId, name: pick.name, characterId: pick.characterId, room: code }) : null;
+    this.stopRoom = () => {
+      room.stop();
+      ad?.stop();
+      bus.close();
+    };
+    const link = roomLink(code);
+    const big = el('div', 'online-code', code);
+    big.id = 'online-room-code';
+    this.show([
+      heading('Host a game'),
+      row(
+        col(
+          heading('Room code', 'h3'),
+          big,
+          text(wifi ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code.' : 'On the other phone tap Join and type this code.'),
+        ),
+        col(heading('Or scan this / send the link', 'h3'), qrCanvas(link), shareRow(link, 'Join my Pooket Tabks game')),
+      ),
+      status('Waiting for someone to join…', 'online-status'),
+      buttons(cancelButton(() => this.close()), linkButton('No internet? Use direct codes', () => void this.hostDirect())),
+    ]);
+  }
+
+  /** Join: games on this Wi-Fi to tap, or type a room code. With a code (from a link), go straight in. */
+  async join(code?: string): Promise<void> {
+    this.reset();
+    this.show([heading('Join a game'), status('Looking for games…')]);
+    const lan = await this.opts.lanId();
+    const wifi = lan ? await wifiSealer(lan) : null;
+    let bus: Bus;
+    try {
+      bus = await Bus.open(this.opts.brokers, `pt-${randomId()}`);
+    } catch {
+      return this.joinDirect(undefined, "Couldn't reach the lobby servers, so scan or paste the host's direct code instead.");
+    }
+    let stopWatch = () => {};
+    let cancelJoin = () => {};
+    this.stopRoom = () => {
+      stopWatch();
+      cancelJoin();
+      bus.close();
+    };
+    const joinCode = (c: string) => {
+      stopWatch();
+      this.show([heading('Join a game'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
+      const j = joinRoom(bus, c, peers);
+      cancelJoin = j.cancel;
+      j.result.then(
+        (peer) => this.startSession(peer, 'guest'),
+        (e) => message(e) !== 'cancelled' && this.fail(e, () => void this.join()),
+      );
+    };
+    const typed = normaliseRoomCode(code ?? '');
+    if (typed) return joinCode(typed);
+
+    const list = el('div', 'online-games');
+    list.id = 'online-games';
+    const render = (games: Advert[]) =>
+      list.replaceChildren(
+        ...(games.length
+          ? games.map((g) => {
+              const b = el('button', 'online-game', `${g.name}'s game`);
+              b.append(el('small', undefined, ` ${getCharacter(g.characterId).name} · ${g.room}`));
+              b.addEventListener('click', () => joinCode(g.room));
+              return b;
+            })
+          : [el('p', 'online-none', 'No games yet. Ask the other phone to tap Host.')]),
+      );
+    if (wifi) stopWatch = watchLobby(bus, wifi, render).stop;
+    const input = el('input', 'online-code-input') as HTMLInputElement;
+    input.placeholder = 'CODE';
+    input.maxLength = 6;
+    input.autocomplete = 'off';
+    input.autocapitalize = 'characters';
+    input.enterKeyHint = 'go';
+    input.setAttribute('aria-label', 'Room code');
+    const go = el('button', undefined, 'Join');
+    const submit = () => {
+      const c = normaliseRoomCode(input.value);
+      if (c) joinCode(c);
+      else input.focus();
+    };
+    go.addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
+    const codeRow = el('div', 'online-paste');
+    codeRow.append(input, go);
+    this.show([
+      heading('Join a game'),
+      row(
+        ...(wifi ? [col(heading('Games on your Wi-Fi', 'h3'), list)] : []),
+        col(heading(wifi ? 'Or type the room code' : 'Type the room code', 'h3'), codeRow),
+      ),
+      buttons(cancelButton(() => this.close()), linkButton('Have a direct code instead?', () => void this.joinDirect())),
+    ]);
+  }
+
+  /** Direct codes (no lobby servers): the host shows a code, the other phone replies with its own. */
+  async hostDirect(note?: string): Promise<void> {
     this.reset();
     this.show([heading('Host a game'), status('Making a code…')]);
     try {
@@ -44,6 +191,7 @@ export class OnlineScreen {
       reply.append(heading('2. Then get their reply', 'h3'), ...(await this.scanButton("Scan their reply", (t) => this.accept(t))), paste);
       this.show([
         heading('Host a game'),
+        ...(note ? [text(note)] : []),
         row(
           col(heading('1. On the other phone, scan this', 'h3'), qrCanvas(link), shareRow(link, 'Join my Pooket Tabks game')),
           col(reply, status('Waiting for their reply…', 'online-status')),
@@ -57,15 +205,16 @@ export class OnlineScreen {
     }
   }
 
-  /** Join: with a code already (from a link), or ask for one. */
-  async join(code?: string): Promise<void> {
+  /** Join with a direct code: with one already (from a link), or ask for one. */
+  async joinDirect(code?: string, note?: string): Promise<void> {
     this.reset();
     if (!code) {
       this.show([
         heading('Join a game'),
+        ...(note ? [text(note)] : []),
         text("Scan the host's QR code with your phone's camera, or paste their code or link here."),
-        ...(await this.scanButton("Scan the host's code", (t) => void this.join(extractCode(t).code))),
-        pasteBox("Host's code or link", async (t) => this.join(extractCode(t).code)),
+        ...(await this.scanButton("Scan the host's code", (t) => this.joinAny(t))),
+        pasteBox("Host's code or link", async (t) => this.joinAny(t)),
         cancelButton(() => this.close()),
       ]);
       return;
@@ -167,17 +316,31 @@ export class OnlineScreen {
     }
   }
 
+  /** Whatever was scanned or pasted: a room link, a direct code/link, or a bare room code. */
+  private joinAny(text: string): void {
+    const found = extractCode(text);
+    const room = found.kind === 'room' ? found.code : found.kind === 'bare' ? normaliseRoomCode(found.code) : null;
+    if (room) void this.join(room);
+    else void this.joinDirect(found.code);
+  }
+
+  /** The data channel is open: start the match session and show the lobby. */
+  private startSession(peer: Peer, role: 'host' | 'guest'): void {
+    this.stopRoom?.();
+    this.stopRoom = null;
+    this.stopListening?.();
+    this.stopScan?.();
+    this.peer = peer;
+    const s = new NetSession(peer, role);
+    this.session = s;
+    s.onLobby = () => this.lobby();
+    s.onLost = () => this.lost();
+    this.onConnected(s);
+    s.setPick(this.pick());
+  }
+
   private watch(peer: Peer, role: 'host' | 'guest'): void {
-    peer.onOpen = () => {
-      this.stopListening?.();
-      this.stopScan?.();
-      const s = new NetSession(peer, role);
-      this.session = s;
-      s.onLobby = () => this.lobby();
-      s.onLost = () => this.lost();
-      this.onConnected(s);
-      s.setPick(this.pick());
-    };
+    peer.onOpen = () => this.startSession(peer, role);
     peer.onClose = () => {
       if (!this.session) this.fail(new Error("Couldn't connect. Are both phones on the same Wi-Fi?"));
     };
@@ -208,9 +371,13 @@ export class OnlineScreen {
     return [btn, video];
   }
 
-  private fail(e: unknown): void {
+  private fail(e: unknown, retry?: () => void): void {
     this.cleanup();
-    this.show([heading('Hmm'), text(message(e)), cancelButton(() => this.close(), 'Back')]);
+    this.show([
+      heading('Hmm'),
+      text(message(e)),
+      buttons(cancelButton(() => this.close(), 'Back'), ...(retry ? [linkButton('Try again', retry)] : [])),
+    ]);
   }
 
   private setStatus(msg: string): void {
@@ -229,6 +396,8 @@ export class OnlineScreen {
   }
 
   private cleanup(): void {
+    this.stopRoom?.();
+    this.stopRoom = null;
     this.stopListening?.();
     this.stopListening = null;
     this.stopScan?.();
@@ -271,6 +440,18 @@ function col(...children: HTMLElement[]): HTMLElement {
   const c = el('div', 'online-col');
   c.append(...children);
   return c;
+}
+
+function buttons(...bs: HTMLElement[]): HTMLElement {
+  const r = el('div', 'online-buttons');
+  r.append(...bs);
+  return r;
+}
+
+function linkButton(label: string, onClick: () => void): HTMLElement {
+  const b = el('button', 'online-alt', label);
+  b.addEventListener('click', onClick);
+  return b;
 }
 
 function cancelButton(onClick: () => void, label = 'Cancel'): HTMLElement {

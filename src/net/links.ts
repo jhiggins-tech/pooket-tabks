@@ -15,20 +15,25 @@ export function joinLink(code: string): string {
   return `${gameUrl()}#join=${code}`;
 }
 
+/** A room link: opening it joins that room (one trip, no reply needed). */
+export function roomLink(code: string): string {
+  return `${gameUrl()}#room=${code}`;
+}
+
 export function answerLink(code: string): string {
   return `${gameUrl()}#answer=${code}`;
 }
 
 /** Pull a code out of a pasted/scanned link or bare code. */
-export function extractCode(text: string): { kind: 'join' | 'answer' | 'bare'; code: string } {
+export function extractCode(text: string): { kind: 'join' | 'answer' | 'room' | 'bare'; code: string } {
   const t = text.trim();
-  const m = /#(join|answer)=([^\s#]+)/.exec(t);
-  if (m) return { kind: m[1] as 'join' | 'answer', code: decodeURIComponent(m[2]!) };
+  const m = /#(join|answer|room)=([^\s#]+)/.exec(t);
+  if (m) return { kind: m[1] as 'join' | 'answer' | 'room', code: decodeURIComponent(m[2]!) };
   return { kind: 'bare', code: t };
 }
 
-/** A code this page was opened with (`#join=` / `#answer=`), removed from the address bar. */
-export function takeHashCode(): { kind: 'join' | 'answer'; code: string } | null {
+/** A code this page was opened with (`#join=` / `#answer=` / `#room=`), removed from the address bar. */
+export function takeHashCode(): { kind: 'join' | 'answer' | 'room'; code: string } | null {
   const found = extractCode(location.hash);
   if (found.kind === 'bare') return null;
   history.replaceState(null, '', location.pathname + location.search); // drop just the code

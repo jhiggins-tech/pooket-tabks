@@ -10,6 +10,8 @@ import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
 import { takeHashCode } from './net/links';
+import { publicAddress } from './net/peer';
+import { DEFAULT_BROKERS } from './net/rendezvous';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
 import { OnlineScreen } from './ui/online';
@@ -83,9 +85,16 @@ function newGame(): void {
 
 // ---- Over Wi-Fi: two phones, one each. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
-const online = new OnlineScreen(() => {
-  const p = setup.players()[0]!;
-  return { name: p.name, characterId: p.characterId };
+// `?debug&broker=ws://…` points at a test broker; `&lan=X` fakes the Wi-Fi's shared address (`none`: unknown).
+const query = new URLSearchParams(location.search);
+const debugNet = query.has('debug');
+const online = new OnlineScreen({
+  pick: () => {
+    const p = setup.players()[0]!;
+    return { name: p.name, characterId: p.characterId };
+  },
+  brokers: debugNet && query.getAll('broker').length ? query.getAll('broker') : DEFAULT_BROKERS,
+  lanId: async () => (debugNet && query.has('lan') ? (query.get('lan') === 'none' ? null : query.get('lan')) : publicAddress()),
 });
 online.onConnected = (s) => {
   net = s;
@@ -119,7 +128,8 @@ document.getElementById('host-online')!.addEventListener('click', () => void onl
 document.getElementById('join-online')!.addEventListener('click', () => void online.join());
 // Opened from a QR code or link: a host's code (join it) or a reply (hand it to the host's tab).
 const opened = takeHashCode();
-if (opened?.kind === 'join') void online.join(opened.code);
+if (opened?.kind === 'room') void online.join(opened.code);
+else if (opened?.kind === 'join') void online.joinDirect(opened.code);
 else if (opened?.kind === 'answer') online.relay(opened.code);
 
 // Closing the tab or navigating away: tell the other phone straight away.
