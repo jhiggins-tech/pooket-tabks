@@ -4,7 +4,7 @@ import { netLog } from './log';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
 import type { Transport } from './transport';
 
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 
 /** What each phone picked in the lobby. */
 export interface Pick {
@@ -18,6 +18,10 @@ export type NetMsg =
   | { k: 'preview'; turn: number; x: number; y: number; fuel: number; angle: number; power: number; tier: number; hop: Hop | null }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
+  /** A phone that dropped out is back (on a new connection) and needs catching up. */
+  | { k: 'rejoin'; v: number }
+  /** The catch-up: both picks ([host, guest]), and the match as it stands (null: still in the lobby). */
+  | { k: 'resume'; picks: [Pick | null, Pick | null]; setup: { seed: number; players: PlayerConfig[] } | null; snap: Snapshot | null; terrain: string | null }
   | { k: 'bye' };
 
 /**
@@ -34,7 +38,7 @@ const PREVIEW_INTERVAL = 1 / 15;
 const SYNC_GRACE = 4;
 
 /**
- * One networked match between two phones. Host is seat 0 (goes first), guest is seat 1.
+ * One networked match between two phones. Host is seat 0, guest is seat 1 (who goes first is up to the game).
  *
  * Both phones run the same deterministic simulation. The phone whose turn it is is in charge of it:
  * it streams aim/driving previews, and when it fires it sends a snapshot of the state just before the
@@ -55,6 +59,12 @@ export class NetSession {
     throw new Error('onStart not set');
   };
   onLost: () => void = () => {};
+  /** The other phone went quiet (true) or came back (false). The match waits for it; it may rejoin. */
+  onPeerAway: (away: boolean) => void = () => {};
+  /** Rejoined and caught up: back in the match (true), or in the lobby (false). */
+  onResumed: (inMatch: boolean) => void = () => {};
+  /** Whether the other phone has gone quiet. */
+  peerAway = false;
   /** Spectators' feed: whatever this phone is in charge of sending (see ViewMsg). */
   onView: ((v: ViewMsg) => void) | null = null;
 
@@ -66,6 +76,10 @@ export class NetSession {
   private waitedForSync = 0;
   private previewTimer = 0;
   private lastPreview = '';
+  /** Rejoining: waiting to be caught up. */
+  private rejoining = false;
+  /** The other phone rejoined: catch it up once any shot in flight has played out. */
+  private resumeWanted = false;
 
   constructor(
     private readonly transport: Transport,
@@ -74,6 +88,21 @@ export class NetSession {
     this.localSeat = role === 'host' ? 0 : 1;
     transport.onMessage = (m) => this.receive(m as NetMsg);
     transport.onClose = () => this.drop();
+    transport.onQuiet = (quiet) => {
+      this.peerAway = quiet;
+      this.onPeerAway(quiet);
+    };
+  }
+
+  /** Back after dropping out, on a new connection: ask the other phone to catch us up. */
+  rejoin(): void {
+    netLog('session: rejoining');
+    this.rejoining = true;
+    this.transport.send({ k: 'rejoin', v: PROTOCOL } satisfies NetMsg);
+  }
+
+  get isRejoining(): boolean {
+    return this.rejoining;
   }
 
   get isHost(): boolean {
@@ -108,7 +137,7 @@ export class NetSession {
   /** Whether this phone may act now: its own turn, and the last shot's result has arrived. */
   canAct(): boolean {
     const s = this.state;
-    return !!s && !this.lost && s.current === this.localSeat && !this.awaitingSync;
+    return !!s && !this.lost && !this.rejoining && s.current === this.localSeat && !this.awaitingSync;
   }
 
   get awaitingSync(): boolean {
@@ -132,6 +161,7 @@ export class NetSession {
 
   /** Call once per frame after stepping the simulation. */
   tick(dt: number): void {
+    this.sendResume();
     const s = this.state;
     if (!s || this.lost) return;
     // Stream the aim while it's our turn to aim.
@@ -168,6 +198,27 @@ export class NetSession {
     } else if (this.pendingSync) {
       this.applySync(this.pendingSync);
     }
+  }
+
+  /** Catch up a phone that rejoined, from a settled moment (not mid-shot). Our result of that turn stands. */
+  private sendResume(): void {
+    if (!this.resumeWanted || this.lost) return;
+    const s = this.state;
+    if (s && s.phase !== 'aiming' && s.phase !== 'gameover') return;
+    this.resumeWanted = false;
+    this.shot = null;
+    this.pendingSync = null;
+    const picks: [Pick | null, Pick | null] = this.isHost ? [this.localPick, this.remotePick] : [this.remotePick, this.localPick];
+    const snap = s ? takeSnapshot(s) : null;
+    if (snap) snap.swapTargetId = null; // still a secret
+    netLog(`session: catching the other phone up${s ? ` (turn ${s.turn})` : ' (lobby)'}`);
+    this.transport.send({
+      k: 'resume',
+      picks,
+      setup: s ? this.setup : null,
+      snap,
+      terrain: s ? encodeSolid(s.terrain) : null,
+    } satisfies NetMsg);
   }
 
   leave(): void {
@@ -208,6 +259,8 @@ export class NetSession {
 
   private receive(msg: NetMsg): void {
     if (this.lost) return;
+    // Rejoining: anything from before we're caught up is stale.
+    if (this.rejoining && msg.k !== 'resume' && msg.k !== 'rejoin' && msg.k !== 'bye') return;
     switch (msg.k) {
       case 'hello':
         netLog(`session: hello from the other phone (${msg.pick.characterId})`);
@@ -250,6 +303,35 @@ export class NetSession {
         this.waitedForSync = 0;
         finishDecoyPick(this.state); // they've finished picking a decoy, if they were
         return;
+      case 'rejoin':
+        netLog('session: the other phone is back and rejoining');
+        if (msg.v !== PROTOCOL) {
+          netLog(`session: other phone runs protocol ${msg.v}, this one ${PROTOCOL}`);
+          this.drop();
+          return;
+        }
+        this.transport.restart?.();
+        this.resumeWanted = true;
+        this.sendResume();
+        return;
+      case 'resume': {
+        if (!this.rejoining) return;
+        this.rejoining = false;
+        const other = this.isHost ? 1 : 0;
+        this.localPick = msg.picks[this.localSeat] ?? this.localPick;
+        this.remotePick = msg.picks[other] ?? this.remotePick;
+        if (msg.setup && msg.snap && msg.terrain) {
+          netLog(`session: caught up (turn ${msg.snap.turn})`);
+          const s = this.begin(msg.setup.seed, msg.setup.players);
+          applySnapshot(s, msg.snap);
+          s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
+          this.onResumed(true);
+        } else {
+          netLog('session: caught up (lobby)');
+          this.onResumed(false);
+        }
+        return;
+      }
       case 'bye':
         netLog('session: the other phone left');
         this.drop();
@@ -260,6 +342,7 @@ export class NetSession {
   private drop(): void {
     if (this.lost) return;
     this.lost = true;
+    this.transport.close();
     this.onLost();
   }
 }

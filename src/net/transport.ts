@@ -1,10 +1,15 @@
 import { decodeMsg, encodeMsg } from './wire';
 
-/** A two-way message pipe to the other player (a WebRTC data channel, or an in-memory pair in tests). */
+/** A two-way message pipe to the other player (through a Firebase room, or an in-memory pair in tests). */
 export interface Transport {
   send(msg: unknown): void;
   onMessage: (msg: unknown) => void;
+  /** The pipe is gone for good (the room closed, or the other end closed it). */
   onClose: () => void;
+  /** The other phone has gone quiet (true: nothing heard for a while) or is back (false). */
+  onQuiet?: (quiet: boolean) => void;
+  /** Start a fresh outgoing stream, for the other phone rejoining on a new connection. */
+  restart?(): void;
   close(): void;
 }
 

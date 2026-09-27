@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FIXED_DT } from '../src/game/constants';
 import { createGame, currentPlayer, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
-import { advertise, HostedRoom, joinRoom, lobbySealer, newRoomCode, normaliseRoomCode, watchLobby, type Advert } from '../src/net/rooms';
+import { advertise, HostedRoom, joinRoom, lobbySealer, newRoomCode, normaliseRoomCode, rejoinRoom, watchLobby, type Advert } from '../src/net/rooms';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession } from '../src/net/session';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
@@ -77,17 +77,58 @@ describe('rooms through Firebase', () => {
     await expect(joinRoom(db, room.code)).rejects.toThrow(/No game/);
   });
 
-  it('notices when the other phone goes silent', async () => {
+  it('notices when the other phone goes quiet, and when it comes back on a new connection', async () => {
+    const fast = { pingMs: 100, lostMs: 600 };
     const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest({ pingMs: 100, lostMs: 600 });
-    const guest = await joinRoom(db, room.code, { pingMs: 100, lostMs: 600 });
+    const hostSide = room.waitForGuest(fast);
+    const guest = await joinRoom(db, room.code, fast, 'guest-1');
     const host = await hostSide;
-    let lost = false;
-    host.onClose = () => (lost = true);
+    const quiet: boolean[] = [];
+    let closed = false;
+    host.onQuiet = (q) => quiet.push(q);
+    host.onClose = () => (closed = true);
+    const atHost: unknown[] = [];
+    host.onMessage = (m) => atHost.push(m);
+    guest.send({ n: 1 });
+    await until(() => atHost.length === 1);
     await new Promise((r) => setTimeout(r, 400));
-    expect(lost).toBe(false); // pings keep it alive
+    expect(quiet).toEqual([]); // pings keep it alive
     guest.close(); // the guest phone vanishes (no goodbye)
-    await until(() => lost, 3000);
+    host.send({ missed: true }); // sent while they're away: stale by the time they're back
+    await until(() => quiet.length === 1, 3000);
+    expect(quiet).toEqual([true]);
+    expect(closed).toBe(false); // the match waits for them
+
+    // Back on a new connection (a reload): it has its seat back, and both ways work again.
+    const again = await rejoinRoom(db, room.code, 'guest', 'guest-1', fast);
+    const atGuest: unknown[] = [];
+    again.onMessage = (m) => atGuest.push(m);
+    again.send({ n: 2 });
+    await until(() => quiet.length === 2);
+    expect(quiet).toEqual([true, false]);
+    await until(() => atHost.length === 2);
+    expect(atHost).toEqual([{ n: 1 }, { n: 2 }]);
+    host.restart(); // what the session does for a rejoined phone
+    host.send({ hello: 'again' });
+    await until(() => atGuest.length === 1);
+    expect(atGuest).toEqual([{ hello: 'again' }]);
+    // Someone else can't take the seat meanwhile.
+    await expect(rejoinRoom(db, room.code, 'guest', 'impostor')).rejects.toThrow(/taken your seat/);
+    host.close();
+    again.close();
+  });
+
+  it('a quiet phone that never comes back: the other side learns the room has closed', async () => {
+    const fast = { pingMs: 100, lostMs: 400 };
+    const room = await HostedRoom.open(db);
+    const hostSide = room.waitForGuest(fast);
+    const guest = await joinRoom(db, room.code, fast);
+    const host = await hostSide;
+    let closed = false;
+    guest.onClose = () => (closed = true);
+    host.close(); // closes the room (a moment later)
+    await until(() => closed, 8000);
+    await expect(rejoinRoom(db, room.code, 'guest', 'whoever')).rejects.toThrow(/has ended/);
   });
 
   it('plays a networked match over the relay, both phones in sync', { timeout: 30_000 }, async () => {

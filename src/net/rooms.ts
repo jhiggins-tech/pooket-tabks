@@ -48,18 +48,30 @@ export function fromB64(s: string): Uint8Array {
 /**
  * A message pipe through a room: each side posts sealed, numbered batches to its outbox and streams
  * the other's, delivering in order and deleting what it has read. Pings every few seconds; silence for
- * too long means the other phone has gone.
+ * too long means the other phone has gone quiet (`onQuiet`), not that the match is over: it may come
+ * back (a blip, or rejoining after a reload). Only the room closing ends it (`onClose`).
+ *
+ * Each pipe numbers its batches within an epoch (when it started): a phone that rejoins starts a new
+ * epoch at 1, and the other side switches to it and ignores anything left over from the old one.
  */
 export class RelayTransport implements Transport {
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
+  onQuiet: (quiet: boolean) => void = () => {};
   private readonly outbox: string;
   private readonly inbox: string;
   private readonly queue: unknown[] = [];
   private readonly retry: { seq: number; payload: string }[] = [];
+  private epoch = Date.now();
   private seqOut = 0;
   private expected = 1;
-  private readonly pending = new Map<number, unknown[]>();
+  /** The other side's current epoch (0: not heard yet), and batches waiting for their turn in it. */
+  private peerEpoch = 0;
+  private pending = new Map<number, unknown[]>();
+  /** Batches from a newer epoch of theirs, until its first batch arrives. */
+  private readonly future = new Map<number, Map<number, unknown[]>>();
+  private quiet = false;
+  private lastRoomCheck = 0;
   private readonly seen = new Set<string>();
   private toDelete: string[] = [];
   private sending = false;
@@ -89,8 +101,24 @@ export class RelayTransport implements Transport {
         const now = Date.now();
         if (now - this.lastSent >= ping) this.send({ k: '~ping' });
         if (now - this.lastHeard > lost) {
-          netLog(`relay: nothing from the other phone for ${Math.round((now - this.lastHeard) / 1000)}s`);
-          this.handleClose();
+          if (!this.quiet) {
+            this.quiet = true;
+            netLog(`relay: nothing from the other phone for ${Math.round((now - this.lastHeard) / 1000)}s`);
+            this.onQuiet(true);
+          }
+          // Waiting for them to come back: unless the room has closed.
+          if (now - this.lastRoomCheck >= Math.max(ping, 3000)) {
+            this.lastRoomCheck = now;
+            void this.db.get(`${this.roomPath}/host`).then(
+              (h) => {
+                if (h === null && !this.closed) {
+                  netLog('relay: the room has closed');
+                  this.handleClose();
+                }
+              },
+              () => {},
+            );
+          }
         }
       }, Math.min(ping, 1000)),
       setInterval(() => this.cleanup(), 1500),
@@ -104,10 +132,20 @@ export class RelayTransport implements Transport {
     void this.flush();
   }
 
+  /** Start a new epoch: numbering from 1 again, and whatever wasn't sent yet dropped. */
+  restart(): void {
+    this.epoch = Math.max(Date.now(), this.epoch + 1);
+    this.seqOut = 0;
+    this.queue.length = 0;
+    this.retry.length = 0;
+    netLog('relay: starting afresh for the rejoined phone');
+  }
+
   close(): void {
     if (this.closed) return;
     this.stop();
-    if (this.side === 'host') void this.db.patch(this.roomPath, ROOM_CLEARED).catch(() => {});
+    // The host closes the room, a moment later so a last goodbye can still get through.
+    if (this.side === 'host') setTimeout(() => void this.db.patch(this.roomPath, ROOM_CLEARED).catch(() => {}), 1500);
   }
 
   private stop(): void {
@@ -129,7 +167,8 @@ export class RelayTransport implements Transport {
     if (!batch) {
       if (!this.queue.length) return;
       const msgs = this.queue.splice(0);
-      batch = { seq: ++this.seqOut, payload: toB64(await seal(this.sealer, { seq: this.seqOut, m: msgs })) };
+      const seq = ++this.seqOut;
+      batch = { seq, payload: toB64(await seal(this.sealer, { e: this.epoch, seq, m: msgs })) };
     }
     this.sending = true;
     try {
@@ -159,11 +198,30 @@ export class RelayTransport implements Transport {
     this.seen.add(key);
     this.toDelete.push(key);
     void unseal(this.sealer, fromB64(value)).then((b) => {
-      const batch = b as { seq: number; m: unknown[] } | null;
+      const batch = b as { e?: number; seq: number; m: unknown[] } | null;
       if (!batch) return netLog('relay: a message that did not unseal');
+      const e = batch.e ?? 0;
+      if (e < this.peerEpoch || this.closed) return; // left over from a connection they've since replaced
       this.lastHeard = Date.now();
-      if (batch.seq < this.expected) return; // a retry that got through twice
-      this.pending.set(batch.seq, batch.m);
+      if (this.quiet) {
+        this.quiet = false;
+        netLog('relay: the other phone is back');
+        this.onQuiet(false);
+      }
+      if (e > this.peerEpoch) {
+        // A newer connection of theirs: switch to it once its first batch is in.
+        const next = this.future.get(e) ?? new Map<number, unknown[]>();
+        this.future.set(e, next.set(batch.seq, batch.m));
+        if (!next.has(1)) return;
+        if (this.peerEpoch) netLog('relay: the other phone reconnected');
+        this.peerEpoch = e;
+        this.expected = 1;
+        this.pending = next;
+        for (const old of this.future.keys()) if (old <= e) this.future.delete(old);
+      } else {
+        if (batch.seq < this.expected) return; // a retry that got through twice
+        this.pending.set(batch.seq, batch.m);
+      }
       while (this.pending.has(this.expected)) {
         const msgs = this.pending.get(this.expected)!;
         this.pending.delete(this.expected++);
@@ -316,7 +374,7 @@ export class HostedRoom {
   }
 
   /** Resolves with a message pipe once someone takes the guest seat. */
-  waitForGuest(opts?: ConstructorParameters<typeof RelayTransport>[4]): Promise<RelayTransport> {
+  waitForGuest(opts?: RelayOptions): Promise<RelayTransport> {
     return new Promise((resolve) => {
       this.guestStream = this.db.stream(`${this.path}/guest`, (e) => {
         const guest = e.path === '/' ? (e.data as { id?: string } | null) : null;
@@ -348,8 +406,10 @@ export class HostedRoom {
   }
 }
 
-/** Join a room by code: take the guest seat and get a message pipe. */
-export async function joinRoom(db: Rtdb, code: string, opts?: ConstructorParameters<typeof RelayTransport>[4]): Promise<RelayTransport> {
+type RelayOptions = ConstructorParameters<typeof RelayTransport>[4];
+
+/** Join a room by code: take the guest seat (as `id`, kept for rejoining) and get a message pipe. */
+export async function joinRoom(db: Rtdb, code: string, opts?: RelayOptions, id = randomId()): Promise<RelayTransport> {
   const sealer = await sealerFor('room', code);
   const path = `rooms/${sealer.topic}`;
   const host = await db.get<{ id: string; ts: number }>(`${path}/host`);
@@ -358,13 +418,35 @@ export async function joinRoom(db: Rtdb, code: string, opts?: ConstructorParamet
     throw new Error(`No game with code ${code}. Check it, and that the host is still on the Host screen.`);
   }
   try {
-    await db.put(`${path}/guest`, { id: randomId(), ts: SERVER_TIME });
+    await db.put(`${path}/guest`, { id, ts: SERVER_TIME });
   } catch (e) {
     if ((e as { denied?: boolean }).denied) throw new Error('That game already has two players.');
     throw e;
   }
   netLog(`rooms: joined ${code}`);
   return new RelayTransport(db, path, 'guest', sealer, opts).start();
+}
+
+/** Take back our seat in a match we dropped out of (the seat remembers our id), with a fresh pipe. */
+export async function rejoinRoom(db: Rtdb, code: string, role: 'host' | 'guest', id: string, opts?: RelayOptions): Promise<RelayTransport> {
+  const sealer = await sealerFor('room', code);
+  const path = `rooms/${sealer.topic}`;
+  const host = await db.get<{ id: string }>(`${path}/host`);
+  if (!host || (role === 'host' && host.id !== id)) {
+    netLog(`rooms: ${code} has closed`);
+    throw new Error(`That match (${code}) has ended.`);
+  }
+  try {
+    await db.put(`${path}/${role}`, { id, ts: SERVER_TIME });
+  } catch (e) {
+    if ((e as { denied?: boolean }).denied) throw new Error('Someone else has taken your seat in that match.');
+    throw e;
+  }
+  // Whatever's waiting was for our old connection: start clean. (Anything more they send on it is
+  // numbered past the start, so it's never taken up.)
+  await db.remove(`${path}/${role === 'host' ? 'g2h' : 'h2g'}`);
+  netLog(`rooms: rejoined ${code} as ${role}`);
+  return new RelayTransport(db, path, role, sealer, opts).start();
 }
 
 /** A game on the nearby (same Wi-Fi) list. */

@@ -23,9 +23,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 15. ✅ **ten-1 spread**, shipped (see Balance below).
 16. ✅ **Random first player**, shipped (see below).
 17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
-18. **Rejoin a match**: a phone that drops out of an online match (lost signal, app backgrounded, page
-    reloaded) can rejoin it and carry on playing its seat, instead of the match ending or it only being
-    able to watch as a spectator.
+18. ✅ **Rejoin a match**, shipped (see below).
 19. **the Rizzler homes in**: a generous homing perimeter; once the projectile comes within X px of an
     enemy tank, it changes course towards it.
 20. _(empty; next requests go here)_
@@ -37,7 +35,6 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
-- Online: reconnect after a dropped connection (it currently ends the match).
 
 ## Shipped
 
@@ -62,6 +59,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it in
   the nearby list, where it shows as "in progress · watch") to watch it live, view only: aim, shots and
   results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
+- **Rejoin a match**: dropping out of an online match no longer ends it. The other phone shows "Lost
+  touch with X. Waiting for them to come back…" (with Leave) and the match waits. A signal blip heals by
+  itself; a phone that reloaded (or was killed) goes straight back into its seat when the game is opened
+  again within 10 minutes, and after that the setup screen offers ↩ Rejoin CODE (for 2 hours). Typing the
+  code or tapping the game in the nearby list also rejoins (rather than watching). The rejoining phone
+  is caught up from the other's game (after any shot in flight has played out). Leave ends it for both.
 - **Random first player**: who goes first is picked at random for every match, hotseat and online
   (from the match seed, so both phones agree).
 - **What's new popup**: on opening, a card lists what's changed since this phone last looked (a first

@@ -181,3 +181,81 @@ test('a third phone watches a match in progress (from the nearby list), view onl
   await ctx2.close();
   await close();
 });
+
+test('a phone that drops out gets straight back into its seat (reload, or opening the game again)', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const { host, guest, q: base, errors, close } = await phones(browser, 'none');
+  const q = `${base}&lost=1500`; // notice a quiet phone quickly
+  await host.goto(`./?${q}`);
+  await host.getByLabel('Player 1 name').fill('Ann');
+  await host.locator('#host-online').tap();
+  const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await guest.goto(`./?${q}#room=${code}`);
+  await playFromLobby(host, guest);
+
+  // The guest's page reloads mid-match: straight back into its seat, caught up, and it's still its turn.
+  await guest.reload();
+  await expect(guest.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect(guest.locator('#spectate-leave')).toBeHidden();
+  await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
+  expect(await summary(guest)).toEqual(await summary(host));
+  await guest.locator('#fire').tap();
+  await expect.poll(() => canAct(host), { timeout: 20_000 }).toBe(true);
+  expect(await summary(guest)).toEqual(await summary(host));
+
+  // The guest's phone goes away altogether: the host is told, and waits.
+  await guest.goto('about:blank');
+  await expect(host.locator('#net-away')).toBeVisible({ timeout: 15_000 });
+  await expect(host.locator('#net-away')).toContainText('Waiting for them to come back');
+  await host.screenshot({ path: 'test-results/rejoin-waiting.png' });
+
+  // It comes back: opening the game again goes straight back into the match (it was only just playing).
+  await guest.goto(`./?${q}`);
+  await expect(guest.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect(guest.locator('#spectate-leave')).toBeHidden();
+  await expect(host.locator('#net-away')).toBeHidden({ timeout: 15_000 });
+  expect(await summary(guest)).toEqual(await summary(host));
+  // The host plays on.
+  await host.locator('#fire').tap();
+  await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
+  expect(await summary(guest)).toEqual(await summary(host));
+
+  // Leaving for good ends it for both, and the seat is forgotten.
+  await guest.evaluate(() => (window as unknown as { __pooket: { net: { leave(): void } } }).__pooket.net.leave());
+  await expect(host.locator('#online')).toContainText('Connection lost', { timeout: 15_000 });
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('the setup screen offers to rejoin a match from a while ago; typing its code rejoins too', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { host, guest, q: base, errors, close } = await phones(browser, 'none');
+  const q = `${base}&lost=1500`;
+  await host.goto(`./?${q}`);
+  await host.locator('#host-online').tap();
+  const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await guest.goto(`./?${q}#room=${code}`);
+  await playFromLobby(host, guest);
+
+  // The guest dropped out a while ago (too long for rejoining by itself on opening).
+  await guest.evaluate(() => {
+    const seat = JSON.parse(localStorage.getItem('pooket.seat')!);
+    localStorage.setItem('pooket.seat', JSON.stringify({ ...seat, ts: Date.now() - 30 * 60_000 }));
+  });
+  await guest.goto('about:blank');
+  await guest.goto(`./?${q}`);
+  await expect(guest.locator('#setup')).toBeVisible();
+  await expect(guest.locator('#setup-rejoin')).toHaveText(`↩ Rejoin ${code}`);
+  await guest.screenshot({ path: 'test-results/rejoin-button.png' });
+
+  // Typing the code rejoins (it's this phone's match), rather than watching.
+  await guest.locator('#join-online').tap();
+  await guest.getByLabel('Room code').fill(code);
+  await guest.locator('#online').getByRole('button', { name: 'Join', exact: true }).tap();
+  await expect(guest.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect(guest.locator('#spectate-leave')).toBeHidden();
+  await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
+  expect(await summary(guest)).toEqual(await summary(host));
+  expect(errors).toEqual([]);
+  await close();
+});

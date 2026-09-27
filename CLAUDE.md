@@ -137,7 +137,16 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   client (no SDK); `rooms.ts` has `HostedRoom`/`joinRoom` (host/guest seats at `rooms/<hash of the 4-letter
   code>`, first come first served) and `RelayTransport` (each side posts sealed, numbered batches to its
   queue and streams the other's; in-order delivery, read messages deleted, pings, silence = lost), so game
-  traffic goes phone → Firebase → phone on any network. `advertise`/`watchLobby` list games on the same
+  traffic goes phone → Firebase → phone on any network. Silence isn't the end: after `lostMs` the transport
+  reports `onQuiet(true)` (then `false` when heard again) and keeps the room; only the room closing
+  (checked while quiet) or a `bye` ends the match. Rejoining: `seat.ts` remembers this phone's seat (code,
+  role, seat id; refreshed while playing), `rejoinRoom` takes it back with a fresh pipe (emptying its stale
+  inbox), and `NetSession.rejoin()` sends `rejoin`; the other phone `restart()`s its pipe and answers with
+  `resume` (picks, setup, snapshot, terrain) once any shot in flight has played out (its result stands).
+  Batches carry the sender's epoch, so the receiver switches to a rejoined phone's new stream at its first
+  batch and ignores leftovers. `main.ts` rejoins by itself on opening within `AUTO_REJOIN_MS`, else shows
+  `#setup-rejoin`; typing the code or tapping it in the nearby list rejoins too. No goodbye on `pagehide`
+  (a reload must be rejoinable). `advertise`/`watchLobby` list games on the same
   Wi-Fi, keyed by the STUN public address (`lan.ts`). Everything stored is sealed with AES-GCM (`seal.ts`).
   `links.ts` makes `#room=CODE` links. `session.ts` (`NetSession`, DOM-free, tested over `loopback()`):
   host is seat 0. The phone whose turn it is streams aim previews (never the secret swap target) and, on

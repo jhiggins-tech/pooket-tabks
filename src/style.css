@@ -996,3 +996,31 @@ body[data-phase='gameover'] .top-mid {
   line-height: 1.35;
   opacity: 0.9;
 }
+
+/* ---------- The other phone is away (online) ---------- */
+#net-away {
+  position: fixed;
+  top: calc(var(--safe-t) + 58px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px 6px 14px;
+  border-radius: 999px;
+  background: rgba(120, 30, 30, 0.92);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  font-size: 13px;
+  font-weight: 700;
+}
+#net-away[hidden] {
+  display: none;
+}
+#net-away button {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+}

@@ -13,6 +13,13 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 8,
+    title: 'Dropped out? Jump back in',
+    items: [
+      'Online matches survive a dropped connection: the other phone waits for you, and reopening the game puts you straight back in your seat (or tap ↩ Rejoin, or type the code again).',
+    ],
+  },
+  {
     version: 7,
     title: 'Who goes first?',
     items: ['Who goes first is now random, every match (on one phone or two).'],

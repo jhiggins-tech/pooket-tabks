@@ -1,8 +1,9 @@
 import { getCharacter, ROSTER } from '../characters/roster';
 import { roomLink } from '../net/links';
 import { netLog, netLogText } from '../net/log';
-import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, RelayTransport, ViewPublisher, watchLobby, watchRoom, type Advert } from '../net/rooms';
+import { advertise, HostedRoom, joinRoom, lobbySealer, normaliseRoomCode, randomId, rejoinRoom, RelayTransport, ViewPublisher, watchLobby, watchRoom, type Advert } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
+import { clearSeat, loadSeat, saveSeat, touchSeat, type Seat } from '../net/seat';
 import { NetSession, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import type { Transport } from '../net/transport';
@@ -14,6 +15,8 @@ export interface OnlineOptions {
   dbUrl: string | null;
   /** Something the phones on one Wi-Fi share (their public address), or null if unknown. */
   lanId: () => Promise<string | null>;
+  /** Relay timings (tests shorten them). */
+  relay?: { pingMs?: number; lostMs?: number };
 }
 
 /**
@@ -40,12 +43,18 @@ export class OnlineScreen {
   onSpectate: (sp: Spectator) => void = () => {};
 
   private readonly pick: () => Pick;
+  /** "Waiting for them to come back" while the other phone is away. */
+  private readonly away = el('div', 'net-away');
+  private seatTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly opts: OnlineOptions) {
     this.pick = opts.pick;
     this.root.id = 'online';
     this.root.hidden = true;
-    document.body.append(this.root);
+    this.away.id = 'net-away';
+    this.away.hidden = true;
+    this.away.setAttribute('role', 'status');
+    document.body.append(this.root, this.away);
   }
 
   get isOpen(): boolean {
@@ -71,11 +80,11 @@ export class OnlineScreen {
     netLog(`ui: room ${room.code} open${nearby ? ', on the nearby list' : ' (no nearby list: public address unknown)'}`);
     this.advert = ad;
     this.stopRoom = () => room.cancel();
-    void room.waitForGuest().then((t) => {
+    void room.waitForGuest(this.opts.relay).then((t) => {
       ad?.update({ playing: true }); // stays listed, for anyone who wants to watch
       room.stop();
       this.stopRoom = null;
-      this.startSession(t, 'host');
+      this.startSession(t, { code: room.code, role: 'host', id: room.id });
     });
     const link = roomLink(room.code);
     const big = el('div', 'online-code', room.code);
@@ -108,11 +117,15 @@ export class OnlineScreen {
       stopWatch();
     };
     const joinCode = (c: string) => {
-      netLog(`ui: joining room ${c}`);
       stopWatch();
+      // Our own match, that we dropped out of: take our seat back rather than watching.
+      const seat = loadSeat();
+      if (seat?.code === c) return void this.rejoin(seat);
+      netLog(`ui: joining room ${c}`);
       this.show([heading('Join a game'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
-      joinRoom(db, c).then(
-        (t) => (cancelled ? t.close() : this.startSession(t, 'guest')),
+      const id = randomId();
+      joinRoom(db, c, this.opts.relay, id).then(
+        (t) => (cancelled ? t.close() : this.startSession(t, { code: c, role: 'guest', id })),
         (e) => {
           if (cancelled) return;
           // Already two players: watch instead.
@@ -135,12 +148,16 @@ export class OnlineScreen {
     const render = (games: Advert[]) => {
       if (games.length !== lastCount) netLog(`ui: nearby list shows ${games.length} game(s)`);
       lastCount = games.length;
+      const mine = loadSeat()?.code;
       list.replaceChildren(
         ...(games.length
           ? games.map((g) => {
-              const b = el('button', 'online-game', `${g.playing ? '👁 ' : ''}${g.name}'s game`);
-              b.append(el('small', undefined, g.playing ? ` in progress · watch · ${g.room}` : ` ${getCharacter(g.characterId).name} · ${g.room}`));
-              b.addEventListener('click', () => (g.playing ? void this.watch(g.room) : joinCode(g.room)));
+              const rejoin = g.room === mine;
+              const b = el('button', 'online-game', `${rejoin ? '↩ ' : g.playing ? '👁 ' : ''}${g.name}'s game`);
+              b.append(
+                el('small', undefined, rejoin ? ` your match · rejoin · ${g.room}` : g.playing ? ` in progress · watch · ${g.room}` : ` ${getCharacter(g.characterId).name} · ${g.room}`),
+              );
+              b.addEventListener('click', () => (g.playing && !rejoin ? void this.watch(g.room) : joinCode(g.room)));
               return b;
             })
           : [el('p', 'online-none', 'No games yet. Ask the other phone to tap Host.')]),
@@ -172,6 +189,41 @@ export class OnlineScreen {
       ),
       buttons(cancelButton(() => this.close())),
     ]);
+  }
+
+  /** Back into a match this phone dropped out of: take the seat back and get caught up. */
+  async rejoin(seat: Seat): Promise<void> {
+    this.reset();
+    netLog(`ui: Rejoin ${seat.code} as ${seat.role}`);
+    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
+    const db = new Rtdb(this.opts.dbUrl);
+    let cancelled = false;
+    this.stopRoom = () => (cancelled = true);
+    const waiting = (line: string) =>
+      this.show([
+        heading(`Rejoining ${seat.code}`),
+        status(line, 'online-status'),
+        buttons(
+          cancelButton(() => {
+            clearSeat();
+            this.close();
+          }, 'Leave match'),
+        ),
+      ]);
+    waiting('Getting your seat back…');
+    let t: RelayTransport;
+    try {
+      t = await rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay);
+    } catch (e) {
+      if (cancelled) return;
+      if (/ended|taken/.test(message(e))) clearSeat();
+      return this.fail(e, /ended|taken/.test(message(e)) ? undefined : () => void this.rejoin(seat));
+    }
+    if (cancelled) return void t.close();
+    this.stopRoom = null;
+    const s = this.setupSession(t, seat);
+    waiting('Waiting for the other phone to catch you up…');
+    s.rejoin();
   }
 
   /** Watch a match in progress, view only. */
@@ -230,18 +282,19 @@ export class OnlineScreen {
     start.addEventListener('click', () => this.onHostStart(s));
     this.show([
       heading('Connected!'),
-      line(s.isHost ? 'You (host, first to fire)' : 'Host', s.isHost ? me : them, s.isHost),
+      line(s.isHost ? 'You (host)' : 'Host', s.isHost ? me : them, s.isHost),
       line(s.isHost ? 'Them' : 'You', s.isHost ? them : me, !s.isHost),
       s.isHost ? start : status(them ? 'Waiting for the host to start…' : 'Saying hello…', 'online-status'),
       cancelButton(() => this.close(), 'Leave'),
     ]);
   }
 
-  /** The connection dropped (or they left). */
+  /** The match is over for good: they left, or the room closed. */
   lost(): void {
     netLog('ui: connection lost');
+    this.endSeat();
     this.cleanup();
-    this.show([heading('Connection lost'), text('The other phone left or the Wi-Fi dropped.'), cancelButton(() => this.close(), 'Back')]);
+    this.show([heading('Connection lost'), text('The other phone left the match.'), cancelButton(() => this.close(), 'Back')]);
   }
 
   hide(): void {
@@ -251,6 +304,7 @@ export class OnlineScreen {
   /** Leave: tear everything down and go back to setup. */
   close(): void {
     this.session?.leave();
+    this.endSeat();
     this.cleanup();
     this.session = null;
     this.spectator = null;
@@ -259,13 +313,22 @@ export class OnlineScreen {
   }
 
   /** Connected through the room: start the match session and show the lobby. */
-  private startSession(peer: Transport, role: 'host' | 'guest'): void {
-    netLog(`ui: connected as ${role}`);
+  private startSession(peer: Transport, seat: Omit<Seat, 'ts'>): void {
+    netLog(`ui: connected as ${seat.role}`);
     this.stopRoom?.();
     this.stopRoom = null;
+    const s = this.setupSession(peer, seat);
+    s.setPick(this.pick());
+  }
+
+  /** A session on this pipe, remembered as our seat (so this phone can rejoin if it drops out). */
+  private setupSession(peer: Transport, seat: Omit<Seat, 'ts'>): NetSession {
     this.peer = peer;
-    const s = new NetSession(peer, role);
+    const s = new NetSession(peer, seat.role);
     this.session = s;
+    saveSeat(seat);
+    if (this.seatTimer) clearInterval(this.seatTimer);
+    this.seatTimer = setInterval(() => touchSeat(), 20_000);
     // Publish the spectator feed for anyone watching.
     if (peer instanceof RelayTransport) {
       const pub = new ViewPublisher(peer);
@@ -273,8 +336,35 @@ export class OnlineScreen {
     }
     s.onLobby = () => this.lobby();
     s.onLost = () => this.lost();
+    s.onPeerAway = (away) => this.showAway(away);
+    s.onResumed = (inMatch) => {
+      netLog(`ui: rejoined ${inMatch ? 'the match' : 'the lobby'}`);
+      if (inMatch) return; // the game takes over (onStart)
+      if (s.localPick) this.lobby();
+      else s.setPick(this.pick());
+    };
     this.onConnected(s);
-    s.setPick(this.pick());
+    return s;
+  }
+
+  private showAway(away: boolean): void {
+    const s = this.session;
+    if (!away || !s || s.lost) {
+      this.away.hidden = true;
+      return;
+    }
+    const leave = el('button', undefined, 'Leave');
+    leave.addEventListener('click', () => this.close());
+    this.away.replaceChildren(el('span', undefined, `Lost touch with ${s.remotePick?.name ?? 'the other phone'}. Waiting for them to come back…`), leave);
+    this.away.hidden = false;
+  }
+
+  /** This phone's seat is done with: forget it. */
+  private endSeat(): void {
+    if (this.seatTimer) clearInterval(this.seatTimer);
+    this.seatTimer = null;
+    this.away.hidden = true;
+    if (this.session) clearSeat();
   }
 
   private fail(e: unknown, retry?: () => void): void {

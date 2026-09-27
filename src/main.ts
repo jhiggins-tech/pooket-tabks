@@ -24,6 +24,7 @@ import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
 import { publicAddress } from './net/lan';
 import { takeRoomCode } from './net/links';
+import { AUTO_REJOIN_MS, loadSeat } from './net/seat';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
@@ -113,6 +114,8 @@ const online = new OnlineScreen({
   },
   dbUrl: (debugNet && query.get('db')) || FIREBASE_DATABASE_URL || null,
   lanId: async () => (debugNet && query.has('lan') ? (query.get('lan') === 'none' ? null : query.get('lan')) : publicAddress()),
+  // `?debug&lost=MS`: notice a quiet phone sooner (tests).
+  relay: debugNet && query.has('lost') ? { pingMs: 250, lostMs: Number(query.get('lost')) } : undefined,
 });
 online.onConnected = (s) => {
   net = s;
@@ -154,20 +157,35 @@ online.onClosed = () => {
   sfx.tunes.stopAll();
   document.getElementById('gameover')!.hidden = true;
   setup.show();
+  showRejoin();
 };
+// A match this phone dropped out of (a reload, the app killed, lost signal): offer to rejoin it.
+const rejoinBtn = document.getElementById('setup-rejoin') as HTMLButtonElement;
+function showRejoin(): void {
+  const seat = loadSeat();
+  rejoinBtn.hidden = !seat;
+  if (seat) rejoinBtn.textContent = `↩ Rejoin ${seat.code}`;
+}
+rejoinBtn.addEventListener('click', () => {
+  const seat = loadSeat();
+  if (seat) void online.rejoin(seat);
+  else showRejoin();
+});
 document.getElementById('host-online')!.addEventListener('click', () => void online.host());
 document.getElementById('join-online')!.addEventListener('click', () => void online.join());
-// Opened from a room link: join that room.
+// Opened from a room link: join that room (or rejoin it, if it's ours). Reloaded mid-match: straight back in.
 const openedRoom = takeRoomCode();
+const droppedSeat = loadSeat();
+const autoRejoin = !openedRoom && !!droppedSeat && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
 if (openedRoom) void online.join(openedRoom);
+else if (autoRejoin) void online.rejoin(droppedSeat!);
+showRejoin();
 
 // What's new since this phone last looked (not over a room link, nor in automated tests unless asked).
 const whatsNew = new WhatsNew();
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
-if (!openedRoom && (!navigator.webdriver || query.has('whatsnew'))) whatsNew.showUnseen();
-
-// Closing the tab or navigating away: tell the other phone straight away.
-window.addEventListener('pagehide', () => net?.leave());
+if (!openedRoom && !autoRejoin && (!navigator.webdriver || query.has('whatsnew'))) whatsNew.showUnseen();
+// (No goodbye when the page goes away: a reload comes straight back. Leave says goodbye.)
 
 /** Whether this phone may control the game right now (always, in a local game; never while watching). */
 const localCanAct = () => !online.spectator && (!net || net.canAct());
