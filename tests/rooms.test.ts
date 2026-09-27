@@ -66,25 +66,6 @@ describe('rooms through Firebase', () => {
     await expect(joinRoom(db, 'ZZZZ')).rejects.toThrow(/No game with code ZZZZ/);
   });
 
-  it('still hosts and joins on a database whose rules predate spectating (no view node)', async () => {
-    const old = await startRtdb({ deny: /\/view$/ });
-    try {
-      const odb = new Rtdb(old.url);
-      const room = await HostedRoom.open(odb);
-      const hostSide = room.waitForGuest();
-      const guest = await joinRoom(odb, room.code);
-      const host = await hostSide;
-      const got: unknown[] = [];
-      host.onMessage = (m) => got.push(m);
-      guest.send({ hi: 1 });
-      await until(() => got.length === 1);
-      host.close();
-      guest.close();
-    } finally {
-      await old.close();
-    }
-  });
-
   it("says so when the server can't be reached, rather than blaming the codes", async () => {
     await expect(HostedRoom.open(new Rtdb('http://127.0.0.1:9'))).rejects.toThrow(/Couldn't reach the game server/);
   });

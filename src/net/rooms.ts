@@ -107,7 +107,7 @@ export class RelayTransport implements Transport {
   close(): void {
     if (this.closed) return;
     this.stop();
-    if (this.side === 'host') clearRoom(this.db, this.roomPath);
+    if (this.side === 'host') void this.db.patch(this.roomPath, ROOM_CLEARED).catch(() => {});
   }
 
   private stop(): void {
@@ -185,20 +185,7 @@ export class RelayTransport implements Transport {
 }
 
 /** Everything in a room, removed. */
-const ROOM_CLEARED = { host: null, guest: null, h2g: null, g2h: null };
-
-/**
- * Empty a room. The spectator feed goes separately and best effort: a database still on rules from
- * before spectating existed refuses any write to `view`, and that mustn't take the rest down with it.
- */
-function clearRoom(db: Rtdb, path: string): void {
-  void db.patch(path, ROOM_CLEARED).catch(() => {});
-  clearView(db, path);
-}
-
-function clearView(db: Rtdb, path: string): void {
-  void db.remove(`${path}/view`).catch((e) => netLog(`view: couldn't clear (${e instanceof Error ? e.message : e})`));
-}
+const ROOM_CLEARED = { host: null, guest: null, h2g: null, g2h: null, view: null };
 
 /**
  * A player's spectator feed, written to the room (`view/state`: the latest full state; `view/aim`: the
@@ -312,8 +299,7 @@ export class HostedRoom {
       try {
         await db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME });
         // A clean slate (leftovers from an old game with the same code).
-        await db.patch(path, { guest: null, h2g: null, g2h: null });
-        clearView(db, path);
+        await db.patch(path, { guest: null, h2g: null, g2h: null, view: null });
         netLog(`rooms: hosting ${code}`);
         const room = new HostedRoom(db, code, path, sealer, hostId);
         room.timers.push(setInterval(() => void db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
@@ -354,7 +340,7 @@ export class HostedRoom {
   /** Stop and remove the room entirely (nobody joined). */
   cancel(): void {
     this.stop();
-    clearRoom(this.db, this.path);
+    void this.db.patch(this.path, ROOM_CLEARED).catch(() => {});
   }
 
   get id(): string {

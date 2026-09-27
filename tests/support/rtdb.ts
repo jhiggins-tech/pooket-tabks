@@ -15,12 +15,7 @@ export interface FakeRtdb {
 
 type Json = unknown;
 
-export interface FakeRtdbOptions {
-  /** Refuse writes to paths like these, as rules without a node for them would (e.g. `/view$/`). */
-  deny?: RegExp;
-}
-
-export async function startRtdb(opts: FakeRtdbOptions = {}): Promise<FakeRtdb> {
+export async function startRtdb(): Promise<FakeRtdb> {
   let root: Record<string, Json> = {};
   const listeners = new Set<{ segs: string[]; res: ServerResponse }>();
   const requests: FakeRtdb['requests'] = [];
@@ -75,7 +70,6 @@ export async function startRtdb(opts: FakeRtdbOptions = {}): Promise<FakeRtdb> {
 
   /** The seat rules: a host or guest seat, once taken, can't be taken by someone else (unless the host is an hour stale). */
   const allowed = (segs: string[], value: Json): boolean => {
-    if (opts.deny?.test(segs.join('/'))) return false;
     if (segs[0] !== 'rooms' || segs.length !== 3 || value === null) return true;
     const existing = getAt(segs) as { id?: string; ts?: number } | null;
     if (!existing) return true;
@@ -136,7 +130,6 @@ export async function startRtdb(opts: FakeRtdbOptions = {}): Promise<FakeRtdb> {
       return reply(res, 200, body);
     }
     if (req.method === 'DELETE') {
-      if (!allowed(segs, null)) return reply(res, 401, { error: 'Permission denied' });
       setAt(segs, null);
       return reply(res, 200, null);
     }

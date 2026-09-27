@@ -131,7 +131,9 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   step the last one is gone. `new Chip(offlineCtx)` renders sounds offline for previews.
 - `src/net/`: two phones, one each, through Firebase (local multiplayer is hotseat on one phone). Rooms
   live in a Firebase Realtime Database (free Spark plan; `firebase/README.md`, `firebase/database.rules.json`,
-  URL in `src/net/config.ts`; empty = online play shows "not switched on yet"). `rtdb.ts` is a tiny REST + SSE
+  URL in `src/net/config.ts`; empty = online play shows "not switched on yet"). When the rules change, ask the
+  owner to re-publish them (Firebase console → Rules); the code assumes the latest rules, no fallbacks
+  for old ones. `rtdb.ts` is a tiny REST + SSE
   client (no SDK); `rooms.ts` has `HostedRoom`/`joinRoom` (host/guest seats at `rooms/<hash of the 4-letter
   code>`, first come first served) and `RelayTransport` (each side posts sealed, numbered batches to its
   queue and streams the other's; in-order delivery, read messages deleted, pings, silence = lost), so game

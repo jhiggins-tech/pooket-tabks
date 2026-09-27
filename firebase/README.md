@@ -8,6 +8,7 @@ the plain REST API (no SDK, no API key): rooms at `rooms/<hash of the room code>
 1. https://console.firebase.google.com → **Create a project** (e.g. `pooket-tabks`). Google Analytics: off.
 2. **Build → Realtime Database → Create Database**. Pick a location near the players; start in **locked mode**.
 3. **Rules** tab → replace everything with the contents of `database.rules.json` → **Publish**.
+   Do this again whenever `database.rules.json` changes (the game expects the latest rules).
 4. **Data** tab → copy the database URL at the top (`https://<name>-default-rtdb.<region>.firebasedatabase.app`)
    into `FIREBASE_DATABASE_URL` in `src/net/config.ts`.
 

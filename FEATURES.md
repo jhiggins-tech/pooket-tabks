@@ -23,7 +23,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
 15. ✅ **ten-1 spread**, shipped (see Balance below).
 16. ✅ **Random first player**, shipped (see below).
 17. ✅ **Hyperfixate info text**: says the laser stops at the first ground in its way (shipped early, with 13).
-18. _(empty; next requests go here)_
+18. **Rejoin a match**: a phone that drops out of an online match (lost signal, app backgrounded, page
+    reloaded) can rejoin it and carry on playing its seat, instead of the match ending or it only being
+    able to watch as a spectator.
+19. **the Rizzler homes in**: a generous homing perimeter; once the projectile comes within X px of an
+    enemy tank, it changes course towards it.
+20. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
