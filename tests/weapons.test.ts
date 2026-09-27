@@ -4,7 +4,8 @@ import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
 import { createGame, currentPlayer, damagePlayer, explode, fire, isAimless, muzzle, selectTier, setAim, step, traceBeam, volleyOffsets } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { doublePark, hyperfixate, shell, unmedicated } from '../src/weapons/registry';
+import { doublePark, hyperfixate, unmedicated } from '../src/characters/kits';
+import { shell } from '../src/weapons/registry';
 import { testGame } from './support/game';
 
 const players = [

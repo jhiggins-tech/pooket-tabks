@@ -18,7 +18,8 @@ import {
   toggleSwapTarget,
 } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { hyperfixate, shell, trollogram } from '../src/weapons/registry';
+import { hyperfixate, trollogram } from '../src/characters/kits';
+import { shell } from '../src/weapons/registry';
 import { passTurn, testGame, untilNextTurn } from './support/game';
 
 const players = [

@@ -4,7 +4,7 @@ import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, GRAVITY, MAX_HP, MAX_SPEED } from '../src/game/constants';
 import { createGame, currentPlayer, fire, muzzle, step, streamDuration, streamPressure } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { ten1 } from '../src/weapons/registry';
+import { ten1 } from '../src/characters/kits';
 import { run, testGame, untilAiming } from './support/game';
 
 const spec = ten1.stream!;

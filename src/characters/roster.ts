@@ -1,67 +1,14 @@
 import { getWeapon } from '../weapons/registry';
+import type { CharacterDef } from './kit';
+import { KITS } from './kits';
 
 /** Rounds per tier at the start of a match: tier 1, tier 2, tier 3. */
 export const AMMO_PER_TIER = [5, 3, 1] as const;
 
-export type Loadout = readonly [tier1: string, tier2: string, tier3: string];
+export type { CharacterDef, Loadout } from './kit';
 
-export interface CharacterDef {
-  id: string;
-  name: string;
-  blurb: string;
-  /** Signature colour first; alternates are used when several players pick the same character. */
-  colours: readonly string[];
-  /** Weapon ids by tier. */
-  loadout: Loadout;
-  /** How the ◀ ▶ buttons move this character: roll along the ground, or frog hops. Default drive. */
-  movement?: 'drive' | 'hop';
-}
-
-export const ROSTER: readonly CharacterDef[] = [
-  {
-    id: 'tones',
-    name: 'tones',
-    blurb: 'ten-1 water jet, ten-2 mud jetpack and the ten-3 spew.',
-    colours: ['#ff5a5f', '#ff8c42', '#ff7eb6'],
-    loadout: ['ten-1', 'ten-2', 'ten-3'],
-  },
-  {
-    id: 'kie',
-    name: 'kie',
-    blurb: 'Weasel Pop, Trollogram decoys he can secretly swap with, and he steals.',
-    colours: ['#4ea8ff', '#46d27a', '#2dd4bf'],
-    loadout: ['weasel-pop', 'trollogram', 'steal'],
-  },
-  {
-    id: 'kcaj',
-    name: 'kcaj',
-    blurb: 'Ice cream volleys, a fixating laser and a pill storm.',
-    colours: ['#ffc53d', '#c77dff', '#e2e8f0'],
-    loadout: ['double-park', 'hyperfixate', 'unmedicated'],
-  },
-  {
-    id: 'torikloud',
-    name: 'torikloud',
-    blurb: 'Debate, Sonic Boom and a twin to argue alongside.',
-    colours: ['#a78bfa', '#818cf8', '#e879f9'],
-    loadout: ['debate', 'sonic-boom', 'twins'],
-  },
-  {
-    id: 'ciarra',
-    name: 'ciarra',
-    blurb: 'Tattoo Gun, Sew and Marathon, and she hops like a frog.',
-    colours: ['#f472b6', '#fb7185', '#fda4af'],
-    loadout: ['tattoo-gun', 'sew', 'marathon'],
-    movement: 'hop',
-  },
-  {
-    id: 'larinovsky',
-    name: 'larinovsky',
-    blurb: 'Pill Pusher, the Rizzler, and a well-earned nap.',
-    colours: ['#34d399', '#a3e635', '#22d3ee'],
-    loadout: ['pill-pusher', 'the-rizzler', 'take-a-nap'],
-  },
-];
+/** The selectable characters, in setup-screen order (each defined with their weapons in ./kits/). */
+export const ROSTER: readonly CharacterDef[] = KITS.map((k) => k.character);
 
 const byId = new Map(ROSTER.map((c) => [c.id, c]));
 

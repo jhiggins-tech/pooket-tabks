@@ -17,7 +17,8 @@ import {
   step,
 } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { marathon, sew, shell, tattooGun } from '../src/weapons/registry';
+import { marathon, sew, tattooGun } from '../src/characters/kits';
+import { shell } from '../src/weapons/registry';
 import { hold, passTurn, testGame, whileFlying } from './support/game';
 
 const players = [

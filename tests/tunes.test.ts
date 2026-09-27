@@ -7,7 +7,7 @@ import { Terrain } from '../src/core/terrain';
 import { FIXED_DT } from '../src/game/constants';
 import { createGame, fire, selectTier, setAim, step } from '../src/game/game';
 import type { Sfx } from '../src/game/state';
-import { weaselPop } from '../src/weapons/registry';
+import { weaselPop } from '../src/characters/kits';
 
 /** Records notes, with voices that remember being cut. */
 class FakeSynth implements Synth {

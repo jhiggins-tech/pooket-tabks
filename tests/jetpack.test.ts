@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP, TANK_HALF_WIDTH } from '../src/game/constants';
 import { createGame, currentPlayer, drive, fire, jetCharge, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { ten2 } from '../src/weapons/registry';
+import { ten2 } from '../src/characters/kits';
 import { testGame } from './support/game';
 
 const spec = ten2.jetpack!;

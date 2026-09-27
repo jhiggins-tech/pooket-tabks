@@ -4,7 +4,8 @@ import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { createGame, drive, explode } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { getWeapon, marathon, shell } from '../src/weapons/registry';
+import { marathon } from '../src/characters/kits';
+import { getWeapon, shell } from '../src/weapons/registry';
 
 function cratered(characterId: string, radius: number, depthAbove: number): GameState {
   const g = createGame({

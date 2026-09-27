@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
 import { fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
-import { weaselPop } from '../src/weapons/registry';
+import { weaselPop } from '../src/characters/kits';
 import { testGame } from './support/game';
 
 const walk = weaselPop.walk!;

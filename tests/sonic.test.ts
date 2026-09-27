@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
 import { currentPlayer, fire, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { sonicBoom } from '../src/weapons/registry';
+import { sonicBoom } from '../src/characters/kits';
 import { testGame } from './support/game';
 
 const spec = sonicBoom.sonic!;

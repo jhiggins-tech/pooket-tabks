@@ -3,7 +3,8 @@ import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { currentPlayer, explode, fire, isAimless, selectTier, setAim, step, targetAt } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
 import { DICTIONARIES } from '../src/weapons/dictionaries';
-import { debate, shell, sonicBoom } from '../src/weapons/registry';
+import { debate, sonicBoom } from '../src/characters/kits';
+import { shell } from '../src/weapons/registry';
 import { passTurn, testGame, whileFlying } from './support/game';
 
 const players = [

@@ -4,7 +4,8 @@ import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { createGame, currentPlayer, explode, fire, isAimless, offence, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
-import { pillPusher, shell, takeANap, theRizzler } from '../src/weapons/registry';
+import { pillPusher, takeANap, theRizzler } from '../src/characters/kits';
+import { shell } from '../src/weapons/registry';
 import { passTurn, testGame, whileFlying } from './support/game';
 
 const players = [
