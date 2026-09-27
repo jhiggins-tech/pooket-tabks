@@ -342,6 +342,36 @@ export interface Explosion {
   ring?: string;
 }
 
+/** Sound cues for the audio layer. Cosmetic only: the game never reads them back. */
+export type SfxCue =
+  | 'fire'
+  | 'round'
+  | 'boom'
+  | 'hit'
+  | 'launch'
+  | 'wake'
+  | 'pin'
+  | 'tattoo'
+  | 'cook'
+  | 'finish'
+  | 'dnf'
+  | 'leg'
+  | 'hop'
+  | 'tick'
+  | 'stolen'
+  | 'nothing'
+  | 'busted'
+  | 'kookaburra'
+  | 'gameover';
+
+export interface Sfx {
+  cue: SfxCue;
+  /** The weapon behind it, if any (fire and round sounds are per weapon). */
+  weaponId?: string;
+  /** Cue-specific size: blast radius for `boom`, damage for `hit`, power for `fire`. */
+  size?: number;
+}
+
 /** `stealing`: kie's Steal roulette is spinning; the turn carries on (back to `aiming`) once it lands. */
 export type Phase = 'aiming' | 'stealing' | 'flying' | 'settling' | 'gameover';
 
@@ -373,6 +403,8 @@ export interface GameState {
   phase: Phase;
   /** kie's Steal roulette, while it spins. */
   heist: Heist | null;
+  /** Sound cues since the audio layer last drained them (capped). */
+  sfx: Sfx[];
   projectiles: Projectile[];
   beams: Beam[];
   holograms: Hologram[];

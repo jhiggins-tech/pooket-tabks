@@ -105,6 +105,11 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
 - `src/ui/info.ts`: the info overlay (ⓘ in the HUD and on setup): how to play, status effects, and a page
   per character built from the roster and each weapon's required `info` text, so a new weapon must
   describe itself. The game loop pauses while it's open. `ignoresAim()` (registry) decides "No aiming".
+- `src/audio/`: 8-bit sound. Game logic stays DOM-free by queuing cues (`sound()` → `state.sfx`, capped);
+  `main.ts` drains them each frame into `SfxPlayer` (throttles repeats), which plays recipes on `Chip`
+  (Web Audio pulse/triangle/LFSR-noise synth, unlocked on the first tap). `FIRE_SOUNDS` needs an entry per
+  weapon id and `ROUND_SOUNDS` per burst weapon (tests enforce it); `CUE_SOUNDS` covers game events.
+  Keep them kitschy.
 - `src/render/`: letterboxed, DPR-aware canvas renderer and a DOM HUD overlay.
 - `src/input/`: touch controls (slingshot drag, hold-to-repeat buttons, hold-to-drive, FIRE button).
 - `src/main.ts`: fixed-timestep loop (`FIXED_DT`) wiring it together. `?debug` exposes `window.__pooket`

@@ -490,6 +490,35 @@ test('info screen explains every character and weapon', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  type Dbg = { __pooket: { sfx: { played: number }; chip: { ready: boolean } } };
+  await page.goto('./?seed=77&debug');
+  await page.getByLabel('Player 1 character').selectOption('kcaj');
+  await page.locator('#start').tap();
+  const toggle = page.locator('#sound-toggle');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  // The first tap unlocked audio.
+  await expect.poll(() => page.evaluate(() => (window as unknown as Dbg).__pooket.chip.ready)).toBe(true);
+
+  // kcaj's Unmedicated: the jingle, a pill storm of pops and the damage oofs, all without errors.
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await page.locator('#fire').tap();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Dbg).__pooket.sfx.played), { timeout: 10_000 }).toBeGreaterThan(3);
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 20_000 });
+
+  // Mute, and it stays muted next visit.
+  await toggle.tap();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toHaveText('🔇');
+  expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.chip.ready)).toBe(false);
+  await page.reload();
+  await page.locator('#start').tap();
+  await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'false');
+  expect(errors).toEqual([]);
+});
+
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
   await page.getByLabel('Player 1 name').fill('Remembered');

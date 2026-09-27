@@ -7,6 +7,8 @@ import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
+import { Chip } from './audio/chip';
+import { SfxPlayer } from './audio/sfx';
 import { InfoScreen } from './ui/info';
 import { SetupScreen } from './ui/setup';
 
@@ -28,6 +30,36 @@ const setup = new SetupScreen((chosen) => {
 
 // A live battlefield sits behind the setup screen until the real match starts.
 let state: GameState = createGame({ seed: nextSeed, players: setup.players() });
+
+// Kitschy 8-bit sound effects, synthesised live. Audio can only start from a user gesture.
+const SOUND_KEY = 'pooket-tabks.sound';
+const chip = new Chip();
+const sfx = new SfxPlayer(chip, () => chip.now);
+const soundBtn = document.getElementById('sound-toggle')!;
+function setSound(on: boolean): void {
+  chip.setMuted(!on);
+  soundBtn.textContent = on ? '🔊' : '🔇';
+  soundBtn.setAttribute('aria-pressed', String(on));
+  soundBtn.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
+  try {
+    localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
+  } catch {
+    /* not critical */
+  }
+}
+let soundOn = true;
+try {
+  soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
+} catch {
+  /* storage unavailable */
+}
+setSound(soundOn);
+soundBtn.addEventListener('click', () => {
+  chip.unlock();
+  soundOn = !soundOn;
+  setSound(soundOn);
+});
+window.addEventListener('pointerdown', () => chip.unlock(), { capture: true });
 
 // Characters in this match show in their match colours; the rest in their signature colour.
 const info = new InfoScreen(
@@ -72,7 +104,7 @@ document.getElementById('change-players')!.addEventListener('click', () => {
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (new URLSearchParams(location.search).has('debug')) {
-  Object.assign(window, { __pooket: { get state() { return state; }, renderer } });
+  Object.assign(window, { __pooket: { get state() { return state; }, renderer, sfx, chip } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */
@@ -98,6 +130,10 @@ function frame(now: number): void {
     drive(state, driveDir, FIXED_DT);
     step(state, FIXED_DT);
     acc -= FIXED_DT;
+  }
+  if (state.sfx.length > 0) {
+    for (const e of state.sfx) sfx.play(e);
+    state.sfx.length = 0;
   }
   renderer.draw(state, dt);
   hud.update(state);

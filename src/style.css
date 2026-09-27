@@ -574,20 +574,31 @@ button.big {
 }
 
 /* ---------- Info ---------- */
-#info-open {
+.top-mid {
   position: absolute;
   top: var(--safe-t);
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+.top-mid button {
   width: 36px;
   height: 36px;
   border-radius: 50%;
+  padding: 0;
+}
+#info-open {
   font: italic 800 19px/1 Georgia, 'Times New Roman', serif;
 }
-#info-open:active {
-  transform: translateX(-50%) scale(0.94);
+#sound-toggle {
+  font-size: 16px;
+  line-height: 1;
 }
-body[data-phase='gameover'] #info-open {
+#sound-toggle[aria-pressed='false'] {
+  opacity: 0.6;
+}
+body[data-phase='gameover'] .top-mid {
   display: none;
 }
 #info {

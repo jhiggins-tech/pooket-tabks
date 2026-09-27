@@ -11,13 +11,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
    now has their own kit; the placeholder Heavy and Mega shells are gone.
 5. ✅ **Info screen** and **smoother driving**, shipped (see below).
 6. ✅ **kie's new kit**: Weasel Pop / Trollogram / Steal, shipped (see below).
-7. _(empty; next requests go here)_
+7. ✅ **8-bit sound effects**, shipped (see below).
+8. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
 - Hide the Trollogram "flat pad" tell: decoys spawn on natural slopes while the real tank starts on a
   flattened pad.
-- Sound effects and music.
+- Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
 
@@ -29,6 +30,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **8-bit sound effects**: kitschy Game Boy style bleeps, synthesised live (pulse waves and LFSR noise,
+  no audio files). Every weapon has its own firing sound (an ice cream van jingle for Double Park, a
+  wolf whistle for the Rizzler, BLEURGH for ten-3, a snore for Take a Nap, a sewing machine for Sew…),
+  plus explosions, damage oofs, typewriter clacks for Debate letters, the kookaburra's laugh, Steal's
+  roulette ticks and ka-ching, a sad trombone for a Marathon DNF, frog-hop boings and a victory tune.
+  🔊 / 🔇 next to ⓘ toggles it (remembered).
 - **Info screen**: the ⓘ button (top centre in battle, and on the setup screen) opens a guide: how to
   play, what the status icons mean, and a page per character with their movement and a card for each
   weapon (tier, rounds, aimed or not, what it does). It opens on the current player's character and

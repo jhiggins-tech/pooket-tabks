@@ -34,6 +34,7 @@ import type {
   Droplet,
   GameState,
   Heist,
+  SfxCue,
   Hologram,
   Jet,
   Nap,
@@ -126,6 +127,7 @@ export function createGame(cfg: GameConfig): GameState {
     turn: 1,
     phase: 'aiming',
     heist: null,
+    sfx: [],
     projectiles: [],
     beams: [],
     holograms: [],
@@ -258,6 +260,7 @@ function hopDrive(state: GameState, p: Player, dir: number, dt: number): number 
   if (!hop) return 0;
   p.fuel = Math.max(0, p.fuel - Math.abs(hop.x1 - hop.x0));
   p.hop = hop;
+  sound(state, 'hop');
   spawnDust(state, p.x, p.y, 0.4);
   return 0;
 }
@@ -417,9 +420,12 @@ export function fire(state: GameState): boolean {
       if (p.twin) fireRounds(state, p, weapon, 'twin');
       break;
   }
+  sound(state, 'fire', weapon.id, p.power);
   // The marathon goes on: every shot fired sends every runner off on another leg.
   for (const r of state.runners) r.legLeft += getWeapon(r.weaponId).runner!.leg;
+  if (state.runners.some((r) => !r.out)) sound(state, 'leg');
   if (weapon.apparition) {
+    sound(state, 'kookaburra');
     const c = tankCentre(p);
     state.apparitions.push({ kind: weapon.apparition, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
   }
@@ -596,6 +602,7 @@ function startHeist(state: GameState, p: Player, tier: number): boolean {
   if (loot.length === 0) {
     const c = tankCentre(p);
     spawnFloater(state, c.x, c.y - 18, 'NOTHING TO STEAL', '#cfd6ff');
+    sound(state, 'nothing');
     return false;
   }
   const { victim, tier: victimTier } = loot[Math.min(loot.length - 1, Math.floor(state.rng() * loot.length))]!;
@@ -613,6 +620,7 @@ function startHeist(state: GameState, p: Player, tier: number): boolean {
   p.ammo[tier] = 0; // the Steal is spent; the stolen round takes its slot when it lands
   state.heist = { thiefId: p.id, thiefTier: tier, victimId: victim.id, victimTier, options, sequence, times, t: 0, locked: false };
   state.phase = 'stealing';
+  sound(state, 'fire', 'steal');
   return true;
 }
 
@@ -629,8 +637,11 @@ function stepHeist(state: GameState, dt: number): void {
     state.phase = 'aiming';
     return;
   }
+  const before = heistIndex(h);
   h.t += dt;
+  if (!h.locked && heistIndex(h) !== before) sound(state, 'tick');
   if (!h.locked && h.t >= STEAL_SPIN) {
+    sound(state, 'stolen');
     h.locked = true;
     const thief = state.players[h.thiefId]!;
     const victim = state.players[h.victimId]!;
@@ -1066,6 +1077,7 @@ function stepJet(state: GameState, j: Jet, dt: number): boolean {
     j.heading = a;
     j.launched = true;
     j.burnLeft = spec.burnTime;
+    sound(state, 'launch', j.weaponId);
     // Lift clear of the ground it's sitting on (a few px) so it can leave.
     for (let lift = 0; lift < 14 && jetBodyHits(state, p.x, p.y, p); lift++) p.y -= 1;
   }
@@ -1182,6 +1194,7 @@ function stepBurst(state: GameState, b: Burst, dt: number): boolean {
     const a = ((b.angle + randRange(state.rng, -1, 1)) * Math.PI) / 180;
     const speed = (b.power / 100) * MAX_SPEED * (1 + randRange(state.rng, -spec.powerJitter, spec.powerJitter));
     spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
+    sound(state, 'round', weapon.id);
     if (b.word) {
       const pr = state.projectiles[state.projectiles.length - 1]!;
       pr.glyph = b.word[b.fired]!;
@@ -1204,6 +1217,7 @@ function stepNap(state: GameState, n: Nap, dt: number): boolean {
     n.nextZ = 0.45;
   }
   if (n.elapsed < spec.napTime) return false;
+  sound(state, 'wake');
   if (p.alive && p.hp < MAX_HP) {
     const gained = MAX_HP - p.hp;
     p.hp = MAX_HP;
@@ -1251,6 +1265,7 @@ function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
         target.player.pinned = { active: false };
         const c = targetPos(target);
         spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'PINNED', weapon.colour ?? '#f472b6');
+        sound(state, 'pin');
       }
     }
     if (Math.round(t) % 4 === 0) st.path.push(pt);
@@ -1297,6 +1312,7 @@ function stepRunner(state: GameState, r: Runner, dt: number): boolean {
       const at = targetPos(hit);
       explode(state, at.x, at.y - TANK_BODY_HEIGHT, finish, r.ownerId);
       spawnFloater(state, r.x, r.y - 30, 'FINISH!', '#f472b6');
+      sound(state, 'finish');
       return true;
     }
   }
@@ -1746,6 +1762,7 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
   const r = weapon.blastRadius;
   state.terrain.carveCircle(x, y, r);
   state.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
+  sound(state, 'boom', weapon.id, r);
 
   const shooterId = ownerId ?? currentPlayer(state).id;
   for (const t of allTargets(state)) {
@@ -1761,6 +1778,7 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
       if (!t.player.tattoo) {
         const c = targetPos(t);
         spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'TATTOOED', '#b8c4ff');
+        sound(state, 'tattoo');
       }
       t.player.tattoo = { multiplier: weapon.tattoo.multiplier, turnsLeft: weapon.tattoo.turns };
     }
@@ -1770,6 +1788,7 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     if (rn.out || Math.hypot(rn.x - x, rn.y - 6 - y) >= r + 6) continue;
     rn.out = true;
     spawnFloater(state, rn.x, rn.y - 20, 'DNF', '#f472b6');
+    sound(state, 'dnf');
   }
   settleTanks(state);
 }
@@ -1779,6 +1798,7 @@ function cook(state: GameState, p: Player, multiplier: number): void {
   p.cooked = { active: false, multiplier };
   const c = tankCentre(p);
   spawnFloater(state, c.x, c.y - 10, 'COOKED', '#ff9f43');
+  sound(state, 'cook');
 }
 
 /** Every source of damage goes through here so it always gets a floating number. */
@@ -1793,6 +1813,7 @@ export function damagePlayer(state: GameState, p: Player, amount: number, colour
   p.hp = Math.max(0, p.hp - amount);
   const c = tankCentre(p);
   spawnFloater(state, c.x, c.y, `-${amount}`, colour);
+  sound(state, 'hit', undefined, amount);
   if (p.hp > 0) return;
   if (p.twin) {
     // The main tank is destroyed, but the twin carries on as the player's tank.
@@ -1806,6 +1827,15 @@ export function damagePlayer(state: GameState, p: Player, amount: number, colour
     return;
   }
   p.alive = false;
+}
+
+/** How many sound cues can wait for the audio layer (oldest dropped first; tests never drain them). */
+const SFX_QUEUE_MAX = 64;
+
+/** Queue a sound cue for the audio layer. Purely cosmetic. */
+function sound(state: GameState, cue: SfxCue, weaponId?: string, size?: number): void {
+  if (state.sfx.length >= SFX_QUEUE_MAX) state.sfx.shift();
+  state.sfx.push({ cue, weaponId, size });
 }
 
 function spawnFloater(state: GameState, x: number, y: number, text: string, colour: string): void {
@@ -1859,6 +1889,7 @@ function resolveHolograms(state: GameState): void {
     state.ghosts.push({ ownerId: h.ownerId, x: h.x, y: h.y, age: 0, duration: GHOST_DURATION });
   }
   state.holograms = state.holograms.filter((h) => !exposed.includes(h));
+  if (exposed.length > 0) sound(state, 'busted');
 
   const me = currentPlayer(state);
   const target = state.holograms.find((h) => h.id === state.swapTargetId && h.ownerId === me.id);
@@ -1895,6 +1926,7 @@ function endTurn(state: GameState): void {
 
   const alive = state.players.filter((p) => p.alive);
   if (alive.length <= 1) {
+    sound(state, 'gameover');
     state.phase = 'gameover';
     state.winner = alive[0] ?? null;
     return;
@@ -1904,6 +1936,7 @@ function endTurn(state: GameState): void {
     const total = (p: Player) => p.hp + (p.twin?.hp ?? 0);
     const best = Math.max(...alive.map(total));
     const leaders = alive.filter((p) => total(p) === best);
+    sound(state, 'gameover');
     state.phase = 'gameover';
     state.winner = leaders.length === 1 ? leaders[0]! : null;
     return;
