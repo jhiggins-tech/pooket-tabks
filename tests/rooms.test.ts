@@ -118,6 +118,23 @@ describe('rooms through Firebase', () => {
     again.close();
   });
 
+  it('a last message sent just before closing still gets through (even with another send in flight)', async () => {
+    const room = await HostedRoom.open(db);
+    const hostSide = room.waitForGuest();
+    const guest = await joinRoom(db, room.code);
+    const host = await hostSide;
+    const got: unknown[] = [];
+    host.onMessage = (m) => got.push(m);
+    server.latency = 300; // so the first message is still on its way when the phone closes
+    guest.send({ n: 1 });
+    await until(() => server.requests.some((r) => r.method === 'POST' && r.path.endsWith('g2h')), 2000);
+    guest.send({ k: 'bye' });
+    guest.close();
+    await until(() => got.length === 2, 4000);
+    expect(got).toEqual([{ n: 1 }, { k: 'bye' }]);
+    host.close();
+  });
+
   it('a quiet phone that never comes back: the other side learns the room has closed', async () => {
     const fast = { pingMs: 100, lostMs: 400 };
     const room = await HostedRoom.open(db);

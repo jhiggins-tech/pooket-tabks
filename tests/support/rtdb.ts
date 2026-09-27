@@ -10,6 +10,8 @@ export interface FakeRtdb {
   url: string;
   tree: () => Record<string, unknown>;
   requests: { method: string; path: string }[];
+  /** Answer every write this much later (a slow network). */
+  latency: number;
   close(): Promise<void>;
 }
 
@@ -20,6 +22,7 @@ export async function startRtdb(): Promise<FakeRtdb> {
   const listeners = new Set<{ segs: string[]; res: ServerResponse }>();
   const requests: FakeRtdb['requests'] = [];
   let pushN = 0;
+  const fake = { latency: 0 } as FakeRtdb;
 
   const segsOf = (path: string) => path.split('/').filter(Boolean);
   const getAt = (segs: string[]): Json => {
@@ -111,6 +114,7 @@ export async function startRtdb(): Promise<FakeRtdb> {
     }
     if (req.method === 'GET') return reply(res, 200, getAt(segs));
     const body = serverValues(await readBody(req));
+    if (fake.latency > 0) await new Promise((r) => setTimeout(r, fake.latency));
     if (req.method === 'PUT') {
       if (!allowed(segs, body)) return reply(res, 401, { error: 'Permission denied' });
       setAt(segs, body);
@@ -137,7 +141,7 @@ export async function startRtdb(): Promise<FakeRtdb> {
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', () => r()));
   const port = (server.address() as { port: number }).port;
-  return {
+  return Object.assign(fake, {
     url: `http://127.0.0.1:${port}`,
     tree: () => root,
     requests,
@@ -148,5 +152,5 @@ export async function startRtdb(): Promise<FakeRtdb> {
         server.closeAllConnections?.();
         server.close(() => r());
       }),
-  };
+  });
 }

@@ -160,9 +160,13 @@ export class RelayTransport implements Transport {
     this.onClose();
   }
 
-  /** One request at a time, so batches arrive in order; whatever queued meanwhile goes in the next. */
+  /**
+   * One request at a time, so batches arrive in order; whatever queued meanwhile goes in the next.
+   * After closing, it still sends what was queued before (a goodbye), one try each.
+   */
   private async flush(): Promise<void> {
-    if (this.sending || this.closed) return;
+    if (this.sending) return;
+    if (this.closed && !this.queue.length && !this.retry.length) return;
     let batch = this.retry.shift();
     if (!batch) {
       if (!this.queue.length) return;
@@ -175,6 +179,7 @@ export class RelayTransport implements Transport {
       await this.db.post(this.outbox, batch.payload);
       this.lastSent = Date.now();
     } catch (e) {
+      if (this.closed) return netLog(`relay: a last message didn't go (${e instanceof Error ? e.message : e})`);
       netLog(`relay: send failed (${e instanceof Error ? e.message : e}), retrying`);
       this.retry.unshift(batch);
       await new Promise((r) => setTimeout(r, 1000));
