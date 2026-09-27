@@ -86,7 +86,8 @@ export class RelayTransport implements Transport {
     readonly roomPath: string,
     private readonly side: 'host' | 'guest',
     readonly sealer: Sealer,
-    private readonly opts: { pingMs?: number; lostMs?: number } = {},
+    /** `me`/`peer`: the seat ids of this phone and the other one; batches from anyone else are ignored. */
+    private readonly opts: { pingMs?: number; lostMs?: number; me?: string; peer?: string } = {},
   ) {
     this.outbox = `${roomPath}/${side === 'host' ? 'h2g' : 'g2h'}`;
     this.inbox = `${roomPath}/${side === 'host' ? 'g2h' : 'h2g'}`;
@@ -178,7 +179,7 @@ export class RelayTransport implements Transport {
       if (!this.queue.length) return;
       const msgs = this.queue.splice(0);
       const seq = ++this.seqOut;
-      batch = { seq, payload: toB64(await seal(this.sealer, { e: this.epoch, seq, m: msgs })) };
+      batch = { seq, payload: toB64(await seal(this.sealer, { e: this.epoch, seq, m: msgs, from: this.opts.me })) };
     }
     this.sending = true;
     try {
@@ -209,8 +210,11 @@ export class RelayTransport implements Transport {
     this.seen.add(key);
     this.toDelete.push(key);
     void unseal(this.sealer, fromB64(value)).then((b) => {
-      const batch = b as { e?: number; seq: number; m: unknown[] } | null;
+      const batch = b as { e?: number; seq: number; m: unknown[]; from?: string } | null;
       if (!batch) return netLog('relay: a message that did not unseal');
+      // From someone who's since lost the seat (a ghost the host freed it from): not for us. (An older
+      // version doesn't say who it is; the session's protocol check deals with that.)
+      if (this.opts.peer && batch.from !== undefined && batch.from !== this.opts.peer) return;
       const e = batch.e ?? 0;
       if (e < this.peerEpoch || this.closed) return; // left over from a connection they've since replaced
       this.lastHeard = Date.now();
@@ -393,7 +397,7 @@ export class HostedRoom {
         netLog(`rooms: ${guest.id.slice(0, 4)} joined`);
         this.guestStream?.close();
         this.timers.forEach(clearInterval);
-        resolve(new RelayTransport(this.db, this.path, 'host', this.sealer, opts).start());
+        resolve(new RelayTransport(this.db, this.path, 'host', this.sealer, { ...opts, me: this.hostId, peer: guest.id }).start());
       });
     });
   }
@@ -447,7 +451,7 @@ export async function joinRoom(db: Rtdb, code: string, opts?: RelayOptions, id =
     throw e;
   }
   netLog(`rooms: joined ${code}`);
-  return new RelayTransport(db, path, 'guest', sealer, opts).start();
+  return new RelayTransport(db, path, 'guest', sealer, { ...opts, me: id, peer: host.id }).start();
 }
 
 /** Take back our seat in a match we dropped out of (the seat remembers our id), with a fresh pipe. */
@@ -469,7 +473,9 @@ export async function rejoinRoom(db: Rtdb, code: string, role: 'host' | 'guest',
   // numbered past the start, so it's never taken up.)
   await db.remove(`${path}/${role === 'host' ? 'g2h' : 'h2g'}`);
   netLog(`rooms: rejoined ${code} as ${role}`);
-  return new RelayTransport(db, path, role, sealer, opts).start();
+  const guest = role === 'host' ? await db.get<{ id: string }>(`${path}/guest`) : null;
+  const peer = role === 'guest' ? host.id : guest?.id;
+  return new RelayTransport(db, path, role, sealer, { ...opts, me: id, peer }).start();
 }
 
 /** A game on the nearby (same Wi-Fi) list. */

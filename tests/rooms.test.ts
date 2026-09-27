@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FIXED_DT } from '../src/game/constants';
 import { createGame, currentPlayer, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
-import { advertise, HostedRoom, joinRoom, lobbySealer, newRoomCode, normaliseRoomCode, rejoinRoom, watchLobby, type Advert } from '../src/net/rooms';
+import { advertise, HostedRoom, joinRoom, lobbySealer, newRoomCode, normaliseRoomCode, rejoinRoom, RelayTransport, watchLobby, type Advert } from '../src/net/rooms';
+import { sealerFor } from '../src/net/seal';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession } from '../src/net/session';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
@@ -121,20 +122,26 @@ describe('rooms through Firebase', () => {
   it('a host can free the guest seat (a ghost that joined and vanished) and a real player can then join', async () => {
     const room = await HostedRoom.open(db);
     const first = room.waitForGuest();
-    const ghost = await joinRoom(db, room.code);
+    const ghost = await joinRoom(db, room.code, undefined, 'ghost-id');
     const hostToGhost = await first;
-    ghost.send({ k: 'hello' });
     hostToGhost.detach();
     ghost.close();
     await room.reopen();
     const second = room.waitForGuest();
-    const real = await joinRoom(db, room.code);
+    const real = await joinRoom(db, room.code, undefined, 'real-id');
     const host = await second;
     const got: unknown[] = [];
     host.onMessage = (m) => got.push(m);
+    // Something the ghost sent that only lands now (it was on its way when the seat was freed).
+    const sealer = await sealerFor('room', room.code);
+    const late = new RelayTransport(db, `rooms/${sealer.topic}`, 'guest', sealer, { me: 'ghost-id' }).start();
+    late.send({ k: 'hello', from: 'the ghost' });
+    await until(() => server.requests.filter((r) => r.method === 'POST').length >= 1);
     real.send({ n: 1 });
-    await until(() => got.length === 1);
-    expect(got).toEqual([{ n: 1 }]); // nothing left over from the ghost
+    await until(() => got.length >= 1);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(got).toEqual([{ n: 1 }]); // only the real player
+    late.close();
     host.close();
     real.close();
   });

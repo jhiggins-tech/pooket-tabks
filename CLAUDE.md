@@ -146,7 +146,8 @@ TypeScript + Vite, hand-rolled Canvas2D, no runtime dependencies.
   role, seat id; refreshed while playing), `rejoinRoom` takes it back with a fresh pipe (emptying its stale
   inbox), and `NetSession.rejoin()` sends `rejoin`; the other phone `restart()`s its pipe and answers with
   `resume` (picks, setup, snapshot, terrain) once any shot in flight has played out (its result stands).
-  Batches carry the sender's epoch, so the receiver switches to a rejoined phone's new stream at its first
+  Batches carry the sender's seat id (`from`; a pipe drops batches from anyone but the current other seat,
+  e.g. a freed ghost's leftovers) and epoch, so the receiver switches to a rejoined phone's new stream at its first
   batch and ignores leftovers. `main.ts` rejoins by itself on opening within `AUTO_REJOIN_MS`, else shows
   `#setup-rejoin`; typing the code or tapping it in the nearby list rejoins too. No goodbye on `pagehide`
   (a reload must be rejoinable). `advertise`/`watchLobby` list games on the same
