@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 16,
+    title: 'What’s your name?',
+    items: [
+      'The game asks your name the first time you open it, and remembers it: it’s your name as Player 1 and in online games.',
+      'Change it any time by editing Player 1’s name on the setup screen.',
+    ],
+  },
+  {
     version: 15,
     title: 'Women in Scam 💅',
     items: [

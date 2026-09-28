@@ -1,18 +1,25 @@
 import { assignColours, getCharacter, loadoutSummary, ROSTER } from '../characters/roster';
 import type { PlayerConfig } from '../game/state';
+import { loadUsername, saveUsername } from './profile';
 import { changeCharacter, NAME_MAX, parseSeats, resolveNames, type Seat } from './seats';
 
 const STORAGE_KEY = 'pooket-tabks.setup.v2';
 
-/** Pre-battle screen: two seats, each picking a character (name pre-filled, editable). */
+/**
+ * Pre-battle screen: two seats, each picking a character (name pre-filled, editable). Player 1 is this
+ * phone's player: their name is the saved username (profile.ts), and editing it changes the username.
+ */
 export class SetupScreen {
   private readonly root = document.getElementById('setup')!;
   private readonly list = document.getElementById('setup-players')!;
   private seats: Seat[] = loadSeats();
+  private you: string | null = loadUsername();
 
   constructor(onStart: (players: PlayerConfig[]) => void) {
+    if (this.you) this.seats[0]!.name = this.you;
     document.getElementById('start')!.addEventListener('click', () => {
       (document.activeElement as HTMLElement | null)?.blur(); // dismiss the phone keyboard
+      this.keepName(this.seats[0]!);
       saveSeats(this.seats);
       onStart(this.players());
     });
@@ -26,6 +33,19 @@ export class SetupScreen {
 
   hide(): void {
     this.root.hidden = true;
+  }
+
+  /** Player 1's name before there's a username (to suggest one), unless it's just their character's. */
+  suggestedName(): string {
+    const seat = this.seats[0]!;
+    return seat.name.trim() === getCharacter(seat.characterId).name ? '' : seat.name;
+  }
+
+  /** The username was set (or changed): it's Player 1's name. */
+  setUsername(name: string): void {
+    this.you = name;
+    this.seats[0]!.name = name;
+    this.render();
   }
 
   players(): PlayerConfig[] {
@@ -52,6 +72,7 @@ export class SetupScreen {
     for (const c of ROSTER) character.add(new Option(c.name, c.id, false, c.id === seat.characterId));
     character.addEventListener('change', () => {
       this.seats[i] = changeCharacter(seat, character.value);
+      if (i === 0 && this.you) this.seats[i]!.name = this.you; // you're still you
       this.render();
     });
 
@@ -65,6 +86,12 @@ export class SetupScreen {
     name.setAttribute('aria-label', `Player ${i + 1} name`);
     name.addEventListener('input', () => (seat.name = name.value));
     name.addEventListener('keydown', (e) => e.key === 'Enter' && name.blur());
+    if (i === 0) {
+      name.addEventListener('change', () => {
+        this.keepName(seat);
+        name.value = seat.name;
+      });
+    }
 
     const loadout = document.createElement('span');
     loadout.className = 'loadout';
@@ -76,6 +103,13 @@ export class SetupScreen {
 
     row.append(label, swatch, character, name, loadout);
     return row;
+  }
+
+  /** Player 1's name, once edited, is the new username (a blank one goes back to the old). */
+  private keepName(seat: Seat): void {
+    const saved = saveUsername(seat.name);
+    if (saved) this.you = saved;
+    if (this.you) seat.name = this.you;
   }
 }
 

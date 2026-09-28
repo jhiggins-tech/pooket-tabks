@@ -8,8 +8,9 @@ phones anywhere with a 4-letter room code (others can watch).
 *Share → Add to Home Screen* gives true fullscreen).
 
 ## How to play
-- **Setup:** each player picks a character (tones, kie, kcaj, torikloud, ciarra, larinovsky); the name
-  pre-fills and can be changed. Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3.
+- **Setup:** the first visit asks your name (Player 1, and your name online). Each player picks a
+  character (tones, kie, kcaj, torikloud, ciarra, larinovsky); Player 2's name pre-fills and can be
+  changed. Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3 (larinovsky also has a bonus move).
   ⓘ explains every weapon; ✨ shows what's new.
 - **Aim:** drag anywhere and pull back like a slingshot: direction is the angle (a full 360°), pull
   length is power. Fine-tune with ↺ ↻ and − +.

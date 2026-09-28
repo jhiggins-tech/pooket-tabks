@@ -637,6 +637,53 @@ test('asks to rotate when held in portrait', async ({ page }) => {
   await page.screenshot({ path: 'test-results/phone-portrait.png' });
 });
 
+test('a first visit asks your name; it becomes Player 1 and sticks (and editing Player 1 changes it)', async ({ page }) => {
+  await page.goto('./?askname');
+  const prompt = page.locator('#name-prompt');
+  await expect(prompt).toBeVisible();
+  const ok = page.locator('#name-ok');
+  await expect(ok).toBeDisabled();
+  await prompt.getByRole('textbox').fill('   ');
+  await expect(ok).toBeDisabled();
+  await prompt.getByRole('textbox').fill('  Jack  ');
+  await page.screenshot({ path: 'test-results/name-prompt.png' });
+  await ok.tap();
+  await expect(prompt).toBeHidden();
+  const p1 = page.getByLabel('Player 1 name');
+  await expect(p1).toHaveValue('Jack');
+
+  // Remembered: no question next time, and a new character doesn't rename you.
+  await page.reload();
+  await expect(page.locator('#setup')).toBeVisible();
+  await expect(prompt).toBeHidden();
+  await expect(p1).toHaveValue('Jack');
+  await page.getByLabel('Player 1 character').selectOption('ciarra');
+  await expect(p1).toHaveValue('Jack');
+
+  // Change it from the setup screen; blank goes back to what it was.
+  await p1.fill('Jacko');
+  await p1.press('Enter');
+  await page.reload();
+  await expect(p1).toHaveValue('Jacko');
+  await p1.fill('');
+  await p1.press('Enter');
+  await expect(p1).toHaveValue('Jacko');
+
+  // The game uses it.
+  await page.locator('#start').tap();
+  await expect(page.locator('#players .chip').first()).toContainText('Jacko');
+});
+
+test('a first visit from an invite link asks your name before the invite', async ({ page }) => {
+  await page.goto('./?askname&debug&db=http%3A%2F%2F127.0.0.1%3A1&lobby=offline#room=ABCD');
+  await expect(page.locator('#name-prompt')).toBeVisible();
+  await expect(page.locator('#online-accept')).toBeHidden();
+  await page.getByRole('textbox', { name: 'Your name' }).fill('Ann');
+  await page.locator('#name-ok').tap();
+  await expect(page.locator('#online-accept')).toBeVisible();
+  await expect(page.getByLabel('Player 1 name')).toHaveValue('Ann');
+});
+
 test("what's new shows once per version, and can be reopened from setup", async ({ page }) => {
   await page.goto('./?whatsnew');
   const popup = page.locator('#whatsnew');

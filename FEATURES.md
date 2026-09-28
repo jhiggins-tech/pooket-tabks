@@ -4,11 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Name registration**: the first time the game opens in a browser with no saved username, it asks
-   for one before anything else. That name is saved in the browser (localStorage, like the other
-   settings) and used as your player name: Player 1 in setup, and your name online (lobby, Games list,
-   spectators). It can be changed later (e.g. by tapping the name). Today the setup screen already
-   remembers whatever was typed into the name boxes, so this adds the prompt and a single "you" name.
+Everything queued so far has shipped (details under **Shipped** below).
+
+1. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -41,6 +39,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Your name**: the first time the game opens in a browser with no saved username, a "What's your
+  name?" prompt comes up before anything else (even an invite link), pre-filled with a name typed in
+  before. It's saved in the browser and is Player 1's name (hotseat) and your name online (lobby, Games
+  list, spectators). Editing Player 1's name on the setup screen changes it (blank puts it back);
+  picking another character keeps it.
 - **Two phones, any network**: 📶 Host on one phone opens a room with a 4-letter code (and a link of it
   to copy or share). On the other phone, Join opens the Games list (tap a game to join), or type the
   code, or just open the link. The game's messages go through a Firebase Realtime Database (free tier, see

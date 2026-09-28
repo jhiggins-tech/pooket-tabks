@@ -40,7 +40,7 @@ what it's for; weapons are documented where they're defined.
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
 | `src/net/` | online play (below) |
-| `src/ui/` | setup, info (ⓘ), what's new, online screens |
+| `src/ui/` | setup (Player 1 = the saved username, `profile.ts`, asked for on a first visit), info (ⓘ), what's new, online screens |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together; `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in) |
 | `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows) |
@@ -132,4 +132,4 @@ test over `loopback()` (`tests/net-session.test.ts`) and the fake Firebase (`tes
 - Unit tests for game logic (build matches with `testGame` and move turns along with `whileFlying`,
   `untilAiming`, `untilNextTurn`, `passTurn`, `hold` from `tests/support/game.ts`); extend
   `e2e/smoke.spec.ts` for new UI flows. Automated runs (`navigator.webdriver`) start with player 1 and
-  skip the what's-new popup unless `?first=` / `?whatsnew`.
+  skip the what's-new popup and the first-visit name prompt unless `?first=` / `?whatsnew` / `?askname`.

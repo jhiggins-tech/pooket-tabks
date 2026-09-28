@@ -35,6 +35,7 @@ import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
 import { WhatsNew } from './ui/whatsnew';
 import { OnlineScreen } from './ui/online';
+import { loadUsername, NamePrompt } from './ui/profile';
 import { SetupScreen } from './ui/setup';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -183,14 +184,24 @@ document.getElementById('join-online')!.addEventListener('click', () => void onl
 const openedRoom = takeRoomCode();
 const droppedSeat = loadSeat();
 const autoRejoin = !openedRoom && !!droppedSeat && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
-if (openedRoom) online.invite(openedRoom);
-else if (autoRejoin) void online.rejoin(droppedSeat!);
 showRejoin();
-
-// What's new since this phone last looked (not over a room link, nor in automated tests unless asked).
 const whatsNew = new WhatsNew();
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
-if (!openedRoom && !autoRejoin && (!navigator.webdriver || query.has('whatsnew'))) whatsNew.showUnseen();
+function welcome(): void {
+  if (openedRoom) online.invite(openedRoom);
+  else if (autoRejoin) void online.rejoin(droppedSeat!);
+  // What's new since this phone last looked (not over a room link, nor in automated tests unless asked).
+  if (!openedRoom && !autoRejoin && (!navigator.webdriver || query.has('whatsnew'))) whatsNew.showUnseen();
+}
+// A browser that's never been told who's playing asks first (automated tests only with `?askname`).
+if (!loadUsername() && (!navigator.webdriver || query.has('askname'))) {
+  void new NamePrompt().ask(setup.suggestedName()).then((name) => {
+    setup.setUsername(name);
+    welcome();
+  });
+} else {
+  welcome();
+}
 // (No goodbye when the page goes away: a reload comes straight back. Leave says goodbye.)
 
 /** Whether this phone may control the game right now (always, in a local game; never while watching). */
