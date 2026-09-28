@@ -98,6 +98,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
 });
 
 test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
+  // Three turns, the last a ~13s pill storm: ~25s here, so the default 30s is too tight on a slow runner.
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=4242');
