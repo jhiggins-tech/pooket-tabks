@@ -9,6 +9,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
    larinovsky, they get one round of that attack added to their inventory to use later. To settle
    when building: whether it's a fourth slot or replaces one of the three, how many uses per match, and
    whether a hit on a decoy or twin counts.
+2. **Name registration**: the first time the game opens in a browser with no saved username, it asks
+   for one before anything else. That name is saved in the browser (localStorage, like the other
+   settings) and used as your player name: Player 1 in setup, and your name online (lobby, Games list,
+   spectators). It can be changed later (e.g. by tapping the name). Today the setup screen already
+   remembers whatever was typed into the name boxes, so this adds the prompt and a single "you" name.
 
 ### Backlog (ideas, not yet scheduled)
 
