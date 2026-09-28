@@ -25,8 +25,11 @@ export interface Stepper {
   busy(state: GameState): boolean;
 }
 
-/** How each kind of weapon goes off. (Steal isn't a shot: `fire` hands it to the roulette instead.) */
-export const FIRE: Record<Exclude<WeaponKind, 'steal'>, FireFn> = {
+/**
+ * How each kind of weapon goes off. (Steal and Women in Scam aren't shots: `fire` hands them to the roulette
+ * and the bonus move instead.)
+ */
+export const FIRE: Record<Exclude<WeaponKind, 'steal' | 'scam'>, FireFn> = {
   // A twin fires the same weapon with the same aim and power from its own spot.
   ballistic: (state, p, weapon) => {
     fireRounds(state, p, weapon, 'main');

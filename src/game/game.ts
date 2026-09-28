@@ -10,6 +10,7 @@ import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } fro
 import { FIRE, STEPPERS } from './mechanics';
 import { runLegs } from './runner';
 import type { GameState, Player, PlayerConfig } from './state';
+import { armScam, endScams } from './scam';
 import { startHeist, stepHeist } from './steal';
 import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
 import { clamp, normalizeAngle } from './util';
@@ -86,7 +87,7 @@ export function createGame(cfg: GameConfig): GameState {
       alive: true,
       characterId: character.id,
       loadout: [...character.loadout],
-      ammo: [...AMMO_PER_TIER],
+      ammo: character.loadout.map((_, tier) => AMMO_PER_TIER[tier] ?? 1),
       selectedTier: 0,
       burn: null,
       soak: 0,
@@ -99,6 +100,7 @@ export function createGame(cfg: GameConfig): GameState {
       fuel: FUEL_PER_MATCH,
       toxin: 0,
       toxinRate: 0,
+      scam: null,
     };
   });
 
@@ -113,6 +115,7 @@ export function createGame(cfg: GameConfig): GameState {
     sfx: [],
     tunes: [],
     refund: null,
+    lastShot: null,
     projectiles: [],
     beams: [],
     holograms: [],
@@ -188,6 +191,8 @@ export function fire(state: GameState): boolean {
   const kind = weapon.kind ?? 'ballistic';
   // Steal isn't a shot: it lifts a round from an enemy, then the turn carries on.
   if (kind === 'steal') return startHeist(state, p, tier);
+  // Women in Scam is a bonus move: the turn carries on.
+  if (kind === 'scam') return armScam(state, p, tier);
   p.ammo[tier]!--;
   if (p.ammo[tier] === 0) {
     // Fall back to the lowest tier that still has rounds.
@@ -196,6 +201,7 @@ export function fire(state: GameState): boolean {
   }
   // A miss gets the round back (checked when the turn ends).
   state.refund = weapon.refundOnMiss ? { playerId: p.id, tier, hit: false } : null;
+  state.lastShot = { playerId: p.id, weaponId: weapon.id };
   FIRE[kind](state, p, weapon);
   sound(state, 'fire', weapon.id, p.power);
   runLegs(state);
@@ -247,6 +253,8 @@ function endTurn(state: GameState): void {
   if (ending.cooked?.active) ending.cooked = null;
   if (ending.pinned?.active) ending.pinned = null;
   if (ending.tattoo && --ending.tattoo.turnsLeft <= 0) ending.tattoo = null;
+  endScams(state);
+  state.lastShot = null; // burns ticking below aren't this turn's attack
   resolveHolograms(state);
   // Hand the turn on. Each player whose turn comes up takes their burn damage first;
   // players who are dead or out of ammo are skipped.

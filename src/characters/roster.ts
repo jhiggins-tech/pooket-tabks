@@ -2,8 +2,8 @@ import { getWeapon } from '../weapons/registry';
 import type { CharacterDef } from './kit';
 import { KITS } from './kits';
 
-/** Rounds per tier at the start of a match: tier 1, tier 2, tier 3. */
-export const AMMO_PER_TIER = [5, 3, 1] as const;
+/** Rounds per tier at the start of a match: tier 1, tier 2, tier 3 (and a bonus move, for those who have one). */
+export const AMMO_PER_TIER = [5, 3, 1, 1] as const;
 
 export type { CharacterDef, Loadout } from './kit';
 

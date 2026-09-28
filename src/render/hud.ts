@@ -41,12 +41,13 @@ export class Hud {
       state.swapTargetId,
       jetCountdown(state),
       p.ammo.join(','),
+      p.loadout.join(','),
       this.online ? `${this.online.localSeat}${this.online.syncing}` : '',
       state.heist ? `${heistIndex(state.heist)}${state.heist.locked}` : '',
       ...state.players.map(
         (pl) =>
           `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}` +
-          `${pl.tattoo?.turnsLeft ?? ''}${pl.pinned ? 'P' : ''}`,
+          `${pl.tattoo?.turnsLeft ?? ''}${pl.pinned ? 'P' : ''}${pl.scam ? 'S' : ''}`,
       ),
     ].join('|');
     if (key === this.last) return;
@@ -72,6 +73,8 @@ export class Hud {
       ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
       ? `ten-2 charging… ${countdown}`
+      : weaponForTier(p, p.selectedTier).kind === 'scam'
+      ? 'Bonus move: FIRE it, then take your turn'
       : aimless
       ? 'No aiming needed. Just FIRE'
       : decoys > 0
@@ -105,6 +108,7 @@ export class Hud {
           bar.append(track);
         }
         if (pl.tattoo && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'tattoo', textContent: ' ✒', title: 'Tattooed: takes extra damage' }));
+        if (pl.scam && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'scam', textContent: ' 💅', title: 'Women in Scam: an enemy hit this turn earns a round of it' }));
         if (pl.pinned && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'pinned', textContent: ' 📌', title: 'Pinned: can’t move next turn' }));
         if (pl.cooked && pl.alive) {
           const cooked = document.createElement('span');
@@ -153,6 +157,7 @@ export class Hud {
         name.className = 'wname';
         name.textContent = w.shortName;
         name.classList.toggle('long', w.shortName.length > 8);
+        name.classList.toggle('longer', w.shortName.length > 11);
         const pips = document.createElement('span');
         pips.className = 'pips';
         const max = AMMO_PER_TIER[tier] ?? left;

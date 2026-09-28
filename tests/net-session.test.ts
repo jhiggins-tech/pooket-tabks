@@ -110,6 +110,23 @@ describe('networked match', { timeout: 30_000 }, () => {
     expect(B.players[0]!.x).toBe(spot);
   });
 
+  it("a bonus move (Women in Scam) reaches the other phone, and the turn carries on to the real shot", async () => {
+    const { a, b, A, B } = await connected('larinovsky', 'kie');
+    selectTier(A, 3);
+    expect(a.fire()).toBe(true);
+    await flush();
+    expect(A.phase).toBe('aiming');
+    expect(B.players[0]!.scam).toEqual({ loot: null });
+    expect(B.players[0]!.ammo[3]).toBe(0);
+    expect(a.canAct()).toBe(true);
+    setAim(A, 90, 10);
+    expect(a.fire()).toBe(true);
+    await playOut(a, b, A, B);
+    same(A, B);
+    expect(b.canAct()).toBe(true);
+    expect(B.players[0]!.scam).not.toBeNull();
+  });
+
   it('never sends the secret swap target with a shot', async () => {
     const { a, b, A, B } = await connected('kie', 'tones');
     selectTier(A, 1);

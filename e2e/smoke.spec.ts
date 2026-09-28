@@ -396,6 +396,7 @@ test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) =>
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Pill Pusher, 5 left');
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'the Rizzler, 3 left');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Take a Nap, 1 left');
+  await expect(weapons.nth(3)).toHaveAttribute('aria-label', 'Women in Scam, 1 left');
 
   await weapons.nth(2).tap();
   await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
@@ -429,7 +430,7 @@ test("larinovsky's Take a Nap: cats curl up alongside, and the weapons come back
   await page.getByLabel('Player 1 character').selectOption('larinovsky');
   await page.locator('#start').tap();
   type NapDbg = { __pooket: { state: { naps: unknown[]; players: { x: number; y: number; ammo: number[] }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
-  await page.evaluate(() => ((window as unknown as NapDbg).__pooket.state.players[0]!.ammo = [1, 0, 1]));
+  await page.evaluate(() => ((window as unknown as NapDbg).__pooket.state.players[0]!.ammo = [1, 0, 1, 1]));
   await page.locator('#weapons .weapon').nth(2).tap();
   await page.locator('#fire').tap();
   await page.waitForFunction(() => (window as unknown as NapDbg).__pooket.state.naps.length === 1);
@@ -441,7 +442,43 @@ test("larinovsky's Take a Nap: cats curl up alongside, and the weapons come back
   });
   await page.screenshot({ path: 'test-results/take-a-nap-cats.png', clip: { x: at.x - 90, y: at.y - 70, width: 180, height: 100 } });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
-  expect(await page.evaluate(() => (window as unknown as NapDbg).__pooket.state.players[0]!.ammo)).toEqual([5, 3, 0]);
+  expect(await page.evaluate(() => (window as unknown as NapDbg).__pooket.state.players[0]!.ammo)).toEqual([5, 3, 0, 1]);
+  expect(errors).toEqual([]);
+});
+
+test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as a weapon", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.getByLabel('Player 1 character').selectOption('larinovsky');
+  await page.getByLabel('Player 2 character').selectOption('kcaj');
+  await page.locator('#start').tap();
+  const weapons = page.locator('#weapons .weapon');
+  await weapons.nth(3).tap();
+  await expect(page.locator('#hint')).toHaveText('Bonus move: FIRE it, then take your turn');
+  await page.locator('#fire').tap();
+  // Still larinovsky's turn, the bonus spent, and scamming.
+  await expect(weapons.nth(3)).toHaveAttribute('aria-label', 'Women in Scam, 0 left');
+  await expect(weapons.nth(3)).toBeDisabled();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '1');
+  await expect(page.locator('#players .scam')).toHaveCount(1);
+  type ScamDbg = { __pooket: { state: { phase: string; players: { angle: number; power: number; scam: { loot: string | null } | null }[] } } };
+  const upAndAway = (i: number) =>
+    page.evaluate((i) => Object.assign((window as unknown as ScamDbg).__pooket.state.players[i]!, { angle: 90, power: 5 }), i);
+  await upAndAway(0);
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  // kcaj's turn: say their shot hits larinovsky (the hit itself is covered by the unit tests).
+  await page.evaluate(() => ((window as unknown as ScamDbg).__pooket.state.players[0]!.scam!.loot = 'double-park'));
+  await upAndAway(1);
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
+  await expect(weapons).toHaveCount(5);
+  await expect(weapons.nth(4)).toHaveAttribute('aria-label', 'Double Park, 1 left');
+  await expect(page.locator('#players .scam')).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/women-in-scam.png' });
+  await weapons.nth(4).tap();
+  await expect(weapons.nth(4)).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]);
 });
 

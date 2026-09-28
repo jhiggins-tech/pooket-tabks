@@ -33,7 +33,8 @@ export type WeaponKind =
   | 'twin'
   | 'sew'
   | 'runner'
-  | 'steal';
+  | 'steal'
+  | 'scam';
 
 /**
  * Sonic weapons: `waves` arcs, `interval` s apart, expand from the barrel at `speed` px/s across

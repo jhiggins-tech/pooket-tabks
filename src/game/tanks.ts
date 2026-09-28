@@ -3,6 +3,7 @@ import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
+import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player } from './state';
 
 /** Tanks and targets: where a tank is, what a shot at (x, y) hits (tank, twin or hologram), and damage (blasts, soak, burns, cooking, tattoos). */
@@ -217,6 +218,7 @@ function vulnerable(p: Player, amount: number): number {
 export function damagePlayer(state: GameState, p: Player, amount: number, colour = '#ffffff'): void {
   if (amount <= 0 || !p.alive) return;
   amount = vulnerable(p, amount);
+  noteScamHit(state, p);
   p.hp = Math.max(0, p.hp - amount);
   const c = tankCentre(p);
   spawnFloater(state, c.x, c.y, `-${amount}`, colour);

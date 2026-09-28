@@ -50,12 +50,28 @@ export const takeANap: WeaponDef = {
   colour: '#7ee7a8',
 };
 
+/**
+ * larinovsky's bonus move, once a match: using it doesn't take the turn. Until the end of the next enemy
+ * turn, an enemy attack that hits larinovsky's own tank earns a round of it (game/scam.ts).
+ */
+export const womenInScam: WeaponDef = {
+  id: 'women-in-scam',
+  name: 'Women in Scam',
+  shortName: 'Women in Scam',
+  info:
+    'Bonus move: doesn’t use your turn (aim and fire as usual after it), once a match. Until the end of the next enemy turn, if an enemy attack hits larinovsky’s tank, larinovsky gets a round of that weapon to use. Hits on anything else don’t count.',
+  kind: 'scam',
+  blastRadius: 0,
+  damage: 0,
+  colour: '#ff9ad5',
+};
+
 export const larinovsky = kit(
   {
     id: 'larinovsky',
     name: 'larinovsky',
-    blurb: 'Pill Pusher, the Rizzler, and a well-earned nap.',
+    blurb: 'Pill Pusher, the Rizzler, a well-earned nap, and a little scam on the side.',
     colours: ['#34d399', '#a3e635', '#22d3ee'],
   },
-  [pillPusher, theRizzler, takeANap],
+  [pillPusher, theRizzler, takeANap, womenInScam],
 );

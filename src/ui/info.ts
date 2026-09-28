@@ -14,14 +14,15 @@ export function movementInfo(c: CharacterDef): { label: string; text: string } {
 /** Little tags for a weapon card: rounds, and whether it needs aiming. */
 export function weaponTags(w: WeaponDef, tier: number): string[] {
   const rounds = AMMO_PER_TIER[tier] ?? 1;
+  if (w.kind === 'scam') return ['Bonus move', 'Once a match', 'No aiming'];
   return [`Tier ${tier + 1}`, `${rounds} round${rounds === 1 ? '' : 's'}`, ignoresAim(w) ? 'No aiming' : 'Aimed'];
 }
 
 const CONTROLS: [string, string][] = [
   ['Aim', 'Drag anywhere and pull back like a slingshot: the direction is your shot, the pull length is power. Fine-tune with ↺ ↻ and − +.'],
-  ['Weapons', 'Pick a tier on the right. Each character has 5 / 3 / 1 rounds of their tier 1 / 2 / 3 weapon.'],
+  ['Weapons', 'Pick a tier on the right. Each character has 5 / 3 / 1 rounds of their tier 1 / 2 / 3 weapon (larinovsky also has a once-a-match bonus move).'],
   ['Move', 'Hold ◀ ▶ before you fire. The fuel is one tank for the whole match, so spend it wisely.'],
-  ['Fire', 'FIRE ends your turn. Last tank standing wins; if everyone runs out of ammo, most HP wins.'],
+  ['Fire', 'FIRE ends your turn (except a bonus move). Last tank standing wins; if everyone runs out of ammo, most HP wins.'],
 ];
 
 const STATUSES: [string, string][] = [
@@ -29,6 +30,7 @@ const STATUSES: [string, string][] = [
   ['🍳', 'Cooked (the Rizzler): everything they fire next turn does half damage.'],
   ['✒', 'Tattooed (Tattoo Gun): takes +25% damage from everything for 2 turns.'],
   ['📌', 'Pinned (Sew): can’t move on their next turn.'],
+  ['💅', 'Scamming (Women in Scam): an enemy attack that hits them this coming turn earns them a round of it.'],
 ];
 
 /** The in-game info screen: how to play, and what every character's weapons do. */

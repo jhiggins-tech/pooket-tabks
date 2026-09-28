@@ -1,6 +1,7 @@
 import type { WeaponDef } from '../weapons/types';
 
-export type Loadout = readonly [tier1: string, tier2: string, tier3: string];
+/** Weapon ids: tiers 1, 2 and 3, then optionally a bonus move. */
+export type Loadout = readonly [tier1: string, tier2: string, tier3: string] | readonly [tier1: string, tier2: string, tier3: string, bonus: string];
 
 export interface CharacterDef {
   id: string;
@@ -14,13 +15,13 @@ export interface CharacterDef {
   movement?: 'drive' | 'hop';
 }
 
-/** A character and the three weapons of their loadout (tiers 1, 2 and 3), defined together in one file. */
+/** A character and the weapons of their loadout (tiers 1, 2 and 3, and optionally a bonus move), defined together in one file. */
 export interface Kit {
   character: CharacterDef;
-  weapons: readonly [WeaponDef, WeaponDef, WeaponDef];
+  weapons: readonly [WeaponDef, WeaponDef, WeaponDef] | readonly [WeaponDef, WeaponDef, WeaponDef, WeaponDef];
 }
 
-/** A character whose loadout is these three weapons, by tier. */
+/** A character whose loadout is these weapons, by tier. */
 export function kit(character: Omit<CharacterDef, 'loadout'>, weapons: Kit['weapons']): Kit {
-  return { character: { ...character, loadout: [weapons[0].id, weapons[1].id, weapons[2].id] }, weapons };
+  return { character: { ...character, loadout: weapons.map((w) => w.id) as unknown as Loadout }, weapons };
 }

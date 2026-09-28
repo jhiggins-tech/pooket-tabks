@@ -4,7 +4,8 @@ import { netLog } from './log';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
 import type { Transport } from './transport';
 
-export const PROTOCOL = 2;
+/** Bumped whenever the messages or the game rules change: both phones must run the same code. */
+export const PROTOCOL = 3;
 
 /** What each phone picked in the lobby. */
 export interface Pick {

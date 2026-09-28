@@ -2,7 +2,7 @@
 
 Pooket Tabks: a Worms / Pocket Tanks style artillery game for **phone browsers only** (landscape, touch),
 hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Six characters, each with a
-three-weapon kit; hotseat on one phone, or two phones online through Firebase (with spectators).
+three-weapon kit (larinovsky has a fourth: a bonus move); hotseat on one phone, or two phones online through Firebase (with spectators).
 
 ## Working rules
 - The owner has authorised pushing directly to `main` (no branches or PRs unless asked). Every push runs
@@ -48,13 +48,13 @@ what it's for; weapons are documented where they're defined.
 ## How the game fits together
 - **Turn state machine** (`game/game.ts`): `aiming → flying → settling → aiming | gameover` (plus
   `stealing` for kie's roulette). `fire()` spends the round and calls the weapon kind's entry in
-  `FIRE`; `step()` advances every `STEPPERS` entry each tick while flying and settles once none is busy;
+  `FIRE` (a `scam` bonus move instead stays in `aiming`); `state.lastShot` is the turn's shot; `step()` advances every `STEPPERS` entry each tick while flying and settles once none is busy;
   `endTurn()` runs statuses, holograms, refunds and picks the next player (skipping the dead and the
   out-of-ammo; if nobody has ammo, most HP wins). `game.ts` re-exports the public API: import from `game/game`.
 - **Mechanics** (`game/mechanics.ts`): `FIRE` maps each `WeaponKind` to how it goes off (the type insists
   on one per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of
   the simulation). Each mechanic's module (`stream`, `jetpack`, `gunk`, `walkers`, `sonic`, `sew`,
-  `runner`, `nap`, `steal`, `projectiles`, `copies`) owns its fire function, steppers and rules.
+  `runner`, `nap`, `steal`, `scam`, `projectiles`, `copies`) owns its fire function, steppers and rules.
 - **Tanks and damage** (`game/tanks.ts`): hit-testing goes through `targetAt()` / `Target` (a tank, a
   twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than
   switching on the kind. Damage: `damageTarget()` → `damagePlayer()` (floating numbers). Outgoing damage
@@ -62,7 +62,9 @@ what it's for; weapons are documented where they're defined.
   `vulnerable()` (tattoos).
 - **Statuses** live in `endTurn`: `cooked` and `pinned` become active when the victim's next turn starts
   and clear when it ends; `tattoo.turnsLeft` counts down per victim turn; Hyperfixate burns tick as the
-  victim's turn comes up.
+  victim's turn comes up; `scam` (Women in Scam) notes the first enemy hit on the tank in `damagePlayer`
+  and pays out a round of `lastShot`'s weapon at the end of the next enemy turn (a new slot on the
+  player's own `loadout` / `ammo`, which can outgrow the character's).
 - **Movement** (`game/movement.ts`): one tank of fuel per match (`FUEL_PER_MATCH`), driving before
   firing; tanks roll over small lips, stop at slopes > 45° unless the climb is short or they're in a
   hollow (so craters are always escapable). ciarra hops instead (bigger, higher, half the fuel). Pinned
@@ -83,7 +85,7 @@ what it's for; weapons are documented where they're defined.
 screen is built from it). Add a FEATURES **Balance** entry and a what's-new release.
 
 **Add a weapon using an existing mechanic** (e.g. another ballistic shot):
-1. Define it in the character's kit file and put it in their `kit(…, [t1, t2, t3])`.
+1. Define it in the character's kit file and put it in their `kit(…, [t1, t2, t3])` (or `[t1, t2, t3, bonus]`).
 2. `src/audio/sfx.ts`: a `FIRE_SOUNDS` entry (and `ROUND_SOUNDS` if it has a `burst`); tests enforce both.
 3. Optional look: an SVG in `src/assets/sprites/`, its id in `SpriteId` (`weapons/types.ts`) and an entry
    in `render/sprites.ts`.

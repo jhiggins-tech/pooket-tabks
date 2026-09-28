@@ -53,6 +53,8 @@ export interface Player {
   twin: Twin | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
+  /** Women in Scam in play: until the end of the next enemy turn; `loot` is the weapon of the first enemy hit on this tank. */
+  scam: { loot: string | null } | null;
   /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
   toxin: number;
   toxinRate: number;
@@ -376,6 +378,7 @@ export type SfxCue =
   | 'tune'
   | 'tune-end'
   | 'refund'
+  | 'scammed'
   | 'lock-on'
   | 'gameover';
 
@@ -424,6 +427,8 @@ export interface GameState {
   tunes: string[];
   /** A refund-on-miss round in play this turn: whose, from which tier, and whether it hit anyone yet. */
   refund: { playerId: number; tier: number; hit: boolean } | null;
+  /** The shot fired this turn (not a bonus move): who fired it and what with. */
+  lastShot: { playerId: number; weaponId: string } | null;
   projectiles: Projectile[];
   beams: Beam[];
   holograms: Hologram[];

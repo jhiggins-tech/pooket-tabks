@@ -4,6 +4,7 @@ import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
+import { isBonus } from './scam';
 import type { GameState, Nap, Player } from './state';
 import { tankCentre } from './tanks';
 
@@ -35,13 +36,13 @@ export function stepNap(state: GameState, n: Nap, dt: number): boolean {
   return true;
 }
 
-/** Every other weapon back to a full stock (a round stolen on top of that is kept). Returns true if anything changed. */
+/** Every other weapon back to a full stock (not the once-a-match bonus move; a round stolen on top is kept). Returns true if anything changed. */
 function restock(p: Player, napId: string): boolean {
   const loadout = getCharacter(p.characterId).loadout;
   let changed = false;
   loadout.forEach((id, tier) => {
     const full = AMMO_PER_TIER[tier] ?? 0;
-    if (id === napId || (p.ammo[tier] ?? 0) >= full) return;
+    if (id === napId || isBonus(id) || (p.ammo[tier] ?? 0) >= full) return;
     p.ammo[tier] = full;
     changed = true;
   });

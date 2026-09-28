@@ -4,8 +4,8 @@ import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { createGame, currentPlayer, explode, fire, isAimless, offence, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
-import { pillPusher, takeANap, theRizzler } from '../src/characters/kits';
-import { shell } from '../src/weapons/registry';
+import { pillPusher, takeANap, theRizzler, womenInScam } from '../src/characters/kits';
+import { getWeapon, shell } from '../src/weapons/registry';
 import { passTurn, testGame, whileFlying } from './support/game';
 
 const players = [
@@ -154,26 +154,128 @@ describe('Take a Nap', () => {
     expect(currentPlayer(g).name).toBe('kie');
   });
 
-  it('wakes with Pill Pusher and the Rizzler fully restocked, but not another nap', () => {
+  it('wakes with Pill Pusher and the Rizzler fully restocked, but not another nap (or a spent Women in Scam)', () => {
     const g = game();
     const lari = g.players[0]!;
-    lari.ammo = [1, 0, 1];
+    lari.ammo = [1, 0, 1, 1];
     selectTier(g, 2);
     fire(g);
     whileFlying(g);
-    expect(lari.ammo).toEqual([5, 3, 0]);
+    expect(lari.ammo).toEqual([5, 3, 0, 1]);
     expect(g.floaters.some((f) => f.text === 'Ammo restocked')).toBe(true);
   });
 
   it("keeps a stolen round on top of a full stock, and doesn't brag about a restock that changed nothing", () => {
     const g = game();
     const lari = g.players[0]!;
-    lari.ammo = [6, 3, 1];
+    lari.ammo = [6, 3, 1, 1];
     selectTier(g, 2);
     fire(g);
     whileFlying(g);
-    expect(lari.ammo).toEqual([6, 3, 0]);
+    expect(lari.ammo).toEqual([6, 3, 0, 1]);
     expect(g.floaters.some((f) => f.text === 'Ammo restocked')).toBe(false);
+  });
+});
+
+describe('Women in Scam', () => {
+  /** larinovsky (player 0) arms the scam, then fires a harmless shot straight up; kie's turn comes up. */
+  function armed(): GameState {
+    const g = game();
+    selectTier(g, 3);
+    expect(isAimless(g)).toBe(true);
+    expect(fire(g)).toBe(true);
+    expect(g.phase).toBe('aiming'); // a bonus move: still larinovsky's turn
+    expect(currentPlayer(g).name).toBe('larinovsky');
+    expect(g.players[0]!.ammo[3]).toBe(0);
+    expect(g.players[0]!.selectedTier).toBe(0);
+    expect(g.players[0]!.scam).toEqual({ loot: null });
+    passTurn(g);
+    expect(currentPlayer(g).name).toBe('kie');
+    expect(g.players[0]!.scam).not.toBeNull(); // still on for kie's turn
+    return g;
+  }
+
+  /** kie fires Weasel Pop (tier 1), with the shot's blast landing on larinovsky's tank. */
+  function kieHitsLari(g: GameState): void {
+    selectTier(g, 0);
+    fire(g);
+    g.projectiles = [];
+    g.bursts = [];
+    const lari = g.players[0]!;
+    explode(g, lari.x, lari.y - TANK_BODY_HEIGHT / 2, getWeapon('weasel-pop'), 1);
+    explode(g, lari.x, lari.y - TANK_BODY_HEIGHT / 2, getWeapon('weasel-pop'), 1); // hit twice: still one round
+    whileFlying(g);
+    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+  }
+
+  it("is a bonus move: an enemy hit on larinovsky's tank next turn earns a round of that weapon", () => {
+    const g = armed();
+    const lari = g.players[0]!;
+    kieHitsLari(g);
+    expect(lari.hp).toBeLessThan(MAX_HP);
+    expect(currentPlayer(g).name).toBe('larinovsky');
+    expect(lari.scam).toBeNull();
+    expect(lari.loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap', 'women-in-scam', 'weasel-pop']);
+    expect(lari.ammo[4]).toBe(1);
+    expect(g.floaters.some((f) => f.text.startsWith('SCAMMED'))).toBe(true);
+    // And it fires like any other weapon.
+    expect(selectTier(g, 4)).toBe(true);
+    setAim(g, 60, 50);
+    expect(fire(g)).toBe(true);
+    expect(lari.ammo[4]).toBe(0);
+  });
+
+  it('a miss earns nothing, and the scam is over after that one enemy turn', () => {
+    const g = armed();
+    const lari = g.players[0]!;
+    passTurn(g); // kie's turn, no hit
+    expect(currentPlayer(g).name).toBe('larinovsky');
+    expect(lari.scam).toBeNull();
+    expect(lari.loadout).toHaveLength(4);
+    passTurn(g); // larinovsky's own turn
+    kieHitsLari(g); // too late
+    expect(lari.loadout).toHaveLength(4);
+  });
+
+  it("only larinovsky's own tank counts, and only an enemy's attack", () => {
+    const g = armed();
+    const lari = g.players[0]!;
+    // kie's shot hits kie; and a burn ticking as larinovsky's turn comes up isn't an attack.
+    lari.burn = { damagePerTurn: 5, turnsLeft: 1, colour: '#f00' };
+    selectTier(g, 0);
+    fire(g);
+    g.projectiles = [];
+    g.bursts = [];
+    const kie = g.players[1]!;
+    explode(g, kie.x, kie.y - TANK_BODY_HEIGHT / 2, getWeapon('weasel-pop'), 1);
+    whileFlying(g);
+    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    expect(lari.hp).toBe(MAX_HP - 5);
+    expect(lari.loadout).toHaveLength(4);
+  });
+
+  it("is once a match: Take a Nap doesn't bring it back", () => {
+    const g = armed();
+    passTurn(g);
+    selectTier(g, 2);
+    fire(g);
+    whileFlying(g);
+    expect(g.players[0]!.ammo).toEqual([5, 3, 0, 0]);
+  });
+
+  it('with nothing left to fire after it, the turn passes (and the scam still stands)', () => {
+    const g = game();
+    const lari = g.players[0]!;
+    lari.ammo = [0, 0, 0, 1];
+    selectTier(g, 3);
+    fire(g);
+    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    expect(currentPlayer(g).name).toBe('kie');
+    expect(lari.scam).not.toBeNull();
+  });
+
+  it('describes itself as a bonus move', () => {
+    expect(womenInScam.info).toMatch(/doesn’t use your turn/);
   });
 });
 

@@ -4,11 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **larinovsky: "women in scam"** (bonus action): a **4th weapon slot**, **once per match**. Using it
-   doesn't take the turn (you still aim and fire after it) and it's used up. Until the end of the next
-   enemy turn, if an enemy attack hits **larinovsky's own tank**, they get one round of that attack
-   added to their inventory to use later. A hit on anything else doesn't count.
-2. **Name registration**: the first time the game opens in a browser with no saved username, it asks
+1. **Name registration**: the first time the game opens in a browser with no saved username, it asks
    for one before anything else. That name is saved in the browser (localStorage, like the other
    settings) and used as your player name: Player 1 in setup, and your name online (lobby, Games list,
    spectators). It can be changed later (e.g. by tapping the name). Today the setup screen already
@@ -25,6 +21,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Shipped
 
 ### Balance
+- **Women in Scam** (larinovsky's new bonus move, a 4th weapon slot): once a match, doesn't use the
+  turn; until the end of the next enemy turn, the first enemy attack to hit larinovsky's own tank
+  (not anything else; burns ticking don't count) earns a round of the weapon that enemy fired that
+  turn. Take a Nap's restock skips it. The weapon bar grows a second column for scammed rounds.
 - **Take a Nap restocks**: waking up also refills Pill Pusher to 5 and the Rizzler to 3 (not the nap
   itself; a stolen round on top of a full stock is kept). Floats "Ammo restocked" when it changed
   anything. Plus two sleepy cat sprites either side of the tank while it naps.
@@ -113,4 +113,4 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
-| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3) |
+| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

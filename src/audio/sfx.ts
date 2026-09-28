@@ -105,6 +105,12 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
       s.tone({ at: at + 0.6, dur: 0.25, from: 900, to: 1400, wave: 'triangle', vol: 0.06 });
     }
   },
+  // A sly two-note "ooh-la-la" wolf whistle, then a sparkle.
+  'women-in-scam': (s) => {
+    s.tone({ dur: 0.18, from: 900, to: 1700, wave: 'triangle', vol: 0.09 });
+    s.tone({ at: 0.22, dur: 0.32, from: 1500, to: 700, wave: 'triangle', vol: 0.09 });
+    arp(s, [91, 95, 98], 0.05, { at: 0.5, duty: 0.25, vol: 0.08 });
+  },
   // Order! Gavel taps, then each letter clacks like a typewriter.
   debate: (s) => {
     for (const at of [0, 0.13]) {
@@ -211,6 +217,11 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   stolen: (s) => {
     s.noise({ dur: 0.06, rate: 1.8, vol: 0.14 });
     arp(s, [88, 95, 100], 0.06, { at: 0.04, duty: 0.25, vol: 0.14, dur: 0.2 });
+  },
+  // Women in Scam pays out: a cash-register ka-ching.
+  scammed: (s) => {
+    s.noise({ dur: 0.05, rate: 2, vol: 0.12 });
+    arp(s, [96, 100, 103, 108], 0.05, { at: 0.05, duty: 0.125, vol: 0.13, dur: 0.25 });
   },
   // Bwomp.
   nothing: (s) => s.tone({ dur: 0.3, from: 220, to: 80, duty: 0.5, steps: 5, vol: 0.14 }),

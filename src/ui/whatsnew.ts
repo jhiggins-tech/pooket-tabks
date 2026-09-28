@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 15,
+    title: 'Women in Scam 💅',
+    items: [
+      'larinovsky gets a fourth weapon: Women in Scam, a bonus move once a match. It doesn’t use your turn (aim and fire as usual after it).',
+      'Until the end of the next enemy turn, if an enemy attack hits larinovsky’s tank, larinovsky gets a round of that weapon to use.',
+    ],
+  },
+  {
     version: 14,
     title: 'Nap time, with cats',
     items: [

@@ -25,7 +25,7 @@ export function getWeapon(id: string): WeaponDef {
 /** Weapons that don't use the aim at all: just press FIRE. */
 export function ignoresAim(w: WeaponDef): boolean {
   const kind = w.kind ?? 'ballistic';
-  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin' || kind === 'runner' || kind === 'steal';
+  return kind === 'rain' || kind === 'decoy' || kind === 'heal' || kind === 'twin' || kind === 'runner' || kind === 'steal' || kind === 'scam';
 }
 
 export function allWeapons(): readonly WeaponDef[] {

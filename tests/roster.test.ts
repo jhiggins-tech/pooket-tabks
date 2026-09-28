@@ -11,18 +11,19 @@ describe('roster', () => {
     expect(getCharacter('torikloud').loadout).toEqual(['debate', 'sonic-boom', 'twins']);
     expect(getCharacter('ciarra').loadout).toEqual(['tattoo-gun', 'sew', 'marathon']);
     expect(getCharacter('ciarra').movement).toBe('hop');
-    expect(getCharacter('larinovsky').loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap']);
-    expect(loadoutSummary(getCharacter('larinovsky'))).toBe('Pill Pusher ×5 · the Rizzler ×3 · Take a Nap ×1');
+    expect(getCharacter('larinovsky').loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap', 'women-in-scam']);
+    expect(loadoutSummary(getCharacter('larinovsky'))).toBe('Pill Pusher ×5 · the Rizzler ×3 · Take a Nap ×1 · Women in Scam ×1');
   });
 
-  it('uses 5 / 3 / 1 rounds for tiers 1-3', () => {
-    expect(AMMO_PER_TIER).toEqual([5, 3, 1]);
+  it('uses 5 / 3 / 1 rounds for tiers 1-3, and 1 for a bonus move', () => {
+    expect(AMMO_PER_TIER).toEqual([5, 3, 1, 1]);
   });
 
-  it('every character has a valid three-tier loadout', () => {
+  it('every character has a valid three-tier loadout; a fourth slot is only ever a bonus move', () => {
     for (const c of ROSTER) {
-      expect(c.loadout).toHaveLength(3);
+      expect([3, 4]).toContain(c.loadout.length);
       for (const id of c.loadout) expect(() => getWeapon(id)).not.toThrow();
+      c.loadout.forEach((id, tier) => expect(getWeapon(id).kind === 'scam').toBe(tier === 3));
     }
   });
 
