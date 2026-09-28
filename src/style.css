@@ -623,6 +623,9 @@ body[data-remote='true'] .drive button {
   justify-content: center;
   flex-wrap: wrap;
 }
+.online-row.online-lists {
+  align-items: flex-start;
+}
 .online-col {
   display: flex;
   flex-direction: column;
@@ -699,6 +702,25 @@ body[data-remote='true'] .drive button {
   gap: 6px;
   width: 100%;
   min-width: 240px;
+  /* Room for a few games; the list scrolls past that. */
+  max-height: 34vh;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+#online .online-row + .online-row {
+  margin-top: 2px;
+}
+#online .online-row .online-label {
+  font-size: 13px;
+}
+#online .online-row .online-paste {
+  width: auto;
+}
+#online .online-paste input {
+  width: 110px;
+}
+#online-listed[aria-pressed='false'] {
+  opacity: 0.8;
 }
 .online-game {
   height: auto !important;

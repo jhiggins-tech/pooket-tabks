@@ -72,9 +72,11 @@ what it's for; weapons are documented where they're defined.
   (numbered batches per epoch, stamped with the sender's seat id; silence = "quiet", not the end),
   `session.ts` the match protocol (`NetSession`: the phone whose turn it is streams its aim, sends a
   pre-fire snapshot, then the result snapshot + terrain, which the other phone snaps to; `rejoin` /
-  `resume` for a phone that dropped out), `view.ts` + `spectate.ts` spectators, `lobby.ts` the nearby
-  list (keyed by the STUN public address, `lan.ts`), `seat.ts` the remembered seat for rejoining. Log
-  every network step with `netLog` (the "Copy logs" button). Tests: `?debug&db=URL&lan=X|none&lost=MS`.
+  `resume` for a phone that dropped out), `view.ts` + `spectate.ts` spectators, `lobby.ts` the public
+  Games list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle,
+  re-listed on a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `seat.ts` the
+  remembered seat for rejoining. Log every network step with `netLog` (the "Copy logs" button). Tests:
+  `?debug&db=URL&lobby=NAME&lost=MS` (each test its own Games list).
 
 ## Recipes
 **Tweak a weapon** (numbers, text): its kit file in `src/characters/kits/`. Keep `info` accurate (the info

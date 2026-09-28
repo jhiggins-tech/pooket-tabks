@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { FIXED_DT } from '../src/game/constants';
 import { createGame, currentPlayer, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
-import { advertise, lobbySealer, watchLobby, type Advert } from '../src/net/lobby';
+import { toB64 } from '../src/net/b64';
+import { Listing, lobbySealer, watchLobby, type Advert } from '../src/net/lobby';
 import { RelayTransport } from '../src/net/relay';
 import { HostedRoom, joinRoom, newRoomCode, normaliseRoomCode, rejoinRoom } from '../src/net/rooms';
-import { sealerFor } from '../src/net/seal';
+import { seal, sealerFor } from '../src/net/seal';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession } from '../src/net/session';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
@@ -216,20 +217,44 @@ describe('rooms through Firebase', () => {
   });
 });
 
-describe('nearby games (same Wi-Fi)', () => {
-  it('a host shows up for phones on the same network, and goes when it stops', async () => {
-    const lan = await lobbySealer('203.0.113.7');
-    const ad = advertise(db, lan, { hostId: 'h1', name: 'kcaj', characterId: 'kcaj', room: 'FROG' });
+describe('the Games list', () => {
+  it('a listed game shows up for everyone on the list, updates as it goes, and goes when it stops', async () => {
+    const lobby = await lobbySealer('test-list');
+    const listing = new Listing(db, lobby, { hostId: 'h1', name: 'kcaj', characterId: 'kcaj', room: 'FROG' });
+    listing.list(true);
     let list: Advert[] = [];
-    const w = watchLobby(db, lan, (l) => (list = l));
+    const w = watchLobby(db, lobby, (l) => (list = l));
     await until(() => list.length === 1);
     expect(list[0]).toMatchObject({ name: 'kcaj', room: 'FROG' });
+    expect(list[0]!.playing).toBeFalsy();
+    // Someone joins: the game moves to "live", with who's playing.
+    listing.update({ playing: true, opponent: { name: 'Ann', characterId: 'tones' } });
+    await until(() => !!list[0]?.playing);
+    expect(list[0]!.opponent).toEqual({ name: 'Ann', characterId: 'tones' });
+    // Another list doesn't see it.
     let other: Advert[] = [{} as Advert];
-    const w2 = watchLobby(db, await lobbySealer('198.51.100.1'), (l) => (other = l));
+    const w2 = watchLobby(db, await lobbySealer('another-list'), (l) => (other = l));
     await until(() => other.length === 0);
-    ad.stop();
+    // Made private: off the list; public again: back, as it was.
+    listing.list(false);
+    await until(() => list.length === 0);
+    listing.list(true);
+    await until(() => list.length === 1);
+    expect(list[0]!.opponent?.name).toBe('Ann');
+    listing.stop();
     await until(() => list.length === 0);
     w.stop();
     w2.stop();
+  });
+
+  it('a listing from a host that vanished long ago is hidden and tidied away', async () => {
+    const lobby = await lobbySealer('test-list');
+    const old = { hostId: 'gone', name: 'x', characterId: 'kie', room: 'OLDY', ts: Date.now() - 60 * 60_000 };
+    await db.put(`lobby/${lobby.topic}/gone`, { m: toB64(await seal(lobby, old)), ts: Date.now() - 60 * 60_000 });
+    let list: Advert[] = [{} as Advert];
+    const w = watchLobby(db, lobby, (l) => (list = l));
+    await until(() => list.length === 0);
+    await until(() => !JSON.stringify(server.tree()).includes('gone'));
+    w.stop();
   });
 });

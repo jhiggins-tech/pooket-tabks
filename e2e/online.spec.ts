@@ -23,7 +23,7 @@ const summary = (page: Page) =>
 const canAct = (page: Page) => page.evaluate(() => (window as unknown as Dbg).__pooket.net?.canAct() ?? false);
 
 /** Game server unreachable. */
-const OFFLINE = 'debug&db=http%3A%2F%2F127.0.0.1%3A1&lan=none';
+const OFFLINE = 'debug&db=http%3A%2F%2F127.0.0.1%3A1&lobby=offline';
 
 test("when the game server can't be reached, Host and Join say so (and hotseat still works)", async ({ page }) => {
   await page.goto(`./?${OFFLINE}`);
@@ -48,8 +48,9 @@ test.afterAll(async () => {
   await db.close();
 });
 
-async function phones(browser: Browser, lan: string) {
-  const q = `debug&db=${encodeURIComponent(db.url)}&lan=${lan}`;
+/** Two phones; `lobby` names a Games list of the test's own (they share one database). */
+async function phones(browser: Browser, lobby: string) {
+  const q = `debug&db=${encodeURIComponent(db.url)}&lobby=${lobby}`;
   const hostCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const guestCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const host = await hostCtx.newPage();
@@ -71,9 +72,9 @@ async function playFromLobby(host: Page, guest: Page) {
   expect(await summary(guest)).toEqual(await summary(host));
 }
 
-test('same Wi-Fi: the host shows up in the Join list, one tap to connect (through the game server)', async ({ browser }) => {
+test('the Games list: a hosted game shows up for any phone, one tap to join (through the game server)', async ({ browser }) => {
   test.setTimeout(90_000);
-  const { host, guest, q, errors, close } = await phones(browser, 'home-wifi');
+  const { host, guest, q, errors, close } = await phones(browser, 'games-join');
   await host.goto(`./?${q}`);
   await host.getByLabel('Player 1 character').selectOption('tones');
   await host.getByLabel('Player 1 name').fill('Jack');
@@ -84,10 +85,12 @@ test('same Wi-Fi: the host shows up in the Join list, one tap to connect (throug
 
   await guest.goto(`./?${q}`);
   await guest.locator('#join-online').tap();
-  const game = guest.locator('#online-games .online-game');
+  const game = guest.locator('#online-open .online-game');
   await expect(game).toHaveCount(1, { timeout: 10_000 });
-  await expect(game).toContainText("Jack's game");
-  await expect(game).toContainText(code);
+  await expect(game).toContainText('Jack');
+  await expect(game).toContainText('tap to join');
+  await expect(game).toHaveAttribute('data-room', code);
+  await expect(guest.locator('#online-live')).toContainText('No games on right now');
   await guest.screenshot({ path: 'test-results/room-join-list.png' });
   await game.tap();
   await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
@@ -97,28 +100,33 @@ test('same Wi-Fi: the host shows up in the Join list, one tap to connect (throug
   await host.locator('#online-logs').tap();
   await expect(host.locator('#online-logs')).toHaveText('✓ Logs copied');
   const log = await host.evaluate(() => navigator.clipboard.readText());
-  for (const line of ['Pooket Tabks network log', `rooms: hosting ${code}`, `ui: room ${code} open, on the nearby list`, 'db: streaming', 'joined', 'ui: connected as host', 'session: hello from the other phone']) {
+  for (const line of ['Pooket Tabks network log', `rooms: hosting ${code}`, `ui: room ${code} open, on the Games list`, 'db: streaming', 'joined', 'ui: connected as host', 'session: hello from the other phone']) {
     expect(log).toContain(line);
   }
   console.log(log);
   await playFromLobby(host, guest);
-  // Once connected, the game is off the list for anyone else.
   expect(errors).toEqual([]);
   await close();
 });
 
-test('any network: type the room code, or open the room link', async ({ browser }) => {
+test('a private game stays off the list: type the room code, or open the room link', async ({ browser }) => {
   test.setTimeout(90_000);
-  const { host, guest, q, errors, close } = await phones(browser, 'none');
+  const { host, guest, q, errors, close } = await phones(browser, 'games-private');
   await host.goto(`./?${q}`);
   await host.locator('#host-online').tap();
   const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
   const link = await host.locator('#online .online-link').inputValue();
   expect(link).toMatch(new RegExp(`#room=${code}$`));
+  await expect(host.locator('#online-listed')).toHaveAttribute('aria-pressed', 'true'); // listed unless you say otherwise
+  await host.locator('#online-listed').tap();
+  await expect(host.locator('#online-listed')).toHaveAttribute('aria-pressed', 'false');
+  await expect(host.locator('#online')).toContainText('Private');
 
   await guest.goto(`./?${q}`);
   await guest.locator('#join-online').tap();
-  await expect(guest.locator('#online-games')).toHaveCount(0); // no Wi-Fi list without a shared address
+  await expect(guest.locator('#online-open')).toContainText("No one's waiting");
+  await guest.waitForTimeout(1000);
+  await expect(guest.locator('#online-open .online-game')).toHaveCount(0);
   await guest.getByLabel('Room code').fill(code.toLowerCase());
   await guest.locator('#online').getByRole('button', { name: 'Join', exact: true }).tap();
   await playFromLobby(host, guest);
@@ -134,9 +142,9 @@ test('any network: type the room code, or open the room link', async ({ browser 
   await close();
 });
 
-test('a third phone watches a match in progress (from the nearby list), view only', async ({ browser }) => {
+test('a third phone watches a match in progress (from the Live list), view only', async ({ browser }) => {
   test.setTimeout(120_000);
-  const { host, guest, q, errors, close } = await phones(browser, 'watch-wifi');
+  const { host, guest, q, errors, close } = await phones(browser, 'games-watch');
   await host.goto(`./?${q}`);
   await host.getByLabel('Player 1 name').fill('Ann');
   await host.locator('#host-online').tap();
@@ -153,9 +161,11 @@ test('a third phone watches a match in progress (from the nearby list), view onl
   fan.on('pageerror', (e) => errors.push(e.message));
   await fan.goto(`./?${q}`);
   await fan.locator('#join-online').tap();
-  const game = fan.locator('#online-games .online-game');
-  await expect(game).toContainText("Ann's game", { timeout: 10_000 });
-  await expect(game).toContainText('watch');
+  const game = fan.locator('#online-live .online-game');
+  await expect(game).toContainText('Ann (tones) vs', { timeout: 10_000 });
+  await expect(game).toContainText('playing · watch');
+  await expect(fan.locator('#online-open')).toContainText("No one's waiting");
+  await fan.screenshot({ path: 'test-results/games-list.png' });
   await game.tap();
   await expect(fan.locator('#online')).toBeHidden({ timeout: 15_000 });
   await expect(fan.locator('#spectate-leave')).toBeVisible();
@@ -187,7 +197,7 @@ test('a third phone watches a match in progress (from the nearby list), view onl
 
 test('a phone that drops out gets straight back into its seat (reload, or opening the game again)', async ({ browser }) => {
   test.setTimeout(150_000);
-  const { host, guest, q: base, errors, close } = await phones(browser, 'none');
+  const { host, guest, q: base, errors, close } = await phones(browser, 'games-rejoin');
   const q = `${base}&lost=1500`; // notice a quiet phone quickly
   await host.goto(`./?${q}`);
   await host.getByLabel('Player 1 name').fill('Ann');
@@ -233,7 +243,7 @@ test('a phone that drops out gets straight back into its seat (reload, or openin
 
 test('the setup screen offers to rejoin a match from a while ago; typing its code rejoins too', async ({ browser }) => {
   test.setTimeout(120_000);
-  const { host, guest, q: base, errors, close } = await phones(browser, 'none');
+  const { host, guest, q: base, errors, close } = await phones(browser, 'games-rejoin-later');
   const q = `${base}&lost=1500`;
   await host.goto(`./?${q}`);
   await host.locator('#host-online').tap();
@@ -267,7 +277,7 @@ test('the setup screen offers to rejoin a match from a while ago; typing its cod
 
 test("a link preview that joins and vanishes doesn't take the seat; an invite link asks before joining", async ({ browser }) => {
   test.setTimeout(120_000);
-  const { host, guest, q: base, errors, close } = await phones(browser, 'none');
+  const { host, guest, q: base, errors, close } = await phones(browser, 'games-ghost');
   const q = `${base}&lost=1500`;
   await host.goto(`./?${q}`);
   await host.locator('#host-online').tap();
@@ -294,6 +304,38 @@ test("a link preview that joins and vanishes doesn't take the seat; an invite li
   // The real player taps Join game and plays.
   await guest.locator('#online-accept').tap();
   await playFromLobby(host, guest);
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('a host that reloads mid-match goes straight back on the Games list', async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { host, guest, q: base, errors, close } = await phones(browser, 'games-relist');
+  const q = `${base}&lost=1500`;
+  await host.goto(`./?${q}`);
+  await host.getByLabel('Player 1 name').fill('Bo');
+  await host.locator('#host-online').tap();
+  const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await guest.goto(`./?${q}#room=${code}`);
+  await guest.locator('#online-accept').tap();
+  await playFromLobby(host, guest);
+
+  // The host's page reloads: back in the match, and its listing is refreshed (not left to go stale).
+  const listingTs = () => {
+    const lobby = (db.tree().lobby ?? {}) as Record<string, Record<string, { ts: number }>>;
+    return Math.max(0, ...Object.values(lobby).flatMap((l) => Object.values(l).map((e) => e.ts)));
+  };
+  const reloadedAt = Date.now();
+  await host.reload();
+  await expect(host.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect.poll(listingTs, { timeout: 15_000 }).toBeGreaterThan(reloadedAt);
+
+  const ctx = await browser.newContext(devices['Pixel 7 landscape']);
+  const fan = await ctx.newPage();
+  await fan.goto(`./?${q}`);
+  await fan.locator('#join-online').tap();
+  await expect(fan.locator('#online-live .online-game')).toContainText('Bo (tones) vs', { timeout: 10_000 });
+  await ctx.close();
   expect(errors).toEqual([]);
   await close();
 });

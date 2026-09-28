@@ -7,6 +7,8 @@ export interface Seat {
   code: string;
   role: 'host' | 'guest';
   id: string;
+  /** The host had the game on the public Games list (so it goes back on after a rejoin). */
+  listed?: boolean;
   /** When the match was last active on this phone (ms). */
   ts: number;
 }

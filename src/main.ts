@@ -27,8 +27,8 @@ import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
-import { publicAddress } from './net/lan';
 import { takeRoomCode } from './net/links';
+import { PUBLIC_LOBBY } from './net/lobby';
 import { AUTO_REJOIN_MS, loadSeat } from './net/seat';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
@@ -109,7 +109,7 @@ function newGame(): void {
 
 // ---- Online: two phones, one each, through a Firebase room. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
-// `?debug&db=URL` points at a test database; `&lan=X` fakes the Wi-Fi's shared address (`none`: unknown).
+// `?debug&db=URL` points at a test database.
 const query = new URLSearchParams(location.search);
 const debugNet = query.has('debug');
 const online = new OnlineScreen({
@@ -118,7 +118,8 @@ const online = new OnlineScreen({
     return { name: p.name, characterId: p.characterId };
   },
   dbUrl: (debugNet && query.get('db')) || FIREBASE_DATABASE_URL || null,
-  lanId: async () => (debugNet && query.has('lan') ? (query.get('lan') === 'none' ? null : query.get('lan')) : publicAddress()),
+  // `?debug&lobby=NAME`: a Games list of its own (tests, so they don't see each other's games).
+  lobby: (debugNet && query.get('lobby')) || PUBLIC_LOBBY,
   // `?debug&lost=MS`: notice a quiet phone sooner (tests).
   relay: debugNet && query.has('lost') ? { pingMs: 250, lostMs: Number(query.get('lost')) } : undefined,
 });
@@ -257,6 +258,7 @@ function frame(now: number): void {
     acc -= FIXED_DT;
   }
   net?.tick(dt);
+  if (net) online.matchFinished(state.phase === 'gameover');
   online.spectator?.tick(dt);
   sfx.tunes.update(dt, paused);
   if (state.sfx.length > 0) {

@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 13,
+    title: 'Find a game',
+    items: [
+      'Join now opens a live Games list: every game waiting for a player (tap to join) and every match being played (tap to watch), on any network.',
+      'Hosting? Your game is listed unless you tap 🌐 Listed in Games to make it 🔒 Private: then only your code or link gets in.',
+    ],
+  },
+  {
     version: 12,
     title: 'No more ghost players',
     items: [

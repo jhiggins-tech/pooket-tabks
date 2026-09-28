@@ -1,7 +1,7 @@
 import { getCharacter, ROSTER } from '../characters/roster';
 import { roomLink } from '../net/links';
 import { netLog, netLogText } from '../net/log';
-import { advertise, lobbySealer, watchLobby, type Advert } from '../net/lobby';
+import { Listing, lobbySealer, watchLobby, type Advert } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
 import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
@@ -16,23 +16,24 @@ export interface OnlineOptions {
   pick: () => Pick;
   /** The Firebase Realtime Database rooms go through, or null if it isn't set up. */
   dbUrl: string | null;
-  /** Something the phones on one Wi-Fi share (their public address), or null if unknown. */
-  lanId: () => Promise<string | null>;
+  /** Which Games list to use (everyone shares one; tests use their own). */
+  lobby: string;
   /** Relay timings (tests shorten them). */
   relay?: { pingMs?: number; lostMs?: number };
 }
 
 /**
- * Setting up a two-phone match through a room on Firebase: the host gets a 4-letter code (also shown to
- * phones on the same Wi-Fi as a game to tap, and as a link to send), and the game's messages go through
- * the room, so any network works. Then both land in a little lobby where the host starts the battle.
+ * Setting up a two-phone match through a room on Firebase: the host gets a 4-letter code and a link, and
+ * (unless they make it private) their game goes on the live Games list, where anyone can tap to join it
+ * or, once it's under way, to watch. The game's messages go through the room, so any network works.
+ * Then both land in a little lobby where the host starts the battle.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
   private stopRoom: (() => void) | null = null;
   private peer: Transport | null = null;
-  /** This phone's spot on the nearby list while hosting (kept through the match, for spectators). */
-  private advert: { stop: () => void; update: (c: Partial<Advert>) => void } | null = null;
+  /** This phone's game on the Games list while hosting (kept through the match, for spectators). */
+  private listing: Listing | null = null;
   session: NetSession | null = null;
   /** Watching someone else's match (view only). */
   spectator: Spectator | null = null;
@@ -64,48 +65,64 @@ export class OnlineScreen {
     return !this.root.hidden;
   }
 
-  /** Host a room: a code to type, a link to open, and a spot on the nearby game list. */
+  /** Host a room: a code to type, a link to open, and (unless private) a spot on the Games list. */
   async host(): Promise<void> {
     this.reset();
     netLog('ui: Host');
     if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
     this.show([heading('Host a game'), status('Opening a room…')]);
     const db = new Rtdb(this.opts.dbUrl);
-    const [lan, opened] = await Promise.all([this.opts.lanId(), HostedRoom.open(db).catch((e: unknown) => e as Error)]);
+    const [lobby, opened] = await Promise.all([lobbySealer(this.opts.lobby), HostedRoom.open(db).catch((e: unknown) => e as Error)]);
     if (opened instanceof Error) {
       netLog(`ui: couldn't open a room: ${opened.message}`);
       return this.fail(opened, () => void this.host());
     }
     const room = opened;
-    const nearby = lan ? await lobbySealer(lan) : null;
     const pick = this.pick();
-    const ad = nearby ? advertise(db, nearby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code }) : null;
-    netLog(`ui: room ${room.code} open${nearby ? ', on the nearby list' : ' (no nearby list: public address unknown)'}`);
-    this.advert = ad;
+    const listing = new Listing(db, lobby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code });
+    listing.list(listPublicly());
+    this.listing = listing;
+    netLog(`ui: room ${room.code} open${listing.listed ? ', on the Games list' : ' (private)'}`);
     const link = roomLink(room.code);
-    const waiting = () => {
-      this.stopRoom = () => room.cancel();
+    const render = () => {
       const big = el('div', 'online-code', room.code);
       big.id = 'online-room-code';
+      const toggle = el('button', 'online-listed', listing.listed ? '🌐 Listed in Games' : '🔒 Private') as HTMLButtonElement;
+      toggle.id = 'online-listed';
+      toggle.setAttribute('aria-pressed', String(listing.listed));
+      toggle.addEventListener('click', () => {
+        listing.list(!listing.listed);
+        listPublicly(listing.listed);
+        render();
+      });
       this.show([
         heading('Host a game'),
         row(
           col(
             heading('Room code', 'h3'),
             big,
-            text(nearby ? 'On the other phone tap Join: on the same Wi-Fi your game is right there to tap. Or type the code (any network).' : 'On the other phone tap Join and type this code.'),
+            text(
+              listing.listed
+                ? 'Your game is in the Games list: on the other phone tap Join and pick it. Or type this code.'
+                : 'Private: on the other phone tap Join and type this code, or send them the link.',
+            ),
           ),
-          col(heading('Or send them the link', 'h3'), shareRow(link, 'Join my Pooket Tabks game')),
+          col(heading('Or send them the link', 'h3'), shareRow(link, 'Join my Pooket Tabks game'), toggle),
         ),
         status('Waiting for someone to join…', 'online-status'),
         buttons(cancelButton(() => this.close())),
       ]);
+    };
+    const waiting = () => {
+      this.stopRoom = () => room.cancel();
+      render();
       void room.waitForGuest(this.opts.relay).then((t) => {
         if (this.stopRoom === null) return t.close(); // cancelled meanwhile
-        ad?.update({ playing: true }); // stays listed, for anyone who wants to watch
+        listing.update({ playing: true }); // stays listed, for anyone who wants to watch
         room.stop();
         this.stopRoom = null;
-        const s = this.startSession(t, { code: room.code, role: 'host', id: room.id });
+        const s = this.startSession(t, { code: room.code, role: 'host', id: room.id, listed: listing.listed });
+        this.trackOpponent(s);
         // Someone who joins and goes quiet before the match starts was probably never there (a link
         // preview in a messaging app): free the seat and wait for a real player.
         const onAway = s.onPeerAway;
@@ -116,7 +133,7 @@ export class OnlineScreen {
           this.session = null;
           this.peer = null;
           clearSeat();
-          ad?.update({ playing: false });
+          listing.update({ playing: false, opponent: undefined });
           void room.reopen().then(waiting, (e: unknown) => this.fail(e, () => void this.host()));
         };
       });
@@ -124,7 +141,7 @@ export class OnlineScreen {
     waiting();
   }
 
-  /** Join: nearby games to tap, or type a room code. With a code (from a link), go straight in. */
+  /** Join: the live Games list (tap to join or watch), or type a room code. With a code, go straight in. */
   async join(code?: string): Promise<void> {
     this.reset();
     netLog(`ui: Join${code ? ` ${code}` : ''}`);
@@ -142,7 +159,7 @@ export class OnlineScreen {
       const seat = loadSeat();
       if (seat?.code === c) return void this.rejoin(seat);
       netLog(`ui: joining room ${c}`);
-      this.show([heading('Join a game'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
+      this.show([heading('Games'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
       const id = randomId();
       joinRoom(db, c, this.opts.relay, id).then(
         (t) => (cancelled ? t.close() : this.startSession(t, { code: c, role: 'guest', id })),
@@ -157,33 +174,55 @@ export class OnlineScreen {
     const typed = normaliseRoomCode(code ?? '');
     if (typed) return joinCode(typed);
 
-    this.show([heading('Join a game'), status('Looking for games…')]);
-    const [lan, up] = await Promise.all([this.opts.lanId(), db.reachable()]);
+    this.show([heading('Games'), status('Looking for games…')]);
+    const [lobby, up] = await Promise.all([lobbySealer(this.opts.lobby), db.reachable()]);
     if (cancelled) return;
     if (!up) return this.fail(new Error("Couldn't reach the game server. Is this phone online?"), () => void this.join());
-    const nearby = lan ? await lobbySealer(lan) : null;
-    const list = el('div', 'online-games');
-    list.id = 'online-games';
-    let lastCount = -1;
+    const open = el('div', 'online-games');
+    open.id = 'online-open';
+    const live = el('div', 'online-games');
+    live.id = 'online-live';
+    let lastCounts = '';
+    const game = (g: Advert, label: string, detail: string, go: () => void) => {
+      const b = el('button', 'online-game', label);
+      b.dataset.room = g.room;
+      b.append(el('small', undefined, ` ${detail}`));
+      b.addEventListener('click', go);
+      return b;
+    };
     const render = (games: Advert[]) => {
-      if (games.length !== lastCount) netLog(`ui: nearby list shows ${games.length} game(s)`);
-      lastCount = games.length;
       const mine = loadSeat()?.code;
-      list.replaceChildren(
-        ...(games.length
-          ? games.map((g) => {
-              const rejoin = g.room === mine;
-              const b = el('button', 'online-game', `${rejoin ? '↩ ' : g.playing ? '👁 ' : ''}${g.name}'s game`);
-              b.append(
-                el('small', undefined, rejoin ? ` your match · rejoin · ${g.room}` : g.playing ? ` in progress · watch · ${g.room}` : ` ${getCharacter(g.characterId).name} · ${g.room}`),
-              );
-              b.addEventListener('click', () => (g.playing && !rejoin ? void this.watch(g.room) : joinCode(g.room)));
-              return b;
-            })
-          : [el('p', 'online-none', 'No games yet. Ask the other phone to tap Host.')]),
+      const waiting = games.filter((g) => !g.playing);
+      const playing = games.filter((g) => g.playing);
+      const counts = `${waiting.length} waiting, ${playing.length} live`;
+      if (counts !== lastCounts) netLog(`ui: Games list shows ${counts}`);
+      lastCounts = counts;
+      const who = (name: string, characterId: string) => `${name} (${getCharacter(characterId).name})`;
+      open.replaceChildren(
+        ...(waiting.length
+          ? waiting.map((g) =>
+              g.room === mine
+                ? game(g, `↩ ${g.name}'s game`, 'your match · rejoin', () => joinCode(g.room))
+                : game(g, g.name, `${getCharacter(g.characterId).name} · tap to join`, () => joinCode(g.room)),
+            )
+          : [el('p', 'online-none', "No one's waiting. Tap Host to start a game.")]),
+      );
+      live.replaceChildren(
+        ...(playing.length
+          ? playing.map((g) =>
+              g.room === mine
+                ? game(g, `↩ ${g.name}'s game`, 'your match · rejoin', () => joinCode(g.room))
+                : game(
+                    g,
+                    `👁 ${who(g.name, g.characterId)} vs ${g.opponent ? who(g.opponent.name, g.opponent.characterId) : '…'}`,
+                    g.over ? 'finished · watch' : 'playing · watch',
+                    () => void this.watch(g.room),
+                  ),
+            )
+          : [el('p', 'online-none', 'No games on right now.')]),
       );
     };
-    if (nearby) stopWatch = watchLobby(db, nearby, render).stop;
+    stopWatch = watchLobby(db, lobby, render).stop;
     const input = el('input', 'online-code-input') as HTMLInputElement;
     input.placeholder = 'CODE';
     input.maxLength = 6;
@@ -202,11 +241,9 @@ export class OnlineScreen {
     const codeRow = el('div', 'online-paste');
     codeRow.append(input, go);
     this.show([
-      heading('Join a game'),
-      row(
-        ...(nearby ? [col(heading('Games on your Wi-Fi', 'h3'), list)] : []),
-        col(heading(nearby ? 'Or type the room code' : 'Type the room code', 'h3'), codeRow),
-      ),
+      heading('Games'),
+      lists(col(heading('Waiting for a player', 'h3'), open), col(heading('Live now', 'h3'), live)),
+      row(el('span', 'online-label', 'Private game? Type its code:'), codeRow),
       buttons(cancelButton(() => this.close())),
     ]);
   }
@@ -257,6 +294,21 @@ export class OnlineScreen {
     if (cancelled) return void t.close();
     this.stopRoom = null;
     const s = this.setupSession(t, seat);
+    if (seat.role === 'host' && seat.listed) {
+      // Back on the Games list once we know who's playing.
+      const lobby = await lobbySealer(this.opts.lobby);
+      const onResumed = s.onResumed;
+      s.onResumed = (inMatch) => {
+        if (this.session === s && s.localPick) {
+          const listing = new Listing(db, lobby, { hostId: seat.id, name: s.localPick.name, characterId: s.localPick.characterId, room: seat.code, playing: true });
+          if (s.remotePick) listing.update({ opponent: { name: s.remotePick.name, characterId: s.remotePick.characterId } });
+          listing.list(true);
+          this.listing = listing;
+          this.trackOpponent(s);
+        }
+        onResumed(inMatch);
+      };
+    }
     waiting('Waiting for the other phone to catch you up…');
     s.rejoin();
   }
@@ -395,6 +447,20 @@ export class OnlineScreen {
     this.away.hidden = false;
   }
 
+  /** Hosting a listed game: show who's playing against us, once they've said hello. */
+  private trackOpponent(s: NetSession): void {
+    const onLobby = s.onLobby;
+    s.onLobby = () => {
+      if (s.remotePick) this.listing?.update({ opponent: { name: s.remotePick.name, characterId: s.remotePick.characterId } });
+      onLobby();
+    };
+  }
+
+  /** The match on this phone has finished (or a new one started): keeps a listed game's status right. */
+  matchFinished(over: boolean): void {
+    this.listing?.update({ over });
+  }
+
   /** This phone's seat is done with: forget it. */
   private endSeat(): void {
     if (this.seatTimer) clearInterval(this.seatTimer);
@@ -426,10 +492,22 @@ export class OnlineScreen {
   private cleanup(): void {
     this.stopRoom?.();
     this.stopRoom = null;
-    this.advert?.stop();
-    this.advert = null;
+    this.listing?.stop();
+    this.listing = null;
     if (!this.session) this.peer?.close();
     this.peer = null;
+  }
+}
+
+const LISTED_KEY = 'pooket.listPublicly';
+
+/** Whether to put hosted games on the public Games list (remembered; yes unless the player said no). */
+function listPublicly(set?: boolean): boolean {
+  try {
+    if (set !== undefined) localStorage.setItem(LISTED_KEY, set ? 'yes' : 'no');
+    return localStorage.getItem(LISTED_KEY) !== 'no';
+  } catch {
+    return set ?? true;
   }
 }
 
@@ -459,6 +537,13 @@ function status(t: string, cls = ''): HTMLElement {
 function row(...cols: HTMLElement[]): HTMLElement {
   const r = el('div', 'online-row');
   r.append(...cols);
+  return r;
+}
+
+/** Side-by-side lists, tops level. */
+function lists(...cols: HTMLElement[]): HTMLElement {
+  const r = row(...cols);
+  r.classList.add('online-lists');
   return r;
 }
 

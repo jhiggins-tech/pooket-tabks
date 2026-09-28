@@ -21,7 +21,7 @@ export function netLogText(): string {
     `page: ${typeof location !== 'undefined' ? location.origin + location.pathname + location.search : '?'}`,
     `browser: ${nav?.userAgent ?? '?'}`,
     `online: ${nav?.onLine ?? '?'}${conn ? `, connection: ${conn.type ?? '?'} / ${conn.effectiveType ?? '?'}` : ''}`,
-    `stun (nearby list): ${typeof RTCPeerConnection !== 'undefined'}, crypto: ${!!globalThis.crypto?.subtle}`,
+    `crypto: ${!!globalThis.crypto?.subtle}`,
     '',
   ];
   return [...head, ...lines].join('\n');

@@ -15,8 +15,9 @@ phones anywhere with a 4-letter room code (others can watch).
   length is power. Fine-tune with ↺ ↻ and − +.
 - **Move:** hold ◀ ▶ before you fire. One tank of fuel lasts the whole match (ciarra hops instead).
 - **FIRE.** Last tank standing wins; if everyone runs out of ammo, most HP wins.
-- **Two phones:** 📶 Host shows a room code and a link; the other phone taps Join (games on the same
-  Wi-Fi are listed) or opens the link. A dropped phone can rejoin; a third phone can watch.
+- **Two phones:** 📶 Host shows a room code and a link; the other phone taps Join and picks the game from
+  the live Games list (or types the code, or opens the link). Any live match can be watched from the same
+  list. A dropped phone can rejoin.
 
 [FEATURES.md](FEATURES.md) lists everything shipped and what's queued; [CLAUDE.md](CLAUDE.md) has the
 architecture and recipes for adding weapons, mechanics and characters.

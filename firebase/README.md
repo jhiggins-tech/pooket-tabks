@@ -1,8 +1,8 @@
 # Firebase (online rooms)
 
 Online play goes through a Firebase **Realtime Database** on the free Spark plan. The game talks to it with
-the plain REST API (no SDK, no API key): rooms at `rooms/<hash of the room code>`, a nearby-games list at
-`lobby/<hash of the Wi-Fi's public address>`. Everything stored is AES-GCM ciphertext.
+the plain REST API (no SDK, no API key): rooms at `rooms/<hash of the room code>`, the public Games list at
+`lobby/<hash of the list's name>/<host id>`. Everything stored is AES-GCM ciphertext.
 
 ## Set up (once)
 1. https://console.firebase.google.com → **Create a project** (e.g. `pooket-tabks`). Google Analytics: off.

@@ -33,21 +33,27 @@ Everything queued so far has shipped (details under **Shipped** below).
 
 ### Core
 - **Two phones, any network**: 📶 Host on one phone opens a room with a 4-letter code (and a link of it
-  to copy or share). On the other phone, Join lists games on the same Wi-Fi to tap, or type the code, or
-  just open the link. The game's messages go through a Firebase Realtime Database (free tier, see
+  to copy or share). On the other phone, Join opens the Games list (tap a game to join), or type the
+  code, or just open the link. The game's messages go through a Firebase Realtime Database (free tier, see
   `firebase/README.md`), sealed with a key from the code, so it works on mobile data too. (Local
   multiplayer is hotseat on one phone.) Then a lobby (each picks their own character; the host starts)
   and each plays on their own phone: the other phone watches your aim live, and its controls step aside
   until it's its turn. Leaving or dropping out shows "Connection lost". Every online screen has a
   📋 Copy logs button (database calls, room messages, session; addresses masked) for bug reports.
-- **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it in
-  the nearby list, where it shows as "in progress · watch") to watch it live, view only: aim, shots and
+- **Games list**: Join shows every public game, on any network, updating live: "Waiting for a player"
+  (tap to join) and "Live now" (who's playing whom, tap to watch; finished ones say so). Hosted games are
+  listed unless the host taps 🌐 Listed in Games → 🔒 Private (remembered), and then only the code or
+  link gets in. A game leaves the list when its host leaves; a host that drops out and rejoins is
+  re-listed; a listing whose host vanished drops off within 90 seconds and is tidied away after 10
+  minutes. (Replaces the old same-Wi-Fi nearby list; no STUN lookup any more.)
+- **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it
+  under "Live now" in the Games list) to watch it live, view only: aim, shots and
   results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
 - **Rejoin a match**: dropping out of an online match no longer ends it. The other phone shows "Lost
   touch with X. Waiting for them to come back…" (with Leave) and the match waits. A signal blip heals by
   itself; a phone that reloaded (or was killed) goes straight back into its seat when the game is opened
   again within 10 minutes, and after that the setup screen offers ↩ Rejoin CODE (for 2 hours). Typing the
-  code or tapping the game in the nearby list also rejoins (rather than watching). The rejoining phone
+  code or tapping the game in the Games list (↩ your match) also rejoins (rather than watching). The rejoining phone
   is caught up from the other's game (after any shot in flight has played out). Leave ends it for both.
 - **Invite links ask first**: opening a room link shows "Join a game? … Join game / Not now" instead of
   joining straight away, so a messaging app's link preview can't grab the seat. And if a guest joins and
