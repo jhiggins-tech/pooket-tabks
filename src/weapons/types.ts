@@ -1,7 +1,7 @@
 import type { DictionaryId } from './dictionaries';
 
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle';
+export type SpriteId = 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle' | 'cat-ginger' | 'cat-grey';
 
 /**
  * How a weapon is delivered:

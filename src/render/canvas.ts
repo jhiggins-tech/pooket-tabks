@@ -4,6 +4,7 @@ import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
 import { drawExplosions, drawFloaters } from './draw/fx';
 import { drawPuddles, drawSludge } from './draw/gunk';
+import { drawNapCats } from './draw/nap';
 import { drawBeams, drawProjectiles } from './draw/projectiles';
 import { drawRunner } from './draw/runner';
 import { drawStitch } from './draw/sew';
@@ -133,6 +134,7 @@ export class Renderer {
       drawJet(this.d, p, state, () => drawGlitchedTank(this.d, p, state, undefined, shimmerAmt, 1, 1));
       if (isSpewing(state, p.id)) drawSpewGush(this.d, p);
     }
+    drawNapCats(this.d, state);
     for (const g of state.ghosts) {
       const owner = state.players[g.ownerId];
       if (!owner) continue;

@@ -36,13 +36,13 @@ export const theRizzler: WeaponDef = {
   colour: '#ff6fb5',
 };
 
-/** larinovsky's tier 3: a quick nap, waking at full health. Takes the turn; no aiming. */
+/** larinovsky's tier 3: a quick nap (with cats), waking at full health and with the other weapons fully restocked. Takes the turn; no aiming. */
 export const takeANap: WeaponDef = {
   id: 'take-a-nap',
   name: 'Take a Nap',
   shortName: 'Take a Nap',
   info:
-    'No aiming. larinovsky dozes off for 2 seconds and wakes up at full health. Uses the turn.',
+    'No aiming. larinovsky dozes off for 2 seconds (two cats curl up alongside) and wakes up at full health, with Pill Pusher and the Rizzler fully restocked. Uses the turn; the nap itself doesn’t come back.',
   kind: 'heal',
   blastRadius: 0,
   damage: 0,

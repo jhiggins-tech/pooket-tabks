@@ -153,6 +153,28 @@ describe('Take a Nap', () => {
     for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
     expect(currentPlayer(g).name).toBe('kie');
   });
+
+  it('wakes with Pill Pusher and the Rizzler fully restocked, but not another nap', () => {
+    const g = game();
+    const lari = g.players[0]!;
+    lari.ammo = [1, 0, 1];
+    selectTier(g, 2);
+    fire(g);
+    whileFlying(g);
+    expect(lari.ammo).toEqual([5, 3, 0]);
+    expect(g.floaters.some((f) => f.text === 'Ammo restocked')).toBe(true);
+  });
+
+  it("keeps a stolen round on top of a full stock, and doesn't brag about a restock that changed nothing", () => {
+    const g = game();
+    const lari = g.players[0]!;
+    lari.ammo = [6, 3, 1];
+    selectTier(g, 2);
+    fire(g);
+    whileFlying(g);
+    expect(lari.ammo).toEqual([6, 3, 0]);
+    expect(g.floaters.some((f) => f.text === 'Ammo restocked')).toBe(false);
+  });
 });
 
 describe('the Rizzler homes in', () => {

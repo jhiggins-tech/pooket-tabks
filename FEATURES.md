@@ -4,9 +4,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-Everything queued so far has shipped (details under **Shipped** below).
-
-1. _(empty; next requests go here)_
+1. **larinovsky: "women in scam"** (bonus action): using it doesn't take the turn (you still aim and
+   fire after it) and it's used up. Until the end of the next enemy turn, if an enemy attack hits
+   larinovsky, they get one round of that attack added to their inventory to use later. To settle
+   when building: whether it's a fourth slot or replaces one of the three, how many uses per match, and
+   whether a hit on a decoy or twin counts.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -19,6 +21,9 @@ Everything queued so far has shipped (details under **Shipped** below).
 ## Shipped
 
 ### Balance
+- **Take a Nap restocks**: waking up also refills Pill Pusher to 5 and the Rizzler to 3 (not the nap
+  itself; a stolen round on top of a full stock is kept). Floats "Ammo restocked" when it changed
+  anything. Plus two sleepy cat sprites either side of the tank while it naps.
 - **Bigger frog hops** (user feedback: after the driving improvements hops were no real advantage):
   44px leaps (was 24), clearing 64px (was 16, below a tank's 40px scramble), at half the fuel per px.
 - **the Rizzler homes in**: once the heart comes within 100px of an enemy tank (or its decoy or twin) it
@@ -104,4 +109,4 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
-| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s, wake at full health |
+| **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3) |

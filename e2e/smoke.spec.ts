@@ -422,6 +422,29 @@ test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) =>
   expect(errors).toEqual([]);
 });
 
+test("larinovsky's Take a Nap: cats curl up alongside, and the weapons come back restocked", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.getByLabel('Player 1 character').selectOption('larinovsky');
+  await page.locator('#start').tap();
+  type NapDbg = { __pooket: { state: { naps: unknown[]; players: { x: number; y: number; ammo: number[] }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
+  await page.evaluate(() => ((window as unknown as NapDbg).__pooket.state.players[0]!.ammo = [1, 0, 1]));
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => (window as unknown as NapDbg).__pooket.state.naps.length === 1);
+  await page.waitForTimeout(900);
+  const at = await page.evaluate(() => {
+    const d = (window as unknown as NapDbg).__pooket;
+    const p = d.state.players[0]!;
+    return d.renderer.worldToScreen(p.x, p.y);
+  });
+  await page.screenshot({ path: 'test-results/take-a-nap-cats.png', clip: { x: at.x - 90, y: at.y - 70, width: 180, height: 100 } });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  expect(await page.evaluate(() => (window as unknown as NapDbg).__pooket.state.players[0]!.ammo)).toEqual([5, 3, 0]);
+  expect(errors).toEqual([]);
+});
+
 test("torikloud's Twins and Debate", async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];

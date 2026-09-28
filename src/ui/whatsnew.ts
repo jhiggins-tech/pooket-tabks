@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 14,
+    title: 'Nap time, with cats',
+    items: [
+      'larinovsky’s Take a Nap now also restocks Pill Pusher and the Rizzler to full (the nap itself is still once a match).',
+      'Two little cats curl up either side of larinovsky while they nap.',
+    ],
+  },
+  {
     version: 13,
     title: 'Find a game',
     items: [

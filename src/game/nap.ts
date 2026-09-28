@@ -1,3 +1,4 @@
+import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from './constants';
@@ -6,9 +7,9 @@ import type { Stepper } from './mechanics';
 import type { GameState, Nap, Player } from './state';
 import { tankCentre } from './tanks';
 
-/** larinovsky's Take a Nap. */
+/** larinovsky's Take a Nap: doze off (two cats curl up alongside, drawn in render/draw/nap.ts), then wake at full health with the other weapons restocked. */
 
-/** Doze, with z's drifting up, then wake at full health. Returns true once awake. */
+/** Doze, with z's drifting up, then wake at full health and full ammo (except the nap). Returns true once awake. */
 export function stepNap(state: GameState, n: Nap, dt: number): boolean {
   const p = state.players[n.playerId]!;
   const spec = getWeapon(n.weaponId).heal!;
@@ -27,7 +28,24 @@ export function stepNap(state: GameState, n: Nap, dt: number): boolean {
     const c = tankCentre(p);
     spawnFloater(state, c.x, c.y, `+${gained}`, '#7ee7a8');
   }
+  if (p.alive && restock(p, n.weaponId)) {
+    const c = tankCentre(p);
+    spawnFloater(state, c.x, c.y - 14, 'Ammo restocked', '#ffe08a');
+  }
   return true;
+}
+
+/** Every other weapon back to a full stock (a round stolen on top of that is kept). Returns true if anything changed. */
+function restock(p: Player, napId: string): boolean {
+  const loadout = getCharacter(p.characterId).loadout;
+  let changed = false;
+  loadout.forEach((id, tier) => {
+    const full = AMMO_PER_TIER[tier] ?? 0;
+    if (id === napId || (p.ammo[tier] ?? 0) >= full) return;
+    p.ammo[tier] = full;
+    changed = true;
+  });
+  return changed;
 }
 
 export function fireNap(state: GameState, p: Player, weapon: WeaponDef): void {
