@@ -4,11 +4,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **larinovsky: "women in scam"** (bonus action): using it doesn't take the turn (you still aim and
-   fire after it) and it's used up. Until the end of the next enemy turn, if an enemy attack hits
-   larinovsky, they get one round of that attack added to their inventory to use later. To settle
-   when building: whether it's a fourth slot or replaces one of the three, how many uses per match, and
-   whether a hit on a decoy or twin counts.
+1. **larinovsky: "women in scam"** (bonus action): a **4th weapon slot**, **once per match**. Using it
+   doesn't take the turn (you still aim and fire after it) and it's used up. Until the end of the next
+   enemy turn, if an enemy attack hits **larinovsky's own tank**, they get one round of that attack
+   added to their inventory to use later. A hit on anything else doesn't count.
 2. **Name registration**: the first time the game opens in a browser with no saved username, it asks
    for one before anything else. That name is saved in the browser (localStorage, like the other
    settings) and used as your player name: Player 1 in setup, and your name online (lobby, Games list,
