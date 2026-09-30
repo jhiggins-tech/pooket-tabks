@@ -189,6 +189,13 @@ export class Hud {
     if (change) change.textContent = this.online ? 'Leave' : 'Change players';
     if (state.phase === 'gameover') {
       this.winnerEl.textContent = state.winner ? `${state.winner.name} wins!` : 'Draw!';
+      const loser = state.players.find((p) => p !== state.winner);
+      if (state.endReason && loser) {
+        const why = document.createElement('small');
+        why.className = 'end-reason';
+        why.textContent = state.endReason === 'resigned' ? `${loser.name} resigned` : `${loser.name} ran out of time`;
+        this.winnerEl.append(why);
+      }
       this.winnerEl.style.color = state.winner?.colour ?? '#fff';
     }
   }

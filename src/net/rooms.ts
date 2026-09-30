@@ -7,7 +7,9 @@ import { sealerFor, type Sealer } from './seal';
  * Online play through Firebase (Realtime Database, REST): a room is `rooms/<hash of the code>` with a
  * host seat, a guest seat, and two message queues (h2g, g2h). Everything in it is sealed with a key from
  * the room code, so the database only holds ciphertext under a path nobody can guess. Messages travel
- * phone → Firebase → phone, so it works on any network, including mobile data.
+ * phone → Firebase → phone, so it works on any network, including mobile data. Once a match starts the
+ * room also keeps its record (`game`, record.ts), so it outlives both phones leaving: a room with a
+ * recent record can't be taken over by a new host (the database rules see to that).
  */
 
 export const ROOM_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -55,7 +57,7 @@ export class HostedRoom {
       try {
         await db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME });
         // A clean slate (leftovers from an old game with the same code).
-        await db.patch(path, { guest: null, h2g: null, g2h: null, view: null });
+        await db.patch(path, { guest: null, h2g: null, g2h: null, view: null, game: null });
         netLog(`rooms: hosting ${code}`);
         const room = new HostedRoom(db, code, path, sealer, hostId);
         room.timers.push(setInterval(() => void db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
@@ -92,7 +94,7 @@ export class HostedRoom {
   async reopen(): Promise<void> {
     this.stopped = false;
     this.guestStream?.close();
-    await this.db.patch(this.path, { guest: null, h2g: null, g2h: null, view: null });
+    await this.db.patch(this.path, { guest: null, h2g: null, g2h: null, view: null, game: null });
     this.timers.push(setInterval(() => void this.db.put(`${this.path}/host`, { id: this.hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
     netLog('rooms: guest seat freed');
   }

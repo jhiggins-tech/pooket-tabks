@@ -74,11 +74,17 @@ what it's for; weapons are documented where they're defined.
   (numbered batches per epoch, stamped with the sender's seat id; silence = "quiet", not the end),
   `session.ts` the match protocol (`NetSession`: the phone whose turn it is streams its aim, sends a
   pre-fire snapshot, then the result snapshot + terrain, which the other phone snaps to; `rejoin` /
-  `resume` for a phone that dropped out), `view.ts` + `spectate.ts` spectators, `lobby.ts` the public
-  Games list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle,
-  re-listed on a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `seat.ts` the
-  remembered seat for rejoining. Log every network step with `netLog` (the "Copy logs" button). Tests:
-  `?debug&db=URL&lobby=NAME&lost=MS` (each test its own Games list).
+  `resume` for a phone that dropped out). Matches are live when both phones are there and **turn by
+  turn** when not: `record.ts` is each room's lasting record (`game`: written by the phone in charge at
+  start / fire / result), and `NetSession.catchUp` goes by it when nobody answers a rejoin within
+  `RESUME_WAIT` (replaying their last shot, or playing out one left in flight and recording it);
+  `away` (back to the menu: the room stays), `resign`, and `forfeit` after `FORFEIT_MS`. Only leaving the
+  lobby (`leave`, 'bye') ends a room. `view.ts` + `spectate.ts` spectators, `lobby.ts` the public Games
+  list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle, re-listed on
+  a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `seat.ts` this phone's matches
+  (the My games list, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy
+  logs" button; `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test
+  its own Games list).
 
 ## Recipes
 **Tweak a weapon** (numbers, text): its kit file in `src/characters/kits/`. Keep `info` accurate (the info

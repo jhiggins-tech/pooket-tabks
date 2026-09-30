@@ -71,14 +71,18 @@ export async function startRtdb(): Promise<FakeRtdb> {
   };
   const sse = (res: ServerResponse, event: string, data: Json) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
-  /** The seat rules: a host or guest seat, once taken, can't be taken by someone else (unless the host is an hour stale). */
+  /**
+   * The seat rules: a host or guest seat, once taken, can't be taken by someone else (unless the host is
+   * an hour stale and the room has no match record from the last four days).
+   */
   const allowed = (segs: string[], value: Json): boolean => {
     if (segs[0] !== 'rooms' || segs.length !== 3 || value === null) return true;
     const existing = getAt(segs) as { id?: string; ts?: number } | null;
     if (!existing) return true;
     if ((value as { id?: string }).id === existing.id) return true;
-    if (segs[2] === 'host') return (existing.ts ?? 0) < Date.now() - 3_600_000;
-    return false;
+    if (segs[2] !== 'host') return false;
+    const game = getAt([...segs.slice(0, 2), 'game']) as { ts?: number } | null;
+    return (existing.ts ?? 0) < Date.now() - 3_600_000 && (!game || (game.ts ?? 0) < Date.now() - 4 * 24 * 3_600_000);
   };
 
   const cors = (res: ServerResponse) => {

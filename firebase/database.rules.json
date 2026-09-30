@@ -6,7 +6,7 @@
       "$room": {
         ".read": true,
         "host": {
-          ".write": "!data.exists() || !newData.exists() || data.child('id').val() === newData.child('id').val() || data.child('ts').val() < now - 3600000",
+          ".write": "!data.exists() || !newData.exists() || data.child('id').val() === newData.child('id').val() || (data.child('ts').val() < now - 3600000 && (!data.parent().child('game').exists() || data.parent().child('game/ts').val() < now - 345600000))",
           ".validate": "newData.hasChildren(['id', 'ts']) && newData.child('id').isString() && newData.child('id').val().length <= 32 && newData.child('ts').isNumber() && newData.child('ts').val() <= now"
         },
         "guest": {
@@ -25,6 +25,13 @@
           ".write": true,
           "state": { ".validate": "newData.isString() && newData.val().length < 600000" },
           "aim": { ".validate": "newData.isString() && newData.val().length < 4000" },
+          "$other": { ".validate": false }
+        },
+        "game": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 600000 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+          "m": { ".validate": true },
+          "ts": { ".validate": true },
           "$other": { ".validate": false }
         },
         "$other": { ".validate": false }

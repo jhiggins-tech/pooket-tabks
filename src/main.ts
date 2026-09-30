@@ -28,13 +28,15 @@ import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
 import { takeRoomCode } from './net/links';
+import { netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
-import { AUTO_REJOIN_MS, loadSeat } from './net/seat';
+import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
 import { WhatsNew } from './ui/whatsnew';
-import { OnlineScreen } from './ui/online';
+import { matchesOf, OnlineScreen } from './ui/online';
+import { Rtdb } from './net/rtdb';
 import { loadUsername, NamePrompt } from './ui/profile';
 import { SetupScreen } from './ui/setup';
 
@@ -151,6 +153,7 @@ online.onSpectate = (sp) => {
   };
 };
 document.getElementById('spectate-leave')!.addEventListener('click', () => online.close());
+document.getElementById('net-menu')!.addEventListener('click', () => online.matchMenu());
 online.onHostStart = (s) => {
   const picks = [s.localPick!, s.remotePick!];
   const colours = assignColours(picks.map((p) => p.characterId));
@@ -166,24 +169,31 @@ online.onClosed = () => {
   setup.show();
   showRejoin();
 };
-// A match this phone dropped out of (a reload, the app killed, lost signal): offer to rejoin it.
-const rejoinBtn = document.getElementById('setup-rejoin') as HTMLButtonElement;
+// This phone's online matches (played turn by turn, or dropped out of): My games, with how many are waiting on us.
+const gamesBtn = document.getElementById('setup-games') as HTMLButtonElement;
+let gamesCheck = 0;
 function showRejoin(): void {
-  const seat = loadSeat();
-  rejoinBtn.hidden = !seat;
-  if (seat) rejoinBtn.textContent = `↩ Rejoin ${seat.code}`;
+  const n = loadSeats().length;
+  gamesBtn.hidden = n === 0;
+  gamesBtn.textContent = `🎮 My games (${n})`;
+  const url = online.dbUrl;
+  if (!n || !url) return;
+  const check = ++gamesCheck;
+  void matchesOf(new Rtdb(url)).then((games) => {
+    if (check !== gamesCheck) return;
+    const yours = games.filter((g) => g.status === 'your-turn').length;
+    gamesBtn.hidden = games.length === 0;
+    gamesBtn.textContent = `🎮 My games (${games.length})${yours ? ` · ${yours} your turn` : ''}`;
+    gamesBtn.classList.toggle('your-turn', yours > 0);
+  });
 }
-rejoinBtn.addEventListener('click', () => {
-  const seat = loadSeat();
-  if (seat) void online.rejoin(seat);
-  else showRejoin();
-});
+gamesBtn.addEventListener('click', () => void online.myGames());
 document.getElementById('host-online')!.addEventListener('click', () => void online.host());
 document.getElementById('join-online')!.addEventListener('click', () => void online.join());
 // Opened from a room link: join that room (or rejoin it, if it's ours). Reloaded mid-match: straight back in.
 const openedRoom = takeRoomCode();
-const droppedSeat = loadSeat();
-const autoRejoin = !openedRoom && !!droppedSeat && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
+const droppedSeat = latestSeat();
+const autoRejoin = !openedRoom && !!droppedSeat && !droppedSeat.left && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
 showRejoin();
 const whatsNew = new WhatsNew();
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
@@ -240,7 +250,7 @@ document.getElementById('change-players')!.addEventListener('click', () => {
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (new URLSearchParams(location.search).has('debug')) {
-  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip } });
+  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */
@@ -270,6 +280,7 @@ function frame(now: number): void {
   }
   net?.tick(dt);
   if (net) online.matchFinished(state.phase === 'gameover');
+  online.tick();
   online.spectator?.tick(dt);
   sfx.tunes.update(dt, paused);
   if (state.sfx.length > 0) {
@@ -279,6 +290,7 @@ function frame(now: number): void {
   renderer.draw(state, dt);
   hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
   document.body.dataset.spectating = String(!!online.spectator);
+  document.body.dataset.online = String(!!net && !net.lost);
   hud.update(state);
   requestAnimationFrame(frame);
 }

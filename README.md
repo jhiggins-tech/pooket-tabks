@@ -18,7 +18,8 @@ phones anywhere with a 4-letter room code (others can watch).
 - **FIRE.** Last tank standing wins; if everyone runs out of ammo, most HP wins.
 - **Two phones:** 📶 Host shows a room code and a link; the other phone taps Join and picks the game from
   the live Games list (or types the code, or opens the link). Any live match can be watched from the same
-  list. A dropped phone can rejoin.
+  list. Matches go turn by turn when you're not both there: take your turn, go back to the menu, and the
+  other player takes theirs later (My games; 3 days a turn).
 
 [FEATURES.md](FEATURES.md) lists everything shipped and what's queued; [CLAUDE.md](CLAUDE.md) has the
 architecture and recipes for adding weapons, mechanics and characters.

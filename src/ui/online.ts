@@ -5,8 +5,10 @@ import { Listing, lobbySealer, watchLobby, type Advert } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
 import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
-import { clearSeat, loadSeat, saveSeat, touchSeat, type Seat } from '../net/seat';
-import { NetSession, type Pick } from '../net/session';
+import { sealerFor } from '../net/seal';
+import { forfeitDue, gameStatus, loadRecord, opponentName, RecordStore, type GameStatus, type StoredGame } from '../net/record';
+import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
+import { NetSession, PROTOCOL, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
 import type { Transport } from '../net/transport';
@@ -27,6 +29,10 @@ export interface OnlineOptions {
  * (unless they make it private) their game goes on the live Games list, where anyone can tap to join it
  * or, once it's under way, to watch. The game's messages go through the room, so any network works.
  * Then both land in a little lobby where the host starts the battle.
+ *
+ * A match is live while both phones are there and turn by turn when they aren't: either can go back to
+ * the menu (the match waits, up to three days a turn), and My games lists this phone's matches to go
+ * back to. Leaving in the lobby, before the match starts, ends it.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
@@ -49,7 +55,10 @@ export class OnlineScreen {
   private readonly pick: () => Pick;
   /** "Waiting for them to come back" while the other phone is away. */
   private readonly away = el('div', 'net-away');
+  private awayKey = '';
   private seatTimer: ReturnType<typeof setInterval> | null = null;
+  /** The seat of the match this phone is in. */
+  private seat: Omit<Seat, 'ts'> | null = null;
 
   constructor(private readonly opts: OnlineOptions) {
     this.pick = opts.pick;
@@ -63,6 +72,11 @@ export class OnlineScreen {
 
   get isOpen(): boolean {
     return !this.root.hidden;
+  }
+
+  /** The database matches go through (null: online play isn't set up). */
+  get dbUrl(): string | null {
+    return this.opts.dbUrl;
   }
 
   /** Host a room: a code to type, a link to open, and (unless private) a spot on the Games list. */
@@ -132,7 +146,7 @@ export class OnlineScreen {
           t.detach();
           this.session = null;
           this.peer = null;
-          clearSeat();
+          forgetSeat(room.code);
           listing.update({ playing: false, opponent: undefined });
           void room.reopen().then(waiting, (e: unknown) => this.fail(e, () => void this.host()));
         };
@@ -155,9 +169,9 @@ export class OnlineScreen {
     };
     const joinCode = (c: string) => {
       stopWatch();
-      // Our own match, that we dropped out of: take our seat back rather than watching.
-      const seat = loadSeat();
-      if (seat?.code === c) return void this.rejoin(seat);
+      // Our own match: take our seat back rather than watching.
+      const seat = findSeat(c);
+      if (seat) return void this.rejoin(seat);
       netLog(`ui: joining room ${c}`);
       this.show([heading('Games'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
       const id = randomId();
@@ -191,7 +205,7 @@ export class OnlineScreen {
       return b;
     };
     const render = (games: Advert[]) => {
-      const mine = loadSeat()?.code;
+      const mine = new Set(loadSeats().map((x) => x.code));
       const waiting = games.filter((g) => !g.playing);
       const playing = games.filter((g) => g.playing);
       const counts = `${waiting.length} waiting, ${playing.length} live`;
@@ -201,7 +215,7 @@ export class OnlineScreen {
       open.replaceChildren(
         ...(waiting.length
           ? waiting.map((g) =>
-              g.room === mine
+              mine.has(g.room)
                 ? game(g, `↩ ${g.name}'s game`, 'your match · rejoin', () => joinCode(g.room))
                 : game(g, g.name, `${getCharacter(g.characterId).name} · tap to join`, () => joinCode(g.room)),
             )
@@ -210,7 +224,7 @@ export class OnlineScreen {
       live.replaceChildren(
         ...(playing.length
           ? playing.map((g) =>
-              g.room === mine
+              mine.has(g.room)
                 ? game(g, `↩ ${g.name}'s game`, 'your match · rejoin', () => joinCode(g.room))
                 : game(
                     g,
@@ -255,15 +269,19 @@ export class OnlineScreen {
   invite(code: string): void {
     this.reset();
     netLog(`ui: invited to ${code}`);
-    const seat = loadSeat();
-    if (seat?.code === code) return void this.rejoin(seat); // our own match
+    const seat = findSeat(code);
+    if (seat) return void this.rejoin(seat); // our own match
     const go = el('button', 'big', 'Join game');
     go.id = 'online-accept';
     go.addEventListener('click', () => void this.join(code));
     this.show([heading('Join a game?'), text(`You've been invited to a Pooket Tabks game (room ${code}).`), go, cancelButton(() => this.close(), 'Not now')]);
   }
 
-  /** Back into a match this phone dropped out of: take the seat back and get caught up. */
+  /**
+   * Back into one of this phone's matches (dropped out, or left for now): take the seat back and get
+   * caught up, by the other phone if it's there, or else from the match's record (their last shot
+   * replayed if we haven't seen it).
+   */
   async rejoin(seat: Seat): Promise<void> {
     this.reset();
     netLog(`ui: Rejoin ${seat.code} as ${seat.role}`);
@@ -275,25 +293,34 @@ export class OnlineScreen {
       this.show([
         heading(`Rejoining ${seat.code}`),
         status(line, 'online-status'),
-        buttons(
-          cancelButton(() => {
-            clearSeat();
-            this.close();
-          }, 'Leave match'),
-        ),
+        buttons(cancelButton(() => this.close(), 'Back')),
       ]);
     waiting('Getting your seat back…');
     let t: RelayTransport;
+    let stored: StoredGame | null;
     try {
-      t = await rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay);
+      [t, stored] = await Promise.all([rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay), loadRecord(db, seat.code)]);
     } catch (e) {
       if (cancelled) return;
-      if (/ended|taken/.test(message(e))) clearSeat();
+      if (/ended|taken/.test(message(e))) forgetSeat(seat.code);
       return this.fail(e, /ended|taken/.test(message(e)) ? undefined : () => void this.rejoin(seat));
     }
-    if (cancelled) return void t.close();
+    if (cancelled) return void t.detach();
     this.stopRoom = null;
+    if (stored && stored.rec.v !== PROTOCOL) {
+      t.detach();
+      forgetSeat(seat.code);
+      return this.fail(new Error(`That match (${seat.code}) was started on an older version of Pooket Tabks, so it can't carry on. Sorry!`));
+    }
     const s = this.setupSession(t, seat);
+    if (stored) {
+      // Nobody's moved for three days: once we're caught up, whoever's turn it is forfeits.
+      const onResumed = s.onResumed;
+      s.onResumed = (inMatch) => {
+        onResumed(inMatch);
+        if (inMatch && stored && forfeitDue(stored)) s.forfeit();
+      };
+    }
     if (seat.role === 'host' && seat.listed) {
       // Back on the Games list once we know who's playing.
       const lobby = await lobbySealer(this.opts.lobby);
@@ -309,8 +336,75 @@ export class OnlineScreen {
         onResumed(inMatch);
       };
     }
-    waiting('Waiting for the other phone to catch you up…');
-    s.rejoin();
+    waiting(stored ? 'Catching up…' : 'Waiting for the other phone to catch you up…');
+    const rec = stored?.rec;
+    const replay = !!rec?.last && rec.last.owner !== s.localSeat && (seat.seen ?? 0) < rec.snap.turn;
+    s.rejoin(rec ? { rec, replay } : undefined);
+  }
+
+  /** This phone's matches, with how each stands (your turn, theirs, over), to go back to. */
+  async myGames(): Promise<void> {
+    this.reset();
+    netLog('ui: My games');
+    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
+    const db = new Rtdb(this.opts.dbUrl);
+    let cancelled = false;
+    this.stopRoom = () => (cancelled = true);
+    this.show([heading('My games'), status('Checking your games…', 'online-status'), buttons(cancelButton(() => this.close(), 'Back'))]);
+    const games = await matchesOf(db);
+    if (cancelled) return;
+    const list = el('div', 'online-games online-mine');
+    list.id = 'online-mine';
+    const label: Record<GameStatus | 'lobby', string> = {
+      'your-turn': 'Your turn',
+      'their-turn': 'Their turn',
+      won: 'You won',
+      lost: 'You lost',
+      draw: 'A draw',
+      old: 'From an older version',
+      lobby: 'Not started yet',
+    };
+    list.replaceChildren(
+      ...(games.length
+        ? games.map((g) => {
+            const b = el('button', `online-game ${g.status}`, `vs ${g.opponent}`);
+            b.dataset.room = g.seat.code;
+            b.append(el('small', undefined, ` ${label[g.status]} · ${g.seat.code}`));
+            b.addEventListener('click', () => void this.rejoin(g.seat));
+            return b;
+          })
+        : [el('p', 'online-none', 'No games yet. Host one, or join one from the Games list.')]),
+    );
+    this.show([heading('My games'), list, buttons(cancelButton(() => this.close(), 'Back'))]);
+  }
+
+  /** The in-match menu: back to the menu (the match waits), nudge them, or resign. */
+  matchMenu(): void {
+    const s = this.session;
+    if (!s?.game || s.lost) return;
+    const back = el('button', 'big', 'Back to menu');
+    back.id = 'menu-leave';
+    back.addEventListener('click', () => this.close());
+    const resign = el('button', 'online-alt', '🏳 Resign');
+    resign.id = 'menu-resign';
+    let sure = false;
+    resign.addEventListener('click', () => {
+      if (!sure) {
+        sure = true;
+        resign.textContent = '🏳 Tap again to resign';
+        return;
+      }
+      s.resign();
+      this.hide();
+    });
+    const keep = cancelButton(() => this.hide(), 'Keep playing');
+    keep.id = 'menu-keep';
+    this.show([
+      heading('Game menu'),
+      text(`The match waits if you go: ${s.remotePick?.name ?? 'they'} can take their turn, and you yours when you're back (My games). Up to three days a turn.`),
+      back,
+      buttons(this.nudgeButton(), resign, keep),
+    ]);
   }
 
   /** Watch a match in progress, view only. */
@@ -376,9 +470,10 @@ export class OnlineScreen {
     ]);
   }
 
-  /** The match is over for good: they left, or the room closed. */
+  /** The match is over for good: they left before it started, or the room has gone. */
   lost(): void {
     netLog('ui: connection lost');
+    if (this.seat) forgetSeat(this.seat.code);
     this.endSeat();
     this.cleanup();
     this.show([heading('Connection lost'), text('The other phone left the match.'), cancelButton(() => this.close(), 'Back')]);
@@ -388,9 +483,26 @@ export class OnlineScreen {
     this.root.hidden = true;
   }
 
-  /** Leave: tear everything down and go back to setup. */
+  /**
+   * Leave: go back to setup. A match under way waits for us (turn by turn); one that's over is done with;
+   * leaving the lobby ends it.
+   */
   close(): void {
-    this.session?.leave();
+    const s = this.session;
+    if (s && this.seat && !s.lost) {
+      if (s.isRejoining) {
+        s.away(); // not caught up yet: the match is still there to go back to
+      } else if (s.game && s.game.phase !== 'gameover') {
+        updateSeat(this.seat.code, { left: true, seen: s.game.turn });
+        s.away();
+      } else if (s.game) {
+        forgetSeat(this.seat.code);
+        s.away();
+      } else {
+        forgetSeat(this.seat.code);
+        s.leave();
+      }
+    }
     this.endSeat();
     this.cleanup();
     this.session = null;
@@ -414,17 +526,22 @@ export class OnlineScreen {
     this.peer = peer;
     const s = new NetSession(peer, seat.role);
     this.session = s;
-    saveSeat(seat);
+    this.seat = { code: seat.code, role: seat.role, id: seat.id, listed: seat.listed };
+    saveSeat(this.seat);
     if (this.seatTimer) clearInterval(this.seatTimer);
-    this.seatTimer = setInterval(() => touchSeat(), 20_000);
-    // Publish the spectator feed for anyone watching.
+    this.seatTimer = setInterval(() => {
+      touchSeat(seat.code);
+      if (s.game?.phase === 'aiming') updateSeat(seat.code, { seen: s.game.turn });
+    }, 20_000);
     if (peer instanceof RelayTransport) {
+      // Publish the spectator feed for anyone watching, and keep the match's record.
       const pub = new ViewPublisher(peer);
       s.onView = (v) => pub.push(v);
+      s.store = new RecordStore(peer.db, peer.roomPath, peer.sealer);
     }
     s.onLobby = () => this.lobby();
     s.onLost = () => this.lost();
-    s.onPeerAway = (away) => this.showAway(away);
+    s.onPeerAway = () => this.showAway();
     s.onResumed = (inMatch) => {
       netLog(`ui: rejoined ${inMatch ? 'the match' : 'the lobby'}`);
       if (inMatch) return; // the game takes over (onStart)
@@ -435,16 +552,52 @@ export class OnlineScreen {
     return s;
   }
 
-  private showAway(away: boolean): void {
+  private showAway(): void {
+    this.awayKey = '~'; // redraw
+    this.tick();
+  }
+
+  /** Call once a frame: keeps the "they're not here" line right as turns come and go. */
+  tick(): void {
     const s = this.session;
-    if (!away || !s || s.lost) {
-      this.away.hidden = true;
-      return;
-    }
-    const leave = el('button', undefined, 'Leave');
-    leave.addEventListener('click', () => this.close());
-    this.away.replaceChildren(el('span', undefined, `Lost touch with ${s.remotePick?.name ?? 'the other phone'}. Waiting for them to come back…`), leave);
-    this.away.hidden = false;
+    const g = s?.game;
+    const show = !!s && s.peerAway && !s.lost && !!g && g.phase === 'aiming';
+    const mine = !!g && g.current === s?.localSeat;
+    const key = show ? `${mine}` : '';
+    this.away.hidden = !show;
+    if (key === this.awayKey || !show) return;
+    this.awayKey = key;
+    const name = s.remotePick?.name ?? 'The other player';
+    const menu = el('button', undefined, 'Menu');
+    menu.addEventListener('click', () => this.close());
+    this.away.dataset.turn = mine ? 'yours' : 'theirs';
+    this.away.replaceChildren(
+      el('span', undefined, mine ? `${name} isn't here. Take your turn: they'll see it when they're back.` : `It's ${name}'s turn, and they're not here. The game waits (up to 3 days).`),
+      ...(mine ? [] : [this.nudgeButton()]),
+      menu,
+    );
+  }
+
+  /** Nudge: send them the game's link (the phone's share sheet, or copied). */
+  private nudgeButton(): HTMLElement {
+    const b = el('button', 'nudge', '📣 Nudge');
+    const code = this.seat?.code;
+    b.addEventListener('click', async () => {
+      if (!code) return;
+      const url = roomLink(code);
+      const words = `Your turn in Pooket Tabks! (game ${code})`;
+      netLog(`ui: nudge for ${code}`);
+      try {
+        if (typeof navigator.share === 'function') await navigator.share({ title: 'Pooket Tabks', text: words, url });
+        else {
+          await navigator.clipboard.writeText(`${words} ${url}`);
+          b.textContent = '✓ Link copied: send it';
+        }
+      } catch {
+        b.textContent = url;
+      }
+    });
+    return b;
   }
 
   /** Hosting a listed game: show who's playing against us, once they've said hello. */
@@ -461,12 +614,13 @@ export class OnlineScreen {
     this.listing?.update({ over });
   }
 
-  /** This phone's seat is done with: forget it. */
+  /** Done with this phone's seat for now (what to remember about it is up to the caller). */
   private endSeat(): void {
     if (this.seatTimer) clearInterval(this.seatTimer);
     this.seatTimer = null;
+    this.seat = null;
     this.away.hidden = true;
-    if (this.session) clearSeat();
+    this.awayKey = '';
   }
 
   private fail(e: unknown, retry?: () => void): void {
@@ -497,6 +651,37 @@ export class OnlineScreen {
     if (!this.session) this.peer?.close();
     this.peer = null;
   }
+}
+
+/** One of this phone's matches, and how it stands. */
+export interface MatchSummary {
+  seat: Seat;
+  status: GameStatus | 'lobby';
+  opponent: string;
+}
+
+/**
+ * How each of this phone's matches stands (newest first). Matches whose room has gone are forgotten
+ * (a finished one is forgotten once this phone has seen how it ended and left it).
+ */
+export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
+  const out = await Promise.all(
+    loadSeats().map(async (seat): Promise<MatchSummary | null> => {
+      try {
+        const stored = await loadRecord(db, seat.code);
+        if (!stored) {
+          const sealer = await sealerFor('room', seat.code);
+          if (!(await db.get(`rooms/${sealer.topic}/host`))) return (forgetSeat(seat.code), null);
+          return { seat, status: 'lobby', opponent: '…' };
+        }
+        const seatNo = seat.role === 'host' ? 0 : 1;
+        return { seat, status: gameStatus(stored, seatNo, PROTOCOL), opponent: opponentName(stored, seatNo) };
+      } catch {
+        return null; // can't tell right now: leave it be
+      }
+    }),
+  );
+  return out.filter((m): m is MatchSummary => m !== null);
 }
 
 const LISTED_KEY = 'pooket.listPublicly';

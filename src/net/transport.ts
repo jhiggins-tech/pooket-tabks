@@ -10,6 +10,8 @@ export interface Transport {
   onQuiet?: (quiet: boolean) => void;
   /** Start a fresh outgoing stream, for the other phone rejoining on a new connection. */
   restart?(): void;
+  /** Stop using the pipe but leave the room as it is (the match carries on without this phone). */
+  detach?(): void;
   close(): void;
 }
 
@@ -26,6 +28,9 @@ export function loopback(): [Transport, Transport] {
     close() {
       const to = this.peer!;
       queueMicrotask(() => to.onClose());
+    },
+    detach() {
+      this.send = () => {};
     },
   });
   const a = make();

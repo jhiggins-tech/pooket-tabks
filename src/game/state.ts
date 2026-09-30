@@ -461,4 +461,6 @@ export interface GameState {
   fxSeq: number;
   settleTimer: number;
   winner: Player | null;
+  /** Why the match ended early (online): the loser resigned, or ran out of time to move. */
+  endReason: 'resigned' | 'timeout' | null;
 }

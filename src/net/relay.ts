@@ -13,6 +13,9 @@ import type { Transport } from './transport';
  * Each pipe numbers its batches within an epoch (when it started): a phone that rejoins starts a new
  * epoch at 1, and the other side switches to it and ignores anything left over from the old one.
  */
+/** How often to ping while the other phone is away (enough to notice each other again after a blip). */
+const QUIET_PING_MS = 30_000;
+
 export class RelayTransport implements Transport {
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
@@ -59,7 +62,8 @@ export class RelayTransport implements Transport {
     this.timers.push(
       setInterval(() => {
         const now = Date.now();
-        if (now - this.lastSent >= ping) this.send({ k: '~ping' });
+        // Nobody's listening while they're away (turn by turn, they may be gone for days): ping rarely.
+        if (now - this.lastSent >= (this.quiet ? QUIET_PING_MS : ping)) this.send({ k: '~ping' });
         if (now - this.lastHeard > lost) {
           if (!this.quiet) {
             this.quiet = true;
@@ -217,4 +221,4 @@ export class RelayTransport implements Transport {
 }
 
 /** Everything in a room, removed. */
-export const ROOM_CLEARED = { host: null, guest: null, h2g: null, g2h: null, view: null };
+export const ROOM_CLEARED = { host: null, guest: null, h2g: null, g2h: null, view: null, game: null };

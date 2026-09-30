@@ -4,19 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Async online play** (take your turn, leave; they take theirs later): every online game becomes
-   live when both phones are there and turn-by-turn when they aren't (no separate mode).
-   - A lasting game record in the database (state, whose turn, the last shot's pre-fire snapshot for a
-     replay, a version tag); firing commits the pre-shot state at once, so closing mid-shot can't undo a
-     move. Seats stop expiring after 1-2 hours. Needs a rules change (and a re-publish).
-   - "Their turn" instead of "Connection lost" when the other phone isn't there.
-   - A "My games" list on the setup screen (your turn / their turn, tap to open); opening a game replays
-     their last shot, then it's your go.
-   - A Nudge button that shares the game link (share sheet). Push notifications later, if ever (needs a
-     service worker and a paid-plan Cloud Function).
-   - Resign; **forfeit after 3 days** without a move; abandoned games tidied away.
-   - A game started on an older version ends politely on a mismatch rather than trying to carry on.
-2. **Simpler landing screen** (after async play). **Deliver a screen grab of the new menus for approval
+1. **Simpler landing screen** (after async play). **Deliver a screen grab of the new menus for approval
    first; build it only once approved.**
    - The first screen gets three big buttons, and the Player 1 / Player 2 rows move off it (the name now
      comes from the first-visit prompt, and picking two players is only for hotseat):
@@ -79,12 +67,24 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it
   under "Live now" in the Games list) to watch it live, view only: aim, shots and
   results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
-- **Rejoin a match**: dropping out of an online match no longer ends it. The other phone shows "Lost
-  touch with X. Waiting for them to come back…" (with Leave) and the match waits. A signal blip heals by
-  itself; a phone that reloaded (or was killed) goes straight back into its seat when the game is opened
-  again within 10 minutes, and after that the setup screen offers ↩ Rejoin CODE (for 2 hours). Typing the
-  code or tapping the game in the Games list (↩ your match) also rejoins (rather than watching). The rejoining phone
-  is caught up from the other's game (after any shot in flight has played out). Leave ends it for both.
+- **Turn by turn (async online play)**: an online match is live while both phones are there and turn by
+  turn when they aren't (no separate mode). ☰ in a match: Back to menu (the match waits), 📣 Nudge, 🏳
+  Resign (tap twice). The other phone's banner says so: "X isn't here. Take your turn: they'll see it when
+  they're back", or "It's X's turn, and they're not here. The game waits" with Nudge (shares the game's
+  link) and Menu. **My games** on the setup screen lists this phone's matches (Your turn / Their turn /
+  won / lost; "· N your turn" on the button); opening one replays their last shot if you haven't seen it,
+  then it's your go. Each room keeps a sealed **game record** (state, the last shot, any shot still in
+  flight): firing records the pre-shot state at once, so closing the app mid-shot can't undo a move
+  (whoever opens the game next plays it out). **3 days** without a move: whoever's turn it is forfeits.
+  A finished match is forgotten once you've seen how it ended; a match from an older version ends with
+  a note. Leaving in the lobby, before the start, still ends it. (Push notifications: not yet, maybe
+  never: they need a service worker and a paid Firebase plan.)
+- **Rejoin a match**: dropping out doesn't end it. A signal blip heals by itself; a phone that reloaded
+  (or was killed) goes straight back into its seat when the game is opened again within 10 minutes
+  (unless it left on purpose); after that it's in My games (for 5 days). Typing the code or tapping the
+  game in the Games list (↩ your match) also rejoins (rather than watching). The rejoining phone is
+  caught up by the other phone if it's there (after any shot in flight has played out), else from the
+  game record.
 - **Invite links ask first**: opening a room link shows "Join a game? … Join game / Not now" instead of
   joining straight away, so a messaging app's link preview can't grab the seat. And if a guest joins and
   goes quiet in the lobby before the match starts, the host frees the seat and keeps waiting (same code).

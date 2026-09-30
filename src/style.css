@@ -1096,3 +1096,32 @@ body[data-phase='gameover'] .top-mid {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* ---------- Turn by turn online ---------- */
+#net-menu {
+  display: none;
+  font-size: 18px;
+  line-height: 1;
+}
+body[data-online='true'] #net-menu {
+  display: block;
+}
+#net-away[data-turn='yours'] {
+  background: rgba(30, 90, 60, 0.92);
+}
+#winner .end-reason {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  opacity: 0.8;
+  color: var(--text);
+}
+#setup-games.your-turn {
+  border-color: #7ee7a8;
+  box-shadow: 0 0 0 2px rgba(126, 231, 168, 0.4);
+}
+.online-mine .online-game.your-turn small {
+  color: #7ee7a8;
+  font-weight: 800;
+}

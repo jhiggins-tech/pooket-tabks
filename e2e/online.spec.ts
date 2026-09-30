@@ -220,7 +220,7 @@ test('a phone that drops out gets straight back into its seat (reload, or openin
   // The guest's phone goes away altogether: the host is told, and waits.
   await guest.goto('about:blank');
   await expect(host.locator('#net-away')).toBeVisible({ timeout: 15_000 });
-  await expect(host.locator('#net-away')).toContainText('Waiting for them to come back');
+  await expect(host.locator('#net-away')).toContainText("isn't here. Take your turn");
   await host.screenshot({ path: 'test-results/rejoin-waiting.png' });
 
   // It comes back: opening the game again goes straight back into the match (it was only just playing).
@@ -234,14 +234,21 @@ test('a phone that drops out gets straight back into its seat (reload, or openin
   await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
   expect(await summary(guest)).toEqual(await summary(host));
 
-  // Leaving for good ends it for both, and the seat is forgotten.
-  await guest.evaluate(() => (window as unknown as { __pooket: { net: { leave(): void } } }).__pooket.net.leave());
-  await expect(host.locator('#online')).toContainText('Connection lost', { timeout: 15_000 });
+  // Resigning (from the game menu, and it asks twice) ends it for both.
+  await guest.locator('#net-menu').tap();
+  await guest.locator('#menu-resign').tap();
+  await expect(guest.locator('#menu-resign')).toContainText('Tap again');
+  await guest.locator('#menu-resign').tap();
+  for (const p of [host, guest]) {
+    await expect(p.locator('#gameover')).toBeVisible({ timeout: 15_000 });
+    await expect(p.locator('#winner')).toContainText('Ann wins!');
+    await expect(p.locator('#winner')).toContainText('resigned');
+  }
   expect(errors).toEqual([]);
   await close();
 });
 
-test('the setup screen offers to rejoin a match from a while ago; typing its code rejoins too', async ({ browser }) => {
+test("the setup screen's My games has a match from a while ago; typing its code rejoins too", async ({ browser }) => {
   test.setTimeout(120_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-rejoin-later');
   const q = `${base}&lost=1500`;
@@ -254,13 +261,13 @@ test('the setup screen offers to rejoin a match from a while ago; typing its cod
 
   // The guest dropped out a while ago (too long for rejoining by itself on opening).
   await guest.evaluate(() => {
-    const seat = JSON.parse(localStorage.getItem('pooket.seat')!);
-    localStorage.setItem('pooket.seat', JSON.stringify({ ...seat, ts: Date.now() - 30 * 60_000 }));
+    const games = JSON.parse(localStorage.getItem('pooket.games')!);
+    localStorage.setItem('pooket.games', JSON.stringify([{ ...games[0], ts: Date.now() - 30 * 60_000 }]));
   });
   await guest.goto('about:blank');
   await guest.goto(`./?${q}`);
   await expect(guest.locator('#setup')).toBeVisible();
-  await expect(guest.locator('#setup-rejoin')).toHaveText(`↩ Rejoin ${code}`);
+  await expect(guest.locator('#setup-games')).toContainText('My games (1)');
   await guest.screenshot({ path: 'test-results/rejoin-button.png' });
 
   // Typing the code rejoins (it's this phone's match), rather than watching.
@@ -336,6 +343,80 @@ test('a host that reloads mid-match goes straight back on the Games list', async
   await fan.locator('#join-online').tap();
   await expect(fan.locator('#online-live .online-game')).toContainText('Bo (tones) vs', { timeout: 10_000 });
   await ctx.close();
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('turn by turn: take your turn and go back to the menu; the other player finds it in My games, and so on', async ({ browser }) => {
+  test.setTimeout(180_000);
+  const { host, guest, q: base, errors, close } = await phones(browser, 'games-async');
+  const q = `${base}&lost=1500`;
+  await host.goto(`./?${q}`);
+  await host.getByLabel('Player 1 name').fill('Ann');
+  await host.locator('#host-online').tap();
+  const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await guest.goto(`./?${q}#room=${code}`);
+  await guest.locator('#online-accept').tap();
+  await playFromLobby(host, guest); // the guest's turn now
+
+  // The host goes back to the menu; the match waits for it.
+  await host.locator('#net-menu').tap();
+  await expect(host.locator('#online')).toContainText('Game menu');
+  await host.locator('#menu-leave').tap();
+  await expect(host.locator('#setup')).toBeVisible();
+  await expect(host.locator('#setup-games')).toContainText('My games (1)');
+  // The guest is told, and takes its turn anyway.
+  await expect(guest.locator('#net-away')).toContainText("Ann isn't here. Take your turn", { timeout: 10_000 });
+  await guest.locator('#fire').tap();
+  await expect(guest.locator('#net-away')).toContainText("It's Ann's turn, and they're not here", { timeout: 20_000 });
+  await expect(guest.locator('#net-away .nudge')).toBeVisible();
+  await guest.screenshot({ path: 'test-results/async-their-turn.png' });
+  const afterGuest = await summary(guest);
+  await guest.locator('#net-away').getByRole('button', { name: 'Menu' }).tap();
+  await expect(guest.locator('#setup')).toBeVisible();
+
+  // Later the host opens the game again: My games says it's its turn; it sees the guest's shot, then plays.
+  await host.reload();
+  await expect(host.locator('#setup-games')).toContainText('1 your turn', { timeout: 10_000 });
+  await host.locator('#setup-games').tap();
+  const mine = host.locator('#online-mine .online-game');
+  await expect(mine).toHaveCount(1);
+  await expect(mine).toContainText('Your turn');
+  await host.screenshot({ path: 'test-results/async-my-games.png' });
+  await mine.tap();
+  await expect(host.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect.poll(() => canAct(host), { timeout: 40_000 }).toBe(true);
+  expect(await summary(host)).toEqual(afterGuest);
+  await host.locator('#fire').tap();
+  await expect.poll(async () => (await summary(host)).turn, { timeout: 30_000 }).toBe(4);
+  await expect(host.locator('#net-away')).toContainText("It's", { timeout: 20_000 });
+  const afterHost = await summary(host);
+  await host.locator('#net-menu').tap();
+  await host.locator('#menu-leave').tap();
+
+  // The guest's turn again, from My games.
+  await guest.reload();
+  await guest.locator('#setup-games').tap();
+  await expect(guest.locator('#online-mine .online-game')).toContainText('Your turn');
+  await guest.locator('#online-mine .online-game').tap();
+  await expect.poll(() => canAct(guest), { timeout: 40_000 }).toBe(true);
+  expect(await summary(guest)).toEqual(afterHost);
+
+  // The guest resigns; the host finds out when it looks.
+  await guest.locator('#net-menu').tap();
+  await guest.locator('#menu-resign').tap();
+  await guest.locator('#menu-resign').tap();
+  await expect(guest.locator('#winner')).toContainText('Ann wins!');
+  await host.reload();
+  await host.locator('#setup-games').tap();
+  await expect(host.locator('#online-mine .online-game')).toContainText('You won');
+  await host.locator('#online-mine .online-game').tap();
+  await expect(host.locator('#gameover')).toBeVisible({ timeout: 20_000 });
+  await expect(host.locator('#winner')).toContainText('resigned');
+  // Seen how it ended: leaving forgets it.
+  await host.locator('#change-players').tap();
+  await expect(host.locator('#setup')).toBeVisible();
+  await expect(host.locator('#setup-games')).toBeHidden();
   expect(errors).toEqual([]);
   await close();
 });

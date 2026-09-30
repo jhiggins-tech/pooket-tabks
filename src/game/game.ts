@@ -143,7 +143,17 @@ export function createGame(cfg: GameConfig): GameState {
     fxSeq: 0,
     settleTimer: 0,
     winner: null,
+    endReason: null,
   };
+}
+
+/** `loserId` concedes (resigned, or out of time online): the match ends and the other player wins. */
+export function concede(state: GameState, loserId: number, why: 'resigned' | 'timeout'): void {
+  if (state.phase === 'gameover') return;
+  state.phase = 'gameover';
+  state.winner = state.players.find((p) => p.id !== loserId) ?? null;
+  state.endReason = why;
+  sound(state, 'gameover');
 }
 
 /** True when the current player's selected weapon ignores angle and power. */

@@ -13,6 +13,15 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 17,
+    title: 'Play turn by turn',
+    items: [
+      'Online matches no longer need you both there at once: take your turn, go back to the menu (☰), and the other player takes theirs whenever they’re back.',
+      'My games on the setup screen shows your matches and whose turn it is. Opening one replays their last shot first.',
+      '📣 Nudge sends them the game’s link; 🏳 Resign ends it. A turn left for 3 days is forfeited.',
+    ],
+  },
+  {
     version: 16,
     title: 'What’s your name?',
     items: [

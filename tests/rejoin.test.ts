@@ -4,8 +4,10 @@ import { createGame, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { HostedRoom, joinRoom, rejoinRoom } from '../src/net/rooms';
 import { Rtdb } from '../src/net/rtdb';
-import { AUTO_REJOIN_MS, clearSeat, loadSeat, SEAT_EXPIRY_MS, saveSeat, touchSeat } from '../src/net/seat';
+import { AUTO_REJOIN_MS, findSeat, forgetSeat, GAMES_KEY, latestSeat, loadSeats, SEAT_EXPIRY_MS, saveSeat, touchSeat, updateSeat } from '../src/net/seat';
+import { loadRecord, RecordStore } from '../src/net/record';
 import { NetSession } from '../src/net/session';
+import { sealerFor } from '../src/net/seal';
 import { takeSnapshot } from '../src/net/snapshot';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 
@@ -157,29 +159,116 @@ describe('rejoining a match', { timeout: 60_000 }, () => {
   });
 });
 
-describe('remembered seat', () => {
+describe('turn by turn (both phones leave between turns)', { timeout: 60_000 }, () => {
+  /** A session whose record goes to the room, like the app's. */
+  const withRecord = async (s: NetSession, code: string) => {
+    const sealer = await sealerFor('room', code);
+    s.store = new RecordStore(db, `rooms/${sealer.topic}`, sealer);
+    return s;
+  };
+
+  /** The room's record, once it has got to `turn`. */
+  const recordAt = async (code: string, turn: number) => {
+    let stored = await loadRecord(db, code);
+    for (let i = 0; i < 100 && stored?.rec.snap.turn !== turn; i++) {
+      await new Promise((r) => setTimeout(r, 20));
+      stored = await loadRecord(db, code);
+    }
+    expect(stored?.rec.snap.turn).toBe(turn);
+    return stored!;
+  };
+
+  it('take your turn and leave; later the other phone comes back, sees it, takes theirs, and so on', async () => {
+    const { room, host, guest } = await match();
+    await withRecord(host, room.code);
+    await withRecord(guest, room.code);
+    host.start(77, PLAYERS);
+    await until(() => !!guest.game);
+    guest.away(); // the guest goes back to the menu
+    const H = host.game!;
+    await run([[host, H]], () => host.peerAway);
+    setAim(H, 60, 60);
+    host.fire();
+    await run([[host, H]], () => H.turn === 2 && H.phase === 'aiming');
+    let stored = await recordAt(room.code, 2);
+    host.away(); // and the host goes too; the room stays
+    await new Promise((r) => setTimeout(r, 300));
+    expect(server.tree().rooms).toBeTruthy();
+
+    // The guest opens the game: nobody's there, so it goes by the record (and watches the host's shot).
+    const t = await rejoinRoom(db, room.code, 'guest', 'guest-id', fast);
+    const back = await withRecord(new NetSession(t, 'guest'), room.code);
+    back.onStart = onStart;
+    back.rejoin({ rec: stored!.rec, replay: true });
+    await run([[back, back.game]], () => back.canAct(), 20_000);
+    same(H, back.game!);
+    const G = back.game!;
+    setAim(G, 120, 55);
+    back.fire();
+    await run([[back, G]], () => G.turn === 3 && G.phase === 'aiming');
+    back.away();
+
+    // The host comes back to its turn.
+    stored = await recordAt(room.code, 3);
+    const t2 = await rejoinRoom(db, room.code, 'host', room.id, fast);
+    const again = await withRecord(new NetSession(t2, 'host'), room.code);
+    again.onStart = onStart;
+    again.rejoin({ rec: stored!.rec, replay: true });
+    await run([[again, again.game]], () => again.canAct(), 20_000);
+    same(G, again.game!);
+  });
+
+  it("a room with a match in it isn't taken over by a new host, until the match is four days old", async () => {
+    const { room } = await match();
+    const sealer = await sealerFor('room', room.code);
+    const path = `rooms/${sealer.topic}`;
+    const hourAgo = Date.now() - 2 * 3_600_000;
+    await db.put(`${path}/host`, { id: room.id, ts: hourAgo });
+    await db.put(`${path}/game`, { m: 'x', ts: Date.now() });
+    await expect(db.put(`${path}/host`, { id: 'someone-else', ts: Date.now() })).rejects.toThrow(/denied/i);
+    await db.put(`${path}/game`, { m: 'x', ts: Date.now() - 5 * 24 * 3_600_000 });
+    await db.put(`${path}/host`, { id: 'someone-else', ts: Date.now() });
+  });
+});
+
+describe('remembered seats (My games)', () => {
   const mem = () => {
     const m = new Map<string, string>();
     return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
   };
 
-  it('remembers the room, role and seat id, until cleared or too old', () => {
+  it('remembers each match (room, role, seat id), newest first, until forgotten or too old', () => {
     const s = mem();
-    expect(loadSeat(s)).toBeNull();
+    expect(latestSeat(s)).toBeNull();
     saveSeat({ code: 'FROG', role: 'guest', id: 'abc' }, s, 1000);
-    expect(loadSeat(s, 1000 + AUTO_REJOIN_MS)).toEqual({ code: 'FROG', role: 'guest', id: 'abc', ts: 1000 });
-    touchSeat(s, 5000);
-    expect(loadSeat(s, 5000)?.ts).toBe(5000);
-    expect(loadSeat(s, 5000 + SEAT_EXPIRY_MS + 1)).toBeNull();
-    clearSeat(s);
-    expect(loadSeat(s, 5000)).toBeNull();
+    expect(latestSeat(s, 1000 + AUTO_REJOIN_MS)).toEqual({ code: 'FROG', role: 'guest', id: 'abc', left: false, ts: 1000 });
+    saveSeat({ code: 'TOAD', role: 'host', id: 'def' }, s, 2000);
+    expect(loadSeats(s, 2000).map((x) => x.code)).toEqual(['TOAD', 'FROG']);
+    touchSeat('FROG', s, 5000);
+    expect(latestSeat(s, 5000)?.code).toBe('FROG');
+    updateSeat('FROG', { left: true, seen: 7 }, s, 5000);
+    expect(findSeat('FROG', s, 5000)).toMatchObject({ left: true, seen: 7, ts: 5000 });
+    saveSeat({ code: 'FROG', role: 'guest', id: 'abc' }, s, 6000); // back in it
+    expect(findSeat('FROG', s, 6000)).toMatchObject({ left: false, seen: 7 });
+    expect(findSeat('TOAD', s, 2000 + SEAT_EXPIRY_MS + 1)).toBeNull();
+    forgetSeat('FROG', s, 6000);
+    expect(loadSeats(s, 6000).map((x) => x.code)).toEqual(['TOAD']);
+  });
+
+  it("takes over an older version's single seat", () => {
+    const s = mem();
+    s.setItem('pooket.seat', JSON.stringify({ code: 'FROG', role: 'host', id: 'x', ts: 1 }));
+    expect(latestSeat(s, 1)?.code).toBe('FROG');
+    saveSeat({ code: 'TOAD', role: 'guest', id: 'y' }, s, 2);
+    expect(s.getItem('pooket.seat')).toBeNull();
+    expect(loadSeats(s, 2).map((x) => x.code)).toEqual(['TOAD', 'FROG']);
   });
 
   it('ignores junk', () => {
     const s = mem();
-    s.setItem('pooket.seat', '{"code":"FROG","role":"boss","id":"x","ts":1}');
-    expect(loadSeat(s, 1)).toBeNull();
-    s.setItem('pooket.seat', 'not json');
-    expect(loadSeat(s, 1)).toBeNull();
+    s.setItem(GAMES_KEY, '[{"code":"FROG","role":"boss","id":"x","ts":1}]');
+    expect(latestSeat(s, 1)).toBeNull();
+    s.setItem(GAMES_KEY, 'not json');
+    expect(latestSeat(s, 1)).toBeNull();
   });
 });
