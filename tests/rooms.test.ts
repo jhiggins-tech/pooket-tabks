@@ -5,7 +5,8 @@ import type { GameState, PlayerConfig } from '../src/game/state';
 import { toB64 } from '../src/net/b64';
 import { Listing, lobbySealer, watchLobby, type Advert } from '../src/net/lobby';
 import { RelayTransport } from '../src/net/relay';
-import { HostedRoom, joinRoom, newRoomCode, normaliseRoomCode, rejoinRoom } from '../src/net/rooms';
+import { loadRecord, loadRoomRecord } from '../src/net/record';
+import { HostedRoom, joinRoom, newRoomCode, normaliseRoomCode, rejoinRoom, roomHost } from '../src/net/rooms';
 import { seal, sealerFor } from '../src/net/seal';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession } from '../src/net/session';
@@ -68,6 +69,41 @@ describe('rooms through Firebase', () => {
     await joinRoom(db, room.code);
     await expect(joinRoom(db, room.code)).rejects.toThrow(/two players/);
     await expect(joinRoom(db, 'ZZZZ')).rejects.toThrow(/No game with code ZZZZ/);
+  });
+
+  it("an open game can be joined with its host away (and a room that isn't open can't)", async () => {
+    const open = await HostedRoom.open(db, { host: { name: 'Jack', characterId: 'tones' }, listed: true });
+    open.stop(); // the host goes back to the menu
+    const closed = await HostedRoom.open(db);
+    closed.stop();
+    const stale = Date.now() - 10 * 60_000;
+    for (const r of [open, closed]) {
+      const sealer = await sealerFor('room', r.code);
+      await db.put(`rooms/${sealer.topic}/host`, { id: r.id, ts: stale }); // long gone
+    }
+    expect(await roomHost(db, open.code)).toEqual({ id: open.id, here: false });
+    expect(await loadRoomRecord(db, open.code)).toMatchObject({ offer: { host: { name: 'Jack', characterId: 'tones' }, listed: true } });
+    expect(await loadRecord(db, open.code)).toBeNull(); // not a match yet
+    const t = await joinRoom(db, open.code, undefined, 'first');
+    await expect(joinRoom(db, open.code, undefined, 'second')).rejects.toThrow(/two players/);
+    await expect(joinRoom(db, closed.code)).rejects.toThrow(/No game/);
+    t.close();
+  });
+
+  it('the host can go back to its open game (nobody joined yet) and wait on', async () => {
+    const room = await HostedRoom.open(db, { host: { name: 'Jack', characterId: 'tones' }, listed: false });
+    room.stop();
+    const again = await HostedRoom.reclaim(db, room.code, room.id);
+    expect((await roomHost(db, room.code))?.here).toBe(true);
+    const hostSide = again.waitForGuest();
+    const guest = await joinRoom(db, room.code);
+    const host = await hostSide;
+    const got: unknown[] = [];
+    host.onMessage = (m) => got.push(m);
+    guest.send({ hi: 1 });
+    await until(() => got.length === 1);
+    host.close();
+    guest.close();
   });
 
   it("says so when the server can't be reached, rather than blaming the codes", async () => {
@@ -245,6 +281,20 @@ describe('the Games list', () => {
     await until(() => list.length === 0);
     w.stop();
     w2.stop();
+  });
+
+  it("a game waiting for a player stays listed while its host is away; a live one that's gone quiet doesn't", async () => {
+    const lobby = await lobbySealer('test-list');
+    const tenMinutesAgo = Date.now() - 10 * 60_000;
+    const put = async (hostId: string, ad: Partial<Advert>) =>
+      db.put(`lobby/${lobby.topic}/${hostId}`, { m: toB64(await seal(lobby, { hostId, name: hostId, characterId: 'kie', room: 'ROOM', ts: tenMinutesAgo, ...ad })), ts: tenMinutesAgo });
+    await put('waiting', { open: true });
+    await put('quiet-live', { playing: true });
+    let list: Advert[] | null = null;
+    const w = watchLobby(db, lobby, (l) => (list = l));
+    await until(() => list !== null && list.length === 1);
+    expect(list![0]!.hostId).toBe('waiting');
+    w.stop();
   });
 
   it('a listing from a host that vanished long ago is hidden and tidied away', async () => {

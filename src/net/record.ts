@@ -3,6 +3,7 @@ import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
+import { PROTOCOL, type Pick } from './session';
 import type { Snapshot } from './snapshot';
 import { decodeMsg, encodeMsg } from './wire';
 
@@ -12,6 +13,9 @@ import { decodeMsg, encodeMsg } from './wire';
  * time of the last write) and is written by whichever phone is in charge: the host when the match
  * starts, the shooter when they fire (so closing the app mid-shot can't undo a move) and when the shot
  * has played out. A phone that opens the game with nobody else there catches up from it.
+ *
+ * Before the match starts the same slot holds the host's open offer (`OpenRecord`: who's hosting and as
+ * which character), so whoever joins first can start the match even if the host has gone.
  */
 
 /** A turn nobody takes for this long is forfeited by whoever's turn it is. */
@@ -36,6 +40,12 @@ export interface GameRecord {
   last: ShotRecord | null;
   /** A shot fired but not yet played out (its phone went away mid-shot): whoever opens the game plays it out. */
   flying: ShotRecord | null;
+}
+
+/** A hosted game nobody has joined yet: the host's pick, and whether it's on the public Games list. */
+export interface OpenRecord {
+  v: number;
+  open: { host: Pick; listed: boolean };
 }
 
 /** A record as stored: `ts` is the server time of the last write (the last move). */
@@ -85,13 +95,27 @@ export class RecordStore implements GameStore {
   }
 }
 
-/** A room's record (null: the match never started, or the room has gone). */
-export async function loadRecord(db: Rtdb, code: string): Promise<StoredGame | null> {
+/** Put up a hosted game's open offer (before anyone has joined). */
+export async function saveOffer(db: Rtdb, roomPath: string, sealer: Sealer, offer: OpenRecord['open']): Promise<void> {
+  const rec: OpenRecord = { v: PROTOCOL, open: offer };
+  await db.put(`${roomPath}/game`, { m: toB64(await seal(sealer, encodeMsg(rec))), ts: SERVER_TIME });
+}
+
+/** Whatever's in a room's record slot: a match, an open offer, or nothing. */
+export async function loadRoomRecord(db: Rtdb, code: string): Promise<{ game: StoredGame } | { offer: OpenRecord['open']; v: number; ts: number } | null> {
   const sealer = await sealerFor('room', code);
   const raw = await db.get<{ m?: unknown; ts?: unknown }>(`rooms/${sealer.topic}/game`);
   if (!raw || typeof raw.m !== 'string' || typeof raw.ts !== 'number') return null;
   const text = await unseal(sealer, fromB64(raw.m));
-  return typeof text === 'string' ? { rec: decodeMsg(text) as GameRecord, ts: raw.ts } : null;
+  if (typeof text !== 'string') return null;
+  const rec = decodeMsg(text) as GameRecord | OpenRecord;
+  return 'open' in rec ? { offer: rec.open, v: rec.v, ts: raw.ts } : { game: { rec, ts: raw.ts } };
+}
+
+/** A room's match record (null: the match hasn't started, or the room has gone). */
+export async function loadRecord(db: Rtdb, code: string): Promise<StoredGame | null> {
+  const r = await loadRoomRecord(db, code);
+  return r && 'game' in r ? r.game : null;
 }
 
 /** Nobody has moved for three days and the match isn't over: whoever's turn it is forfeits. */

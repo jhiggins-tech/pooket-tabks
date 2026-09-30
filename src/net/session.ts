@@ -6,7 +6,7 @@ import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } 
 import type { Transport } from './transport';
 
 /** Bumped whenever the messages or the game rules change: both phones must run the same code. */
-export const PROTOCOL = 4;
+export const PROTOCOL = 5;
 
 /** What each phone picked in the lobby. */
 export interface Pick {
@@ -147,7 +147,10 @@ export class NetSession {
     this.onLobby();
   }
 
-  /** Host: start (or restart) the match. Players are [host, guest]; colours are resolved by the caller. */
+  /**
+   * Start (or restart) the match. Players are [host, guest]; colours are resolved by the caller. Usually
+   * the host's to do; the guest starts it when it joins an open game whose host isn't there.
+   */
   start(seed: number, players: PlayerConfig[]): GameState {
     netLog(`session: starting a match (${players.map((p) => p.characterId).join(' vs ')})`);
     const state = this.begin(seed, players);
@@ -318,6 +321,11 @@ export class NetSession {
     this.store.save({ v: PROTOCOL, setup: this.setup, snap, terrain, last: this.lastShot, flying: this.flyingShot });
   }
 
+  /** Carrying on without them (the guest started the match with the host away). */
+  assumeAway(): void {
+    this.setPeerAway(true);
+  }
+
   private setPeerAway(away: boolean): void {
     if (this.peerAway === away) return;
     this.peerAway = away;
@@ -406,7 +414,8 @@ export class NetSession {
         this.onLobby();
         return;
       case 'start': {
-        if (this.isHost) return;
+        // Usually the host starts; the guest does if it joined while the host was away.
+        if (this.isHost && this.state) return;
         const s = this.begin(msg.seed, msg.players);
         // Same seed, same map, but make sure (maths can round differently between phones).
         s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));

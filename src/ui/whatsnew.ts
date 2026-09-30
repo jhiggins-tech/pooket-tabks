@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 19,
+    title: 'Host now, play later',
+    items: [
+      'A game you host stays open when you leave the Host screen: it stays in the Game browser, and the first person to join starts the match, even if you’re not there.',
+      'You take your turn when you’re back (it’s in your games, and the dot on the Game browser tells you). Cancel game takes it down.',
+    ],
+  },
+  {
     version: 18,
     title: 'A tidier start',
     items: [

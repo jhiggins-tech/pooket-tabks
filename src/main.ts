@@ -182,8 +182,9 @@ online.onSpectate = (sp) => {
 };
 document.getElementById('spectate-leave')!.addEventListener('click', () => online.close());
 document.getElementById('net-menu')!.addEventListener('click', () => online.matchMenu());
+// Start a match: the host, or a guest who joined an open game while its host was away. Players are [host, guest].
 online.onHostStart = (s) => {
-  const picks = [s.localPick!, s.remotePick!];
+  const picks = s.isHost ? [s.localPick!, s.remotePick!] : [s.remotePick!, s.localPick!];
   const colours = assignColours(picks.map((p) => p.characterId));
   s.start(randomSeed(), picks.map((p, i) => ({ name: p.name, characterId: p.characterId, colour: colours[i]! })));
 };

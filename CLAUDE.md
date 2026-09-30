@@ -79,7 +79,10 @@ what it's for; weapons are documented where they're defined.
   start / fire / result), and `NetSession.catchUp` goes by it when nobody answers a rejoin within
   `RESUME_WAIT` (replaying their last shot, or playing out one left in flight and recording it);
   `away` (back to the menu: the room stays), `resign`, and `forfeit` after `FORFEIT_MS`. Only leaving the
-  lobby (`leave`, 'bye') ends a room. `view.ts` + `spectate.ts` spectators, `lobby.ts` the public Games
+  lobby (`leave`, 'bye') or Cancel game ends a room. Hosting puts an **open offer** in the same slot
+  (`OpenRecord`: the host's pick): the game stays open (and listed, `Advert.open`, up to
+  `OPEN_ADVERT_MS`) without its host, and a guest who joins with the host away (`roomHost`) starts the
+  match itself (`startIfHostAway`). `view.ts` + `spectate.ts` spectators, `lobby.ts` the public Games
   list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle, re-listed on
   a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `seat.ts` this phone's matches
   (listed first in the Game browser, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy

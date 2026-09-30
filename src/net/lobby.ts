@@ -5,8 +5,9 @@ import { seal, sealerFor, unseal, type Sealer } from './seal';
 
 /**
  * The Games list: every public game, on any network, for anyone to join (waiting for a second player)
- * or watch (under way). A host keeps its listing fresh until the room closes; a listing that stops
- * being refreshed (the host vanished) drops off the list and is eventually removed by whoever sees it.
+ * or watch (under way). A host keeps its listing fresh while it's there; a game waiting for a player
+ * (`open`) stays on the list without its host (whoever joins first starts it), up to OPEN_ADVERT_MS; a
+ * live listing that stops being refreshed drops off quickly. Old ones are removed by whoever sees them.
  * Listings live at `lobby/<topic>/<hostId>`, sealed with a key from the list's name: that keeps the
  * database tidy, not secret (the game itself knows the name).
  */
@@ -17,6 +18,8 @@ const ADVERT_EVERY_MS = 30_000;
 const ADVERT_STALE_MS = 90_000;
 /** A listing this old is from a host long gone: whoever sees it removes it. */
 const ADVERT_GONE_MS = 10 * 60_000;
+/** A game waiting for a player stays listed this long without its host (then it's forfeit territory). */
+export const OPEN_ADVERT_MS = 3 * 24 * 60 * 60_000;
 
 /** A game on the list. */
 export interface Advert {
@@ -27,6 +30,8 @@ export interface Advert {
   ts: number;
   /** Two players are in: others can watch. */
   playing?: boolean;
+  /** Waiting for a player, and stays listed even while the host is away. */
+  open?: boolean;
   /** The second player, once they've said hello. */
   opponent?: { name: string; characterId: string };
   /** The match has finished (they may start another). */
@@ -38,7 +43,11 @@ export function lobbySealer(name = PUBLIC_LOBBY): Promise<Sealer> {
 }
 
 /** Host: keep a game on the list (refreshed) until stopped. */
-export function advertise(db: Rtdb, lobby: Sealer, ad: Omit<Advert, 'ts'>): { stop: () => void; update: (changes: Partial<Advert>) => void } {
+export function advertise(
+  db: Rtdb,
+  lobby: Sealer,
+  ad: Omit<Advert, 'ts'>,
+): { stop: () => void; pause: () => void; update: (changes: Partial<Advert>) => void } {
   const path = `lobby/${lobby.topic}/${ad.hostId}`;
   let stopped = false;
   const put = async () => {
@@ -56,6 +65,10 @@ export function advertise(db: Rtdb, lobby: Sealer, ad: Omit<Advert, 'ts'>): { st
       stopped = true;
       clearInterval(timer);
       void db.remove(path).catch(() => {});
+    },
+    pause: () => {
+      stopped = true;
+      clearInterval(timer);
     },
     update: (changes) => {
       Object.assign(ad, changes);
@@ -101,13 +114,20 @@ export class Listing {
   stop(): void {
     this.list(false);
   }
+
+  /** Stop keeping it fresh but leave it on the list (an open game carries on without its host). */
+  leave(): void {
+    this.ad?.pause();
+    this.ad = null;
+  }
 }
 
 /** Watch the list: `onList` gets every live listing (newest first) whenever it changes. */
 export function watchLobby(db: Rtdb, lobby: Sealer, onList: (games: Advert[]) => void): { stop: () => void } {
   const base = `lobby/${lobby.topic}`;
   const games = new Map<string, Advert>();
-  const emit = () => onList([...games.values()].filter((g) => Date.now() - g.ts < ADVERT_STALE_MS).sort((a, b) => b.ts - a.ts));
+  const shown = (g: Advert) => Date.now() - g.ts < (g.open && !g.playing ? OPEN_ADVERT_MS : ADVERT_STALE_MS);
+  const emit = () => onList([...games.values()].filter(shown).sort((a, b) => b.ts - a.ts));
   const take = (hostId: string, v: unknown) => {
     const m = (v as { m?: unknown } | null)?.m;
     if (typeof m !== 'string') {
@@ -118,7 +138,7 @@ export function watchLobby(db: Rtdb, lobby: Sealer, onList: (games: Advert[]) =>
     void unseal(lobby, fromB64(m)).then((a) => {
       const ad = a as Advert | null;
       if (!ad || ad.hostId !== hostId) return;
-      if (Date.now() - ad.ts > ADVERT_GONE_MS) {
+      if (Date.now() - ad.ts > (ad.open && !ad.playing ? OPEN_ADVERT_MS : 0) + ADVERT_GONE_MS) {
         void db.remove(`${base}/${hostId}`).catch(() => {}); // tidy up after a host that vanished
         return;
       }

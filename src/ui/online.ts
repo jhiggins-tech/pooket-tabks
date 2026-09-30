@@ -3,11 +3,11 @@ import { roomLink } from '../net/links';
 import { netLog, netLogText } from '../net/log';
 import { Listing, lobbySealer, watchLobby, type Advert } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
-import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom } from '../net/rooms';
+import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { sealerFor } from '../net/seal';
 import { saveCharacter } from './profile';
-import { forfeitDue, gameStatus, loadRecord, opponentName, RecordStore, type GameStatus, type StoredGame } from '../net/record';
+import { forfeitDue, gameStatus, loadRoomRecord, opponentName, RecordStore, type GameStatus, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
 import { NetSession, PROTOCOL, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
@@ -80,24 +80,60 @@ export class OnlineScreen {
     return this.opts.dbUrl;
   }
 
-  /** Host a room: a code to type, a link to open, and (unless private) a spot on the Games list. */
+  /**
+   * Host a game: a code to type, a link to open, and (unless private) a spot on the Games list. The game
+   * stays open after you leave this screen: whoever joins first starts it (turn by turn if you're away).
+   */
   async host(): Promise<void> {
     this.reset();
     netLog('ui: Host');
     if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
     this.show([heading('Host a game'), status('Opening a room…')]);
     const db = new Rtdb(this.opts.dbUrl);
-    const [lobby, opened] = await Promise.all([lobbySealer(this.opts.lobby), HostedRoom.open(db).catch((e: unknown) => e as Error)]);
+    const pick = this.pick();
+    const listed = listPublicly();
+    const [lobby, opened] = await Promise.all([
+      lobbySealer(this.opts.lobby),
+      HostedRoom.open(db, { host: pick, listed }).catch((e: unknown) => e as Error),
+    ]);
     if (opened instanceof Error) {
       netLog(`ui: couldn't open a room: ${opened.message}`);
       return this.fail(opened, () => void this.host());
     }
     const room = opened;
-    const pick = this.pick();
-    const listing = new Listing(db, lobby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code });
-    listing.list(listPublicly());
-    this.listing = listing;
+    saveSeat({ code: room.code, role: 'host', id: room.id, listed });
+    const listing = new Listing(db, lobby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code, open: true });
+    listing.list(listed);
     netLog(`ui: room ${room.code} open${listing.listed ? ', on the Games list' : ' (private)'}`);
+    this.hosting(room, listing, pick);
+  }
+
+  /** Back to our open game that nobody has joined yet: its host screen again. */
+  private async resumeHosting(seat: Seat, offer: OpenRecord['open']): Promise<void> {
+    if (!this.opts.dbUrl) return;
+    const db = new Rtdb(this.opts.dbUrl);
+    this.show([heading('Host a game'), status('Opening your game…')]);
+    let room: HostedRoom;
+    try {
+      room = await HostedRoom.reclaim(db, seat.code, seat.id);
+    } catch (e) {
+      return this.fail(e, () => void this.resumeHosting(seat, offer));
+    }
+    saveSeat({ code: seat.code, role: 'host', id: seat.id, listed: offer.listed });
+    const listing = new Listing(db, await lobbySealer(this.opts.lobby), {
+      hostId: seat.id,
+      name: offer.host.name,
+      characterId: offer.host.characterId,
+      room: seat.code,
+      open: true,
+    });
+    listing.list(offer.listed);
+    this.hosting(room, listing, offer.host);
+  }
+
+  /** The host screen for an open room, waiting for someone to join. */
+  private hosting(room: HostedRoom, listing: Listing, pick: Pick): void {
+    this.listing = listing;
     const link = roomLink(room.code);
     const render = () => {
       const big = el('div', 'online-code', room.code);
@@ -108,7 +144,26 @@ export class OnlineScreen {
       toggle.addEventListener('click', () => {
         listing.list(!listing.listed);
         listPublicly(listing.listed);
+        updateSeat(room.code, { listed: listing.listed });
+        void room.offer({ host: pick, listed: listing.listed }).catch(() => {});
         render();
+      });
+      const leave = el('button', 'online-cancel', 'Back to menu');
+      leave.id = 'online-host-leave';
+      leave.addEventListener('click', () => {
+        netLog(`ui: left ${room.code} open`);
+        updateSeat(room.code, { left: true });
+        this.close(); // stopRoom keeps it open
+      });
+      const cancel = el('button', 'online-alt', 'Cancel game');
+      cancel.id = 'online-host-cancel';
+      cancel.addEventListener('click', () => {
+        netLog(`ui: cancelled ${room.code}`);
+        this.stopRoom = null;
+        room.cancel();
+        listing.stop();
+        forgetSeat(room.code);
+        this.close();
       });
       this.show([
         heading('Host a game'),
@@ -118,22 +173,26 @@ export class OnlineScreen {
             big,
             text(
               listing.listed
-                ? 'Your game is in the Games list: on the other phone tap Join and pick it. Or type this code.'
-                : 'Private: on the other phone tap Join and type this code, or send them the link.',
+                ? 'Your game is in the Game browser: anyone can pick it. Or they can type this code.'
+                : 'Private: they type this code, or open the link you send them.',
             ),
           ),
           col(heading('Or send them the link', 'h3'), shareRow(link, 'Join my Pooket Tabks game'), toggle),
         ),
-        status('Waiting for someone to join…', 'online-status'),
-        buttons(cancelButton(() => this.close())),
+        status('Waiting for someone to join… You can go: the first to join starts it, and you take your turn when you’re back.', 'online-status'),
+        buttons(leave, cancel),
       ]);
     };
     const waiting = () => {
-      this.stopRoom = () => room.cancel();
+      // Leaving the screen (not Cancel) leaves the game open.
+      this.stopRoom = () => {
+        room.stop();
+        listing.leave();
+      };
       render();
       void room.waitForGuest(this.opts.relay).then((t) => {
-        if (this.stopRoom === null) return t.close(); // cancelled meanwhile
-        listing.update({ playing: true }); // stays listed, for anyone who wants to watch
+        if (this.stopRoom === null) return t.close(); // gone meanwhile
+        listing.update({ playing: true, open: false }); // stays listed, for anyone who wants to watch
         room.stop();
         this.stopRoom = null;
         const s = this.startSession(t, { code: room.code, role: 'host', id: room.id, listed: listing.listed });
@@ -147,8 +206,7 @@ export class OnlineScreen {
           t.detach();
           this.session = null;
           this.peer = null;
-          forgetSeat(room.code);
-          listing.update({ playing: false, opponent: undefined });
+          listing.update({ playing: false, open: true, opponent: undefined });
           void room.reopen().then(waiting, (e: unknown) => this.fail(e, () => void this.host()));
         };
       });
@@ -180,8 +238,14 @@ export class OnlineScreen {
       netLog(`ui: joining room ${c}`);
       this.show([heading('Game browser'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
       const id = randomId();
+      const room = Promise.all([roomHost(db, c), loadRoomRecord(db, c)]).catch(() => [null, null] as const);
       joinRoom(db, c, this.opts.relay, id).then(
-        (t) => (cancelled ? t.close() : this.startSession(t, { code: c, role: 'guest', id })),
+        async (t) => {
+          if (cancelled) return t.close();
+          const s = this.startSession(t, { code: c, role: 'guest', id });
+          const [host, rec] = await room;
+          if (host && rec && 'offer' in rec) this.startIfHostAway(db, s, c, host, rec.offer);
+        },
         (e) => {
           if (cancelled) return;
           // Already two players: watch instead.
@@ -223,6 +287,7 @@ export class OnlineScreen {
       draw: ['A draw', 'done'],
       old: ['Older version', 'done'],
       lobby: ['Not started', 'done'],
+      open: ['Waiting for a player', 'waiting'],
     };
     const render = () => {
       const codes = new Set(mine.map((m) => m.seat.code));
@@ -234,7 +299,7 @@ export class OnlineScreen {
       lastCounts = counts;
       const rows = [
         ...mine.map((m) =>
-          row('mine', m.seat.code, `↩ You vs ${m.opponent}`, m.detail, mineLabel[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () =>
+          row('mine', m.seat.code, m.status === 'open' ? '↩ Your game' : `↩ You vs ${m.opponent}`, m.detail, mineLabel[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () =>
             void this.rejoin(m.seat),
           ),
         ),
@@ -298,6 +363,35 @@ export class OnlineScreen {
     this.show([screenTop('Game browser', 'Updates live', () => this.close()), body], 'browser');
   }
 
+  /**
+   * Joined an open game: if its host isn't there (or doesn't say hello soon), start the match ourselves,
+   * as the second player; it carries on turn by turn until they're back.
+   */
+  private startIfHostAway(db: Rtdb, s: NetSession, code: string, host: { id: string; here: boolean }, offer: OpenRecord['open']): void {
+    const go = async () => {
+      if (this.session !== s || s.game || s.lost || s.remotePick) return;
+      netLog(`ui: ${offer.host.name} isn't here: starting the match`);
+      s.remotePick = offer.host;
+      this.onHostStart(s);
+      s.assumeAway();
+      if (offer.listed && s.localPick) {
+        // On the Games list as live now (the host isn't there to say so).
+        const listing = new Listing(db, await lobbySealer(this.opts.lobby), {
+          hostId: host.id,
+          name: offer.host.name,
+          characterId: offer.host.characterId,
+          room: code,
+          playing: true,
+          opponent: { name: s.localPick.name, characterId: s.localPick.characterId },
+        });
+        listing.list(true);
+        this.listing = listing;
+      }
+    };
+    if (host.here) setTimeout(() => void go(), JOIN_WAIT_MS);
+    else void go();
+  }
+
   /** Keep a count of the public games (waiting for a player, and live) for the landing screen. */
   watchCounts(onCounts: (waiting: number, live: number) => void): () => void {
     if (!this.opts.dbUrl) return () => {};
@@ -355,7 +449,14 @@ export class OnlineScreen {
     let t: RelayTransport;
     let stored: StoredGame | null;
     try {
-      [t, stored] = await Promise.all([rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay), loadRecord(db, seat.code)]);
+      const rec = await loadRoomRecord(db, seat.code);
+      if (rec && 'offer' in rec && seat.role === 'host') {
+        if (cancelled) return;
+        this.stopRoom = null;
+        return void this.resumeHosting(seat, rec.offer); // nobody's joined yet
+      }
+      stored = rec && 'game' in rec ? rec.game : null;
+      t = await rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay);
     } catch (e) {
       if (cancelled) return;
       if (/ended|taken/.test(message(e))) forgetSeat(seat.code);
@@ -677,7 +778,7 @@ export class OnlineScreen {
 /** One of this phone's matches, and how it stands. */
 export interface MatchSummary {
   seat: Seat;
-  status: GameStatus | 'lobby';
+  status: GameStatus | 'lobby' | 'open';
   opponent: string;
   /** Who's playing which character ("tones vs kie"), yours first. */
   detail: string;
@@ -691,7 +792,9 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
   const out = await Promise.all(
     loadSeats().map(async (seat): Promise<MatchSummary | null> => {
       try {
-        const stored = await loadRecord(db, seat.code);
+        const rec = await loadRoomRecord(db, seat.code);
+        if (rec && 'offer' in rec) return { seat, status: 'open', opponent: '…', detail: `${charName(rec.offer.host.characterId)} · waiting for a player` };
+        const stored = rec && 'game' in rec ? rec.game : null;
         if (!stored) {
           const sealer = await sealerFor('room', seat.code);
           if (!(await db.get(`rooms/${sealer.topic}/host`))) return (forgetSeat(seat.code), null);
@@ -708,6 +811,9 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
   );
   return out.filter((m): m is MatchSummary => m !== null);
 }
+
+/** Joined an open game whose host was here a moment ago: how long to wait for their hello before starting without them. */
+const JOIN_WAIT_MS = 6000;
 
 const LISTED_KEY = 'pooket.listPublicly';
 

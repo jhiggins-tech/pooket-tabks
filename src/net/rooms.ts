@@ -1,6 +1,7 @@
 import { netLog } from './log';
 import { RelayTransport, ROOM_CLEARED } from './relay';
 import { RtdbError, SERVER_TIME, type Rtdb } from './rtdb';
+import { saveOffer, type OpenRecord } from './record';
 import { sealerFor, type Sealer } from './seal';
 
 /**
@@ -13,9 +14,9 @@ import { sealerFor, type Sealer } from './seal';
  */
 
 export const ROOM_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-/** A host that hasn't checked in for this long has gone. */
-const HOST_STALE_MS = 3 * 60_000;
-const HOST_REFRESH_MS = 60_000;
+/** A host that hasn't checked in for this long has gone (or is away from its open game). */
+const HOST_STALE_MS = 90_000;
+const HOST_REFRESH_MS = 30_000;
 
 export function randomId(): string {
   const b = globalThis.crypto.getRandomValues(new Uint8Array(8));
@@ -47,8 +48,11 @@ export class HostedRoom {
     private readonly hostId: string,
   ) {}
 
-  /** Claim a fresh room code (trying another if it's taken). */
-  static async open(db: Rtdb): Promise<HostedRoom> {
+  /**
+   * Claim a fresh room code (trying another if it's taken). With an `offer`, the game is open: whoever
+   * joins first can start it, even with the host away.
+   */
+  static async open(db: Rtdb, offer?: OpenRecord['open']): Promise<HostedRoom> {
     const hostId = randomId();
     for (let attempt = 0; attempt < 6; attempt++) {
       const code = newRoomCode();
@@ -58,6 +62,7 @@ export class HostedRoom {
         await db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME });
         // A clean slate (leftovers from an old game with the same code).
         await db.patch(path, { guest: null, h2g: null, g2h: null, view: null, game: null });
+        if (offer) await saveOffer(db, path, sealer, offer);
         netLog(`rooms: hosting ${code}`);
         const room = new HostedRoom(db, code, path, sealer, hostId);
         room.timers.push(setInterval(() => void db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
@@ -71,6 +76,22 @@ export class HostedRoom {
       }
     }
     throw new Error("The game server wouldn't open a room. Try again in a moment.");
+  }
+
+  /** Back to our open game (nobody's joined yet): the host seat again, waiting as before. */
+  static async reclaim(db: Rtdb, code: string, hostId: string): Promise<HostedRoom> {
+    const sealer = await sealerFor('room', code);
+    const path = `rooms/${sealer.topic}`;
+    await db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME });
+    netLog(`rooms: back to hosting ${code}`);
+    const room = new HostedRoom(db, code, path, sealer, hostId);
+    room.timers.push(setInterval(() => void db.put(`${path}/host`, { id: hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
+    return room;
+  }
+
+  /** Update the open offer (e.g. listed or private). */
+  offer(offer: OpenRecord['open']): Promise<void> {
+    return saveOffer(this.db, this.path, this.sealer, offer);
   }
 
   /** Resolves with a message pipe once someone takes the guest seat. */
@@ -94,7 +115,7 @@ export class HostedRoom {
   async reopen(): Promise<void> {
     this.stopped = false;
     this.guestStream?.close();
-    await this.db.patch(this.path, { guest: null, h2g: null, g2h: null, view: null, game: null });
+    await this.db.patch(this.path, { guest: null, h2g: null, g2h: null, view: null }); // (the open offer stays)
     this.timers.push(setInterval(() => void this.db.put(`${this.path}/host`, { id: this.hostId, ts: SERVER_TIME }).catch(() => {}), HOST_REFRESH_MS));
     netLog('rooms: guest seat freed');
   }
@@ -124,8 +145,9 @@ type RelayOptions = ConstructorParameters<typeof RelayTransport>[4];
 export async function joinRoom(db: Rtdb, code: string, opts?: RelayOptions, id = randomId()): Promise<RelayTransport> {
   const sealer = await sealerFor('room', code);
   const path = `rooms/${sealer.topic}`;
-  const host = await db.get<{ id: string; ts: number }>(`${path}/host`);
-  if (!host || Date.now() - host.ts > HOST_STALE_MS) {
+  const [host, open] = await Promise.all([db.get<{ id: string; ts: number }>(`${path}/host`), db.get<number>(`${path}/game/ts`)]);
+  // An open game can be joined with its host away; otherwise the host has to be there.
+  if (!host || (open === null && Date.now() - host.ts > HOST_STALE_MS)) {
     netLog(`rooms: no live host for ${code}${host ? ' (stale)' : ''}`);
     throw new Error(`No game with code ${code}. Check it, and that the host is still on the Host screen.`);
   }
@@ -137,6 +159,13 @@ export async function joinRoom(db: Rtdb, code: string, opts?: RelayOptions, id =
   }
   netLog(`rooms: joined ${code}`);
   return new RelayTransport(db, path, 'guest', sealer, { ...opts, me: id, peer: host.id }).start();
+}
+
+/** Whether a room's host is there right now (it checks in every HOST_REFRESH_MS while it is), and who it is. */
+export async function roomHost(db: Rtdb, code: string): Promise<{ id: string; here: boolean } | null> {
+  const sealer = await sealerFor('room', code);
+  const host = await db.get<{ id: string; ts: number }>(`rooms/${sealer.topic}/host`);
+  return host ? { id: host.id, here: Date.now() - host.ts < HOST_STALE_MS } : null;
 }
 
 /** Take back our seat in a match we dropped out of (the seat remembers our id), with a fresh pipe. */

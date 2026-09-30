@@ -200,6 +200,28 @@ describe('the game record', () => {
     void b;
   });
 
+  it('the guest can start the match (it joined an open game with the host away); the host takes it up later', async () => {
+    const store = new MemoryStore();
+    const [ta, tb] = loopback();
+    const host = new NetSession(ta, 'host');
+    const guest = new NetSession(tb, 'guest');
+    for (const s of [host, guest]) {
+      s.onStart = onStart;
+      s.store = store;
+    }
+    guest.setPick({ name: 'B', characterId: 'kcaj' });
+    guest.remotePick = { name: 'A', characterId: 'tones' }; // from the open offer
+    guest.start(99, PLAYERS);
+    guest.assumeAway();
+    await flush();
+    expect(store.rec).toMatchObject({ setup: { seed: 99 } });
+    expect(guest.peerAway).toBe(true);
+    // The host was there after all (a slow hello): it takes up the guest's match rather than ignoring it.
+    expect(host.game).not.toBeNull();
+    expect(host.game!.players.map((p) => p.name)).toEqual(['A', 'B']);
+    expect(host.game!.seed).toBe(99);
+  });
+
   it('resigning ends it for both, and the record says so', async () => {
     const store = new MemoryStore();
     const { a, b } = await connected(store);

@@ -39,6 +39,12 @@ Everything queued so far has shipped (details under **Shipped** below).
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Open games**: a hosted game stays open after the host leaves the Host screen (**Back to menu**; it's
+  in their own games as "Waiting for a player", and tapping it reopens the Host screen). It stays in
+  the Game browser for up to 3 days without its host, and the first to join becomes player 2 and starts
+  the match right away if the host isn't there (after 6 s if the host was there a moment ago but hasn't
+  said hello); it then goes turn by turn. **Cancel game** takes it down. The room keeps the host's
+  offer (name, character, listed or private) in its `game` record until the match starts.
 - **Landing screen** (designed with mock-ups first, approved): "Playing as NAME ✎ Change", then two big
   cards: **🌐 Game browser** (host, join or watch online; a mint dot on its corner counts the online
   turns waiting for you, and a line under it how many games are waiting or live) and **👥 Local
