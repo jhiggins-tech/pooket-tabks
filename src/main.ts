@@ -30,14 +30,15 @@ import { SfxPlayer } from './audio/sfx';
 import { takeRoomCode } from './net/links';
 import { netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
-import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
+import { AUTO_REJOIN_MS, latestSeat } from './net/seat';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
 import { WhatsNew } from './ui/whatsnew';
 import { matchesOf, OnlineScreen } from './ui/online';
 import { Rtdb } from './net/rtdb';
-import { loadUsername, NamePrompt } from './ui/profile';
+import { loadCharacter, loadUsername, NamePrompt } from './ui/profile';
+import { Landing } from './ui/landing';
 import { SetupScreen } from './ui/setup';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -53,12 +54,40 @@ const firstParam = new URLSearchParams(location.search).get('first') ?? (navigat
 const first: number | 'random' = firstParam === 'random' ? 'random' : Number(firstParam) || 0;
 let players: PlayerConfig[] = [];
 
+// The menus: the landing screen (Game browser, Local hotseat), and the hotseat screen that starts a local match.
 const setup = new SetupScreen((chosen) => {
   players = chosen;
-  setup.hide();
+  hideMenus();
   newGame();
   void goFullscreen();
 });
+const landing = new Landing({
+  browser: () => void online.join(),
+  hotseat: () => {
+    landing.hide();
+    setup.show();
+  },
+  changeName: () => void namePrompt.ask(yourName()).then(setUsername),
+});
+document.getElementById('hotseat-back')!.addEventListener('click', () => {
+  setup.hide();
+  showLanding();
+});
+const namePrompt = new NamePrompt();
+/** This phone's player: the saved username (or, until there is one, Player 1's name). */
+const yourName = () => loadUsername() ?? setup.players()[0]!.name;
+function setUsername(name: string): void {
+  setup.setUsername(name);
+  landing.setName(name);
+}
+landing.setName(yourName());
+function hideMenus(): void {
+  setup.hide();
+  landing.hide();
+  stopCounts();
+  stopCounts = () => {};
+}
+let stopCounts = () => {};
 
 // A live battlefield sits behind the setup screen until the real match starts.
 let state: GameState = createGame({ seed: nextSeed, players: setup.players(), first });
@@ -98,7 +127,8 @@ const info = new InfoScreen(
   (id) => state.players.find((p) => p.characterId === id)?.colour ?? getCharacter(id).colours[0]!,
 );
 document.getElementById('info-open')!.addEventListener('click', () => info.open(currentPlayer(state).characterId));
-document.getElementById('setup-info')!.addEventListener('click', () => info.open(setup.players()[0]?.characterId));
+document.getElementById('setup-info')!.addEventListener('click', () => info.open(loadCharacter() ?? setup.players()[0]?.characterId));
+document.getElementById('hotseat-info')!.addEventListener('click', () => info.open(setup.players()[0]?.characterId));
 
 /** Which drive button is held (−1 / 0 / +1); applied every simulation step. */
 let driveDir = 0;
@@ -116,10 +146,8 @@ let net: NetSession | null = null;
 const query = new URLSearchParams(location.search);
 const debugNet = query.has('debug');
 const online = new OnlineScreen({
-  pick: () => {
-    const p = setup.players()[0]!;
-    return { name: p.name, characterId: p.characterId };
-  },
+  // Online you're you: your name, and the character you last played online (changeable in the lobby).
+  pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId }),
   dbUrl: (debugNet && query.get('db')) || FIREBASE_DATABASE_URL || null,
   // `?debug&lobby=NAME`: a Games list of its own (tests, so they don't see each other's games).
   lobby: (debugNet && query.get('lobby')) || PUBLIC_LOBBY,
@@ -134,7 +162,7 @@ online.onConnected = (s) => {
     hud.reset();
     sfx.tunes.stopAll();
     online.hide();
-    setup.hide();
+    hideMenus();
     document.getElementById('gameover')!.hidden = true;
     void goFullscreen();
     return state;
@@ -147,7 +175,7 @@ online.onSpectate = (sp) => {
     hud.reset();
     sfx.tunes.stopAll();
     online.hide();
-    setup.hide();
+    hideMenus();
     document.getElementById('gameover')!.hidden = true;
     return state;
   };
@@ -161,40 +189,36 @@ online.onHostStart = (s) => {
 };
 online.onClosed = () => {
   net = null;
-  // Back to the setup screen, with a fresh battlefield behind it.
+  // Back to the landing screen, with a fresh battlefield behind it.
   state = createGame({ seed: randomSeed(), players: setup.players(), first });
   hud.reset();
   sfx.tunes.stopAll();
   document.getElementById('gameover')!.hidden = true;
-  setup.show();
-  showRejoin();
+  showLanding();
 };
-// This phone's online matches (played turn by turn, or dropped out of): My games, with how many are waiting on us.
-const gamesBtn = document.getElementById('setup-games') as HTMLButtonElement;
-let gamesCheck = 0;
-function showRejoin(): void {
-  const n = loadSeats().length;
-  gamesBtn.hidden = n === 0;
-  gamesBtn.textContent = `🎮 My games (${n})`;
+/**
+ * The landing screen, kept up to date: the turns waiting for you in your online matches (the dot on the
+ * Game browser), and how many public games are open or live (while it's showing).
+ */
+let turnsCheck = 0;
+function showLanding(): void {
+  setup.hide();
+  landing.show();
+  landing.setName(yourName());
   const url = online.dbUrl;
-  if (!n || !url) return;
-  const check = ++gamesCheck;
+  if (!url) return;
+  const check = ++turnsCheck;
   void matchesOf(new Rtdb(url)).then((games) => {
-    if (check !== gamesCheck) return;
-    const yours = games.filter((g) => g.status === 'your-turn').length;
-    gamesBtn.hidden = games.length === 0;
-    gamesBtn.textContent = `🎮 My games (${games.length})${yours ? ` · ${yours} your turn` : ''}`;
-    gamesBtn.classList.toggle('your-turn', yours > 0);
+    if (check === turnsCheck) landing.setTurnsWaiting(games.filter((g) => g.status === 'your-turn').length);
   });
+  stopCounts();
+  stopCounts = online.watchCounts((waiting, live) => landing.setCounts(waiting, live));
 }
-gamesBtn.addEventListener('click', () => void online.myGames());
-document.getElementById('host-online')!.addEventListener('click', () => void online.host());
-document.getElementById('join-online')!.addEventListener('click', () => void online.join());
 // Opened from a room link: join that room (or rejoin it, if it's ours). Reloaded mid-match: straight back in.
 const openedRoom = takeRoomCode();
 const droppedSeat = latestSeat();
 const autoRejoin = !openedRoom && !!droppedSeat && !droppedSeat.left && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
-showRejoin();
+showLanding();
 const whatsNew = new WhatsNew();
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
 function welcome(): void {
@@ -205,8 +229,8 @@ function welcome(): void {
 }
 // A browser that's never been told who's playing asks first (automated tests only with `?askname`).
 if (!loadUsername() && (!navigator.webdriver || query.has('askname'))) {
-  void new NamePrompt().ask(setup.suggestedName()).then((name) => {
-    setup.setUsername(name);
+  void namePrompt.ask(setup.suggestedName()).then((name) => {
+    setUsername(name);
     welcome();
   });
 } else {

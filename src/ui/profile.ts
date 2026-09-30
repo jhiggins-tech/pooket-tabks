@@ -1,9 +1,10 @@
+import { isCharacterId } from '../characters/roster';
 import { NAME_MAX } from './seats';
 
 /**
  * Who's playing on this phone: a username asked for the first time the game opens in a browser, saved in
- * localStorage, and used as Player 1's name (hotseat and online: lobby, Games list, spectators). Editing
- * Player 1's name on the setup screen changes it.
+ * localStorage, and used as their name online (lobby, Game browser, spectators) and as Player 1's in a
+ * hotseat match. ✎ Change on the landing screen changes it. Also the character they last played online.
  */
 
 export const USERNAME_KEY = 'pooket.username';
@@ -33,6 +34,26 @@ export function saveUsername(raw: string): string | null {
   return name;
 }
 
+export const CHARACTER_KEY = 'pooket.character';
+
+/** The character this phone last played online (picked in the online lobby). */
+export function loadCharacter(): string | null {
+  try {
+    const id = localStorage.getItem(CHARACTER_KEY);
+    return id && isCharacterId(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCharacter(id: string): void {
+  try {
+    localStorage.setItem(CHARACTER_KEY, id);
+  } catch {
+    /* it'll just be picked again */
+  }
+}
+
 /** The first-visit prompt: "What's your name?", until one is saved. */
 export class NamePrompt {
   private readonly root = el('div', 'overlay');
@@ -49,7 +70,7 @@ export class NamePrompt {
     const h = el('h2');
     h.textContent = 'What’s your name?';
     const p = el('p');
-    p.textContent = 'It’s your player name, here and in online games. You can change it on the setup screen (Player 1).';
+    p.textContent = 'It’s your player name, here and in online games. You can change it any time (✎ Change).';
     this.input.type = 'text';
     this.input.maxLength = NAME_MAX;
     this.input.setAttribute('autocomplete', 'nickname');

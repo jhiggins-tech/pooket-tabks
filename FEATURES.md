@@ -4,15 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Simpler landing screen** (after async play). **Deliver a screen grab of the new menus for approval
-   first; build it only once approved.**
-   - The first screen gets three big buttons, and the Player 1 / Player 2 rows move off it (the name now
-     comes from the first-visit prompt, and picking two players is only for hotseat):
-     - **Host an online game** (replaces the big red Start battle button),
-     - **Game browser** (replaces Join, opens the reworked Games screen),
-     - **Local hotseat** (a new screen to pick Player 1 and Player 2 and their characters, then start).
-   - The Games screen reworked: a big table of available games taking most of the screen, with "enter a
-     code" off to the side, small.
+Everything queued so far has shipped (details under **Shipped** below).
+
+1. _(empty; next requests go here)_
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -45,6 +39,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Landing screen** (designed with mock-ups first, approved): "Playing as NAME ✎ Change", then two big
+  cards: **🌐 Game browser** (host, join or watch online; a mint dot on its corner counts the online
+  turns waiting for you, and a line under it how many games are waiting or live) and **👥 Local
+  hotseat**; plus ⓘ Weapons & how to play and ✨ What's new. The Player 1 / Player 2 rows moved to the
+  **Local hotseat** screen (two cards, a character and a name each, Start battle); Player 1 starts as
+  you, and names typed there are just for that match. Online you play your last online character
+  (changeable in the lobby, remembered).
+- **Game browser**: a full-screen table, your matches first ("↩ You vs Kim · Your turn · Play", their
+  turn, won/lost), then everyone's: waiting for a player (Join), live and finished (👁 Watch), updating
+  live. A side panel: **📶 Host a game**, and under it "Private game? Enter its code". (My games lives
+  here now.)
 - **Your name**: the first time the game opens in a browser with no saved username, a "What's your
   name?" prompt comes up before anything else (even an invite link), pre-filled with a name typed in
   before. It's saved in the browser and is Player 1's name (hotseat) and your name online (lobby, Games

@@ -101,7 +101,7 @@ export function forfeitDue(g: StoredGame, now = Date.now()): boolean {
 
 export type GameStatus = 'your-turn' | 'their-turn' | 'won' | 'lost' | 'draw' | 'old';
 
-/** How a match stands for the player in `seat` (0 host, 1 guest), for the My games list. */
+/** How a match stands for the player in `seat` (0 host, 1 guest), for the Game browser's list of your matches. */
 export function gameStatus(g: StoredGame, seat: number, protocol: number, now = Date.now()): GameStatus {
   if (g.rec.v !== protocol) return 'old';
   const snap = g.rec.snap as Snapshot & { phase: string; current: number };

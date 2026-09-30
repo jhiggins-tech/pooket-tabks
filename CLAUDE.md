@@ -40,7 +40,7 @@ what it's for; weapons are documented where they're defined.
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
 | `src/net/` | online play (below) |
-| `src/ui/` | setup (Player 1 = the saved username, `profile.ts`, asked for on a first visit), info (ⓘ), what's new, online screens |
+| `src/ui/` | `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (Game browser, hosting, lobby, match menu) |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together; `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in) |
 | `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows) |
@@ -82,7 +82,7 @@ what it's for; weapons are documented where they're defined.
   lobby (`leave`, 'bye') ends a room. `view.ts` + `spectate.ts` spectators, `lobby.ts` the public Games
   list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle, re-listed on
   a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `seat.ts` this phone's matches
-  (the My games list, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy
+  (listed first in the Game browser, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy
   logs" button; `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test
   its own Games list).
 

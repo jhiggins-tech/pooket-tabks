@@ -7,9 +7,17 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.goto('./?seed=12345&debug');
   await expect(page.locator('#rotate')).toBeHidden();
 
-  // --- Setup screen: two players, three characters, names pre-filled ---
-  const rows = page.locator('.setup-row');
-  await expect(rows).toHaveCount(2);
+  // --- Landing screen: the Game browser, or Local hotseat ---
+  await expect(page.locator('#setup')).toBeVisible();
+  await expect(page.locator('#open-browser')).toContainText('Game browser');
+  await expect(page.locator('#turns-dot')).toBeHidden();
+  await page.screenshot({ path: 'test-results/landing.png' });
+  await page.locator('#open-hotseat').tap();
+  await expect(page.locator('#setup')).toBeHidden();
+
+  // --- Local hotseat: two players, a character each, names pre-filled ---
+  const cards = page.locator('#hotseat .seat-card');
+  await expect(cards).toHaveCount(2);
   const p1Char = page.getByLabel('Player 1 character');
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
@@ -26,12 +34,17 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await p1Name.fill('Jack');
   await p1Char.selectOption('kie');
   await expect(p1Name).toHaveValue('Jack');
-  const swatches = await rows.evaluateAll((els) => els.map((el) => getComputedStyle(el).getPropertyValue('--c')));
-  expect(new Set(swatches).size).toBe(2);
+  const colours = await cards.evaluateAll((els) => els.map((el) => getComputedStyle(el).getPropertyValue('--c')));
+  expect(new Set(colours).size).toBe(2);
 
   await page.screenshot({ path: 'test-results/setup.png' });
+  // Back to the landing screen and in again: the picks are kept.
+  await page.locator('#hotseat-back').tap();
+  await expect(page.locator('#setup')).toBeVisible();
+  await page.locator('#open-hotseat').tap();
+  await expect(p2Char).toHaveValue('kcaj');
   await page.locator('#start').tap();
-  await expect(page.locator('#setup')).toBeHidden();
+  await expect(page.locator('#hotseat')).toBeHidden();
 
   // --- Battle ---
   await expect(page.locator('#players .chip')).toHaveCount(2);
@@ -103,6 +116,7 @@ test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=4242');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('kcaj');
   await page.locator('#start').tap();
 
@@ -142,6 +156,7 @@ test("tones' ten-1 water jet", async ({ page }) => {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777');
   await expect(page.getByLabel('Player 1 character')).toHaveValue('tones');
+  await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
 
   const weapons = page.locator('#weapons .weapon');
@@ -164,6 +179,7 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=31&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('kie');
   await page.getByLabel('Player 2 character').selectOption('kcaj');
   await page.locator('#start').tap();
@@ -242,6 +258,7 @@ test("kie's Steal roulette", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=31&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('kie');
   await page.getByLabel('Player 2 character').selectOption('tones');
   await page.locator('#start').tap();
@@ -284,6 +301,7 @@ test("tones' ten-2 jetpack", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
   type Debug = { state: { players: { x: number; y: number }[] } };
   const tonesPos = () => page.evaluate(() => {
@@ -319,6 +337,7 @@ test("tones' ten-3 spew", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777');
+  await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'ten-3, 1 left');
@@ -335,6 +354,7 @@ test("torikloud's Sonic Boom and the kookaburra in the sky", async ({ page }) =>
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('torikloud');
   await expect(page.getByLabel('Player 1 name')).toHaveValue('torikloud');
   await page.getByLabel('Player 2 character').selectOption('larinovsky');
@@ -359,6 +379,7 @@ test('drive with fuel before firing', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
   type Dbg = { __pooket: { state: { players: { x: number; fuel: number }[] } } };
   const me = () => page.evaluate(() => ({ ...(window as unknown as Dbg).__pooket.state.players[0]! }));
@@ -392,6 +413,7 @@ test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) =>
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('larinovsky');
   await page.locator('#start').tap();
   const weapons = page.locator('#weapons .weapon');
@@ -429,6 +451,7 @@ test("larinovsky's Take a Nap: cats curl up alongside, and the weapons come back
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('larinovsky');
   await page.locator('#start').tap();
   type NapDbg = { __pooket: { state: { naps: unknown[]; players: { x: number; y: number; ammo: number[] }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
@@ -452,6 +475,7 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('larinovsky');
   await page.getByLabel('Player 2 character').selectOption('kcaj');
   await page.locator('#start').tap();
@@ -489,6 +513,7 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('torikloud');
   await page.locator('#start').tap();
   const weapons = page.locator('#weapons .weapon');
@@ -518,6 +543,7 @@ test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('ciarra');
   await page.locator('#start').tap();
   const weapons = page.locator('#weapons .weapon');
@@ -553,10 +579,11 @@ test('info screen explains every character and weapon', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=4242&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('ciarra');
 
-  // From the setup screen: opens on player 1's character.
-  await page.locator('#setup-info').tap();
+  // From the hotseat screen: opens on player 1's character.
+  await page.locator('#hotseat-info').tap();
   const info = page.locator('#info');
   await expect(info).toBeVisible();
   await expect(page.locator('.info-character h2')).toHaveText('ciarra');
@@ -596,6 +623,7 @@ test('8-bit sound effects play, and the sound toggle is remembered', async ({ pa
   page.on('pageerror', (e) => errors.push(e.message));
   type Dbg = { __pooket: { sfx: { played: number }; chip: { ready: boolean } } };
   await page.goto('./?seed=77&debug');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('kcaj');
   await page.locator('#start').tap();
   const toggle = page.locator('#sound-toggle');
@@ -615,6 +643,7 @@ test('8-bit sound effects play, and the sound toggle is remembered', async ({ pa
   await expect(toggle).toHaveText('🔇');
   expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.chip.ready)).toBe(false);
   await page.reload();
+  await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
   await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'false');
   expect(errors).toEqual([]);
@@ -622,10 +651,12 @@ test('8-bit sound effects play, and the sound toggle is remembered', async ({ pa
 
 test('remembers the last setup', async ({ page }) => {
   await page.goto('./');
+  await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 name').fill('Remembered');
   await page.getByLabel('Player 2 character').selectOption('kcaj');
   await page.locator('#start').tap();
   await page.reload();
+  await page.locator('#open-hotseat').tap();
   await expect(page.getByLabel('Player 1 name')).toHaveValue('Remembered');
   await expect(page.getByLabel('Player 2 character')).toHaveValue('kcaj');
 });
@@ -637,7 +668,7 @@ test('asks to rotate when held in portrait', async ({ page }) => {
   await page.screenshot({ path: 'test-results/phone-portrait.png' });
 });
 
-test('a first visit asks your name; it becomes Player 1 and sticks (and editing Player 1 changes it)', async ({ page }) => {
+test('a first visit asks your name; it sticks, ✎ Change changes it, and it starts as Player 1 in hotseat', async ({ page }) => {
   await page.goto('./?askname');
   const prompt = page.locator('#name-prompt');
   await expect(prompt).toBeVisible();
@@ -649,29 +680,34 @@ test('a first visit asks your name; it becomes Player 1 and sticks (and editing 
   await page.screenshot({ path: 'test-results/name-prompt.png' });
   await ok.tap();
   await expect(prompt).toBeHidden();
-  const p1 = page.getByLabel('Player 1 name');
-  await expect(p1).toHaveValue('Jack');
+  await expect(page.locator('#you-name')).toHaveText('Jack');
 
-  // Remembered: no question next time, and a new character doesn't rename you.
+  // Remembered: no question next time.
   await page.reload();
   await expect(page.locator('#setup')).toBeVisible();
   await expect(prompt).toBeHidden();
-  await expect(p1).toHaveValue('Jack');
+  await expect(page.locator('#you-name')).toHaveText('Jack');
+
+  // ✎ Change, from the landing screen.
+  await page.locator('#you-change').tap();
+  await expect(prompt.getByRole('textbox')).toHaveValue('Jack');
+  await prompt.getByRole('textbox').fill('Jacko');
+  await ok.tap();
+  await expect(page.locator('#you-name')).toHaveText('Jacko');
+
+  // Hotseat: Player 1 starts as you; a name typed there is just for that match.
+  await page.locator('#open-hotseat').tap();
+  const p1 = page.getByLabel('Player 1 name');
+  await expect(p1).toHaveValue('Jacko');
   await page.getByLabel('Player 1 character').selectOption('ciarra');
-  await expect(p1).toHaveValue('Jack');
-
-  // Change it from the setup screen; blank goes back to what it was.
-  await p1.fill('Jacko');
-  await p1.press('Enter');
-  await page.reload();
   await expect(p1).toHaveValue('Jacko');
-  await p1.fill('');
-  await p1.press('Enter');
-  await expect(p1).toHaveValue('Jacko');
-
-  // The game uses it.
+  await p1.fill('Nan');
   await page.locator('#start').tap();
-  await expect(page.locator('#players .chip').first()).toContainText('Jacko');
+  await expect(page.locator('#players .chip').first()).toContainText('Nan');
+  await page.reload();
+  await expect(page.locator('#you-name')).toHaveText('Jacko');
+  await page.locator('#open-hotseat').tap();
+  await expect(p1).toHaveValue('Jacko');
 });
 
 test('a first visit from an invite link asks your name before the invite', async ({ page }) => {
@@ -681,7 +717,7 @@ test('a first visit from an invite link asks your name before the invite', async
   await page.getByRole('textbox', { name: 'Your name' }).fill('Ann');
   await page.locator('#name-ok').tap();
   await expect(page.locator('#online-accept')).toBeVisible();
-  await expect(page.getByLabel('Player 1 name')).toHaveValue('Ann');
+  await expect(page.locator('#you-name')).toHaveText('Ann');
 });
 
 test("what's new shows once per version, and can be reopened from setup", async ({ page }) => {
@@ -710,6 +746,7 @@ test('who goes first is random, picked from the seed', async ({ page }) => {
   // Seed 12345 picks player 2, seed 12347 player 1.
   for (const [seed, starts] of [[12345, 'kie'], [12347, 'tones']] as const) {
     await page.goto(`./?seed=${seed}&first=random`);
+    await page.locator('#open-hotseat').tap();
     await page.locator('#start').tap();
     await expect(page.locator('.chip.active .name')).toHaveText(starts);
   }

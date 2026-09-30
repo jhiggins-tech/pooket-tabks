@@ -6,6 +6,7 @@ import { RelayTransport } from '../net/relay';
 import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { sealerFor } from '../net/seal';
+import { saveCharacter } from './profile';
 import { forfeitDue, gameStatus, loadRecord, opponentName, RecordStore, type GameStatus, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
 import { NetSession, PROTOCOL, type Pick } from '../net/session';
@@ -31,7 +32,7 @@ export interface OnlineOptions {
  * Then both land in a little lobby where the host starts the battle.
  *
  * A match is live while both phones are there and turn by turn when they aren't: either can go back to
- * the menu (the match waits, up to three days a turn), and My games lists this phone's matches to go
+ * the menu (the match waits, up to three days a turn), and the Game browser lists this phone's matches to go
  * back to. Leaving in the lobby, before the match starts, ends it.
  */
 export class OnlineScreen {
@@ -155,10 +156,14 @@ export class OnlineScreen {
     waiting();
   }
 
-  /** Join: the live Games list (tap to join or watch), or type a room code. With a code, go straight in. */
+  /**
+   * The Game browser: a table of games (this phone's matches first, then everyone's, waiting for a player,
+   * live or finished; updating live), with Host a game and a private game's code to the side. With a code,
+   * go straight in.
+   */
   async join(code?: string): Promise<void> {
     this.reset();
-    netLog(`ui: Join${code ? ` ${code}` : ''}`);
+    netLog(`ui: ${code ? `Join ${code}` : 'Game browser'}`);
     if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
     const db = new Rtdb(this.opts.dbUrl);
     let stopWatch = () => {};
@@ -173,7 +178,7 @@ export class OnlineScreen {
       const seat = findSeat(c);
       if (seat) return void this.rejoin(seat);
       netLog(`ui: joining room ${c}`);
-      this.show([heading('Games'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
+      this.show([heading('Game browser'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
       const id = randomId();
       joinRoom(db, c, this.opts.relay, id).then(
         (t) => (cancelled ? t.close() : this.startSession(t, { code: c, role: 'guest', id })),
@@ -188,55 +193,85 @@ export class OnlineScreen {
     const typed = normaliseRoomCode(code ?? '');
     if (typed) return joinCode(typed);
 
-    this.show([heading('Games'), status('Looking for games…')]);
+    this.show([heading('Game browser'), status('Looking for games…')]);
     const [lobby, up] = await Promise.all([lobbySealer(this.opts.lobby), db.reachable()]);
     if (cancelled) return;
     if (!up) return this.fail(new Error("Couldn't reach the game server. Is this phone online?"), () => void this.join());
-    const open = el('div', 'online-games');
-    open.id = 'online-open';
-    const live = el('div', 'online-games');
-    live.id = 'online-live';
+
+    const table = el('div', 'games-table');
+    table.id = 'online-games';
+    let mine: MatchSummary[] = [];
+    let adverts: Advert[] = [];
     let lastCounts = '';
-    const game = (g: Advert, label: string, detail: string, go: () => void) => {
-      const b = el('button', 'online-game', label);
-      b.dataset.room = g.room;
-      b.append(el('small', undefined, ` ${detail}`));
+    const who = (name: string, characterId: string) => `${name} (${getCharacter(characterId).name})`;
+    const row = (kind: string, room: string, title: string, detail: string, pill: [string, string], action: [string, string], go: () => void) => {
+      const r = el('div', `games-row ${kind}`);
+      r.dataset.room = room;
+      r.dataset.kind = kind;
+      const name = el('span', 'games-name', title);
+      name.append(el('small', undefined, detail));
+      const b = el('button', `games-go ${action[1]}`, action[0]);
       b.addEventListener('click', go);
-      return b;
+      r.append(name, el('span', `pill ${pill[1]}`, pill[0]), b);
+      return r;
     };
-    const render = (games: Advert[]) => {
-      const mine = new Set(loadSeats().map((x) => x.code));
-      const waiting = games.filter((g) => !g.playing);
-      const playing = games.filter((g) => g.playing);
-      const counts = `${waiting.length} waiting, ${playing.length} live`;
-      if (counts !== lastCounts) netLog(`ui: Games list shows ${counts}`);
+    const mineLabel: Record<MatchSummary['status'], [string, string]> = {
+      'your-turn': ['Your turn', 'mine'],
+      'their-turn': ['Their turn', 'done'],
+      won: ['You won', 'done'],
+      lost: ['You lost', 'done'],
+      draw: ['A draw', 'done'],
+      old: ['Older version', 'done'],
+      lobby: ['Not started', 'done'],
+    };
+    const render = () => {
+      const codes = new Set(mine.map((m) => m.seat.code));
+      const others = adverts.filter((g) => !codes.has(g.room));
+      const waiting = others.filter((g) => !g.playing);
+      const playing = others.filter((g) => g.playing);
+      const counts = `${mine.length} yours, ${waiting.length} waiting, ${playing.length} live`;
+      if (counts !== lastCounts) netLog(`ui: Game browser shows ${counts}`);
       lastCounts = counts;
-      const who = (name: string, characterId: string) => `${name} (${getCharacter(characterId).name})`;
-      open.replaceChildren(
-        ...(waiting.length
-          ? waiting.map((g) =>
-              mine.has(g.room)
-                ? game(g, `↩ ${g.name}'s game`, 'your match · rejoin', () => joinCode(g.room))
-                : game(g, g.name, `${getCharacter(g.characterId).name} · tap to join`, () => joinCode(g.room)),
-            )
-          : [el('p', 'online-none', "No one's waiting. Tap Host to start a game.")]),
-      );
-      live.replaceChildren(
-        ...(playing.length
-          ? playing.map((g) =>
-              mine.has(g.room)
-                ? game(g, `↩ ${g.name}'s game`, 'your match · rejoin', () => joinCode(g.room))
-                : game(
-                    g,
-                    `👁 ${who(g.name, g.characterId)} vs ${g.opponent ? who(g.opponent.name, g.opponent.characterId) : '…'}`,
-                    g.over ? 'finished · watch' : 'playing · watch',
-                    () => void this.watch(g.room),
-                  ),
-            )
-          : [el('p', 'online-none', 'No games on right now.')]),
+      const rows = [
+        ...mine.map((m) =>
+          row('mine', m.seat.code, `↩ You vs ${m.opponent}`, m.detail, mineLabel[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () =>
+            void this.rejoin(m.seat),
+          ),
+        ),
+        ...waiting.map((g) => row('open', g.room, `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => joinCode(g.room))),
+        ...playing.map((g) =>
+          row(
+            'live',
+            g.room,
+            `${g.name} vs ${g.opponent?.name ?? '…'}`,
+            g.opponent ? `${getCharacter(g.characterId).name} vs ${getCharacter(g.opponent.characterId).name}` : who(g.name, g.characterId),
+            g.over ? ['Finished', 'done'] : ['Live', 'live'],
+            ['👁 Watch', ''],
+            () => void this.watch(g.room),
+          ),
+        ),
+      ];
+      const head = el('div', 'games-head');
+      head.append(el('span', undefined, mine.length ? 'Your games, then everyone’s' : 'Games'), el('span', undefined, 'Status'), el('span'));
+      table.replaceChildren(
+        head,
+        ...(rows.length ? rows : [el('p', 'online-none', 'No games right now. Host one, and it shows up here for everyone.')]),
       );
     };
-    stopWatch = watchLobby(db, lobby, render).stop;
+    stopWatch = watchLobby(db, lobby, (games) => {
+      adverts = games;
+      render();
+    }).stop;
+    void matchesOf(db).then((m) => {
+      if (cancelled) return;
+      mine = m;
+      render();
+    });
+    render();
+
+    const host = el('button', 'games-host', '📶 Host a game');
+    host.id = 'online-host';
+    host.addEventListener('click', () => void this.host());
     const input = el('input', 'online-code-input') as HTMLInputElement;
     input.placeholder = 'CODE';
     input.maxLength = 6;
@@ -252,14 +287,35 @@ export class OnlineScreen {
     };
     go.addEventListener('click', submit);
     input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
-    const codeRow = el('div', 'online-paste');
-    codeRow.append(input, go);
-    this.show([
-      heading('Games'),
-      lists(col(heading('Waiting for a player', 'h3'), open), col(heading('Live now', 'h3'), live)),
-      row(el('span', 'online-label', 'Private game? Type its code:'), codeRow),
-      buttons(cancelButton(() => this.close())),
-    ]);
+    const side = el('div', 'games-side');
+    const priv = el('div', 'games-private');
+    const label = el('p', undefined);
+    label.append(el('b', undefined, 'Private game?'), ' Enter its code:');
+    priv.append(label, input, go);
+    side.append(host, el('span', 'games-hint', 'Share a code or a link'), priv);
+    const body = el('div', 'games-body');
+    body.append(table, side);
+    this.show([screenTop('Game browser', 'Updates live', () => this.close()), body], 'browser');
+  }
+
+  /** Keep a count of the public games (waiting for a player, and live) for the landing screen. */
+  watchCounts(onCounts: (waiting: number, live: number) => void): () => void {
+    if (!this.opts.dbUrl) return () => {};
+    const db = new Rtdb(this.opts.dbUrl);
+    let stop: (() => void) | null = null;
+    let stopped = false;
+    void lobbySealer(this.opts.lobby).then((lobby) => {
+      if (stopped) return;
+      stop = watchLobby(db, lobby, (games) => {
+        const mine = new Set(loadSeats().map((x) => x.code));
+        const others = games.filter((g) => !mine.has(g.room));
+        onCounts(others.filter((g) => !g.playing).length, others.filter((g) => g.playing && !g.over).length);
+      }).stop;
+    });
+    return () => {
+      stopped = true;
+      stop?.();
+    };
   }
 
   /**
@@ -342,42 +398,6 @@ export class OnlineScreen {
     s.rejoin(rec ? { rec, replay } : undefined);
   }
 
-  /** This phone's matches, with how each stands (your turn, theirs, over), to go back to. */
-  async myGames(): Promise<void> {
-    this.reset();
-    netLog('ui: My games');
-    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
-    const db = new Rtdb(this.opts.dbUrl);
-    let cancelled = false;
-    this.stopRoom = () => (cancelled = true);
-    this.show([heading('My games'), status('Checking your games…', 'online-status'), buttons(cancelButton(() => this.close(), 'Back'))]);
-    const games = await matchesOf(db);
-    if (cancelled) return;
-    const list = el('div', 'online-games online-mine');
-    list.id = 'online-mine';
-    const label: Record<GameStatus | 'lobby', string> = {
-      'your-turn': 'Your turn',
-      'their-turn': 'Their turn',
-      won: 'You won',
-      lost: 'You lost',
-      draw: 'A draw',
-      old: 'From an older version',
-      lobby: 'Not started yet',
-    };
-    list.replaceChildren(
-      ...(games.length
-        ? games.map((g) => {
-            const b = el('button', `online-game ${g.status}`, `vs ${g.opponent}`);
-            b.dataset.room = g.seat.code;
-            b.append(el('small', undefined, ` ${label[g.status]} · ${g.seat.code}`));
-            b.addEventListener('click', () => void this.rejoin(g.seat));
-            return b;
-          })
-        : [el('p', 'online-none', 'No games yet. Host one, or join one from the Games list.')]),
-    );
-    this.show([heading('My games'), list, buttons(cancelButton(() => this.close(), 'Back'))]);
-  }
-
   /** The in-match menu: back to the menu (the match waits), nudge them, or resign. */
   matchMenu(): void {
     const s = this.session;
@@ -401,7 +421,7 @@ export class OnlineScreen {
     keep.id = 'menu-keep';
     this.show([
       heading('Game menu'),
-      text(`The match waits if you go: ${s.remotePick?.name ?? 'they'} can take their turn, and you yours when you're back (My games). Up to three days a turn.`),
+      text(`The match waits if you go: ${s.remotePick?.name ?? 'they'} can take their turn, and you yours when you're back (it's in the Game browser). Up to three days a turn.`),
       back,
       buttons(this.nudgeButton(), resign, keep),
     ]);
@@ -448,8 +468,8 @@ export class OnlineScreen {
         sel.setAttribute('aria-label', 'Your character');
         for (const c of ROSTER) sel.add(new Option(c.name, c.id, false, c.id === p.characterId));
         sel.addEventListener('change', () => {
-          const name = p.name === getCharacter(p.characterId).name ? getCharacter(sel.value).name : p.name;
-          s.setPick({ name, characterId: sel.value });
+          saveCharacter(sel.value); // your character online from now on
+          s.setPick({ name: p.name, characterId: sel.value });
         });
         r.append(el('span', undefined, p.name), sel);
       } else {
@@ -633,8 +653,9 @@ export class OnlineScreen {
     ]);
   }
 
-  private show(children: HTMLElement[]): void {
+  private show(children: HTMLElement[], layout: 'screen' | 'browser' = 'screen'): void {
     this.root.replaceChildren(...children, logsButton());
+    this.root.dataset.layout = layout;
     this.root.hidden = false;
   }
 
@@ -658,6 +679,8 @@ export interface MatchSummary {
   seat: Seat;
   status: GameStatus | 'lobby';
   opponent: string;
+  /** Who's playing which character ("tones vs kie"), yours first. */
+  detail: string;
 }
 
 /**
@@ -672,10 +695,12 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
         if (!stored) {
           const sealer = await sealerFor('room', seat.code);
           if (!(await db.get(`rooms/${sealer.topic}/host`))) return (forgetSeat(seat.code), null);
-          return { seat, status: 'lobby', opponent: '…' };
+          return { seat, status: 'lobby', opponent: '…', detail: 'your match' };
         }
         const seatNo = seat.role === 'host' ? 0 : 1;
-        return { seat, status: gameStatus(stored, seatNo, PROTOCOL), opponent: opponentName(stored, seatNo) };
+        const [me, them] = seatNo === 0 ? stored.rec.setup.players : [...stored.rec.setup.players].reverse();
+        const detail = me && them ? `${charName(me.characterId)} vs ${charName(them.characterId)} · your match` : 'your match';
+        return { seat, status: gameStatus(stored, seatNo, PROTOCOL), opponent: opponentName(stored, seatNo), detail };
       } catch {
         return null; // can't tell right now: leave it be
       }
@@ -694,6 +719,23 @@ function listPublicly(set?: boolean): boolean {
   } catch {
     return set ?? true;
   }
+}
+
+function charName(id: string): string {
+  try {
+    return getCharacter(id).name;
+  } catch {
+    return id;
+  }
+}
+
+/** A screen's header: Back, the title, a note on the right. */
+function screenTop(title: string, note: string, back: () => void): HTMLElement {
+  const r = el('div', 'screen-top');
+  const b = el('button', 'back', '‹ Back');
+  b.addEventListener('click', back);
+  r.append(b, el('h2', undefined, title), el('span', 'screen-note', note));
+  return r;
 }
 
 function message(e: unknown): string {
@@ -722,13 +764,6 @@ function status(t: string, cls = ''): HTMLElement {
 function row(...cols: HTMLElement[]): HTMLElement {
   const r = el('div', 'online-row');
   r.append(...cols);
-  return r;
-}
-
-/** Side-by-side lists, tops level. */
-function lists(...cols: HTMLElement[]): HTMLElement {
-  const r = row(...cols);
-  r.classList.add('online-lists');
   return r;
 }
 

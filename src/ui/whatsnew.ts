@@ -13,6 +13,15 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 18,
+    title: 'A tidier start',
+    items: [
+      'The first screen is down to two big choices: 🌐 Game browser (host, join or watch online) and 👥 Local hotseat (two players on this phone).',
+      'The Game browser is one big table: your matches first, then games to join or watch. Host a game and private codes are on the side.',
+      'A dot on the Game browser counts the online turns waiting for you. Change your name with ✎ Change.',
+    ],
+  },
+  {
     version: 17,
     title: 'Play turn by turn',
     items: [

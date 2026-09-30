@@ -1,7 +1,7 @@
 /**
  * This phone's seats in online matches (room code, host or guest, and the id each seat was claimed with),
  * remembered so it can go back to them: after a reload, the app being killed or a lost signal, and for
- * matches played turn by turn (the My games list). Newest first.
+ * matches played turn by turn (listed first in the Game browser). Newest first.
  */
 
 export interface Seat {

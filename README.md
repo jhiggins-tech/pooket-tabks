@@ -8,18 +8,19 @@ phones anywhere with a 4-letter room code (others can watch).
 *Share → Add to Home Screen* gives true fullscreen).
 
 ## How to play
-- **Setup:** the first visit asks your name (Player 1, and your name online). Each player picks a
-  character (tones, kie, kcaj, torikloud, ciarra, larinovsky); Player 2's name pre-fills and can be
-  changed. Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3 (larinovsky also has a bonus move).
-  ⓘ explains every weapon; ✨ shows what's new.
+- **Start:** the first visit asks your name. The landing screen has the **Game browser** (online) and
+  **Local hotseat** (two players on one phone, each picking a character: tones, kie, kcaj, torikloud,
+  ciarra, larinovsky). Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of tier 3 (larinovsky also has
+  a bonus move). ⓘ explains every weapon; ✨ shows what's new.
 - **Aim:** drag anywhere and pull back like a slingshot: direction is the angle (a full 360°), pull
   length is power. Fine-tune with ↺ ↻ and − +.
 - **Move:** hold ◀ ▶ before you fire. One tank of fuel lasts the whole match (ciarra hops instead).
 - **FIRE.** Last tank standing wins; if everyone runs out of ammo, most HP wins.
-- **Two phones:** 📶 Host shows a room code and a link; the other phone taps Join and picks the game from
-  the live Games list (or types the code, or opens the link). Any live match can be watched from the same
-  list. Matches go turn by turn when you're not both there: take your turn, go back to the menu, and the
-  other player takes theirs later (My games; 3 days a turn).
+- **Two phones:** in the Game browser, 📶 Host a game shows a room code and a link; the other phone picks
+  the game from the browser's table (or types the code, or opens the link). Any live match can be
+  watched from the same table. Matches go turn by turn when you're not both there: take your turn, go
+  back to the menu, and the other player takes theirs later (your matches head the table; a dot on the
+  landing screen counts the turns waiting for you; 3 days a turn).
 
 [FEATURES.md](FEATURES.md) lists everything shipped and what's queued; [CLAUDE.md](CLAUDE.md) has the
 architecture and recipes for adding weapons, mechanics and characters.

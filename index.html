@@ -66,17 +66,37 @@
 
     <div id="setup" class="overlay">
       <h1>Pooket Tabks</h1>
-      <div id="setup-players"></div>
-      <div class="setup-actions">
+      <p class="you">Playing as <b id="you-name"></b> <button id="you-change">✎ Change</button></p>
+      <div class="choices">
+        <button id="open-browser" class="choice primary">
+          <span id="turns-dot" class="dot" hidden></span>
+          <span class="icon">🌐</span>
+          <span class="label">Game browser</span>
+          <span class="sub">Host, join or watch online</span>
+          <span id="browser-counts" class="badge" hidden></span>
+        </button>
+        <button id="open-hotseat" class="choice">
+          <span class="icon">👥</span>
+          <span class="label">Local hotseat</span>
+          <span class="sub">Two players, one phone</span>
+        </button>
+      </div>
+      <div class="setup-actions minor">
         <button id="setup-info">ⓘ Weapons &amp; how to play</button>
         <button id="setup-whatsnew">✨ What’s new</button>
-        <button id="start" class="big">Start battle</button>
       </div>
-      <div class="setup-actions online-actions">
-        <span class="online-label">Two phones (you play as P1):</span>
-        <button id="host-online">📶 Host</button>
-        <button id="join-online">Join</button>
-        <button id="setup-games" hidden>🎮 My games</button>
+    </div>
+
+    <div id="hotseat" class="overlay" hidden>
+      <div class="screen-top">
+        <button id="hotseat-back" class="back">‹ Back</button>
+        <h2>Local hotseat</h2>
+        <span class="screen-note">Two players, one phone</span>
+      </div>
+      <div id="setup-players"></div>
+      <div class="setup-actions">
+        <button id="hotseat-info">ⓘ Weapons</button>
+        <button id="start" class="big">Start battle</button>
       </div>
     </div>
 
