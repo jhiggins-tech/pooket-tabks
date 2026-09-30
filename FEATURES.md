@@ -4,9 +4,18 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-Everything queued so far has shipped (details under **Shipped** below).
-
-1. _(empty; next requests go here)_
+1. **Async online play** (take your turn, leave; they take theirs later): every online game becomes
+   live when both phones are there and turn-by-turn when they aren't (no separate mode).
+   - A lasting game record in the database (state, whose turn, the last shot's pre-fire snapshot for a
+     replay, a version tag); firing commits the pre-shot state at once, so closing mid-shot can't undo a
+     move. Seats stop expiring after 1-2 hours. Needs a rules change (and a re-publish).
+   - "Their turn" instead of "Connection lost" when the other phone isn't there.
+   - A "My games" list on the setup screen (your turn / their turn, tap to open); opening a game replays
+     their last shot, then it's your go.
+   - A Nudge button that shares the game link (share sheet). Push notifications later, if ever (needs a
+     service worker and a paid-plan Cloud Function).
+   - Resign; **forfeit after 3 days** without a move; abandoned games tidied away.
+   - A game started on an older version ends politely on a mismatch rather than trying to carry on.
 
 ### Backlog (ideas, not yet scheduled)
 
