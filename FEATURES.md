@@ -16,6 +16,15 @@ The running features list and work queue. Newest shipped items first; the **Queu
      service worker and a paid-plan Cloud Function).
    - Resign; **forfeit after 3 days** without a move; abandoned games tidied away.
    - A game started on an older version ends politely on a mismatch rather than trying to carry on.
+2. **Simpler landing screen** (after async play). **Deliver a screen grab of the new menus for approval
+   first; build it only once approved.**
+   - The first screen gets three big buttons, and the Player 1 / Player 2 rows move off it (the name now
+     comes from the first-visit prompt, and picking two players is only for hotseat):
+     - **Host an online game** (replaces the big red Start battle button),
+     - **Game browser** (replaces Join, opens the reworked Games screen),
+     - **Local hotseat** (a new screen to pick Player 1 and Player 2 and their characters, then start).
+   - The Games screen reworked: a big table of available games taking most of the screen, with "enter a
+     code" off to the side, small.
 
 ### Backlog (ideas, not yet scheduled)
 
