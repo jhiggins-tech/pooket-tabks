@@ -79,7 +79,7 @@ export function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
     state.terrain.carveCircle(end.x, end.y, weapon.blastRadius);
     settleTanks(state);
   } else if (end.hit) {
-    damageTarget(state, end.hit, scaled(state, p.id, weapon.damage), p.id);
+    damageTarget(state, end.hit, scaled(state, p.id, weapon.damage));
     const target = end.hit.kind === 'player' ? end.hit.player : null;
     if (weapon.dot && target?.alive) {
       // A fresh hit refreshes the burn rather than stacking it.

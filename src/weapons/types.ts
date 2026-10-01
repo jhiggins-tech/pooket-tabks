@@ -174,6 +174,8 @@ export interface WeaponDef {
   trail?: boolean;
   /** Decoy weapons: how many hologram copies to spawn. */
   decoys?: number;
+  /** Decoy weapons: a hologram that gets hit blows up, a blast that hurts every tank in reach, friend or foe. */
+  decoyBlast?: { radius: number; damage: number };
   /** Jetpack weapons: charge, launch and propellant. */
   jetpack?: JetpackSpec;
   /** Spew weapons: the gush. */

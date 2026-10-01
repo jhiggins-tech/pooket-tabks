@@ -17,8 +17,8 @@ import {
   targetAt,
   toggleSwapTarget,
 } from '../src/game/game';
-import type { GameState } from '../src/game/state';
-import { hyperfixate, trollogram } from '../src/characters/kits';
+import type { GameState, Hologram } from '../src/game/state';
+import { trollogram } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
 import { passTurn, testGame, untilNextTurn } from './support/game';
 
@@ -143,42 +143,84 @@ describe('Trollogram', () => {
     expect(toggleSwapTarget(g, h.id)).toBe(false);
   });
 
-  it('hitting a hologram shows the damage, then costs the shooter half of it and exposes the hologram at turn end', () => {
+  it('a hit hologram shows the damage like a real tank, then blows up', () => {
     const g = withDecoys();
     passTurn(g); // kie
     const [kie, kcaj] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
     const h = hologramsOf(g, 0)[0]!;
 
-    // kcaj lands a direct Heavy-style hit on the hologram.
+    // kcaj lands a direct Heavy-style hit on the hologram (well away from both tanks).
     fire(g);
     g.projectiles = [];
     explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, kcaj.id);
     expect(g.floaters.at(-1)!.text).toBe(`-${shell.damage}`); // looks like a real hit
-    expect(kcaj.hp).toBe(MAX_HP); // nothing is revealed mid-turn
-    expect(hologramsOf(g, 0)).toContain(h);
+    expect(h.hit).toBe(true);
+    step(g, FIXED_DT);
+    expect(hologramsOf(g, 0)).not.toContain(h);
+    expect(g.holoBlasts).toMatchObject([{ ownerId: 0, x: h.x, y: h.y, radius: trollogram.decoyBlast!.radius }]);
+    expect(g.explosions.some((e) => e.x === h.x && e.radius === trollogram.decoyBlast!.radius)).toBe(true);
+    expect(g.sfx.map((e) => e.cue)).toContain('holo-boom');
 
     untilNextTurn(g);
-    expect(kcaj.hp).toBe(MAX_HP - Math.round(shell.damage * 0.5));
+    expect(kcaj.hp).toBe(MAX_HP); // no more paying for it
     expect(kie.hp).toBe(MAX_HP);
-    expect(hologramsOf(g, 0)).not.toContain(h);
     expect(hologramsOf(g, 0)).toHaveLength(1);
+    step(g, 1);
+    expect(g.holoBlasts).toHaveLength(0); // the animation's done
   });
 
-  it('a blast that catches the real tank and a hologram hurts the tank and still penalises the shooter', () => {
+  it('the blast hurts every tank in reach, friend or foe', () => {
+    for (const who of [0, 1]) {
+      const g = withDecoys();
+      passTurn(g); // kie
+      const near = g.players[who]!;
+      const h = hologramsOf(g, 0)[0]!;
+      near.x = h.x + 18; // parked right next to the hologram
+      near.y = h.y;
+      fire(g);
+      g.projectiles = [];
+      explode(g, h.x - 22, h.y - TANK_BODY_HEIGHT, shell, 1); // grazes the hologram, not the tank
+      expect(near.hp).toBe(MAX_HP);
+      expect(h.hit).toBe(true);
+      untilNextTurn(g);
+      expect(near.hp).toBeLessThan(MAX_HP);
+      expect(near.hp).toBeGreaterThan(MAX_HP - trollogram.decoyBlast!.damage - 1);
+      expect(g.players[1 - who]!.hp).toBe(MAX_HP); // far away
+    }
+  });
+
+  it('one blast can set off the next hologram: a chain, one after another', () => {
     const g = withDecoys();
     passTurn(g); // kie
-    const [kie, kcaj] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
-    const h = hologramsOf(g, 0)[0]!;
-    h.x = kie.x + 30; // park a hologram right next to kie
+    const [a, b] = hologramsOf(g, 0) as [Hologram, Hologram];
+    b.x = a.x + 30;
+    b.y = a.y;
     fire(g);
     g.projectiles = [];
-    explode(g, kie.x + 15, kie.y - TANK_BODY_HEIGHT, shell, kcaj.id);
-    untilNextTurn(g);
-    expect(kie.hp).toBeLessThan(MAX_HP);
-    expect(kcaj.hp).toBeLessThan(MAX_HP);
+    explode(g, a.x - 20, a.y - TANK_BODY_HEIGHT, shell, 1);
+    expect([a.hit, b.hit]).toEqual([true, false]);
+    step(g, FIXED_DT);
+    expect(hologramsOf(g, 0)).toEqual([b]);
+    expect(b.hit).toBe(true);
+    step(g, FIXED_DT);
+    expect(hologramsOf(g, 0)).toEqual([]);
+    expect(g.holoBlasts).toHaveLength(2);
   });
 
-  it('a Hyperfixate beam into a hologram: half the impact as a penalty, and nobody burns', () => {
+  it('a hologram hit after the shot has played out (the last of a stream) blows up as the turn ends', () => {
+    const g = withDecoys();
+    passTurn(g); // kie
+    fire(g);
+    g.projectiles = [];
+    while (g.phase === 'flying') step(g, FIXED_DT);
+    const h = hologramsOf(g, 0)[0]!;
+    h.hit = true;
+    untilNextTurn(g);
+    expect(hologramsOf(g, 0)).not.toContain(h);
+    expect(g.holoBlasts).toHaveLength(1);
+  });
+
+  it('a Hyperfixate beam into a hologram blows it up, and nobody burns', () => {
     const g = withDecoys();
     passTurn(g); // kie
     const [kie, kcaj] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
@@ -191,8 +233,11 @@ describe('Trollogram', () => {
     setAim(g, 180, 50);
     fire(g);
     expect(g.beams[0]!.hitTank).toBe(true);
+    for (let i = 0; i < 300 && g.holograms.includes(h); i++) step(g, FIXED_DT);
+    expect(hologramsOf(g, 0)).not.toContain(h);
+    expect(g.holoBlasts).toHaveLength(1);
     untilNextTurn(g);
-    expect(kcaj.hp).toBe(MAX_HP - Math.round(hyperfixate.damage * 0.5));
+    expect(kcaj.hp).toBe(MAX_HP);
     expect(kcaj.burn).toBeNull();
     expect(kie.burn).toBeNull();
     expect(kie.hp).toBe(MAX_HP);
@@ -209,7 +254,7 @@ describe('Trollogram', () => {
     explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, kie.id); // kie shoots his own decoy
     untilNextTurn(g);
     expect(kie.x).toBe(x0);
-    expect(kie.hp).toBe(MAX_HP - Math.round(shell.damage * 0.5)); // same penalty applies to kie
+    expect(kie.hp).toBe(MAX_HP);
   });
 
   it('all of kie’s copies shimmer together at the end of his turn, whether or not he swaps', () => {
@@ -222,7 +267,7 @@ describe('Trollogram', () => {
     }
   });
 
-  it('new holograms phase in; exposed ones leave a dissolving ghost', () => {
+  it('new holograms phase in; those of a player who is out dissolve, leaving a ghost', () => {
     const g = flatGame();
     selectTier(g, 1);
     fire(g);
@@ -231,15 +276,13 @@ describe('Trollogram', () => {
     expect(hologramsOf(g, 0)[0]!.age).toBeCloseTo(0.5);
 
     untilNextTurn(g);
-    const h = hologramsOf(g, 0)[0]!;
-    fire(g);
-    g.projectiles = [];
-    explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, 1);
-    untilNextTurn(g);
-    expect(g.ghosts).toHaveLength(1);
-    expect(g.ghosts[0]).toMatchObject({ x: h.x, y: h.y, ownerId: 0 });
-    step(g, 1);
-    expect(g.ghosts).toHaveLength(0);
+    const [h] = g.holograms;
+    g.players[0]!.hp = 0;
+    g.players[0]!.alive = false;
+    passTurn(g);
+    expect(g.holograms).toEqual([]);
+    expect(g.holoBlasts).toEqual([]); // no blast: they just fade
+    expect(g.ghosts[0]).toMatchObject({ x: h!.x, y: h!.y, ownerId: 0 });
   });
 
   describe('picking a decoy on the turn it is cast', () => {

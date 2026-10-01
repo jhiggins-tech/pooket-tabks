@@ -13,6 +13,15 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 22,
+    title: 'Trollogram rebalanced',
+    items: [
+      'kie’s holograms no longer hurt whoever hits them. Instead a hit hologram blows up: a small blast that hurts any tank nearby, friend or foe (kie too), and can set off the next one.',
+      'With a brand new glitchy explosion, and a sound to match.',
+      'Online matches started before this update can’t carry on (both phones need the same rules). Sorry!',
+    ],
+  },
+  {
     version: 21,
     title: 'Replays',
     items: [

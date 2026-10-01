@@ -45,9 +45,11 @@ describe('snapshots', () => {
     A.terrain.addDirt(600, 200, 12, [92, 62, 36]);
     const code = encodeSolid(A.terrain);
     expect(code.length).toBeLessThan(12_000);
-    expect(decodeSolid(code, A.terrain.solid.length)).toEqual(A.terrain.solid);
+    // (Big masks: compared byte for byte; a deep toEqual on them takes seconds.)
+    const firstDifference = (x: Uint8Array, y: Uint8Array) => (x.length !== y.length ? 0 : x.findIndex((v, i) => v !== y[i]));
+    expect(firstDifference(decodeSolid(code, A.terrain.solid.length), A.terrain.solid)).toBe(-1);
     expect(B.terrain.patchSolid(decodeSolid(code, B.terrain.solid.length))).toBeGreaterThan(100);
-    expect(B.terrain.solid).toEqual(A.terrain.solid);
+    expect(firstDifference(B.terrain.solid, A.terrain.solid)).toBe(-1);
     const i = 200 * B.terrain.width + 600;
     expect(B.terrain.pixels[i * 4 + 3]).toBe(255); // the new dirt is drawn
     expect(B.terrain.takeDirty()).not.toBeNull();

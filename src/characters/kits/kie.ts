@@ -24,17 +24,19 @@ export const weaselPop: WeaponDef = {
 
 /**
  * kie's tier 2: two more hologram copies of kie's tank appear across the battlefield each use. On later turns
- * kie can tap one to secretly swap places with it once his shot has landed. Anyone who hits a
- * hologram takes half the damage they would have dealt, and the hologram vanishes at turn end.
+ * kie can tap one to secretly swap places with it once his shot has landed. A hologram that gets hit
+ * (it shows the damage like a real tank) blows up: a small blast that hurts every tank in reach, kie's
+ * included, and can set off other holograms.
  */
 export const trollogram: WeaponDef = {
   id: 'trollogram',
   name: 'Trollogram',
   shortName: 'Trollogram',
   info:
-    'No aiming. 2 hologram copies of kie’s tank appear, and every use adds 2 more. Tap one to secretly swap places with it: right after casting (then DONE), or on a later turn before you fire. Whoever hits a hologram takes half the damage themselves.',
+    'No aiming. 2 hologram copies of kie’s tank appear, and every use adds 2 more. Tap one to secretly swap places with it: right after casting (then DONE), or on a later turn before you fire. A hologram that gets hit blows up: a small blast that hurts any tank nearby, kie’s too.',
   kind: 'decoy',
   decoys: 2,
+  decoyBlast: { radius: 20, damage: 20 },
   blastRadius: 0,
   damage: 0,
   colour: '#7cf7d4',

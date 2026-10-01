@@ -1,17 +1,21 @@
 import { randRange } from '../core/rng';
+import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
 import { ring, sound } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Hologram, Player, Twin } from './state';
-import { currentPlayer, damagePlayer, tankBodies } from './tanks';
+import { currentPlayer, explode, tankBodies } from './tanks';
 
-/** Copies of a tank: kie's Trollogram holograms (decoys, the secret swap, exposure) and torikloud's twin, plus their phase effects. */
+/**
+ * Copies of a tank: kie's Trollogram holograms (decoys, the secret swap, and blowing up when hit) and
+ * torikloud's twin, plus their phase effects.
+ */
 
 const HOLOGRAM_COLOUR = '#7cf7d4';
 
-/** Share of the would-be damage a shooter takes for hitting a hologram. */
-export const HOLOGRAM_PENALTY = 0.5;
+/** How long a hologram's blow-up animation lasts (cosmetic). */
+export const HOLOGRAM_BLAST_TIME = 0.9;
 
 /** After casting Trollogram, how long the caster has to tap a decoy to swap into (FIRE ends it early). */
 export const DECOY_PICK_TIME = 6;
@@ -57,11 +61,11 @@ export function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void
     const holo: Hologram = {
       id: state.fxSeq++,
       ownerId: p.id,
+      weaponId: weapon.id,
       x,
       y: terrain.surfaceY(x),
-      hits: [],
+      hit: false,
       soak: 0,
-      soakShooterId: -1,
       soakColour: '#ffffff',
       age: 0,
     };
@@ -88,8 +92,10 @@ export function stepPhaseFx(state: GameState, dt: number): void {
   for (const p of state.players) if (p.twin) p.twin.age += dt;
   for (const s of state.shimmers) s.age += dt;
   for (const g of state.ghosts) g.age += dt;
+  for (const b of state.holoBlasts) b.age += dt;
   state.shimmers = state.shimmers.filter((s) => s.age < s.duration);
   state.ghosts = state.ghosts.filter((g) => g.age < g.duration);
+  state.holoBlasts = state.holoBlasts.filter((b) => b.age < b.duration);
 }
 
 /** Holograms belonging to a (living) player. */
@@ -136,25 +142,47 @@ export function toggleSwapTarget(state: GameState, holoId: number): boolean {
   return true;
 }
 
+/** Holograms that have been hit (and whose owner is still in the game): due to blow up. */
+function hitHolograms(state: GameState): Hologram[] {
+  return state.holograms.filter((h) => h.hit && state.players[h.ownerId]?.alive);
+}
+
 /**
- * End-of-turn hologram business: expose any hologram that was hit (the shooter pays
- * HOLOGRAM_PENALTY of what they'd have dealt), then carry out the current player's secret swap.
+ * A hit hologram blows up: gone, with a blast (its weapon's `decoyBlast`) that hurts every tank in reach,
+ * friend or foe, and can set off other holograms (on the next tick: a chain goes off one after another).
+ */
+function detonate(state: GameState, h: Hologram): void {
+  state.holograms = state.holograms.filter((x) => x !== h);
+  if (state.swapTargetId === h.id) state.swapTargetId = null;
+  const weapon = getWeapon(h.weaponId);
+  const blast = weapon.decoyBlast ?? { radius: 0, damage: 0 };
+  state.holoBlasts.push({ ownerId: h.ownerId, x: h.x, y: h.y, radius: blast.radius, age: 0, duration: HOLOGRAM_BLAST_TIME });
+  sound(state, 'holo-boom');
+  // The weapon that cast it goes off, as a blast.
+  explode(state, h.x, h.y - TANK_BODY_HEIGHT, { ...weapon, blastRadius: blast.radius, damage: blast.damage }, h.ownerId);
+}
+
+/** Hit holograms blow up as the shot plays out (and hold the turn open until every one has). */
+export const hologramBlastStepper: Stepper = {
+  step(state) {
+    for (const h of hitHolograms(state)) detonate(state, h);
+  },
+  busy: (state) => hitHolograms(state).length > 0,
+};
+
+/**
+ * End-of-turn hologram business: anything hit after the shot (soaking up the last of a stream) blows up
+ * now; a player who's out loses their holograms; then the current player's secret swap.
  */
 export function resolveHolograms(state: GameState): void {
-  const exposed = state.holograms.filter((h) => h.hits.length > 0 || !state.players[h.ownerId]?.alive);
-  for (const h of exposed) {
-    if (!state.players[h.ownerId]?.alive) continue;
-    const byShooter = new Map<number, number>();
-    for (const hit of h.hits) byShooter.set(hit.shooterId, (byShooter.get(hit.shooterId) ?? 0) + hit.damage);
-    for (const [shooterId, dealt] of byShooter) {
-      const shooter = state.players[shooterId];
-      if (shooter) damagePlayer(state, shooter, Math.max(1, Math.round(dealt * HOLOGRAM_PENALTY)), HOLOGRAM_COLOUR);
-    }
+  for (let hit = hitHolograms(state); hit.length > 0; hit = hitHolograms(state)) for (const h of hit) detonate(state, h);
+  const orphans = state.holograms.filter((h) => !state.players[h.ownerId]?.alive);
+  for (const h of orphans) {
     ring(state, h.x, h.y - TANK_BODY_HEIGHT, HOLOGRAM_COLOUR);
     state.ghosts.push({ ownerId: h.ownerId, x: h.x, y: h.y, age: 0, duration: GHOST_DURATION });
   }
-  state.holograms = state.holograms.filter((h) => !exposed.includes(h));
-  if (exposed.length > 0) sound(state, 'busted');
+  state.holograms = state.holograms.filter((h) => !orphans.includes(h));
+  if (orphans.length > 0) sound(state, 'busted');
 
   const me = currentPlayer(state);
   const target = state.holograms.find((h) => h.id === state.swapTargetId && h.ownerId === me.id);

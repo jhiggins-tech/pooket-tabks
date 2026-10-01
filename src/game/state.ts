@@ -157,19 +157,20 @@ export interface Beam {
 }
 
 /**
- * A hologram copy of a player's tank. Drawn identically to the real tank and hit-tested like one.
- * Damage it "takes" is recorded against whoever dealt it; they pay half at the end of the turn.
+ * A hologram copy of a player's tank. Drawn identically to the real tank and hit-tested like one. Once
+ * hit (it shows the damage, like a real tank) it blows up: its weapon's `decoyBlast`.
  */
 export interface Hologram {
   id: number;
   ownerId: number;
+  /** The weapon that cast it (Trollogram). */
+  weaponId: string;
   x: number;
   y: number;
-  /** Would-be damage dealt to this hologram this turn, by shooter. */
-  hits: { shooterId: number; damage: number }[];
-  /** Fractional stream damage soaked this turn, and who is spraying it. */
+  /** It's been hit: it blows up on the next tick (or at the end of the turn, if it's hit after the shot). */
+  hit: boolean;
+  /** Fractional stream damage soaked this turn. */
   soak: number;
-  soakShooterId: number;
   soakColour: string;
   /** Seconds since it phased in (cosmetic: drives the materialise animation). */
   age: number;
@@ -182,7 +183,17 @@ export interface PhaseShimmer {
   duration: number;
 }
 
-/** Cosmetic: an exposed hologram dissolving where it stood. */
+/** Cosmetic: a hologram bursting apart as it blows up (shards, a flash, a shockwave). */
+export interface HologramBlast {
+  ownerId: number;
+  x: number;
+  y: number;
+  radius: number;
+  age: number;
+  duration: number;
+}
+
+/** Cosmetic: a hologram dissolving where it stood (its owner is out). */
 export interface HologramGhost {
   ownerId: number;
   x: number;
@@ -374,6 +385,7 @@ export type SfxCue =
   | 'stolen'
   | 'nothing'
   | 'busted'
+  | 'holo-boom'
   | 'kookaburra'
   | 'tune'
   | 'tune-end'
@@ -438,6 +450,7 @@ export interface GameState {
   decoyPick: number;
   shimmers: PhaseShimmer[];
   ghosts: HologramGhost[];
+  holoBlasts: HologramBlast[];
   streams: Stream[];
   jets: Jet[];
   spews: Spew[];

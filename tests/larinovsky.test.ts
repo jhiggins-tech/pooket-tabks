@@ -125,7 +125,7 @@ describe('the Rizzler', () => {
   it('hitting a decoy with the Rizzler cooks nobody', () => {
     const g = createGame({ seed: 62, players });
     const kie = g.players[1]!;
-    g.holograms.push({ id: 99, ownerId: kie.id, x: 500, y: g.terrain.surfaceY(500), hits: [], soak: 0, soakShooterId: -1, soakColour: '#fff', age: 1 });
+    g.holograms.push({ id: 99, ownerId: kie.id, x: 500, y: g.terrain.surfaceY(500), weaponId: 'trollogram', hit: false, soak: 0, soakColour: '#fff', age: 1 });
     fire(g);
     g.projectiles = [];
     g.bursts = [];

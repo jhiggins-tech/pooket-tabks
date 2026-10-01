@@ -2,6 +2,7 @@ import type { Terrain } from '../core/terrain';
 import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing } from '../game/game';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
+import { drawHologramBlasts } from './draw/copies';
 import { drawExplosions, drawFloaters } from './draw/fx';
 import { drawPuddles, drawSludge } from './draw/gunk';
 import { drawNapCats } from './draw/nap';
@@ -150,6 +151,7 @@ export class Renderer {
     drawBeams(this.d, state);
     drawBooms(this.d, state);
     drawExplosions(this.d, state);
+    drawHologramBlasts(this.d, state);
     drawHeist(this.d, state);
     drawFloaters(this.d, state);
 

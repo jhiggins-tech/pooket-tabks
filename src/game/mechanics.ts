@@ -1,5 +1,5 @@
 import type { WeaponDef, WeaponKind } from '../weapons/types';
-import { decoyPickStepper, fireDecoys, spawnTwin, twinGun } from './copies';
+import { decoyPickStepper, fireDecoys, hologramBlastStepper, spawnTwin, twinGun } from './copies';
 import { fireSpew, puddleStepper, sludgeStepper, spewStepper, toxinStepper } from './gunk';
 import { fireJetpack, jetStepper } from './jetpack';
 import { fireNap, napStepper } from './nap';
@@ -69,4 +69,5 @@ export const STEPPERS: Stepper[] = [
   puddleStepper,
   toxinStepper,
   decoyPickStepper,
+  hologramBlastStepper,
 ];

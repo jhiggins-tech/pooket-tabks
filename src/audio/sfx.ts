@@ -225,7 +225,15 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   },
   // Bwomp.
   nothing: (s) => s.tone({ dur: 0.3, from: 220, to: 80, duty: 0.5, steps: 5, vol: 0.14 }),
-  // A hologram is exposed: glitchy fizzle down.
+  // A hologram blows up: a stuttering digital glitch-out, a power-down ZWOOOM into a crunchy bang, then
+  // a sprinkle of falling pixel sparkles.
+  'holo-boom': (s) => {
+    [2400, 700, 3100, 520, 1900, 3600].forEach((f, i) => s.tone({ at: i * 0.028, dur: 0.022, from: f, duty: 0.125, vol: 0.09 }));
+    s.tone({ at: 0.15, dur: 0.42, from: 1500, to: 45, duty: 0.5, steps: 16, vol: 0.18 });
+    s.noise({ at: 0.15, dur: 0.55, rate: 1.1, to: 0.12, vol: 0.32 });
+    arp(s, [100, 96, 98, 93, 95, 89], 0.045, { at: 0.42, duty: 0.125, vol: 0.06, dur: 0.035 });
+  },
+  // A hologram whose owner is out fizzles away.
   busted: (s) => {
     s.tone({ dur: 0.35, from: 700, to: 90, duty: 0.125, steps: 8, vol: 0.12 });
     s.noise({ dur: 0.35, rate: 1.4, to: 0.3, vol: 0.06 });

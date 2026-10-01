@@ -49,7 +49,7 @@ what it's for; weapons are documented where they're defined.
 - **Turn state machine** (`game/game.ts`): `aiming → flying → settling → aiming | gameover` (plus
   `stealing` for kie's roulette). `fire()` spends the round and calls the weapon kind's entry in
   `FIRE` (a `scam` bonus move instead stays in `aiming`); `state.lastShot` is the turn's shot; `step()` advances every `STEPPERS` entry each tick while flying and settles once none is busy;
-  `endTurn()` runs statuses, holograms, refunds and picks the next player (skipping the dead and the
+  `endTurn()` runs statuses, holograms (a hit one blows up as the shot plays out, `hologramBlastStepper`), refunds and picks the next player (skipping the dead and the
   out-of-ammo; if nobody has ammo, most HP wins). `game.ts` re-exports the public API: import from `game/game`.
 - **Mechanics** (`game/mechanics.ts`): `FIRE` maps each `WeaponKind` to how it goes off (the type insists
   on one per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of

@@ -125,7 +125,7 @@ export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
       // A weak dribble stings much less than the full-pressure jet.
       const drop = (weapon.stream?.damagePerDrop ?? 0) * (0.1 + 0.9 * d.pressure ** 2);
-      soakTarget(target, drop * offence(state, d.ownerId), tint(d.colour, 0.35), d.ownerId);
+      soakTarget(target, drop * offence(state, d.ownerId), tint(d.colour, 0.35));
       spawnSplash(state, x, y, d, 3);
       return true;
     }

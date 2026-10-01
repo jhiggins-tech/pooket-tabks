@@ -54,7 +54,7 @@ export function stepSoak(state: GameState, dt: number, final: boolean): void {
   }
   for (const h of state.holograms) {
     const whole = final ? Math.round(h.soak) : Math.floor(h.soak);
-    if (whole > 0) damageTarget(state, { kind: 'hologram', holo: h }, whole, h.soakShooterId, h.soakColour);
+    if (whole > 0) damageTarget(state, { kind: 'hologram', holo: h }, whole, h.soakColour);
     h.soak = final ? 0 : h.soak - whole;
   }
   for (const p of state.players) {
@@ -122,7 +122,7 @@ export function tankBodies(state: GameState): { x: number; y: number; owner: Pla
 }
 
 /** Add damage-over-time "soak" (water, mud, sludge) to any kind of target. */
-export function soakTarget(t: Target, amount: number, colour: string, shooterId: number): void {
+export function soakTarget(t: Target, amount: number, colour: string): void {
   if (t.kind === 'player') {
     t.player.soak += amount;
     t.player.soakColour = colour;
@@ -131,16 +131,15 @@ export function soakTarget(t: Target, amount: number, colour: string, shooterId:
     t.player.twin!.soakColour = colour;
   } else {
     t.holo.soak += amount;
-    t.holo.soakShooterId = shooterId;
     t.holo.soakColour = colour;
   }
 }
 
 /**
- * Real tanks and twins take the damage. Holograms put on a show (same floating number) and record it
- * against the shooter, who pays the penalty when the hologram is exposed at the end of the turn.
+ * Real tanks and twins take the damage. Holograms put on a show (same floating number) and are marked
+ * as hit: they blow up (copies.ts).
  */
-export function damageTarget(state: GameState, t: Target, amount: number, shooterId: number, colour = '#ffffff'): void {
+export function damageTarget(state: GameState, t: Target, amount: number, colour = '#ffffff'): void {
   if (amount <= 0) return;
   if (t.kind === 'player') {
     damagePlayer(state, t.player, amount, colour);
@@ -149,7 +148,7 @@ export function damageTarget(state: GameState, t: Target, amount: number, shoote
   } else {
     // A decoy of a tattooed tank shows the same boosted number, so it gives nothing away.
     const shown = vulnerable(state.players[t.holo.ownerId]!, amount);
-    t.holo.hits.push({ shooterId, damage: shown });
+    t.holo.hit = true;
     spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${shown}`, colour);
   }
 }
@@ -180,7 +179,7 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     const reach = r + TANK_HIT_RADIUS;
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
-    damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)), shooterId);
+    damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)));
     if (weapon.debuff && t.kind !== 'hologram' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier);
     if (weapon.tattoo && t.kind !== 'hologram' && t.player.alive) {
       if (!t.player.tattoo) {

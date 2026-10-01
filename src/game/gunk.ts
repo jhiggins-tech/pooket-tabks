@@ -69,7 +69,7 @@ export function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
         target.player.toxinRate = spec.dosePerSecond;
         target.player.soakColour = colour;
       } else {
-        soakTarget(target, dose, colour, sl.ownerId);
+        soakTarget(target, dose, colour);
       }
       return true;
     }
@@ -146,7 +146,7 @@ export function stepPuddles(state: GameState, dt: number): void {
     if (!burning) continue;
     const w = getWeapon(burning.weaponId);
     const amount = (w.gunk?.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
-    soakTarget(t, amount, '#b6f04a', burning.ownerId);
+    soakTarget(t, amount, '#b6f04a');
   }
   for (const p of state.puddles) p.age += dt;
   state.puddles = state.puddles.filter((p) => p.age < p.ttl);

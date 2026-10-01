@@ -55,7 +55,7 @@ export function stepBoom(state: GameState, b: Boom, dt: number): boolean {
       b.hits[k]!.push(key);
       const falloff = Math.min(1, spec.refDistance / Math.max(d, 1));
       const dmg = scaled(state, b.ownerId, spec.damage * falloff * (phased ? PHASE_FOCUS : 1));
-      damageTarget(state, t, dmg, b.ownerId, phased ? '#ffffff' : (getWeapon(b.weaponId).colour ?? '#c9b6ff'));
+      damageTarget(state, t, dmg, phased ? '#ffffff' : (getWeapon(b.weaponId).colour ?? '#c9b6ff'));
     });
   }
   return radii[radii.length - 1]! >= b.range * (siblings.length > 0 ? PHASE_RANGE : 1);

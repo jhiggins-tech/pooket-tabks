@@ -21,7 +21,7 @@ import { clamp, normalizeAngle } from './util';
  * (aiming → flying → settling → aiming | gameover). Pure logic, no DOM. The public API is re-exported
  * here, so the rest of the game imports from './game'.
  */
-export { DECOY_PICK_TIME, HOLOGRAM_PENALTY, HOLOGRAM_PHASE_IN, canPickDecoy, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, toggleSwapTarget } from './copies';
+export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, canPickDecoy, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, toggleSwapTarget } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
 export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, drive } from './movement';
@@ -123,6 +123,7 @@ export function createGame(cfg: GameConfig): GameState {
     decoyPick: 0,
     shimmers: [],
     ghosts: [],
+    holoBlasts: [],
     streams: [],
     jets: [],
     spews: [],

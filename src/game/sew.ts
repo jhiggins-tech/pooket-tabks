@@ -39,7 +39,7 @@ export function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
     const target = targetAt(state, pt.x, pt.y);
     if (target && targetOwner(target) !== st.ownerId && !st.hits.includes(targetKey(target))) {
       st.hits.push(targetKey(target));
-      damageTarget(state, target, scaled(state, st.ownerId, spec.damage), st.ownerId, weapon.colour);
+      damageTarget(state, target, scaled(state, st.ownerId, spec.damage), weapon.colour);
       if (target.kind !== 'hologram' && target.player.alive) {
         target.player.pinned = { active: false };
         const c = targetPos(target);
