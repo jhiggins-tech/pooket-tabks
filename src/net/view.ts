@@ -4,6 +4,7 @@ import type { RelayTransport } from './relay';
 import { Rtdb } from './rtdb';
 import { seal, sealerFor, unseal } from './seal';
 import type { ViewMsg } from './session';
+import type { RoomRef } from './watchers';
 import { LatestWriter } from './writer';
 
 /**
@@ -44,8 +45,8 @@ export class ViewPublisher {
 
 const AIM_EVERY_MS = 250;
 
-/** Watch a room's spectator feed. Resolves once watching; `onEnd` when the room closes. */
-export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => void, onEnd: () => void): Promise<{ stop: () => void }> {
+/** Watch a room's spectator feed. Resolves once watching (with the room, for checking in); `onEnd` when the room closes. */
+export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => void, onEnd: () => void): Promise<{ stop: () => void; room: RoomRef }> {
   const sealer = await sealerFor('room', code);
   const path = `rooms/${sealer.topic}`;
   const host = await db.get<{ id: string; ts: number }>(`${path}/host`);
@@ -84,5 +85,5 @@ export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => 
       take(e.data);
     } else if (e.path === '/aim') take(e.data);
   });
-  return { stop: () => stream.close() };
+  return { stop: () => stream.close(), room: { db, path, sealer } };
 }

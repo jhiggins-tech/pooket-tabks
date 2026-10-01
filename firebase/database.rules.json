@@ -34,6 +34,15 @@
           "ts": { ".validate": true },
           "$other": { ".validate": false }
         },
+        "watchers": {
+          "$watcher": {
+            ".write": true,
+            ".validate": "$watcher.length <= 32 && newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 1024 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+            "m": { ".validate": true },
+            "ts": { ".validate": true },
+            "$other": { ".validate": false }
+          }
+        },
         "$other": { ".validate": false }
       }
     },

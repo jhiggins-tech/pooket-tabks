@@ -5,17 +5,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Queue
 
 The refactoring pass (from the code assessment, 1 Oct) has shipped up to phase 4 (see **Refactoring** under
-Shipped); its last phase, the tidy, is item 3.
+Shipped); its last phase, the tidy, is item 2.
 
-1. **Spectators, live** (owner, 1 Oct). During a match, the players (and watchers) see who's watching: a
-   live list with a counter, and a toast when someone starts watching ("Kim just started watching").
-   Watchers check in to the room while they watch (a new database path: the owner re-publishes the rules).
-2. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
+1. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
    another for the next match (online: each phone picks its own, the next match starts once both have
    chosen; hotseat: the setup screen with the last match's players filled in).
-3. **Refactoring phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+2. **Refactoring phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
-4. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
+3. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
    implementation handover"). Web Push with VAPID, no new hosting and no Blaze plan. Two paths share one
    `evt-<id>` tag and an IndexedDB `seen` store, so each event alerts once:
    - Foreground: a live RTDB listener notifies within seconds while the game is open.
@@ -170,6 +167,11 @@ Shipped); its last phase, the tidy, is item 3.
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Who's watching** (owner, 1 Oct): during an online match the players and everyone watching see a 👁
+  count in the top bar (tap it for the names; you're "You"), and a toast when someone starts watching
+  ("👁 Kim just started watching"). Watchers check in to the room every 20 s while they watch and check
+  out when they leave; a check-in over a minute old stops counting (`net/watchers.ts`, `watchers/` in the
+  room; `ui/online/audience.ts`).
 - **The lobby shows who's playing as what** (owner, 1 Oct): its leftover character dropdown (from before
   Choose your tank) is gone; your tank is chosen before hosting or joining.
 - **Replays (Past matches)**: tick **Past matches** in the Game browser (remembered) and every public

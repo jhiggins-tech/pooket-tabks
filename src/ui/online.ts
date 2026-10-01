@@ -11,9 +11,11 @@ import { loadReplay, ReplayPlayer, ReplayRecorder, type ReplayListing } from '..
 import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
+import { checkIn } from '../net/watchers';
 import type { Transport } from '../net/transport';
 import { button, el } from './dom';
 import { loadCharacter, saveCharacter } from './profile';
+import { Audience } from './online/audience';
 import { gameBrowser } from './online/browser';
 import { hostScreen } from './online/hosting';
 import { listPublicly } from './online/prefs';
@@ -69,6 +71,8 @@ export class OnlineScreen {
   /** "Waiting for them to come back" while the other phone is away. */
   private readonly away = el('div', 'net-away');
   private awayKey = '';
+  /** Who's watching (the 👁 chip and "just started watching"). */
+  private readonly audience = new Audience();
   private seatTimer: ReturnType<typeof setInterval> | null = null;
   /** The seat of the match this phone is in. */
   private seat: Omit<Seat, 'ts'> | null = null;
@@ -459,6 +463,12 @@ export class OnlineScreen {
     try {
       const w = await watchRoom(db, code, (v) => sp.receive(v), () => this.watchEnded());
       scope.onEnd(() => w.stop()); // (now, if we've left meanwhile)
+      if (scope.alive) {
+        // Check in, so the players (and everyone else watching) see who's here.
+        const me = randomId();
+        scope.onEnd(checkIn(w.room, me, this.pick().name).stop);
+        scope.onEnd(this.audience.follow(w.room, me));
+      }
       if (scope.alive && !sp.game) this.show([heading(`Watching ${code}`), status('Waiting for the match to start…', 'online-status'), buttons(cancelButton(() => this.close(), 'Leave'))]);
     } catch (e) {
       if (scope.alive) this.fail(e, () => void this.watch(code));
@@ -604,6 +614,7 @@ export class OnlineScreen {
       const replay = new ReplayRecorder(peer.db, this.opts.lobby);
       s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
       s.publicReplay = !!seat.listed;
+      this.audience.follow({ db: peer.db, path: peer.roomPath, sealer: peer.sealer });
     }
     s.on('lobby', () => this.lobby());
     s.on('lost', () => this.lost());
@@ -685,6 +696,7 @@ export class OnlineScreen {
     if (this.seatTimer) clearInterval(this.seatTimer);
     this.seatTimer = null;
     this.seat = null;
+    this.audience.stop();
     this.away.hidden = true;
     this.awayKey = '';
   }

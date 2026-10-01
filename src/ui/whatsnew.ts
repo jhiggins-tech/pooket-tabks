@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 27,
+    title: 'Who’s watching',
+    items: [
+      'Online, you can see who’s watching your match: the 👁 count in the top bar (tap it for their names).',
+      'A heads-up pops up when someone starts watching.',
+    ],
+  },
+  {
     version: 26,
     title: 'Tidier online screens',
     items: [

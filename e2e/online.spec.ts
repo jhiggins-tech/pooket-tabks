@@ -194,6 +194,7 @@ test('a third phone watches a match in progress (from the Live list), view only'
   const fan = await ctx.newPage();
   fan.on('pageerror', (e) => errors.push(e.message));
   await fan.goto(`./?${q}`);
+  await setName(fan, 'Kim');
   await fan.locator('#open-browser').tap();
   const game = rows(fan, 'live');
   await expect(game).toContainText('Ann vs', { timeout: 10_000 });
@@ -206,6 +207,21 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await expect(fan.locator('#spectate-leave')).toBeVisible();
   await expect(fan.locator('.pad.right')).toBeHidden(); // no controls
   expect(await summary(fan)).toEqual(await summary(host));
+  // Everyone sees who's watching: the players get a toast, and a 👁 count with the names behind it.
+  for (const p of [host, guest]) {
+    await expect(p.locator('#toast')).toHaveText('👁 Kim just started watching', { timeout: 10_000 });
+    await expect(p.locator('#watchers')).toHaveText('👁 1');
+  }
+  await expect(fan.locator('#watchers')).toHaveText('👁 1', { timeout: 10_000 });
+  await expect(fan.locator('#toast')).toBeHidden(); // not for yourself
+  await host.screenshot({ path: 'test-results/watched.png' });
+  await host.locator('#watchers').tap();
+  await expect(host.locator('#watchers-list li')).toHaveText(['Kim']);
+  await fan.locator('#watchers').tap();
+  await expect(fan.locator('#watchers-list li')).toHaveText(['You']);
+  await host.locator('#watchers-list').tap(); // closes it
+  await expect(host.locator('#watchers-list')).toBeHidden();
+  await fan.locator('#watchers-list').tap();
   await fan.screenshot({ path: 'test-results/spectating.png' });
 
   // The host fires; the watcher sees it play out and ends up in the same place.
@@ -220,10 +236,13 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await late.locator('#online-accept').tap(); // an invite link asks first
   await pickTank(late);
   await expect(late.locator('#spectate-leave')).toBeVisible({ timeout: 15_000 });
+  await expect(host.locator('#watchers')).toHaveText('👁 2', { timeout: 10_000 });
 
   // Leaving takes the watcher back to the setup screen; the players carry on.
   await fan.locator('#spectate-leave').tap();
   await expect(fan.locator('#setup')).toBeVisible();
+  await expect(host.locator('#watchers')).toHaveText('👁 1', { timeout: 10_000 }); // checked out
+  await expect(fan.locator('#watchers')).toBeHidden();
   expect(await canAct(guest)).toBe(true);
   expect(errors).toEqual([]);
   await ctx.close();
