@@ -4,7 +4,8 @@ import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
-import { applySnapshot, decodeSolid, upgradeSnapshot, type Snapshot } from './snapshot';
+import { putState } from './follow';
+import { upgradeSnapshot, type Snapshot } from './snapshot';
 import { compat, WIRE } from './version';
 import { openSealed, putSealed } from './sealed';
 
@@ -244,17 +245,12 @@ export class ReplayPlayer {
   private advance(s: GameState): void {
     const shot = this.replay.shots[this.next++];
     if (shot) {
-      put(s, shot.snap, shot.terrain);
+      putState(s, shot.snap, shot.terrain);
       this.stage = 'aim';
       this.wait = AIM;
       return;
     }
-    if (this.replay.end) put(s, this.replay.end.snap, this.replay.end.terrain);
+    if (this.replay.end) putState(s, this.replay.end.snap, this.replay.end.terrain);
     this.stage = 'done';
   }
-}
-
-function put(s: GameState, snap: Snapshot, terrain: string): void {
-  applySnapshot(s, snap);
-  s.terrain.patchSolid(decodeSolid(terrain, s.terrain.solid.length));
 }

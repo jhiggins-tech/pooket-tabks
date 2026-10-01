@@ -1,11 +1,8 @@
-import { currentPlayer, finishDecoyPick, fire } from '../game/game';
+import { finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
+import { applyPreview, putState, shotResolved, SYNC_GRACE } from './follow';
 import { netLog } from './log';
 import type { ViewMsg } from './session';
-import { applySnapshot, decodeSolid } from './snapshot';
-
-/** If a turn's result arrives while we're still watching the shot play out, apply it after this long anyway. */
-const SYNC_GRACE = 4;
 
 /**
  * Watching a match, view only. Fed the players' spectator feed (ViewMsg): builds the game from the first
@@ -30,9 +27,7 @@ export class Spectator {
 
   receive(v: ViewMsg): void {
     if (v.k === 'preview') {
-      const s = this.state;
-      if (!s || v.turn !== s.turn || s.phase !== 'aiming' || this.shotTurn !== null) return;
-      Object.assign(currentPlayer(s), { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop });
+      if (this.state && this.shotTurn === null) applyPreview(this.state, v);
       return;
     }
     // A new match (or the first thing we see): build it.
@@ -71,14 +66,11 @@ export class Spectator {
   }
 
   private resolved(): boolean {
-    const s = this.state!;
-    return this.shotTurn !== null && (s.phase === 'gameover' || (s.turn > this.shotTurn && s.phase === 'aiming'));
+    return this.shotTurn !== null && shotResolved(this.state!, this.shotTurn);
   }
 
   private apply(v: Extract<ViewMsg, { k: 'state' }>): void {
-    const s = this.state!;
-    applySnapshot(s, v.snap);
-    s.terrain.patchSolid(decodeSolid(v.terrain, s.terrain.solid.length));
+    putState(this.state!, v.snap, v.terrain);
     if (v.why !== 'fire') this.shotTurn = null;
     this.pending = null;
     this.waited = 0;

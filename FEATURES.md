@@ -9,7 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 4: online and screens.**
-   - A shared base for watching and replays (`applyState`, resolved, previews).
    - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
      events with listeners instead of wrapped callbacks.
    - `NetSession` as an explicit state machine.
@@ -56,6 +55,9 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 4: following a match, shared.** `net/follow.ts` (`previewOf` / `applyPreview`, `putState`,
+  `shotResolved`, `SYNC_GRACE`) for the session, spectators and replays, which each had their own copies
+  (snapshot + terrain was put back by hand in eight places).
 - **Phase 4: one set of DOM helpers.** `ui/dom.ts` (typed `el`, `byId`, `button`, `screenTop`) replaces the
   copies in the online, info, profile, what's-new, landing and hotseat screens.
 - **Phase 4: sealed entries and one writer.** `net/sealed.ts` (`putSealed` / `openSealed` / `getSealed`) is

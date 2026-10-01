@@ -1,5 +1,6 @@
-import { concede, currentPlayer, finishDecoyPick, fire } from '../game/game';
+import { concede, finishDecoyPick, fire } from '../game/game';
 import type { GameState, Hop, PlayerConfig } from '../game/state';
+import { applyPreview, previewOf, putState, shotResolved, SYNC_GRACE, type Preview } from './follow';
 import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
@@ -50,12 +51,10 @@ export type NetMsg =
  */
 export type ViewMsg =
   | { k: 'state'; why: 'start' | 'fire' | 'sync'; seed: number; players: PlayerConfig[]; snap: Snapshot; terrain: string }
-  | Extract<NetMsg, { k: 'preview' }>;
+  | Preview;
 
 /** How often the player whose turn it is streams their aim and position to the other phone. */
 const PREVIEW_INTERVAL = 1 / 15;
-/** If the other phone's end-of-turn result arrives while we're still animating, apply it after this long anyway. */
-const SYNC_GRACE = 4;
 /** Replaying their last shot from the record (the result's already known): let it play out, within reason. */
 const REPLAY_GRACE = 60;
 /** Rejoining: how long to wait for the other phone to catch us up before going by the record instead. */
@@ -232,8 +231,7 @@ export class NetSession {
       this.previewTimer -= dt;
       if (this.previewTimer <= 0) {
         this.previewTimer = PREVIEW_INTERVAL;
-        const p = currentPlayer(s);
-        const msg = { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop } as const;
+        const msg = previewOf(s);
         const key = JSON.stringify(msg);
         if (key !== this.lastPreview) {
           this.lastPreview = key;
@@ -291,8 +289,7 @@ export class NetSession {
     this.lastShot = rec.last;
     const from = rec.flying ?? (replay ? rec.last : null);
     if (from) {
-      applySnapshot(s, from.snap);
-      s.terrain.patchSolid(decodeSolid(from.terrain, s.terrain.solid.length));
+      putState(s, from.snap, from.terrain);
       fire(s);
       this.shot = { turn: from.turn, owner: from.owner };
       if (rec.flying) this.flyingShot = rec.flying;
@@ -301,8 +298,7 @@ export class NetSession {
         this.syncGrace = REPLAY_GRACE;
       }
     } else {
-      applySnapshot(s, rec.snap);
-      s.terrain.patchSolid(decodeSolid(rec.terrain, s.terrain.solid.length));
+      putState(s, rec.snap, rec.terrain);
     }
     this.setPeerAway(true);
     this.onResumed(true);
@@ -400,8 +396,7 @@ export class NetSession {
 
   /** The turn a shot was fired in is over (the next turn has come up, or the game has ended). */
   private resolved(turn: number): boolean {
-    const s = this.state!;
-    return s.phase === 'gameover' || (s.turn > turn && s.phase === 'aiming');
+    return shotResolved(this.state!, turn);
   }
 
   private view(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
@@ -423,8 +418,7 @@ export class NetSession {
   private applySync(msg: Extract<NetMsg, { k: 'sync' }>): void {
     const s = this.state!;
     netLog(`session: applying the other phone's result (now turn ${msg.snap.turn})`);
-    applySnapshot(s, msg.snap);
-    s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
+    putState(s, msg.snap, msg.terrain);
     this.shot = null;
     this.pendingSync = null;
     this.waitedForSync = 0;
@@ -454,13 +448,9 @@ export class NetSession {
         s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
         return;
       }
-      case 'preview': {
-        const s = this.state;
-        if (!s || msg.turn !== s.turn || s.phase !== 'aiming' || s.current === this.localSeat) return;
-        const p = currentPlayer(s);
-        Object.assign(p, { x: msg.x, y: msg.y, fuel: msg.fuel, angle: msg.angle, power: msg.power, selectedTier: msg.tier, hop: msg.hop });
+      case 'preview':
+        if (this.state && this.state.current !== this.localSeat) applyPreview(this.state, msg);
         return;
-      }
       case 'fire': {
         const s = this.state;
         if (!s) return;
@@ -496,8 +486,7 @@ export class NetSession {
         if (msg.setup && msg.snap && msg.terrain) {
           netLog(`session: caught up (turn ${msg.snap.turn})`);
           const s = this.begin(msg.setup);
-          applySnapshot(s, msg.snap);
-          s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
+          putState(s, msg.snap, msg.terrain);
           this.onResumed(true);
         } else {
           netLog('session: caught up (lobby)');

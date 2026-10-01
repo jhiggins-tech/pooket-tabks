@@ -89,7 +89,7 @@ what it's for; weapons are documented where they're defined.
   (`OpenRecord`: the host's pick): the game stays open (and listed, `Advert.open`, up to
   `OPEN_ADVERT_MS`) without its host, and a guest who joins with the host away (`roomHost`) starts the
   match itself (`startIfHostAway`). Hosting and joining someone else's game go through `chooseTank`
-  first (sets your online character, `profile.ts`). `view.ts` + `spectate.ts` spectators, `lobby.ts` the public Games
+  first (sets your online character, `profile.ts`). `view.ts` + `spectate.ts` spectators (`follow.ts`: what following someone else's turn shares: previews, `putState`, `shotResolved`), `lobby.ts` the public Games
   list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle, re-listed on
   a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `replay.ts` replays of public
   matches (`ReplayRecorder`, a GameStore next to the record, writes each shot as fired and the end, by the
