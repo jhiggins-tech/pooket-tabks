@@ -4,9 +4,11 @@ import { createGame, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { Rtdb } from '../src/net/rtdb';
 import { loadReplay, loadReplays, REPLAY_KEEP_MS, ReplayPlayer, ReplayRecorder } from '../src/net/replay';
-import { sealerFor } from '../src/net/seal';
+import { toB64 } from '../src/net/b64';
+import { seal, sealerFor } from '../src/net/seal';
 import { NetSession } from '../src/net/session';
 import { loopback } from '../src/net/transport';
+import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 
 let server: FakeRtdb;
@@ -148,5 +150,18 @@ describe('replays', () => {
     expect(await loadReplays(db, lobby, Date.now() + REPLAY_KEEP_MS + 60_000)).toEqual([]);
     await until(async () => (await db.get(`replays/${topic}`)) === null);
     expect(await loadReplays(db, lobby)).toEqual([]);
+  });
+
+  it("doesn't list a replay this build can't play (older rules than it carries on, or another wire format)", async () => {
+    const lobby = `replays-${++lobbyN}`;
+    const sealer = await sealerFor('replays', lobby);
+    const put = async (key: string, listing: Record<string, unknown>) =>
+      db.put(`replayList/${sealer.topic}/${key}`, { m: toB64(await seal(sealer, listing)), ts: Date.now() });
+    const over = { winner: 0, endReason: null, turns: 4 };
+    await put('ok', { id: 'ok', v: WIRE, rules: RULES, seed: 1, players: PLAYERS, over });
+    await put('old', { id: 'old', v: WIRE, rules: OLDEST_RULES - 1, seed: 1, players: PLAYERS, over });
+    await put('newer', { id: 'newer', v: WIRE + 1, rules: RULES, seed: 1, players: PLAYERS, over });
+    await put('unversioned', { id: 'unversioned', seed: 1, players: PLAYERS, over });
+    expect((await loadReplays(db, lobby)).map((r) => r.id)).toEqual(['ok']);
   });
 });

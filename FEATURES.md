@@ -8,10 +8,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 item says otherwise; each step ships on its own with the full test suite. Live play-test checkpoints are
 flagged to the owner as they come up.
 
-1. **Phase 1: versioning.** Split the wire protocol from the game rules version; matches (setup) and replays
-   record the rules they started on, so a balance change no longer ends every match in progress: what
-   happens to an older-rules match is decided in one place. A phone on an older build is told to reload.
-2. **Phase 2: game core.**
+1. **Phase 2: game core.**
    - One hit pipeline (`applyHit`): every mechanic goes through it, so every weapon effect (burn, cook,
      tattoo, pin, refund-on-miss, friendly fire) works on every kind of weapon.
    - Status registry: each status's apply / turn start / turn end / tick / effect / badge / look in one place.
@@ -23,19 +20,19 @@ flagged to the owner as they come up.
    - Simulation vs cosmetic state: cosmetics left out of snapshots, a gameplay id counter, `winnerId`.
    - Stepper and helper cleanup: allocation-free target scans, one swept-segment helper, shared spacing /
      nearest-enemy / ammo-fallback helpers.
-3. **Phase 3: presentation.**
+2. **Phase 3: presentation.**
    - HUD: readouts update in place; chips and weapon buttons rebuild only when they change.
    - Terrain uploads as several dirty rectangles, not one union.
    - Draw-layer list (one signature, like `STEPPERS`); shared glow / sprite / pips helpers; cached sky.
    - `main.ts` split, with one `startMatch`.
-4. **Phase 4: online and screens.**
+3. **Phase 4: online and screens.**
    - Sealed-store helpers (`putSealed` / `getSealed`, one encoding everywhere) and one latest-wins writer.
    - A shared base for watching and replays (`applyState`, resolved, previews).
    - `ui/dom.ts`: one set of DOM helpers for every screen.
    - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
      events with listeners instead of wrapped callbacks.
    - `NetSession` as an explicit state machine.
-5. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+4. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
 
 ### Backlog (ideas, not yet scheduled)
@@ -49,6 +46,15 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 1: versioning** (`net/version.ts`). The one `PROTOCOL` number became `WIRE` (messages and stored
+  records) and `RULES` (the game), plus `OLDEST_RULES`, the oldest rules a stored match or replay can carry
+  on under. A balance tweak bumps `RULES` only, so matches in progress carry on with the new numbers
+  instead of all ending ("Older version"); `OLDEST_RULES` is raised only when older matches can't fit.
+  Matches record the rules they started on (`MatchSetup.rules`), records the rules of whoever wrote them,
+  replays both. Phones playing live must match exactly: the older one now gets "Update needed · ↻ Reload"
+  (your match is still there afterwards) or "The other phone needs an update", instead of "Connection
+  lost", and the room is left alone (it used to be cleared). A match last played on a newer build shows
+  "Reload to play" in the Game browser; Past matches only lists replays this build can play.
 - **Phase 0: safety.** The frame loop schedules the next frame first and logs a frame's error (once each,
   to Copy logs) instead of freezing the game for good. The sound player looks a weapon up only for tune
   cues, and never throws on an unknown id (`findWeapon`, for presentation). A phone that rejoins just

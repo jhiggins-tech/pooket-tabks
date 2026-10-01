@@ -4,21 +4,22 @@ import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
 import { newReplayId } from './replay';
+import { RULES, WIRE } from './version';
 import type { Transport } from './transport';
 
-/** Bumped whenever the messages or the game rules change: both phones must run the same code. */
-export const PROTOCOL = 7;
-
 /**
- * A match's setup: the map's seed, the players ([host, guest]), and (a public match) the id its replay
- * is recorded under (replay.ts). (`replay` came in without a protocol bump: a phone on the version
- * before just leaves it out, and that match has no replay.)
+ * A match's setup: the map's seed, the players ([host, guest]), the game rules it started on (version.ts),
+ * and (a public match) the id its replay is recorded under (replay.ts).
  */
 export interface MatchSetup {
   seed: number;
   players: PlayerConfig[];
+  rules: number;
   replay?: string;
 }
+
+/** Which phone is out of date: this one (it should reload) or the other one. */
+export type Outdated = 'us' | 'them';
 
 /** What each phone picked in the lobby. */
 export interface Pick {
@@ -27,13 +28,14 @@ export interface Pick {
 }
 
 export type NetMsg =
-  | { k: 'hello'; v: number; pick: Pick }
-  | { k: 'start'; seed: number; players: PlayerConfig[]; terrain: string; replay?: string }
+  /** `v` is the wire version and `rules` the rules version (version.ts): they must match exactly. */
+  | { k: 'hello'; v: number; rules: number; pick: Pick }
+  | { k: 'start'; seed: number; players: PlayerConfig[]; rules: number; terrain: string; replay?: string }
   | { k: 'preview'; turn: number; x: number; y: number; fuel: number; angle: number; power: number; tier: number; hop: Hop | null }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
   /** A phone that dropped out is back (on a new connection) and needs catching up. */
-  | { k: 'rejoin'; v: number }
+  | { k: 'rejoin'; v: number; rules: number }
   /** The catch-up: both picks ([host, guest]), and the match as it stands (null: still in the lobby). */
   | { k: 'resume'; picks: [Pick | null, Pick | null]; setup: MatchSetup | null; snap: Snapshot | null; terrain: string | null }
   /** Leaving before the match has started: that's the end of it. */
@@ -85,6 +87,8 @@ export class NetSession {
     throw new Error('onStart not set');
   };
   onLost: () => void = () => {};
+  /** The other phone runs another version of the game: one of them has to reload first. */
+  onOutdated: (who: Outdated) => void = () => {};
   /** The other phone went quiet (true) or came back (false). The match waits for it; it may rejoin. */
   onPeerAway: (away: boolean) => void = () => {};
   /** Rejoined and caught up: back in the match (true), or in the lobby (false). */
@@ -99,7 +103,7 @@ export class NetSession {
   publicReplay = false;
 
   private state: GameState | null = null;
-  private setup: MatchSetup = { seed: 0, players: [] };
+  private setup: MatchSetup = { seed: 0, players: [], rules: RULES };
   /** The turn a shot was fired in (and whose it was) until its result is synced. */
   private shot: { turn: number; owner: number } | null = null;
   private pendingSync: Extract<NetMsg, { k: 'sync' }> | null = null;
@@ -135,7 +139,7 @@ export class NetSession {
     netLog('session: rejoining');
     this.rejoining = true;
     this.fallback = fallback ? { ...fallback, waited: 0 } : null;
-    this.transport.send({ k: 'rejoin', v: PROTOCOL } satisfies NetMsg);
+    this.transport.send({ k: 'rejoin', v: WIRE, rules: RULES } satisfies NetMsg);
   }
 
   get isRejoining(): boolean {
@@ -157,7 +161,7 @@ export class NetSession {
 
   setPick(pick: Pick): void {
     this.localPick = pick;
-    this.transport.send({ k: 'hello', v: PROTOCOL, pick } satisfies NetMsg);
+    this.transport.send({ k: 'hello', v: WIRE, rules: RULES, pick } satisfies NetMsg);
     this.onLobby();
   }
 
@@ -168,9 +172,9 @@ export class NetSession {
   start(seed: number, players: PlayerConfig[]): GameState {
     netLog(`session: starting a match (${players.map((p) => p.characterId).join(' vs ')})`);
     const replay = this.publicReplay ? newReplayId() : undefined;
-    const state = this.begin({ seed, players, replay });
+    const state = this.begin({ seed, players, rules: RULES, replay });
     const terrain = encodeSolid(state.terrain);
-    this.transport.send({ k: 'start', seed, players, terrain, replay } satisfies NetMsg);
+    this.transport.send({ k: 'start', seed, players, rules: RULES, terrain, replay } satisfies NetMsg);
     const snap = takeSnapshot(state);
     this.view('start', snap, terrain);
     this.record(snap, terrain);
@@ -346,7 +350,7 @@ export class NetSession {
 
   private record(snap: Snapshot, terrain: string): void {
     if (!this.store || !this.state) return;
-    this.store.save({ v: PROTOCOL, setup: this.setup, snap, terrain, last: this.lastShot, flying: this.flyingShot });
+    this.store.save({ v: WIRE, rules: RULES, setup: this.setup, snap, terrain, last: this.lastShot, flying: this.flyingShot });
   }
 
   /** Carrying on without them (the guest started the match with the host away). */
@@ -438,18 +442,14 @@ export class NetSession {
     switch (msg.k) {
       case 'hello':
         netLog(`session: hello from the other phone (${msg.pick.characterId})`);
-        if (msg.v !== PROTOCOL) {
-          netLog(`session: other phone runs protocol ${msg.v}, this one ${PROTOCOL}`);
-          this.drop();
-          return;
-        }
+        if (this.mismatched(msg)) return;
         this.remotePick = msg.pick;
         this.onLobby();
         return;
       case 'start': {
         // Usually the host starts; the guest does if it joined while the host was away.
         if (this.isHost && this.state) return;
-        const s = this.begin({ seed: msg.seed, players: msg.players, replay: msg.replay });
+        const s = this.begin({ seed: msg.seed, players: msg.players, rules: msg.rules, replay: msg.replay });
         // Same seed, same map, but make sure (maths can round differently between phones).
         s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
         return;
@@ -481,11 +481,7 @@ export class NetSession {
         return;
       case 'rejoin':
         netLog('session: the other phone is back and rejoining');
-        if (msg.v !== PROTOCOL) {
-          netLog(`session: other phone runs protocol ${msg.v}, this one ${PROTOCOL}`);
-          this.drop();
-          return;
-        }
+        if (this.mismatched(msg)) return;
         this.transport.restart?.();
         this.resumeWanted = true;
         this.sendResume();
@@ -527,6 +523,21 @@ export class NetSession {
         return;
       }
     }
+  }
+
+  /**
+   * The other phone runs another version (wire or rules): no playing together. Whoever's older is told to
+   * reload (the site always serves the latest).
+   */
+  private mismatched(msg: { v: number; rules?: number }): boolean {
+    if (msg.v === WIRE && msg.rules === RULES) return false;
+    const who: Outdated = msg.v > WIRE || (msg.rules ?? 0) > RULES ? 'us' : 'them';
+    netLog(`session: other phone runs wire ${msg.v} rules ${msg.rules ?? '?'}, this one ${WIRE} / ${RULES}: ${who === 'us' ? 'this phone' : 'the other phone'} needs to reload`);
+    // Not the end of the match: leave the room as it is, to carry on once both are up to date.
+    this.lost = true;
+    (this.transport.detach ?? this.transport.close).call(this.transport);
+    this.onOutdated(who);
+    return true;
   }
 
   private drop(): void {

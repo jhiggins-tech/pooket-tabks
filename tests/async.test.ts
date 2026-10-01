@@ -3,7 +3,8 @@ import { FIXED_DT } from '../src/game/constants';
 import { createGame, currentPlayer, selectTier, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { FORFEIT_MS, forfeitDue, gameStatus, opponentName, type GameRecord, type GameStore, type StoredGame } from '../src/net/record';
-import { NetSession, PROTOCOL, RESUME_WAIT } from '../src/net/session';
+import { NetSession, RESUME_WAIT } from '../src/net/session';
+import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
 import { takeSnapshot } from '../src/net/snapshot';
 import { loopback } from '../src/net/transport';
 import { decodeMsg, encodeMsg } from '../src/net/wire';
@@ -77,7 +78,7 @@ describe('the game record', () => {
   it('is written when the match starts, when a shot is fired and when it has played out', async () => {
     const store = new MemoryStore();
     const { a, b, A } = await connected(store);
-    expect(store.rec).toMatchObject({ v: PROTOCOL, setup: { seed: 4321 }, last: null, flying: null });
+    expect(store.rec).toMatchObject({ v: WIRE, rules: RULES, setup: { seed: 4321, rules: RULES }, last: null, flying: null });
     expect(store.rec!.snap.turn).toBe(1);
     setAim(A, 60, 40);
     a.fire();
@@ -257,19 +258,36 @@ describe('the game record', () => {
     const store = new MemoryStore();
     const { a, b, A } = await connected(store);
     const g = (): StoredGame => ({ rec: store.rec!, ts: Date.now() });
-    expect(gameStatus(g(), 0, PROTOCOL)).toBe('your-turn');
-    expect(gameStatus(g(), 1, PROTOCOL)).toBe('their-turn');
+    expect(gameStatus(g(), 0)).toBe('your-turn');
+    expect(gameStatus(g(), 1)).toBe('their-turn');
     expect(opponentName(g(), 0)).toBe('B');
     expect(opponentName(g(), 1)).toBe('A');
-    expect(gameStatus(g(), 0, PROTOCOL + 1)).toBe('old');
-    expect(gameStatus({ ...g(), ts: Date.now() - FORFEIT_MS - 1 }, 0, PROTOCOL)).toBe('lost');
-    expect(gameStatus({ ...g(), ts: Date.now() - FORFEIT_MS - 1 }, 1, PROTOCOL)).toBe('won');
+    expect(gameStatus({ ...g(), ts: Date.now() - FORFEIT_MS - 1 }, 0)).toBe('lost');
+    expect(gameStatus({ ...g(), ts: Date.now() - FORFEIT_MS - 1 }, 1)).toBe('won');
     selectTier(A, 0);
     void currentPlayer(A);
     a.resign();
     await flush();
-    expect(gameStatus(g(), 0, PROTOCOL)).toBe('lost');
-    expect(gameStatus(g(), 1, PROTOCOL)).toBe('won');
+    expect(gameStatus(g(), 0)).toBe('lost');
+    expect(gameStatus(g(), 1)).toBe('won');
     void b;
+  });
+
+  it('a match carries on across rules changes it can survive; one from a newer build needs a reload', async () => {
+    const store = new MemoryStore();
+    await connected(store);
+    const g = (rec: Partial<GameRecord>, setupRules = store.rec!.setup.rules): StoredGame => ({
+      rec: { ...store.rec!, ...rec, setup: { ...store.rec!.setup, rules: setupRules } },
+      ts: Date.now(),
+    });
+    expect(gameStatus(g({}), 0)).toBe('your-turn');
+    // Started on rules this build still carries on (a balance tweak since): fine.
+    expect(gameStatus(g({}, OLDEST_RULES), 0)).toBe('your-turn');
+    // Started before the oldest rules this build can carry on, or stored in an older wire format: over.
+    expect(gameStatus(g({}, OLDEST_RULES - 1), 0)).toBe('old');
+    expect(gameStatus(g({ v: WIRE - 1 }), 0)).toBe('old');
+    // Last played on a newer build (or stored in a newer format): this phone should reload first.
+    expect(gameStatus(g({ rules: RULES + 1 }), 0)).toBe('newer');
+    expect(gameStatus(g({ v: WIRE + 1 }), 0)).toBe('newer');
   });
 });

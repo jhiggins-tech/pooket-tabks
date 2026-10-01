@@ -2,7 +2,8 @@ import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
-import { PROTOCOL, type MatchSetup, type Pick } from './session';
+import type { MatchSetup, Pick } from './session';
+import { compat, RULES, WIRE, type Compat } from './version';
 import type { Snapshot } from './snapshot';
 import { decodeMsg, encodeMsg } from './wire';
 
@@ -29,8 +30,10 @@ export interface ShotRecord {
 }
 
 export interface GameRecord {
-  /** The protocol it was written with: a game from another version can't be carried on. */
+  /** The wire version it was written in, and the rules of the build that wrote it (version.ts). */
   v: number;
+  rules: number;
+  /** The match's setup, including the rules it started on. */
   setup: MatchSetup;
   /** The match as it stands between shots. */
   snap: Snapshot;
@@ -44,6 +47,7 @@ export interface GameRecord {
 /** A hosted game nobody has joined yet: the host's pick, and whether it's on the public Games list. */
 export interface OpenRecord {
   v: number;
+  rules: number;
   open: { host: Pick; listed: boolean };
 }
 
@@ -96,19 +100,32 @@ export class RecordStore implements GameStore {
 
 /** Put up a hosted game's open offer (before anyone has joined). */
 export async function saveOffer(db: Rtdb, roomPath: string, sealer: Sealer, offer: OpenRecord['open']): Promise<void> {
-  const rec: OpenRecord = { v: PROTOCOL, open: offer };
+  const rec: OpenRecord = { v: WIRE, rules: RULES, open: offer };
   await db.put(`${roomPath}/game`, { m: toB64(await seal(sealer, encodeMsg(rec))), ts: SERVER_TIME });
 }
 
 /** Whatever's in a room's record slot: a match, an open offer, or nothing. */
-export async function loadRoomRecord(db: Rtdb, code: string): Promise<{ game: StoredGame } | { offer: OpenRecord['open']; v: number; ts: number } | null> {
+export async function loadRoomRecord(
+  db: Rtdb,
+  code: string,
+): Promise<{ game: StoredGame } | { offer: OpenRecord['open']; compat: Compat; ts: number } | null> {
   const sealer = await sealerFor('room', code);
   const raw = await db.get<{ m?: unknown; ts?: unknown }>(`rooms/${sealer.topic}/game`);
   if (!raw || typeof raw.m !== 'string' || typeof raw.ts !== 'number') return null;
   const text = await unseal(sealer, fromB64(raw.m));
   if (typeof text !== 'string') return null;
   const rec = decodeMsg(text) as GameRecord | OpenRecord;
-  return 'open' in rec ? { offer: rec.open, v: rec.v, ts: raw.ts } : { game: { rec, ts: raw.ts } };
+  // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches are over by 5 Oct.)
+  if (rec.v === 7) {
+    rec.rules ??= 7;
+    if ('setup' in rec) rec.setup.rules ??= 7;
+  }
+  return 'open' in rec ? { offer: rec.open, compat: compat(rec.v, rec.rules), ts: raw.ts } : { game: { rec, ts: raw.ts } };
+}
+
+/** Whether this build can carry a stored match on: yes, it's too old, or it's from a newer build (reload first). */
+export function recordCompat(rec: GameRecord): Compat {
+  return compat(rec.v, rec.rules, rec.setup.rules);
 }
 
 /** A room's match record (null: the match hasn't started, or the room has gone). */
@@ -122,11 +139,15 @@ export function forfeitDue(g: StoredGame, now = Date.now()): boolean {
   return g.rec.snap.phase !== 'gameover' && now - g.ts > FORFEIT_MS;
 }
 
-export type GameStatus = 'your-turn' | 'their-turn' | 'won' | 'lost' | 'draw' | 'old';
+export type GameStatus = 'your-turn' | 'their-turn' | 'won' | 'lost' | 'draw' | 'old' | 'newer';
 
-/** How a match stands for the player in `seat` (0 host, 1 guest), for the Game browser's list of your matches. */
-export function gameStatus(g: StoredGame, seat: number, protocol: number, now = Date.now()): GameStatus {
-  if (g.rec.v !== protocol) return 'old';
+/**
+ * How a match stands for the player in `seat` (0 host, 1 guest), for the Game browser's list of your
+ * matches: `old` (can't carry on) or `newer` (reload to play) when it's from another version.
+ */
+export function gameStatus(g: StoredGame, seat: number, now = Date.now()): GameStatus {
+  const c = recordCompat(g.rec);
+  if (c !== 'ok') return c;
   const snap = g.rec.snap as Snapshot & { phase: string; current: number };
   if (snap.phase === 'gameover') return snap.winner === null ? 'draw' : snap.winner === seat ? 'won' : 'lost';
   if (forfeitDue(g, now)) return snap.current === seat ? 'lost' : 'won';

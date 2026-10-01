@@ -3,6 +3,7 @@ import { FIXED_DT, MAX_HP } from '../src/game/constants';
 import { createGame, currentPlayer, drive, finishDecoyPick, hologramsOf, selectTier, setAim, step, toggleSwapTarget } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { NetSession } from '../src/net/session';
+import { RULES, WIRE } from '../src/net/version';
 import { takeSnapshot } from '../src/net/snapshot';
 import { loopback } from '../src/net/transport';
 
@@ -219,6 +220,27 @@ describe('networked match', { timeout: 30_000 }, () => {
     expect(B.phase).toBe('gameover');
     expect(B.winner?.name).toBe(A.winner?.name);
     expect(A.players.some((p) => p.hp < MAX_HP)).toBe(true);
+  });
+
+  it('a phone on another version: whichever is older is told to reload, and the room is left as it is', async () => {
+    for (const [hello, who] of [
+      [{ v: WIRE, rules: RULES + 1 }, 'us'],
+      [{ v: WIRE + 1, rules: RULES }, 'us'],
+      [{ v: WIRE, rules: RULES - 1 }, 'them'],
+      [{ v: WIRE }, 'them'], // a build from before the rules were sent
+    ] as const) {
+      const [ta] = loopback();
+      let closed = false;
+      ta.close = () => (closed = true);
+      const a = new NetSession(ta, 'host');
+      let outdated: string | null = null;
+      a.onOutdated = (w) => (outdated = w);
+      (a as unknown as { receive(m: unknown): void }).receive({ k: 'hello', ...hello, pick: { name: 'B', characterId: 'kie' } });
+      expect(outdated).toBe(who);
+      expect(a.lost).toBe(true);
+      expect(a.remotePick).toBeNull();
+      expect(closed).toBe(false); // detached, not closed: the room (and any match in it) stays
+    }
   });
 
   it('notices when the other phone leaves', async () => {

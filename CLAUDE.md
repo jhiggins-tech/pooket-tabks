@@ -78,7 +78,8 @@ what it's for; weapons are documented where they're defined.
   `resume` for a phone that dropped out). Matches are live when both phones are there and **turn by
   turn** when not: `record.ts` is each room's lasting record (`game`: written by the phone in charge at
   start / fire / result), and `NetSession.catchUp` goes by it when nobody answers a rejoin within
-  `RESUME_WAIT` (replaying their last shot, or playing out one left in flight and recording it);
+  `RESUME_WAIT` (replaying their last shot, or playing out one left in flight and recording it); a match
+  records the rules it started on (`MatchSetup.rules`, see Versions);
   `away` (back to the menu: the room stays), `resign`, and `forfeit` after `FORFEIT_MS`. Only leaving the
   lobby (`leave`, 'bye') or Cancel game ends a room. Hosting puts an **open offer** in the same slot
   (`OpenRecord`: the host's pick): the game stays open (and listed, `Advert.open`, up to
@@ -96,7 +97,8 @@ what it's for; weapons are documented where they're defined.
 
 ## Recipes
 **Tweak a weapon** (numbers, text): its kit file in `src/characters/kits/`. Keep `info` accurate (the info
-screen is built from it). Add a FEATURES **Balance** entry and a what's-new release.
+screen is built from it). Bump `RULES` (see Versions) unless it's text only. Add a FEATURES **Balance**
+entry and a what's-new release.
 
 **Add a weapon using an existing mechanic** (e.g. another ballistic shot):
 1. Define it in the character's kit file and put it in their `kit(…, [t1, t2, t3])` (or `[t1, t2, t3, bonus]`).
@@ -122,7 +124,13 @@ in `kits/index.ts`, then update `tests/roster.test.ts` and the character list in
 **Add a sound cue** for a game event: the cue name in `SfxCue` (`game/state.ts`), `sound(state, cue)` where
 it happens (game logic only queues cues), and its recipe in `CUE_SOUNDS` (`audio/sfx.ts`). Keep it kitschy.
 
-**Change the online protocol**: `NetMsg` in `net/session.ts`, bump `PROTOCOL`, `netLog` the new steps,
+**Versions** (`net/version.ts`): any gameplay change (a balance tweak, a mechanic) bumps `RULES`: phones
+playing live must match exactly, and an older phone is told to reload. Matches in progress carry on under
+the new rules unless you also raise `OLDEST_RULES` (do that when older matches' saved state no longer fits
+the game, e.g. a state field changed shape); replays from rules older than that are hidden. A change to
+the messages or stored records that an older build can't read bumps `WIRE`.
+
+**Change the online protocol**: `NetMsg` in `net/session.ts`, bump `WIRE` (see Versions), `netLog` the new steps,
 test over `loopback()` (`tests/net-session.test.ts`) and the fake Firebase (`tests/rejoin.test.ts`,
 `tests/rooms.test.ts`). New database paths need rules (and a re-publish, see above).
 

@@ -8,10 +8,10 @@ import { Rtdb } from '../net/rtdb';
 import { sealerFor } from '../net/seal';
 import { characterDetails } from './info';
 import { loadCharacter, saveCharacter } from './profile';
-import { forfeitDue, gameStatus, loadRoomRecord, opponentName, RecordStore, type GameStatus, type OpenRecord, type StoredGame } from '../net/record';
+import { forfeitDue, gameStatus, loadRoomRecord, opponentName, RecordStore, recordCompat, type GameStatus, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
 import { loadReplay, loadReplays, ReplayPlayer, ReplayRecorder, type ReplayListing } from '../net/replay';
-import { NetSession, PROTOCOL, type Pick } from '../net/session';
+import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
 import type { Transport } from '../net/transport';
@@ -292,7 +292,10 @@ export class OnlineScreen {
           if (cancelled) return t.close();
           const s = this.startSession(t, { code: c, role: 'guest', id });
           const [host, rec] = await room;
-          if (host && rec && 'offer' in rec) this.startIfHostAway(db, s, c, host, rec.offer);
+          if (host && rec && 'offer' in rec) {
+            if (rec.compat === 'newer') return this.outdated('us'); // hosted on a newer version
+            this.startIfHostAway(db, s, c, host, rec.offer);
+          }
         },
         (e) => {
           if (cancelled) return;
@@ -340,6 +343,7 @@ export class OnlineScreen {
       lost: ['You lost', 'done'],
       draw: ['A draw', 'done'],
       old: ['Older version', 'done'],
+      newer: ['Reload to play', 'mine'],
       lobby: ['Not started', 'done'],
       open: ['Waiting for a player', 'waiting'],
     };
@@ -548,6 +552,14 @@ export class OnlineScreen {
         return void this.resumeHosting(seat, rec.offer); // nobody's joined yet
       }
       stored = rec && 'game' in rec ? rec.game : null;
+      const c = stored ? recordCompat(stored.rec) : 'ok';
+      if (c !== 'ok') {
+        if (cancelled) return;
+        this.stopRoom = null;
+        if (c === 'newer') return this.outdated('us'); // (the seat's kept: it's there after the reload)
+        forgetSeat(seat.code);
+        return this.fail(new Error(`That match (${seat.code}) was started on an older version of Pooket Tabks, so it can't carry on. Sorry!`));
+      }
       t = await rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay);
     } catch (e) {
       if (cancelled) return;
@@ -556,11 +568,6 @@ export class OnlineScreen {
     }
     if (cancelled) return void t.detach();
     this.stopRoom = null;
-    if (stored && stored.rec.v !== PROTOCOL) {
-      t.detach();
-      forgetSeat(seat.code);
-      return this.fail(new Error(`That match (${seat.code}) was started on an older version of Pooket Tabks, so it can't carry on. Sorry!`));
-    }
     const s = this.setupSession(t, seat);
     if (stored) {
       // Nobody's moved for three days: once we're caught up, whoever's turn it is forfeits.
@@ -714,6 +721,26 @@ export class OnlineScreen {
     this.show([heading('Connection lost'), text('The other phone left the match.'), cancelButton(() => this.close(), 'Back')]);
   }
 
+  /**
+   * The other phone runs another version of the game. If it's this one that's behind, reload (the site
+   * always has the latest, and the match is still there afterwards); if it's theirs, they have to.
+   */
+  private outdated(who: Outdated): void {
+    netLog(`ui: ${who === 'us' ? 'this phone' : 'the other phone'} is on an older version`);
+    if (this.session && !this.session.lost) this.session.away(); // the seat and the room stay as they are
+    this.endSeat();
+    this.cleanup();
+    this.session = null;
+    const reload = el('button', 'big', '↻ Reload');
+    reload.id = 'online-reload';
+    reload.addEventListener('click', () => location.reload());
+    this.show(
+      who === 'us'
+        ? [heading('Update needed'), text('Pooket Tabks has been updated since this page was loaded. Reload to play: your game will still be there.'), reload, cancelButton(() => this.close(), 'Back')]
+        : [heading('The other phone needs an update'), text('Their Pooket Tabks is an older version. Once they reload the page, try again.'), cancelButton(() => this.close(), 'Back')],
+    );
+  }
+
   hide(): void {
     this.root.hidden = true;
   }
@@ -780,6 +807,7 @@ export class OnlineScreen {
     }
     s.onLobby = () => this.lobby();
     s.onLost = () => this.lost();
+    s.onOutdated = (who) => this.outdated(who);
     s.onPeerAway = () => this.showAway();
     s.onResumed = (inMatch) => {
       netLog(`ui: rejoined ${inMatch ? 'the match' : 'the lobby'}`);
@@ -921,7 +949,7 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
         const seatNo = seat.role === 'host' ? 0 : 1;
         const [me, them] = seatNo === 0 ? stored.rec.setup.players : [...stored.rec.setup.players].reverse();
         const detail = me && them ? `${charName(me.characterId)} vs ${charName(them.characterId)} · your match` : 'your match';
-        return { seat, status: gameStatus(stored, seatNo, PROTOCOL), opponent: opponentName(stored, seatNo), detail };
+        return { seat, status: gameStatus(stored, seatNo), opponent: opponentName(stored, seatNo), detail };
       } catch {
         return null; // can't tell right now: leave it be
       }

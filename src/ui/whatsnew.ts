@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 24,
+    title: 'Updates won’t end your games',
+    items: [
+      'Online matches in progress now carry on through balance updates (they used to end as “Older version”).',
+      'If the other phone is on a different version, whichever is behind is asked to reload, and your match waits for it.',
+    ],
+  },
+  {
     version: 23,
     title: 'torikloud toughens up',
     items: [

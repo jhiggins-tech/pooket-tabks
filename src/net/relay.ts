@@ -176,7 +176,7 @@ export class RelayTransport implements Transport {
       const batch = b as { e?: number; seq: number; m: unknown[]; from?: string } | null;
       if (!batch) return netLog('relay: a message that did not unseal');
       // From someone who's since lost the seat (a ghost the host freed it from): not for us. (An older
-      // version doesn't say who it is; the session's protocol check deals with that.)
+      // version doesn't say who it is; the session's version check deals with that.)
       if (this.opts.peer && batch.from !== undefined && batch.from !== this.opts.peer) return;
       const e = batch.e ?? 0;
       if (e < this.peerEpoch || this.closed) return; // left over from a connection they've since replaced

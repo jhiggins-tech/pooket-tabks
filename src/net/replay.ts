@@ -6,6 +6,7 @@ import type { GameRecord, GameStore, ShotRecord } from './record';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
 import { applySnapshot, decodeSolid, type Snapshot } from './snapshot';
+import { compat, WIRE } from './version';
 
 /**
  * Replays of public matches (ones on the Games list), to watch once they're over: the Game browser's
@@ -32,6 +33,9 @@ const LIST_MAX = 30;
 /** A public match, on the list of replays. */
 export interface ReplayListing {
   id: string;
+  /** The wire version its shots are stored in, and the rules the match was played on (version.ts). */
+  v: number;
+  rules: number;
   seed: number;
   players: PlayerConfig[];
   /** Once it's over: who won (seat; null for a draw), why if it wasn't the guns, and how many turns it took. */
@@ -106,7 +110,7 @@ export class ReplayRecorder implements GameStore {
 
   private async list(rec: GameRecord, id: string): Promise<void> {
     const snap = rec.snap as Snapshot & Pick<GameState, 'phase' | 'endReason'>;
-    const listing: Omit<ReplayListing, 'ts'> = { id, seed: rec.setup.seed, players: rec.setup.players };
+    const listing: Omit<ReplayListing, 'ts'> = { id, v: WIRE, rules: rec.setup.rules, seed: rec.setup.seed, players: rec.setup.players };
     if (snap.phase === 'gameover') listing.over = { winner: snap.winner, endReason: snap.endReason, turns: snap.turn };
     const [lobby, sealer] = await Promise.all([listSealer(this.lobby), replaySealer(id)]);
     await this.db.put(`replayList/${lobby.topic}/${sealer.topic}`, { m: toB64(await seal(lobby, listing)), ts: SERVER_TIME });
@@ -132,7 +136,8 @@ export async function loadReplays(db: Rtdb, lobbyName: string, now = Date.now())
     }),
   );
   return out
-    .filter((r): r is ReplayListing => !!r?.over)
+    // Finished, and playable on this build (a replay from older rules than it can carry on isn't shown).
+    .filter((r): r is ReplayListing => !!r?.over && compat(r.v, r.rules) === 'ok')
     .sort((a, b) => b.ts - a.ts)
     .slice(0, LIST_MAX);
 }
