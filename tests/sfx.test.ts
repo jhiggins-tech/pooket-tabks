@@ -80,6 +80,13 @@ describe('sound effects', () => {
     player.play({ cue: 'boom', weaponId: 'unmedicated', size: 11 });
     expect(player.played).toBe(3);
   });
+
+  it('an event naming a weapon that doesn\'t exist still plays (it never throws)', () => {
+    const player = new SfxPlayer(new Recorder(), () => 0);
+    expect(() => player.play({ cue: 'boom', weaponId: 'no-such-weapon', size: 20 })).not.toThrow();
+    expect(() => player.play({ cue: 'tune', weaponId: 'no-such-weapon' })).not.toThrow();
+    expect(player.played).toBe(2);
+  });
 });
 
 describe('the game queues sound cues', () => {

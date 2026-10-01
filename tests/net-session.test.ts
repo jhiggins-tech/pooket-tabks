@@ -230,4 +230,43 @@ describe('networked match', { timeout: 30_000 }, () => {
     expect(lost).toBe(true);
     expect(b.canAct()).toBe(false);
   });
+
+  it("a phone that rejoins as the other phone's result is waiting to be applied gets that result", async () => {
+    const { a, b, A, B } = await connected();
+    setAim(A, 60, 40);
+    a.fire();
+    await flush();
+    B.players[1]!.hp -= 7; // drift on B, which A's result corrects
+    // Both play the shot out; A sends its result, which B has yet to apply (its next tick would).
+    for (let i = 0; i < 120 * 30 && !(A.phase === 'aiming' && A.turn === 2); i++) {
+      step(A, FIXED_DT);
+      step(B, FIXED_DT);
+      a.tick(FIXED_DT);
+      if (i % 8 === 0) await flush();
+    }
+    await flush();
+    const result = A.players.map((p) => p.hp);
+    expect(B.players.map((p) => p.hp)).not.toEqual(result);
+
+    // A's page reloads: a new session on a new pipe asks B to catch it up.
+    const [ta, tb] = loopback();
+    const raw = b as unknown as { transport: unknown; receive(m: unknown): void };
+    raw.transport = tb;
+    tb.onMessage = (m) => raw.receive(m);
+    const back = new NetSession(ta, 'host');
+    back.onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first: 0 });
+    let caughtUp = false;
+    back.onResumed = () => (caughtUp = true);
+    back.rejoin();
+    await flush();
+    // B answers with how things stand: A's result, not its own drift.
+    for (let i = 0; i < 120 * 30 && !caughtUp; i++) {
+      step(B, FIXED_DT);
+      b.tick(FIXED_DT);
+      if (i % 8 === 0) await flush();
+    }
+    expect(caughtUp).toBe(true);
+    expect(back.game!.players.map((p) => p.hp)).toEqual(result);
+    expect(B.players.map((p) => p.hp)).toEqual(result);
+  });
 });

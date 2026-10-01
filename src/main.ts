@@ -28,7 +28,7 @@ import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
 import { takeRoomCode } from './net/links';
-import { netLogText } from './net/log';
+import { netLog, netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
 import { AUTO_REJOIN_MS, latestSeat } from './net/seat';
 import { FIREBASE_DATABASE_URL } from './net/config';
@@ -303,6 +303,23 @@ async function goFullscreen(): Promise<void> {
 let last = performance.now();
 let acc = 0;
 function frame(now: number): void {
+  // The next frame first: a bug in one frame is logged, and the game carries on rather than freezing.
+  requestAnimationFrame(frame);
+  try {
+    runFrame(now);
+  } catch (e) {
+    frameError(e);
+  }
+}
+const frameErrors = new Set<string>();
+function frameError(e: unknown): void {
+  const what = e instanceof Error ? `${e.message} ${e.stack?.split('\n')[1]?.trim() ?? ''}` : String(e);
+  if (frameErrors.has(what)) return; // once each (it may happen every frame)
+  frameErrors.add(what);
+  console.error(e);
+  netLog(`error in a frame: ${what}`);
+}
+function runFrame(now: number): void {
   const replay = online.replay;
   const dt = Math.min(0.1, (now - last) / 1000) * (replay?.speed ?? 1);
   last = now;
@@ -319,10 +336,7 @@ function frame(now: number): void {
   online.tick();
   online.spectator?.tick(dt);
   sfx.tunes.update(dt, paused);
-  if (state.sfx.length > 0) {
-    for (const e of state.sfx) sfx.play(e);
-    state.sfx.length = 0;
-  }
+  for (const e of state.sfx.splice(0)) sfx.play(e);
   renderer.draw(state, dt);
   hud.online = online.spectator ? { localSeat: -1, syncing: false, replay: !!replay } : net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
   document.body.dataset.spectating = String(!!online.spectator);
@@ -334,6 +348,5 @@ function frame(now: number): void {
   }
   document.body.dataset.online = String(!!net && !net.lost);
   hud.update(state);
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

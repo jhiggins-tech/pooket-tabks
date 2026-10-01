@@ -466,7 +466,9 @@ export class OnlineScreen {
       s.assumeAway();
       if (offer.listed && s.localPick) {
         // On the Games list as live now (the host isn't there to say so).
-        const listing = new Listing(db, await lobbySealer(this.opts.lobby), {
+        const lobby = await lobbySealer(this.opts.lobby);
+        if (this.session !== s || s.lost) return; // left meanwhile: nothing to list
+        const listing = new Listing(db, lobby, {
           hostId: host.id,
           name: offer.host.name,
           characterId: offer.host.characterId,

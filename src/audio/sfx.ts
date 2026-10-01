@@ -1,5 +1,5 @@
 import type { Sfx, SfxCue } from '../game/state';
-import { getWeapon } from '../weapons/registry';
+import { findWeapon, getWeapon } from '../weapons/registry';
 import { midi, type Synth } from './chip';
 import { TunePlayer } from './tunes';
 
@@ -245,7 +245,6 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
       s.tone({ at: 0.35 + i * 0.075, dur: 0.06, from: up ? 1150 : 1700, to: up ? 1750 : 1050, duty: 0.25, vol: 0.05 + i * 0.008 });
     }
   },
-  // The classic coin: bling-bling.
   // The Rizzler has spotted someone: a little "ooh-la-la" trill.
   'lock-on': (s) => arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 }),
   refund: (s) => {
@@ -283,7 +282,7 @@ export class SfxPlayer {
 
   play(e: Sfx): void {
     // Walker chiptunes: strike up while they walk, stop dead when the last one is gone.
-    const tune = e.weaponId ? getWeapon(e.weaponId).tune : undefined;
+    const tune = (e.cue === 'tune' || e.cue === 'tune-end') && e.weaponId ? findWeapon(e.weaponId)?.tune : undefined;
     if (e.cue === 'tune') {
       if (tune) this.tunes.start(tune);
       this.played++;

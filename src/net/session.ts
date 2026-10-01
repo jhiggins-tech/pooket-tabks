@@ -213,10 +213,17 @@ export class NetSession {
       this.fallback = null;
       this.catchUp(rec, replay);
     }
-    this.sendResume();
     const s = this.state;
-    if (!s || this.lost) return;
-    // Stream the aim while it's our turn to aim.
+    if (s && !this.lost) {
+      this.streamAim(s, dt);
+      this.settleShot(s, dt);
+    }
+    // After the shot's settled: a phone that rejoined is caught up with the turn's result, not before it.
+    this.sendResume();
+  }
+
+  /** Stream the aim while it's our turn to aim. */
+  private streamAim(s: GameState, dt: number): void {
     if (this.canAct() && s.phase === 'aiming') {
       this.previewTimer -= dt;
       if (this.previewTimer <= 0) {
@@ -231,6 +238,10 @@ export class NetSession {
         }
       }
     }
+  }
+
+  /** A shot that has played out: send (or record) our result, or take theirs. */
+  private settleShot(s: GameState, dt: number): void {
     if (!this.shot || !this.resolved(this.shot.turn)) {
       // Still playing out. A result that's already arrived gets a grace period, then wins anyway.
       if (this.pendingSync) {
@@ -239,21 +250,23 @@ export class NetSession {
       }
       return;
     }
-    if (this.shot.owner === this.localSeat || (!this.pendingSync && this.peerAway)) {
-      // Our shot has played out (or theirs has, and they've gone before sending its result): this
-      // result is the one that counts.
-      netLog(`session: ${this.shot.owner === this.localSeat ? 'sending' : 'recording'} the result of turn ${this.shot.turn}`);
-      const snap = takeSnapshot(s);
-      const terrain = encodeSolid(s.terrain);
-      if (this.shot.owner === this.localSeat) this.transport.send({ k: 'sync', turn: s.turn, snap, terrain } satisfies NetMsg);
-      this.view('sync', snap, terrain);
-      this.shot = null;
-      this.lastShot = this.flyingShot;
-      this.flyingShot = null;
-      this.record(snap, terrain);
-    } else if (this.pendingSync) {
-      this.applySync(this.pendingSync);
-    }
+    // Our shot has played out (or theirs has, and they've gone before sending its result): this
+    // result is the one that counts.
+    if (this.shot.owner === this.localSeat || (!this.pendingSync && this.peerAway)) this.ownResult(s, this.shot);
+    else if (this.pendingSync) this.applySync(this.pendingSync);
+  }
+
+  /** The shot's result as it played out here is the one that counts: send it (our shot), show it and record it. */
+  private ownResult(s: GameState, shot: { turn: number; owner: number }): void {
+    netLog(`session: ${shot.owner === this.localSeat ? 'sending' : 'recording'} the result of turn ${shot.turn}`);
+    const snap = takeSnapshot(s);
+    const terrain = encodeSolid(s.terrain);
+    if (shot.owner === this.localSeat) this.transport.send({ k: 'sync', turn: s.turn, snap, terrain } satisfies NetMsg);
+    this.view('sync', snap, terrain);
+    this.shot = null;
+    this.lastShot = this.flyingShot;
+    this.flyingShot = null;
+    this.record(snap, terrain);
   }
 
   /**
@@ -354,6 +367,11 @@ export class NetSession {
     const s = this.state;
     if (s && s.phase !== 'aiming' && s.phase !== 'gameover') return;
     this.resumeWanted = false;
+    if (s && this.shot && this.resolved(this.shot.turn)) {
+      // Their shot has played out here: their result if it's come, else ours (they dropped out before sending it).
+      if (this.pendingSync) this.applySync(this.pendingSync);
+      else this.ownResult(s, this.shot);
+    }
     this.shot = null;
     this.pendingSync = null;
     const picks: [Pick | null, Pick | null] = this.isHost ? [this.localPick, this.remotePick] : [this.remotePick, this.localPick];

@@ -16,10 +16,16 @@ const weapons: WeaponDef[] = [shell, ...KITS.flatMap((k) => k.weapons)];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 
+/** A weapon by id (an unknown id is a bug in the game: it throws). */
 export function getWeapon(id: string): WeaponDef {
   const w = byId.get(id);
   if (!w) throw new Error(`Unknown weapon: ${id}`);
   return w;
+}
+
+/** A weapon by id, if there is one: for presentation (sounds, pictures), which can do without. */
+export function findWeapon(id: string): WeaponDef | undefined {
+  return byId.get(id);
 }
 
 /** Weapons that don't use the aim at all: just press FIRE. */

@@ -4,9 +4,39 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-Everything queued so far has shipped (details under **Shipped** below).
+**Feature freeze: refactoring pass** (from the code assessment, 1 Oct). Behaviour stays the same unless an
+item says otherwise; each step ships on its own with the full test suite. Live play-test checkpoints are
+flagged to the owner as they come up.
 
-1. _(empty; next requests go here)_
+1. **Phase 1: versioning.** Split the wire protocol from the game rules version; matches (setup) and replays
+   record the rules they started on, so a balance change no longer ends every match in progress: what
+   happens to an older-rules match is decided in one place. A phone on an older build is told to reload.
+2. **Phase 2: game core.**
+   - One hit pipeline (`applyHit`): every mechanic goes through it, so every weapon effect (burn, cook,
+     tattoo, pin, refund-on-miss, friendly fire) works on every kind of weapon.
+   - Status registry: each status's apply / turn start / turn end / tick / effect / badge / look in one place.
+   - One `Tank` shape for a player's tanks (main and twin): one damage path, no field copying on promotion.
+     Fixes the twin toxin gap: a twin hit by gunk takes it as instant damage instead of draining toxin,
+     and promotion doesn't hand toxin over (a rules change: after the versioning).
+   - Weapon kinds table (`fire`, aimless, is a shot, twin mirrors) replacing scattered kind checks.
+   - `WeaponDef` as a union by kind (no `spec!` assertions, no `blastRadius: 0, damage: 0` boilerplate).
+   - Simulation vs cosmetic state: cosmetics left out of snapshots, a gameplay id counter, `winnerId`.
+   - Stepper and helper cleanup: allocation-free target scans, one swept-segment helper, shared spacing /
+     nearest-enemy / ammo-fallback helpers.
+3. **Phase 3: presentation.**
+   - HUD: readouts update in place; chips and weapon buttons rebuild only when they change.
+   - Terrain uploads as several dirty rectangles, not one union.
+   - Draw-layer list (one signature, like `STEPPERS`); shared glow / sprite / pips helpers; cached sky.
+   - `main.ts` split, with one `startMatch`.
+4. **Phase 4: online and screens.**
+   - Sealed-store helpers (`putSealed` / `getSealed`, one encoding everywhere) and one latest-wins writer.
+   - A shared base for watching and replays (`applyState`, resolved, previews).
+   - `ui/dom.ts`: one set of DOM helpers for every screen.
+   - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
+     events with listeners instead of wrapped callbacks.
+   - `NetSession` as an explicit state machine.
+5. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+   `tests/support`, stale comments.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -17,6 +47,14 @@ Everything queued so far has shipped (details under **Shipped** below).
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
 
 ## Shipped
+
+### Refactoring (feature freeze, Oct)
+- **Phase 0: safety.** The frame loop schedules the next frame first and logs a frame's error (once each,
+  to Copy logs) instead of freezing the game for good. The sound player looks a weapon up only for tune
+  cues, and never throws on an unknown id (`findWeapon`, for presentation). A phone that rejoins just
+  as the other phone's turn result is waiting gets that result, not the stale local state (the session
+  settles the shot before catching anyone up). Joining an open game whose host is away can't leave a
+  listing advertising after you've left.
 
 ### Balance
 - **torikloud starts with 150 health** (two tanks are two targets, so the twins tended to take more
