@@ -23,7 +23,7 @@ export class Hud {
   private last = '';
   private lastTurnKey = '';
   /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
-  online: { localSeat: number; syncing: boolean } | null = null;
+  online: { localSeat: number; syncing: boolean; replay?: boolean } | null = null;
 
   update(state: GameState): void {
     const p = currentPlayer(state);
@@ -178,12 +178,13 @@ export class Hud {
     this.lastTurnKey = turnKey;
 
     this.gameOverEl.hidden = state.phase !== 'gameover';
-    // Online, only the host can start a rematch.
+    // Online, only the host can start a rematch. A replay can be watched again.
     const rematch = document.getElementById('rematch') as HTMLButtonElement | null;
-    const guest = !!this.online && this.online.localSeat !== 0;
+    const replay = !!this.online?.replay;
+    const guest = !!this.online && this.online.localSeat !== 0 && !replay;
     if (rematch) {
       rematch.disabled = guest;
-      rematch.textContent = guest ? 'Host rematches' : 'Rematch';
+      rematch.textContent = replay ? '↺ Watch again' : guest ? 'Host rematches' : 'Rematch';
     }
     const change = document.getElementById('change-players');
     if (change) change.textContent = this.online ? 'Leave' : 'Change players';

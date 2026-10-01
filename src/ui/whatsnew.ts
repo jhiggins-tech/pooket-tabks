@@ -13,6 +13,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 21,
+    title: 'Replays',
+    items: [
+      'Tick Past matches in the Game browser to see public games that have finished, and ▶ Replay one to watch it again, shot by shot, to see what happened.',
+      'Speed it up with 1× / 2× / 4×, and ↺ Watch again at the end. (Private games aren’t recorded.)',
+    ],
+  },
+  {
     version: 20,
     title: 'Choose your tank',
     items: [

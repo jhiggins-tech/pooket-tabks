@@ -1,9 +1,8 @@
-import type { PlayerConfig } from '../game/state';
 import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
-import { PROTOCOL, type Pick } from './session';
+import { PROTOCOL, type MatchSetup, type Pick } from './session';
 import type { Snapshot } from './snapshot';
 import { decodeMsg, encodeMsg } from './wire';
 
@@ -32,7 +31,7 @@ export interface ShotRecord {
 export interface GameRecord {
   /** The protocol it was written with: a game from another version can't be carried on. */
   v: number;
-  setup: { seed: number; players: PlayerConfig[] };
+  setup: MatchSetup;
   /** The match as it stands between shots. */
   snap: Snapshot;
   terrain: string;

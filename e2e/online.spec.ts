@@ -37,8 +37,11 @@ async function pickTank(page: Page, characterId?: string) {
   await page.locator('#tank-go').tap();
 }
 
-/** The Game browser's rows: `mine` (this phone's matches), `open` (waiting for a player), `live` (under way or finished). */
-const rows = (page: Page, kind: 'mine' | 'open' | 'live') => page.locator(`#online-games .games-row[data-kind="${kind}"]`);
+/**
+ * The Game browser's rows: `mine` (this phone's matches), `open` (waiting for a player), `live` (under way or
+ * finished), `replay` (past matches, ticked).
+ */
+const rows = (page: Page, kind: 'mine' | 'open' | 'live' | 'replay') => page.locator(`#online-games .games-row[data-kind="${kind}"]`);
 
 /** Game server unreachable. */
 const OFFLINE = 'debug&db=http%3A%2F%2F127.0.0.1%3A1&lobby=offline';
@@ -220,6 +223,73 @@ test('a third phone watches a match in progress (from the Live list), view only'
   expect(errors).toEqual([]);
   await ctx.close();
   await ctx2.close();
+  await close();
+});
+
+test('past matches: a finished public match can be watched again, start to finish', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const { host, guest, q, errors, close } = await phones(browser, 'games-replay');
+  await host.goto(`./?${q}`);
+  await setName(host, 'Ann');
+  await host.locator('#open-browser').tap();
+  await host.locator('#online-host').tap();
+  await pickTank(host);
+  await expect(host.locator('#online-room-code')).toBeVisible({ timeout: 10_000 });
+  await guest.goto(`./?${q}`);
+  await setName(guest, 'Bo');
+  await guest.locator('#open-browser').tap();
+  await rows(guest, 'open').getByRole('button', { name: 'Join' }).tap();
+  await pickTank(guest, 'kcaj');
+  await playFromLobby(host, guest);
+  await guest.locator('#fire').tap();
+  await expect.poll(() => canAct(host), { timeout: 20_000 }).toBe(true);
+  await guest.locator('#net-menu').tap();
+  await guest.locator('#menu-resign').tap();
+  await guest.locator('#menu-resign').tap();
+  await expect(host.locator('#winner')).toContainText('Ann wins!', { timeout: 15_000 });
+  const ended = await summary(host);
+
+  // A third phone ticks Past matches in the Game browser: there it is.
+  const ctx = await browser.newContext(devices['Pixel 7 landscape']);
+  const fan = await ctx.newPage();
+  fan.on('pageerror', (e) => errors.push(e.message));
+  await fan.goto(`./?${q}`);
+  await fan.locator('#open-browser').tap();
+  await expect(fan.locator('#online-past')).not.toBeChecked();
+  await expect(rows(fan, 'replay')).toHaveCount(0);
+  await fan.locator('#online-past').check();
+  const past = rows(fan, 'replay');
+  await expect(past).toHaveCount(1, { timeout: 10_000 });
+  await expect(past).toContainText('Ann vs Bo');
+  await expect(past).toContainText('tones vs kcaj');
+  await expect(past).toContainText('Bo resigned');
+  await fan.screenshot({ path: 'test-results/past-matches.png' });
+
+  // Replay: view only, every shot played out, faster if you like, ending as it ended.
+  await past.getByRole('button', { name: '▶ Replay' }).tap();
+  await expect(fan.locator('#online')).toBeHidden({ timeout: 15_000 });
+  await expect(fan.locator('#spectate-leave')).toHaveText('▶ Replay · Leave');
+  await expect(fan.locator('.pad.right')).toBeHidden();
+  await fan.screenshot({ path: 'test-results/replay.png' });
+  await fan.locator('#replay-speed').tap();
+  await expect(fan.locator('#replay-speed')).toHaveText('2×');
+  await expect(fan.locator('#gameover')).toBeVisible({ timeout: 40_000 });
+  await expect(fan.locator('#winner')).toContainText('Ann wins!');
+  await expect(fan.locator('#winner')).toContainText('Bo resigned');
+  expect(await summary(fan)).toEqual(ended);
+  await fan.screenshot({ path: 'test-results/replay-over.png' });
+
+  // Watch again, or leave.
+  await expect(fan.locator('#rematch')).toHaveText('↺ Watch again');
+  await fan.locator('#rematch').tap();
+  await expect(fan.locator('#gameover')).toBeHidden();
+  await fan.locator('#spectate-leave').tap();
+  await expect(fan.locator('#setup')).toBeVisible();
+  // The tick is remembered.
+  await fan.locator('#open-browser').tap();
+  await expect(fan.locator('#online-past')).toBeChecked();
+  expect(errors).toEqual([]);
+  await ctx.close();
   await close();
 });
 

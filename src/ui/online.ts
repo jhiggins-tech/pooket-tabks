@@ -10,6 +10,7 @@ import { characterDetails } from './info';
 import { loadCharacter, saveCharacter } from './profile';
 import { forfeitDue, gameStatus, loadRoomRecord, opponentName, RecordStore, type GameStatus, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
+import { loadReplay, loadReplays, ReplayPlayer, ReplayRecorder, type ReplayListing } from '../net/replay';
 import { NetSession, PROTOCOL, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
@@ -43,16 +44,16 @@ export class OnlineScreen {
   /** This phone's game on the Games list while hosting (kept through the match, for spectators). */
   private listing: Listing | null = null;
   session: NetSession | null = null;
-  /** Watching someone else's match (view only). */
-  spectator: Spectator | null = null;
+  /** Watching someone else's match, live or a replay (view only). */
+  spectator: Spectator | ReplayPlayer | null = null;
 
   /** A session is connected and both picks can be exchanged. */
   onConnected: (s: NetSession) => void = () => {};
   /** Host pressed Start. */
   onHostStart: (s: NetSession) => void = () => {};
   onClosed: () => void = () => {};
-  /** Started watching a match: set `onStart` on it to build the game. */
-  onSpectate: (sp: Spectator) => void = () => {};
+  /** Started watching a match (or a replay): set `onStart` on it to build the game. */
+  onSpectate: (sp: Spectator | ReplayPlayer) => void = () => {};
 
   private readonly pick: () => Pick;
   /** "Waiting for them to come back" while the other phone is away. */
@@ -74,6 +75,11 @@ export class OnlineScreen {
 
   get isOpen(): boolean {
     return !this.root.hidden;
+  }
+
+  /** The replay being watched, if it is one. */
+  get replay(): ReplayPlayer | null {
+    return this.spectator instanceof ReplayPlayer ? this.spectator : null;
   }
 
   /** The database matches go through (null: online play isn't set up). */
@@ -254,8 +260,8 @@ export class OnlineScreen {
 
   /**
    * The Game browser: a table of games (this phone's matches first, then everyone's, waiting for a player,
-   * live or finished; updating live), with Host a game and a private game's code to the side. With a code,
-   * go straight in.
+   * live or finished; updating live; and, ticked, past matches to replay), with Host a game and a private
+   * game's code to the side. With a code, go straight in.
    */
   async join(code?: string): Promise<void> {
     this.reset();
@@ -308,6 +314,12 @@ export class OnlineScreen {
     table.id = 'online-games';
     let mine: MatchSummary[] = [];
     let adverts: Advert[] = [];
+    /** Past matches (null: loading). */
+    let past: ReplayListing[] | null = null;
+    const pastBox = el('input') as HTMLInputElement;
+    pastBox.type = 'checkbox';
+    pastBox.id = 'online-past';
+    pastBox.checked = showPast();
     let lastCounts = '';
     const who = (name: string, characterId: string) => `${name} (${getCharacter(characterId).name})`;
     const row = (kind: string, room: string, title: string, detail: string, pill: [string, string], action: [string, string], go: () => void) => {
@@ -358,13 +370,44 @@ export class OnlineScreen {
           ),
         ),
       ];
+      const pastRows = (pastBox.checked && past ? past : []).map((r) =>
+        row('replay', r.id, r.players.map((p) => p.name).join(' vs '), `${r.players.map((p) => charName(p.characterId)).join(' vs ')} · ${result(r)} · ${ago(r.ts)}`, ['Finished', 'done'], ['▶ Replay', ''], () =>
+          void this.watchReplay(r),
+        ),
+      );
       const head = el('div', 'games-head');
       head.append(el('span', undefined, mine.length ? 'Your games, then everyone’s' : 'Games'), el('span', undefined, 'Status'), el('span'));
+      const none = (line: string) => el('p', 'online-none', line);
       table.replaceChildren(
         head,
-        ...(rows.length ? rows : [el('p', 'online-none', 'No games right now. Host one, and it shows up here for everyone.')]),
+        ...(rows.length ? rows : [none('No games right now. Host one, and it shows up here for everyone.')]),
+        ...(pastBox.checked && pastRows.length ? [el('div', 'games-divider', 'Past matches'), ...pastRows] : []),
+        ...(pastBox.checked && !pastRows.length ? [none(past ? 'No past matches yet: public games show up here once they’re over.' : 'Loading past matches…')] : []),
       );
     };
+    const loadPast = () => {
+      past = null;
+      render();
+      if (!pastBox.checked) return;
+      void loadReplays(db, this.opts.lobby).then(
+        (list) => {
+          if (cancelled) return;
+          netLog(`ui: ${list.length} past matches`);
+          past = list;
+          render();
+        },
+        (e: unknown) => {
+          netLog(`ui: couldn't load past matches (${message(e)})`);
+          past = [];
+          render();
+        },
+      );
+    };
+    pastBox.addEventListener('change', () => {
+      netLog(`ui: past matches ${pastBox.checked ? 'on' : 'off'}`);
+      showPast(pastBox.checked);
+      loadPast();
+    });
     stopWatch = watchLobby(db, lobby, (games) => {
       adverts = games;
       render();
@@ -374,7 +417,7 @@ export class OnlineScreen {
       mine = m;
       render();
     });
-    render();
+    loadPast();
 
     const host = el('button', 'games-host', '📶 Host a game');
     host.id = 'online-host';
@@ -402,7 +445,11 @@ export class OnlineScreen {
     side.append(host, el('span', 'games-hint', 'Share a code or a link'), priv);
     const body = el('div', 'games-body');
     body.append(table, side);
-    this.show([screenTop('Game browser', 'Updates live', () => this.close()), body], 'browser');
+    const top = screenTop('Game browser', 'Updates live', () => this.close());
+    const pastLabel = el('label', 'games-past');
+    pastLabel.append(pastBox, 'Past matches');
+    top.append(pastLabel);
+    this.show([top, body], 'browser');
   }
 
   /**
@@ -414,6 +461,7 @@ export class OnlineScreen {
       if (this.session !== s || s.game || s.lost || s.remotePick) return;
       netLog(`ui: ${offer.host.name} isn't here: starting the match`);
       s.remotePick = offer.host;
+      s.publicReplay = offer.listed;
       this.onHostStart(s);
       s.assumeAway();
       if (offer.listed && s.localPick) {
@@ -590,6 +638,28 @@ export class OnlineScreen {
     }
   }
 
+  /** Watch a past match, from its first shot to how it ended. */
+  async watchReplay(listing: ReplayListing): Promise<void> {
+    this.reset();
+    const title = listing.players.map((p) => p.name).join(' vs ');
+    netLog(`ui: Replay ${listing.id.slice(0, 6)}`);
+    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
+    let cancelled = false;
+    this.stopRoom = () => (cancelled = true);
+    this.show([heading(`Replay: ${title}`), status('Loading the replay…', 'online-status'), buttons(cancelButton(() => this.close()))]);
+    try {
+      const replay = await loadReplay(new Rtdb(this.opts.dbUrl), listing);
+      if (cancelled) return;
+      this.stopRoom = null;
+      if (!replay.shots.length && !replay.end) throw new Error('That replay has gone (they’re kept for two weeks).');
+      const player = new ReplayPlayer(replay);
+      this.spectator = player;
+      this.onSpectate(player); // the game shows once it's built (on its first tick)
+    } catch (e) {
+      if (!cancelled) this.fail(e, () => void this.watchReplay(listing));
+    }
+  }
+
   private watchEnded(): void {
     netLog('ui: the watched match ended');
     this.cleanup();
@@ -700,7 +770,11 @@ export class OnlineScreen {
       // Publish the spectator feed for anyone watching, and keep the match's record.
       const pub = new ViewPublisher(peer);
       s.onView = (v) => pub.push(v);
-      s.store = new RecordStore(peer.db, peer.roomPath, peer.sealer);
+      // And a public match's replay (the host's game on the Games list; the guest's, if it starts one).
+      const record = new RecordStore(peer.db, peer.roomPath, peer.sealer);
+      const replay = new ReplayRecorder(peer.db, this.opts.lobby);
+      s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
+      s.publicReplay = !!seat.listed;
     }
     s.onLobby = () => this.lobby();
     s.onLost = () => this.lost();
@@ -858,6 +932,38 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
 const JOIN_WAIT_MS = 6000;
 
 const LISTED_KEY = 'pooket.listPublicly';
+const PAST_KEY = 'pooket.showPast';
+
+/** Whether the Game browser shows past matches (remembered; no unless ticked). */
+function showPast(set?: boolean): boolean {
+  try {
+    if (set !== undefined) localStorage.setItem(PAST_KEY, set ? 'yes' : 'no');
+    return localStorage.getItem(PAST_KEY) === 'yes';
+  } catch {
+    return set ?? false;
+  }
+}
+
+/** How a past match ended ("A won", "B resigned"). */
+function result(r: ReplayListing): string {
+  const over = r.over;
+  const winner = over && over.winner !== null ? r.players[over.winner] : undefined;
+  if (!winner) return 'a draw';
+  const loser = r.players.find((p) => p !== winner)?.name ?? 'they';
+  if (over?.endReason === 'resigned') return `${loser} resigned`;
+  if (over?.endReason === 'timeout') return `${loser} ran out of time`;
+  return `${winner.name} won`;
+}
+
+/** "5 min ago", "3 h ago", "2 days ago". */
+function ago(ts: number, now = Date.now()): string {
+  const min = Math.max(0, Math.round((now - ts) / 60_000));
+  if (min < 60) return min <= 1 ? 'just now' : `${min} min ago`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} h ago`;
+  const d = Math.round(h / 24);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
 
 /** Whether to put hosted games on the public Games list (remembered; yes unless the player said no). */
 function listPublicly(set?: boolean): boolean {

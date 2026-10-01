@@ -168,7 +168,7 @@ online.onConnected = (s) => {
     return state;
   };
 };
-// Watching someone else's match: view only.
+// Watching someone else's match (live, or a replay): view only.
 online.onSpectate = (sp) => {
   sp.onStart = (seed, chosen) => {
     state = createGame({ seed, players: chosen, first });
@@ -180,7 +180,16 @@ online.onSpectate = (sp) => {
     return state;
   };
 };
-document.getElementById('spectate-leave')!.addEventListener('click', () => online.close());
+const spectateLeave = document.getElementById('spectate-leave')!;
+spectateLeave.addEventListener('click', () => online.close());
+// A replay can run faster: 1×, 2×, 4×.
+const replaySpeed = document.getElementById('replay-speed')!;
+replaySpeed.addEventListener('click', () => {
+  const r = online.replay;
+  if (!r) return;
+  r.speed = r.speed >= 4 ? 1 : r.speed * 2;
+  replaySpeed.textContent = `${r.speed}×`;
+});
 document.getElementById('net-menu')!.addEventListener('click', () => online.matchMenu());
 // Start a match: the host, or a guest who joined an open game while its host was away. Players are [host, guest].
 online.onHostStart = (s) => {
@@ -264,7 +273,8 @@ window.addEventListener('resize', onResize);
 window.visualViewport?.addEventListener('resize', onResize);
 
 document.getElementById('rematch')!.addEventListener('click', () => {
-  if (!net) newGame();
+  if (online.replay) online.replay.restart(); // Watch again
+  else if (!net) newGame();
   else if (net.isHost) online.onHostStart(net);
 });
 document.getElementById('change-players')!.addEventListener('click', () => {
@@ -293,7 +303,8 @@ async function goFullscreen(): Promise<void> {
 let last = performance.now();
 let acc = 0;
 function frame(now: number): void {
-  const dt = Math.min(0.1, (now - last) / 1000);
+  const replay = online.replay;
+  const dt = Math.min(0.1, (now - last) / 1000) * (replay?.speed ?? 1);
   last = now;
   acc += dt;
   const paused = info.isOpen && !net && !online.spectator; // a local game waits while the info screen is up; online can't
@@ -313,8 +324,14 @@ function frame(now: number): void {
     state.sfx.length = 0;
   }
   renderer.draw(state, dt);
-  hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
+  hud.online = online.spectator ? { localSeat: -1, syncing: false, replay: !!replay } : net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
   document.body.dataset.spectating = String(!!online.spectator);
+  if (document.body.dataset.replay !== String(!!replay)) {
+    document.body.dataset.replay = String(!!replay);
+    spectateLeave.textContent = replay ? '▶ Replay · Leave' : '👁 Watching · Leave';
+    spectateLeave.setAttribute('aria-label', replay ? 'Stop the replay' : 'Stop watching');
+    replaySpeed.textContent = `${replay?.speed ?? 1}×`;
+  }
   document.body.dataset.online = String(!!net && !net.lost);
   hud.update(state);
   requestAnimationFrame(frame);

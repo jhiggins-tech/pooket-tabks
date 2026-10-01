@@ -37,6 +37,31 @@
         "$other": { ".validate": false }
       }
     },
+    "replays": {
+      "$replay": {
+        ".read": true,
+        ".write": "!newData.exists()",
+        "$entry": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 600000 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+          "m": { ".validate": true },
+          "ts": { ".validate": true },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "replayList": {
+      "$lan": {
+        ".read": true,
+        "$replay": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 4096 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+          "m": { ".validate": true },
+          "ts": { ".validate": true },
+          "$other": { ".validate": false }
+        }
+      }
+    },
     "lobby": {
       "$lan": {
         ".read": true,

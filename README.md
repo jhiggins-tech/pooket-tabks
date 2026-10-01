@@ -37,7 +37,7 @@ src/
   render/      canvas renderer (letterboxed, DPR-aware) with draw/ mirroring game/, sprites, DOM HUD
   input/       touch controls
   audio/       8-bit synth, sound effects and chiptunes
-  net/         online play through Firebase: rooms, relay, match session, spectating, rejoining
+  net/         online play through Firebase: rooms, relay, match session, spectating, rejoining, replays
   ui/          setup, info, what's new, online screens
   main.ts      fixed-timestep loop wiring it all together
 tests/         Vitest unit tests (Node; a local Firebase stand-in for the online code)

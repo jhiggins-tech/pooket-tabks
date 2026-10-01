@@ -906,6 +906,14 @@ body[data-remote='true'] .drive button {
 body[data-spectating='true'] #spectate-leave {
   display: block;
 }
+#replay-speed {
+  display: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+body[data-replay='true'] #replay-speed {
+  display: block;
+}
 body[data-spectating='true'] .pad,
 body[data-spectating='true'] .drive {
   display: none;
@@ -1311,6 +1319,33 @@ body[data-online='true'] #net-menu {
 .games-go.go {
   background: #ff5a5f;
   border-color: rgba(255, 255, 255, 0.8);
+}
+.games-divider {
+  padding: 10px 14px 4px;
+  border-top: 2px solid rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  opacity: 0.75;
+}
+.games-past {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.games-past input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #ffcc1f;
 }
 .games-table .online-none {
   padding: 18px 14px;

@@ -39,6 +39,13 @@ Everything queued so far has shipped (details under **Shipped** below).
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Replays (Past matches)**: tick **Past matches** in the Game browser (remembered) and every public
+  match that finished in the last two weeks is listed under the games ("Ann vs Bo · tones vs kcaj · Bo
+  resigned · 2 h ago") with **▶ Replay**. A replay plays the match back view only, like watching it live:
+  each shot from the exact state it was fired from (the aim shown for a moment, then it plays out), then
+  how it ended; **1× / 2× / 4×** speed, **↺ Watch again** at the end. Recorded by whichever phone is in
+  charge as the match goes (`net/replay.ts`, `replays/` and `replayList/` in the database); private games
+  aren't recorded.
 - **Choose your tank**: hosting a game, or joining someone's (from the Game browser, a typed code or an
   invite link), stops at a "Choose your tank" screen first: a dropdown of characters with what each one
   does (blurb, how it moves, every weapon's card, as on the ⓘ screen), then **Host with X** / **Join with

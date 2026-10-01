@@ -43,7 +43,7 @@ what it's for; weapons are documented where they're defined.
 | `src/ui/` | `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (Game browser, hosting, lobby, match menu) |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together; `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in) |
-| `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows) |
+| `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows, replays) |
 
 ## How the game fits together
 - **Turn state machine** (`game/game.ts`): `aiming → flying → settling → aiming | gameover` (plus
@@ -85,7 +85,10 @@ what it's for; weapons are documented where they're defined.
   match itself (`startIfHostAway`). Hosting and joining someone else's game go through `chooseTank`
   first (sets your online character, `profile.ts`). `view.ts` + `spectate.ts` spectators, `lobby.ts` the public Games
   list (a host's `Listing`: waiting → playing → over, on/off with the Public/Private toggle, re-listed on
-  a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `seat.ts` this phone's matches
+  a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `replay.ts` replays of public
+  matches (`ReplayRecorder`, a GameStore next to the record, writes each shot as fired and the end, by the
+  replay id in the match setup, `NetSession.publicReplay`; `loadReplays` is the Game browser's Past
+  matches; `ReplayPlayer` plays one back, view only, like a Spectator), `seat.ts` this phone's matches
   (listed first in the Game browser, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy
   logs" button; `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test
   its own Games list).

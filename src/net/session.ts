@@ -3,10 +3,22 @@ import type { GameState, Hop, PlayerConfig } from '../game/state';
 import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
+import { newReplayId } from './replay';
 import type { Transport } from './transport';
 
 /** Bumped whenever the messages or the game rules change: both phones must run the same code. */
 export const PROTOCOL = 5;
+
+/**
+ * A match's setup: the map's seed, the players ([host, guest]), and (a public match) the id its replay
+ * is recorded under (replay.ts). (`replay` came in without a protocol bump: a phone on the version
+ * before just leaves it out, and that match has no replay.)
+ */
+export interface MatchSetup {
+  seed: number;
+  players: PlayerConfig[];
+  replay?: string;
+}
 
 /** What each phone picked in the lobby. */
 export interface Pick {
@@ -16,14 +28,14 @@ export interface Pick {
 
 export type NetMsg =
   | { k: 'hello'; v: number; pick: Pick }
-  | { k: 'start'; seed: number; players: PlayerConfig[]; terrain: string }
+  | { k: 'start'; seed: number; players: PlayerConfig[]; terrain: string; replay?: string }
   | { k: 'preview'; turn: number; x: number; y: number; fuel: number; angle: number; power: number; tier: number; hop: Hop | null }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
   /** A phone that dropped out is back (on a new connection) and needs catching up. */
   | { k: 'rejoin'; v: number }
   /** The catch-up: both picks ([host, guest]), and the match as it stands (null: still in the lobby). */
-  | { k: 'resume'; picks: [Pick | null, Pick | null]; setup: { seed: number; players: PlayerConfig[] } | null; snap: Snapshot | null; terrain: string | null }
+  | { k: 'resume'; picks: [Pick | null, Pick | null]; setup: MatchSetup | null; snap: Snapshot | null; terrain: string | null }
   /** Leaving before the match has started: that's the end of it. */
   | { k: 'bye' }
   /** Leaving a match for now (it carries on turn by turn: it's in the game record). */
@@ -83,9 +95,11 @@ export class NetSession {
   onView: ((v: ViewMsg) => void) | null = null;
   /** Where the match's lasting record goes (null: nowhere, e.g. in tests over a loopback). */
   store: GameStore | null = null;
+  /** Matches this phone starts are public (on the Games list): record their replays. */
+  publicReplay = false;
 
   private state: GameState | null = null;
-  private setup: { seed: number; players: PlayerConfig[] } = { seed: 0, players: [] };
+  private setup: MatchSetup = { seed: 0, players: [] };
   /** The turn a shot was fired in (and whose it was) until its result is synced. */
   private shot: { turn: number; owner: number } | null = null;
   private pendingSync: Extract<NetMsg, { k: 'sync' }> | null = null;
@@ -153,9 +167,10 @@ export class NetSession {
    */
   start(seed: number, players: PlayerConfig[]): GameState {
     netLog(`session: starting a match (${players.map((p) => p.characterId).join(' vs ')})`);
-    const state = this.begin(seed, players);
+    const replay = this.publicReplay ? newReplayId() : undefined;
+    const state = this.begin({ seed, players, replay });
     const terrain = encodeSolid(state.terrain);
-    this.transport.send({ k: 'start', seed, players, terrain } satisfies NetMsg);
+    this.transport.send({ k: 'start', seed, players, terrain, replay } satisfies NetMsg);
     const snap = takeSnapshot(state);
     this.view('start', snap, terrain);
     this.record(snap, terrain);
@@ -255,7 +270,7 @@ export class NetSession {
     };
     this.localPick = pickOf(this.localSeat) ?? this.localPick;
     this.remotePick = pickOf(this.localSeat === 0 ? 1 : 0) ?? this.remotePick;
-    const s = this.begin(rec.setup.seed, rec.setup.players);
+    const s = this.begin(rec.setup);
     this.lastShot = rec.last;
     const from = rec.flying ?? (replay ? rec.last : null);
     if (from) {
@@ -371,9 +386,9 @@ export class NetSession {
     this.onView?.({ k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
   }
 
-  private begin(seed: number, players: PlayerConfig[]): GameState {
-    this.setup = { seed, players };
-    this.state = this.onStart(seed, players);
+  private begin(setup: MatchSetup): GameState {
+    this.setup = setup;
+    this.state = this.onStart(setup.seed, setup.players);
     this.shot = null;
     this.pendingSync = null;
     this.syncGrace = SYNC_GRACE;
@@ -416,7 +431,7 @@ export class NetSession {
       case 'start': {
         // Usually the host starts; the guest does if it joined while the host was away.
         if (this.isHost && this.state) return;
-        const s = this.begin(msg.seed, msg.players);
+        const s = this.begin({ seed: msg.seed, players: msg.players, replay: msg.replay });
         // Same seed, same map, but make sure (maths can round differently between phones).
         s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
         return;
@@ -466,7 +481,7 @@ export class NetSession {
         this.remotePick = msg.picks[other] ?? this.remotePick;
         if (msg.setup && msg.snap && msg.terrain) {
           netLog(`session: caught up (turn ${msg.snap.turn})`);
-          const s = this.begin(msg.setup.seed, msg.setup.players);
+          const s = this.begin(msg.setup);
           applySnapshot(s, msg.snap);
           s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
           this.onResumed(true);
