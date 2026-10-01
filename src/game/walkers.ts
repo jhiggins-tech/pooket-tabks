@@ -3,7 +3,7 @@ import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound } from './fx';
 import type { GameState, Projectile } from './state';
-import { allTargets, explode, gone, targetOwner, targetPos } from './tanks';
+import { explode, forEachTargetPos, nearestEnemyX } from './tanks';
 
 /** Walkers (kie's Weasel Pop): land, scurry towards the nearest enemy, pop. */
 
@@ -38,12 +38,7 @@ export function stopFinishedTunes(state: GameState): void {
 
 /** −1 / +1 towards the nearest target (tank or hologram) not owned by the walker's owner. */
 function directionToNearestEnemy(state: GameState, pr: Projectile): number {
-  let best: number | null = null;
-  for (const t of allTargets(state)) {
-    if (targetOwner(t) === pr.ownerId) continue;
-    const tx = targetPos(t).x;
-    if (best === null || Math.abs(tx - pr.x) < Math.abs(best - pr.x)) best = tx;
-  }
+  const best = nearestEnemyX(state, pr.x, pr.ownerId);
   return best === null || best >= pr.x ? 1 : -1;
 }
 
@@ -108,10 +103,8 @@ export function stepWalker(state: GameState, pr: Projectile, weapon: WeaponOf<'b
 /** Distance from a walker's body to the centre of the nearest enemy target (tank, twin or decoy). */
 function nearestEnemyDist(state: GameState, pr: Projectile): number {
   let best = Infinity;
-  for (const t of allTargets(state)) {
-    if (gone(t) || targetOwner(t) === pr.ownerId) continue;
-    const pos = targetPos(t);
-    best = Math.min(best, Math.hypot(pos.x - pr.x, pos.y - TANK_BODY_HEIGHT - (pr.y - WALKER_BODY)));
-  }
+  forEachTargetPos(state, (x, y, owner) => {
+    if (owner !== pr.ownerId) best = Math.min(best, Math.hypot(x - pr.x, y - TANK_BODY_HEIGHT - (pr.y - WALKER_BODY)));
+  });
   return best;
 }

@@ -8,7 +8,7 @@ import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import type { Burst, GameState, Player, Projectile } from './state';
-import { allTargets, applyHit, explode, muzzle, scaled, tankCentre, type Target, targetAt, targetOwner, targetPos } from './tanks';
+import { applyHit, explode, forEachTargetPos, muzzle, scaled, tankCentre, type Target, targetAt } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
 
 /** Weapons that fire projectiles. */
@@ -205,26 +205,26 @@ function bounce(state: GameState, pr: Projectile, weapon: Projectiles, hitX: num
 
 /** Homing: lock on to the nearest enemy within range, then turn towards it (keeping up speed). */
 function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<Projectiles['homing']>, dt: number): void {
-  let best: { x: number; y: number } | null = null;
+  let found = false;
+  let bestX = 0;
+  let bestY = 0;
   let bestD = pr.homing ? Infinity : spec.radius;
-  for (const t of allTargets(state)) {
-    if (targetOwner(t) === pr.ownerId) continue;
-    const p = targetPos(t);
-    const c = { x: p.x, y: p.y - TANK_BODY_HEIGHT / 2 };
-    const d = Math.hypot(c.x - pr.x, c.y - pr.y);
+  forEachTargetPos(state, (x, y, owner) => {
+    if (owner === pr.ownerId) return;
+    const cy = y - TANK_BODY_HEIGHT / 2;
+    const d = Math.hypot(x - pr.x, cy - pr.y);
     if (d < bestD) {
-      best = c;
-      bestD = d;
+      [found, bestX, bestY, bestD] = [true, x, cy, d];
     }
-  }
-  if (!best) return; // (locked on, but there's nobody left to chase: carry straight on)
+  });
+  if (!found) return; // (locked on, but there's nobody left to chase: carry straight on)
   if (!pr.homing) {
     pr.homing = true;
     sound(state, 'lock-on', pr.weaponId);
   }
   const speed = Math.max(Math.hypot(pr.vx, pr.vy), spec.minSpeed);
   const have = Math.atan2(pr.vy, pr.vx);
-  const want = Math.atan2(best.y - pr.y, best.x - pr.x);
+  const want = Math.atan2(bestY - pr.y, bestX - pr.x);
   const diff = ((((want - have) % (2 * Math.PI)) + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
   const max = ((spec.turnRate * Math.PI) / 180) * dt;
   const a = have + Math.max(-max, Math.min(max, diff));

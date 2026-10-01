@@ -5,7 +5,7 @@ import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constan
 import { sound, spawnDust } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Jet, Player } from './state';
-import { tankBodies } from './tanks';
+import { someTankBody } from './tanks';
 import { hash } from './util';
 
 /** tones' ten-2: the charge, the flight and the landing. */
@@ -28,7 +28,7 @@ function jetBodyHits(state: GameState, x: number, y: number, self: Player): bool
     const a = (k * Math.PI) / 4;
     if (state.terrain.isSolid(x + Math.cos(a) * JET_BODY_RADIUS, cy + Math.sin(a) * JET_BODY_RADIUS)) return true;
   }
-  return tankBodies(state).some((q) => !(q.owner === self && !q.twin) && Math.hypot(q.x - x, q.y - y) < TANK_HALF_WIDTH * 2);
+  return someTankBody(state, (qx, qy, owner, twin) => !(owner === self && !twin) && Math.hypot(qx - x, qy - y) < TANK_HALF_WIDTH * 2);
 }
 
 /** Charge, launch, fly, land. Returns true once the tank has landed. */
@@ -123,9 +123,10 @@ export function stepJet(state: GameState, j: Jet, dt: number): boolean {
 function land(state: GameState, p: Player): void {
   const { terrain } = state;
   for (let guard = 0; guard < 60; guard++) {
-    const other = tankBodies(state).find((q) => !(q.owner === p && !q.twin) && Math.abs(q.x - p.x) < TANK_HALF_WIDTH * 2);
-    if (!other) break;
-    const dir = p.x >= other.x ? 1 : -1;
+    let otherX: number | null = null;
+    someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && Math.abs(qx - p.x) < TANK_HALF_WIDTH * 2 && ((otherX = qx), true));
+    if (otherX === null) break;
+    const dir = p.x >= otherX ? 1 : -1;
     const nx = p.x + dir;
     p.x = nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH ? p.x - dir * 2 * TANK_HALF_WIDTH : nx;
   }

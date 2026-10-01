@@ -8,22 +8,19 @@ The running features list and work queue. Newest shipped items first; the **Queu
 item says otherwise; each step ships on its own with the full test suite. Live play-test checkpoints are
 flagged to the owner as they come up.
 
-1. **Phase 2: game core.**
-   - Stepper and helper cleanup: allocation-free target scans, one swept-segment helper, shared spacing /
-     nearest-enemy / ammo-fallback helpers.
-2. **Phase 3: presentation.**
+1. **Phase 3: presentation.**
    - HUD: readouts update in place; chips and weapon buttons rebuild only when they change.
    - Terrain uploads as several dirty rectangles, not one union.
    - Draw-layer list (one signature, like `STEPPERS`); shared glow / sprite / pips helpers; cached sky.
    - `main.ts` split, with one `startMatch`.
-3. **Phase 4: online and screens.**
+2. **Phase 4: online and screens.**
    - Sealed-store helpers (`putSealed` / `getSealed`, one encoding everywhere) and one latest-wins writer.
    - A shared base for watching and replays (`applyState`, resolved, previews).
    - `ui/dom.ts`: one set of DOM helpers for every screen.
    - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
      events with listeners instead of wrapped callbacks.
    - `NetSession` as an explicit state machine.
-4. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+3. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
 
 ### Backlog (ideas, not yet scheduled)
@@ -37,6 +34,13 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 2: hot-path scans and shared helpers.** `forEachTargetPos` / `nearestEnemyX` / `someTankBody`
+  (tanks.ts) scan targets and tank bodies without building lists: walkers (every pixel they walk),
+  runners, homing, the jetpack (every pixel of flight) and driving / hopping (every pixel) no longer
+  allocate arrays as they go. `clearSpot` (copies.ts) is the one "random spot clear of every tank" for
+  twins and decoys. (Left as they are: the four 1px swept-segment loops, which differ in step size and
+  what they test; folding them together would risk changing outcomes for little gain.) No change to
+  how anything plays.
 - **Phase 2: simulation vs cosmetic state.** Effects that only age and get drawn (explosions, floaters,
   splashes, shimmers, ghosts, hologram blasts, apparitions) live under `state.fx`, which snapshots leave
   out: smaller messages and records, and the other phone keeps its own animations instead of snapping to

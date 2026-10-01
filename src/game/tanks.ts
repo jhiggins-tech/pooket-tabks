@@ -113,6 +113,39 @@ export function allTargets(state: GameState): Target[] {
   ];
 }
 
+/**
+ * Every target on the field (main tanks, twins, then holograms: allTargets's order), without building a
+ * list: `visit` gets where each one's hull rests and whose it is; returning true stops. For the scans that
+ * run every tick or every pixel (walkers, runners, homing).
+ */
+export function forEachTargetPos(state: GameState, visit: (x: number, y: number, ownerId: number) => boolean | void): void {
+  for (const p of state.players) if (p.alive && visit(p.x, p.y, p.id)) return;
+  for (const p of state.players) if (p.alive && p.twin && visit(p.twin.x, p.twin.y, p.id)) return;
+  for (const h of state.holograms) if (state.players[h.ownerId]?.alive && visit(h.x, h.y, h.ownerId)) return;
+}
+
+/** The x of the enemy target (tank, twin or decoy) nearest to `x` along the ground, if there is one. */
+export function nearestEnemyX(state: GameState, x: number, ownerId: number): number | null {
+  let best: number | null = null;
+  forEachTargetPos(state, (tx, _ty, owner) => {
+    if (owner !== ownerId && (best === null || Math.abs(tx - x) < Math.abs(best - x))) best = tx;
+  });
+  return best;
+}
+
+/**
+ * Whether any living tank body (main tank or twin) passes `test`, without building a list (this runs for
+ * every pixel of a drive or a jetpack flight).
+ */
+export function someTankBody(state: GameState, test: (x: number, y: number, owner: Player, twin: boolean) => boolean): boolean {
+  for (const p of state.players) {
+    if (!p.alive) continue;
+    if (test(p.x, p.y, p, false)) return true;
+    if (p.twin && test(p.twin.x, p.twin.y, p, true)) return true;
+  }
+  return false;
+}
+
 /** Every living tank body on the field (real tanks and twins), for collisions and spacing. */
 export function tankBodies(state: GameState): { x: number; y: number; owner: Player; twin: boolean }[] {
   const out: { x: number; y: number; owner: Player; twin: boolean }[] = [];

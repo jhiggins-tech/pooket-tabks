@@ -3,7 +3,7 @@ import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SC
 import { sound, spawnDust } from './fx';
 import type { GameState, Hop, Player } from './state';
 import { canMove } from './statuses';
-import { currentPlayer, tankBodies } from './tanks';
+import { currentPlayer, someTankBody } from './tanks';
 import { clamp, hash } from './util';
 
 /** Driving (◀ ▶, one tank of fuel per match) and ciarra's frog hops; tanks settling onto the ground. */
@@ -26,9 +26,10 @@ export function drive(state: GameState, dir: number, dt: number): number {
     const stepX = Math.min(1, budget);
     const nx = p.x + Math.sign(dir) * stepX;
     if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) break;
-    const blocked = [...tankBodies(state).filter((q) => !(q.owner === p && !q.twin)), ...state.holograms].some(
-      (q) => Math.abs(q.x - nx) < TANK_HALF_WIDTH * 2 && Math.abs(q.x - nx) < Math.abs(q.x - p.x),
-    );
+    // Another tank (or a decoy) we'd be driving into.
+    const inTheWay = (qx: number) => Math.abs(qx - nx) < TANK_HALF_WIDTH * 2 && Math.abs(qx - nx) < Math.abs(qx - p.x);
+    const blocked =
+      someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && inTheWay(qx)) || state.holograms.some((h) => inTheWay(h.x));
     if (blocked) break;
     // Compare where the hull would rest at nx with where it rests now. A wall the hull is overlapping
     // behind it (a tank that dropped into a crater against its steep side) doesn't hold it back.
@@ -148,9 +149,8 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
     // never lands sunk into a bank), and not on top of another tank.
     const y1 = hullRest(state, x1, apex - 1);
     if (y1 < apex) continue;
-    const bump = [...tankBodies(state).filter((q) => !(q.owner === p && !q.twin)), ...state.holograms].some(
-      (q) => Math.abs(q.x - x1) < TANK_HALF_WIDTH * 2,
-    );
+    const near = (qx: number) => Math.abs(qx - x1) < TANK_HALF_WIDTH * 2;
+    const bump = someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && near(qx)) || state.holograms.some((h) => near(h.x));
     if (bump) continue;
     return { x0: p.x, y0: p.y, x1, y1, t: 0 };
   }

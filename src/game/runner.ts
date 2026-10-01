@@ -4,7 +4,7 @@ import { TANK_BODY_HEIGHT } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Player, Runner } from './state';
-import { allTargets, explode, targetAt, targetOwner, targetPos } from './tanks';
+import { explode, nearestEnemyX, targetAt, targetOwner, targetPos } from './tanks';
 
 /** ciarra's Marathon runner. */
 
@@ -16,12 +16,7 @@ export function stepRunner(state: GameState, r: Runner, dt: number): boolean {
   const weapon = weaponOf(r.weaponId, 'runner');
   const spec = weapon.runner;
   const { terrain } = state;
-  let targetX: number | null = null;
-  for (const t of allTargets(state)) {
-    if (targetOwner(t) === r.ownerId) continue;
-    const x = targetPos(t).x;
-    if (targetX === null || Math.abs(x - r.x) < Math.abs(targetX - r.x)) targetX = x;
-  }
+  const targetX = nearestEnemyX(state, r.x, r.ownerId);
   if (targetX === null) {
     r.legLeft = 0;
     return false;

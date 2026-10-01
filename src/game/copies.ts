@@ -27,16 +27,22 @@ export function twinGun(p: Player): Player {
   return { ...p, x: p.twin!.x, y: p.twin!.y };
 }
 
-/** Twins: a second tank appears somewhere clear, and the player's HP is split between the two. */
-export function spawnTwin(state: GameState, p: Player): void {
-  if (p.twin || p.hp < 2) return;
+/** A random spot on the ground, well clear of every tank and hologram (if one can be found). */
+function clearSpot(state: GameState): number {
   const { terrain, rng } = state;
   const taken = [...tankBodies(state).map((q) => q.x), ...state.holograms.map((h) => h.x)];
   let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
   for (let tries = 0; tries < 60 && taken.some((t) => Math.abs(t - x) < HOLOGRAM_MIN_SPACING); tries++) {
     x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
   }
-  x = Math.round(x);
+  return Math.round(x);
+}
+
+/** Twins: a second tank appears somewhere clear, and the player's HP is split between the two. */
+export function spawnTwin(state: GameState, p: Player): void {
+  if (p.twin || p.hp < 2) return;
+  const { terrain } = state;
+  const x = clearSpot(state);
   const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), burn: null, soak: 0, soakColour: '#ffffff', toxin: 0, toxinRate: 0, age: 0 };
   p.hp -= twin.hp;
   p.twin = twin;
@@ -46,18 +52,13 @@ export function spawnTwin(state: GameState, p: Player): void {
 
 /** Replace the firer's holograms with fresh ones at random, well-spaced spots on the ground. */
 export function fireDecoys(state: GameState, p: Player, weapon: WeaponOf<'decoy'>): void {
-  const { terrain, rng } = state;
+  const { terrain } = state;
   // Each use adds more: earlier holograms stay out (and a swap already picked still happens).
   const colour = weapon.colour ?? HOLOGRAM_COLOUR;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, colour);
   shimmer(state, p.id);
   for (let n = 0; n < weapon.decoys; n++) {
-    const taken = [...tankBodies(state).map((q) => q.x), ...state.holograms.map((h) => h.x)];
-    let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
-    for (let tries = 0; tries < 60 && taken.some((t) => Math.abs(t - x) < HOLOGRAM_MIN_SPACING); tries++) {
-      x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
-    }
-    x = Math.round(x);
+    const x = clearSpot(state);
     const holo: Hologram = {
       id: state.nextId++,
       ownerId: p.id,
