@@ -39,6 +39,11 @@ Everything queued so far has shipped (details under **Shipped** below).
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Choose your tank**: hosting a game, or joining someone's (from the Game browser, a typed code or an
+  invite link), stops at a "Choose your tank" screen first: a dropdown of characters with what each one
+  does (blurb, how it moves, every weapon's card, as on the ⓘ screen), then **Host with X** / **Join with
+  X**. The room only opens, or the join only goes ahead, once you've picked. It starts on your last
+  online tank and remembers the new one. (Going back to your own match skips it.)
 - **Open games**: a hosted game stays open after the host leaves the Host screen (**Back to menu**; it's
   in their own games as "Waiting for a player", and tapping it reopens the Host screen). It stays in
   the Game browser for up to 3 days without its host, and the first to join becomes player 2 and starts

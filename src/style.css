@@ -1398,3 +1398,36 @@ body[data-online='true'] #net-menu {
     font-size: 14px;
   }
 }
+
+/* ---------- Choose your tank (before hosting or joining) ---------- */
+.tank-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+#online .tank-bar select {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 280px;
+  height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  font: 800 18px system-ui, -apple-system, sans-serif;
+}
+#online .tank-bar .big {
+  margin-left: auto;
+  padding: 10px 26px;
+  font-size: 18px;
+}
+.tank-details {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  touch-action: pan-y;
+  text-align: left;
+}

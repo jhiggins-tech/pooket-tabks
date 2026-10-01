@@ -13,6 +13,13 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 20,
+    title: 'Choose your tank',
+    items: [
+      'Hosting or joining an online game now starts with a Choose your tank screen: pick a character, see what each weapon does, then Host or Join with it.',
+    ],
+  },
+  {
     version: 19,
     title: 'Host now, play later',
     items: [

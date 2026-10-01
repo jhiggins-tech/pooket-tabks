@@ -6,7 +6,8 @@ import { RelayTransport } from '../net/relay';
 import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { sealerFor } from '../net/seal';
-import { saveCharacter } from './profile';
+import { characterDetails } from './info';
+import { loadCharacter, saveCharacter } from './profile';
 import { forfeitDue, gameStatus, loadRoomRecord, opponentName, RecordStore, type GameStatus, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
 import { NetSession, PROTOCOL, type Pick } from '../net/session';
@@ -84,10 +85,47 @@ export class OnlineScreen {
    * Host a game: a code to type, a link to open, and (unless private) a spot on the Games list. The game
    * stays open after you leave this screen: whoever joins first starts it (turn by turn if you're away).
    */
-  async host(): Promise<void> {
+  host(): void {
     this.reset();
     netLog('ui: Host');
     if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
+    this.chooseTank('Hosting a game', 'Host', () => void this.openRoom());
+  }
+
+  /**
+   * Choose your tank for this match (hosting, or joining someone's game): a character, what it does, then
+   * go. The choice is remembered (it's your online character from then on: `this.pick()`).
+   */
+  private chooseTank(note: string, action: string, go: () => void): void {
+    let id = loadCharacter() ?? this.pick().characterId;
+    const render = () => {
+      const c = getCharacter(id);
+      const sel = el('select', 'tank-select') as HTMLSelectElement;
+      sel.setAttribute('aria-label', 'Your tank');
+      for (const r of ROSTER) sel.add(new Option(r.name, r.id, false, r.id === id));
+      sel.addEventListener('change', () => {
+        id = sel.value;
+        render();
+      });
+      const ok = el('button', 'big', `${action} with ${c.name}`);
+      ok.id = 'tank-go';
+      ok.addEventListener('click', () => {
+        netLog(`ui: ${action} with ${id}`);
+        saveCharacter(id);
+        go();
+      });
+      const bar = el('div', 'tank-bar');
+      bar.append(el('span', 'online-label', 'Your tank:'), sel, ok);
+      const details = el('div', 'tank-details');
+      details.append(...characterDetails(c, c.colours[0]!));
+      this.show([screenTop('Choose your tank', note, () => void this.join()), bar, details], 'browser');
+    };
+    render();
+  }
+
+  /** Open a room for an open game, as the tank just chosen. */
+  private async openRoom(): Promise<void> {
+    if (!this.opts.dbUrl) return;
     this.show([heading('Host a game'), status('Opening a room…')]);
     const db = new Rtdb(this.opts.dbUrl);
     const pick = this.pick();
@@ -98,7 +136,7 @@ export class OnlineScreen {
     ]);
     if (opened instanceof Error) {
       netLog(`ui: couldn't open a room: ${opened.message}`);
-      return this.fail(opened, () => void this.host());
+      return this.fail(opened, () => void this.openRoom());
     }
     const room = opened;
     saveSeat({ code: room.code, role: 'host', id: room.id, listed });
@@ -230,11 +268,15 @@ export class OnlineScreen {
       cancelled = true;
       stopWatch();
     };
-    const joinCode = (c: string) => {
+    const joinCode = (c: string, whose?: string) => {
       stopWatch();
       // Our own match: take our seat back rather than watching.
       const seat = findSeat(c);
       if (seat) return void this.rejoin(seat);
+      // Someone else's: pick a tank first.
+      this.chooseTank(whose ? `Joining ${whose}'s game` : `Joining game ${c}`, 'Join', () => enter(c));
+    };
+    const enter = (c: string) => {
       netLog(`ui: joining room ${c}`);
       this.show([heading('Game browser'), status(`Joining ${c}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
       const id = randomId();
@@ -303,7 +345,7 @@ export class OnlineScreen {
             void this.rejoin(m.seat),
           ),
         ),
-        ...waiting.map((g) => row('open', g.room, `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => joinCode(g.room))),
+        ...waiting.map((g) => row('open', g.room, `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => joinCode(g.room, g.name))),
         ...playing.map((g) =>
           row(
             'live',

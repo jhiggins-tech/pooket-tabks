@@ -86,7 +86,7 @@ export class InfoScreen {
       return b;
     };
     this.tabs.replaceChildren(tab(BASICS, 'How to play'), ...ROSTER.map((c) => tab(c.id, c.name, this.colourOf(c.id))));
-    this.body.replaceChildren(...(this.tab === BASICS ? basics() : character(getCharacter(this.tab), this.colourOf(this.tab))));
+    this.body.replaceChildren(...(this.tab === BASICS ? basics() : characterDetails(getCharacter(this.tab), this.colourOf(this.tab))));
     this.body.scrollTop = 0;
   }
 }
@@ -111,7 +111,8 @@ function basics(): HTMLElement[] {
   return [cols];
 }
 
-function character(c: CharacterDef, colour: string): HTMLElement[] {
+/** A character's page: name, blurb, how it moves, and a card per weapon (also the tank picker's). */
+export function characterDetails(c: CharacterDef, colour: string): HTMLElement[] {
   const header = el('div', 'info-character');
   header.style.setProperty('--c', colour);
   const name = el('h2');
