@@ -61,6 +61,21 @@ const REPLAY_GRACE = 60;
 /** Rejoining: how long to wait for the other phone to catch us up before going by the record instead. */
 export const RESUME_WAIT = 2.5;
 
+/**
+ * Where a session is:
+ * - lobby: connected, picks going back and forth (setPick, 'hello');
+ * - rejoining: back on a new connection, waiting to be caught up by the other phone, or after RESUME_WAIT
+ *   by the match's record (`fallback`), into the match or the lobby;
+ * - match: a game under way (or over: a rematch starts another);
+ * - ended: this phone left (for good, or for now: 'away'), the versions don't match, or the other phone
+ *   left or the room went ('lost'). Nothing more is sent or taken in; the game, if any, stays to look at.
+ */
+type SessionPhase =
+  | { k: 'lobby' }
+  | { k: 'rejoining'; fallback: { rec: GameRecord; replay: boolean; waited: number } | null }
+  | { k: 'match'; game: GameState }
+  | { k: 'ended'; why: 'left' | 'away' | 'outdated' | 'lost'; game: GameState | null };
+
 /** What a session tells the screens (NetSession.on). */
 export interface SessionEvents extends Record<string, unknown[]> {
   /** Picks changed (ours or theirs): the lobby shows them. */
@@ -94,8 +109,6 @@ export class NetSession {
   readonly localSeat: 0 | 1;
   localPick: Pick | null = null;
   remotePick: Pick | null = null;
-  /** The remote side left or the connection dropped. */
-  lost = false;
 
   /** Build a fresh game for these players (both phones call createGame with the same seed). */
   onStart: (seed: number, players: PlayerConfig[]) => GameState = () => {
@@ -109,7 +122,7 @@ export class NetSession {
   publicReplay = false;
 
   private readonly events = new Emitter<SessionEvents>();
-  private state: GameState | null = null;
+  private phase: SessionPhase = { k: 'lobby' };
   private setup: MatchSetup = { seed: 0, players: [], rules: RULES };
   /** The turn a shot was fired in (and whose it was) until its result is synced. */
   private shot: { turn: number; owner: number } | null = null;
@@ -121,12 +134,8 @@ export class NetSession {
   private flyingShot: ShotRecord | null = null;
   private previewTimer = 0;
   private lastPreview = '';
-  /** Rejoining: waiting to be caught up. */
-  private rejoining = false;
   /** The other phone rejoined: catch it up once any shot in flight has played out. */
   private resumeWanted = false;
-  /** Rejoining with the match's record to fall back on, if the other phone doesn't answer in time. */
-  private fallback: { rec: GameRecord; replay: boolean; waited: number } | null = null;
 
   constructor(
     private readonly transport: Transport,
@@ -144,8 +153,7 @@ export class NetSession {
    */
   rejoin(fallback?: { rec: GameRecord; replay: boolean }): void {
     netLog('session: rejoining');
-    this.rejoining = true;
-    this.fallback = fallback ? { ...fallback, waited: 0 } : null;
+    this.phase = { k: 'rejoining', fallback: fallback ? { ...fallback, waited: 0 } : null };
     this.transport.send({ k: 'rejoin', v: WIRE, rules: RULES } satisfies NetMsg);
   }
 
@@ -155,7 +163,12 @@ export class NetSession {
   }
 
   get isRejoining(): boolean {
-    return this.rejoining;
+    return this.phase.k === 'rejoining';
+  }
+
+  /** Over for this phone: it left, the versions don't match, or the other phone left or the room went. */
+  get lost(): boolean {
+    return this.phase.k === 'ended';
   }
 
   get isHost(): boolean {
@@ -163,7 +176,12 @@ export class NetSession {
   }
 
   get game(): GameState | null {
-    return this.state;
+    return this.phase.k === 'match' || this.phase.k === 'ended' ? this.phase.game : null;
+  }
+
+  /** The game, while the match is on (not once this phone has left it). */
+  private get state(): GameState | null {
+    return this.phase.k === 'match' ? this.phase.game : null;
   }
 
   /** Both picks are in: the host can start. */
@@ -196,7 +214,7 @@ export class NetSession {
   /** Whether this phone may act now: its own turn, and the last shot's result has arrived. */
   canAct(): boolean {
     const s = this.state;
-    return !!s && !this.lost && !this.rejoining && s.current === this.localSeat && !this.awaitingSync;
+    return !!s && s.current === this.localSeat && !this.awaitingSync;
   }
 
   get awaitingSync(): boolean {
@@ -224,13 +242,10 @@ export class NetSession {
 
   /** Call once per frame after stepping the simulation. */
   tick(dt: number): void {
-    if (this.rejoining && this.fallback && !this.lost && (this.fallback.waited += dt) >= RESUME_WAIT) {
-      const { rec, replay } = this.fallback;
-      this.fallback = null;
-      this.catchUp(rec, replay);
-    }
+    const { phase } = this;
+    if (phase.k === 'rejoining' && phase.fallback && (phase.fallback.waited += dt) >= RESUME_WAIT) this.catchUp(phase.fallback.rec, phase.fallback.replay);
     const s = this.state;
-    if (s && !this.lost) {
+    if (s) {
       this.streamAim(s, dt);
       this.settleShot(s, dt);
     }
@@ -290,8 +305,6 @@ export class NetSession {
    */
   catchUp(rec: GameRecord, replay: boolean): void {
     netLog(`session: catching up from the record (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : replay && rec.last ? ', replaying their shot' : ''})`);
-    this.rejoining = false;
-    this.fallback = null;
     const pickOf = (i: number): Pick | null => {
       const p = rec.setup.players[i];
       return p ? { name: p.name, characterId: p.characterId } : null;
@@ -320,7 +333,7 @@ export class NetSession {
   /** Give up the match: the other player wins. */
   resign(): void {
     const s = this.state;
-    if (!s || this.lost || s.phase === 'gameover') return;
+    if (!s || s.phase === 'gameover') return;
     netLog('session: resigning');
     concede(s, this.localSeat, 'resigned');
     this.transport.send({ k: 'resign' } satisfies NetMsg);
@@ -341,7 +354,7 @@ export class NetSession {
     if (this.lost) return;
     netLog('session: leaving the match for now');
     this.transport.send({ k: 'away' } satisfies NetMsg);
-    this.lost = true;
+    this.end('away');
     (this.transport.detach ?? this.transport.close).call(this.transport);
   }
 
@@ -376,7 +389,7 @@ export class NetSession {
   /** Catch up a phone that rejoined, from a settled moment (not mid-shot). Our result of that turn stands. */
   private sendResume(): void {
     // (Still being caught up ourselves: answer once we are.)
-    if (!this.resumeWanted || this.lost || this.rejoining) return;
+    if (!this.resumeWanted || this.phase.k === 'ended' || this.phase.k === 'rejoining') return;
     const s = this.state;
     if (s && s.phase !== 'aiming' && s.phase !== 'gameover') return;
     this.resumeWanted = false;
@@ -403,13 +416,14 @@ export class NetSession {
   leave(): void {
     if (this.lost) return;
     this.transport.send({ k: 'bye' } satisfies NetMsg);
-    this.lost = true;
+    this.end('left');
     this.transport.close();
   }
 
   /** The turn a shot was fired in is over (the next turn has come up, or the game has ended). */
   private resolved(turn: number): boolean {
-    return shotResolved(this.state!, turn);
+    const g = this.game;
+    return !!g && shotResolved(g, turn);
   }
 
   private view(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
@@ -418,14 +432,15 @@ export class NetSession {
 
   private begin(setup: MatchSetup): GameState {
     this.setup = setup;
-    this.state = this.onStart(setup.seed, setup.players);
+    const game = this.onStart(setup.seed, setup.players);
+    this.phase = { k: 'match', game };
     this.shot = null;
     this.pendingSync = null;
     this.syncGrace = SYNC_GRACE;
     this.lastShot = null;
     this.flyingShot = null;
     this.lastPreview = '';
-    return this.state;
+    return game;
   }
 
   private applySync(msg: Extract<NetMsg, { k: 'sync' }>): void {
@@ -445,7 +460,7 @@ export class NetSession {
     // Anything from them means they're here (after catching up from the record, we assumed not).
     if (msg.k !== 'away') this.setPeerAway(false);
     // Rejoining: anything from before we're caught up is stale.
-    if (this.rejoining && msg.k !== 'resume' && msg.k !== 'rejoin' && msg.k !== 'bye') return;
+    if (this.phase.k === 'rejoining' && msg.k !== 'resume' && msg.k !== 'rejoin' && msg.k !== 'bye') return;
     switch (msg.k) {
       case 'hello':
         netLog(`session: hello from the other phone (${msg.pick.characterId})`);
@@ -490,10 +505,8 @@ export class NetSession {
         this.sendResume();
         return;
       case 'resume': {
-        if (!this.rejoining) return;
-        this.rejoining = false;
+        if (this.phase.k !== 'rejoining') return;
         const other = this.isHost ? 1 : 0;
-        this.fallback = null;
         this.localPick = msg.picks[this.localSeat] ?? this.localPick;
         this.remotePick = msg.picks[other] ?? this.remotePick;
         if (msg.setup && msg.snap && msg.terrain) {
@@ -503,6 +516,7 @@ export class NetSession {
           this.events.emit('resumed', true);
         } else {
           netLog('session: caught up (lobby)');
+          this.phase = { k: 'lobby' };
           this.events.emit('resumed', false);
         }
         return;
@@ -536,7 +550,7 @@ export class NetSession {
     const who: Outdated = msg.v > WIRE || (msg.rules ?? 0) > RULES ? 'us' : 'them';
     netLog(`session: other phone runs wire ${msg.v} rules ${msg.rules ?? '?'}, this one ${WIRE} / ${RULES}: ${who === 'us' ? 'this phone' : 'the other phone'} needs to reload`);
     // Not the end of the match: leave the room as it is, to carry on once both are up to date.
-    this.lost = true;
+    this.end('outdated');
     (this.transport.detach ?? this.transport.close).call(this.transport);
     this.events.emit('outdated', who);
     return true;
@@ -544,8 +558,13 @@ export class NetSession {
 
   private drop(): void {
     if (this.lost) return;
-    this.lost = true;
+    this.end('lost');
     this.transport.close();
     this.events.emit('lost');
+  }
+
+  private end(why: Extract<SessionPhase, { k: 'ended' }>['why']): void {
+    this.phase = { k: 'ended', why, game: this.game };
+    netLog(`session: ended (${why})`);
   }
 }

@@ -4,24 +4,21 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-**Feature freeze: refactoring pass** (from the code assessment, 1 Oct). Behaviour stays the same unless an
-item says otherwise; each step ships on its own with the full test suite. Live play-test checkpoints are
-flagged to the owner as they come up.
+The refactoring pass (from the code assessment, 1 Oct) has shipped up to phase 4 (see **Refactoring** under
+Shipped); its last phase, the tidy, is item 4.
 
-1. **Phase 4: online and screens.**
-   - `NetSession` as an explicit state machine.
-2. **Lobby: drop the leftover character picker** (owner, 1 Oct). The "Connected!" lobby still has a
+1. **Lobby: drop the leftover character picker** (owner, 1 Oct). The "Connected!" lobby still has a
    character dropdown while it's saying hello, from before Choose your tank; your tank is picked before
    hosting or joining now, so the lobby should just show who's playing as what.
-3. **Spectators, live** (owner, 1 Oct). During a match, the players (and watchers) see who's watching: a
+2. **Spectators, live** (owner, 1 Oct). During a match, the players (and watchers) see who's watching: a
    live list with a counter, and a toast when someone starts watching ("Kim just started watching").
    Watchers check in to the room while they watch (a new database path: the owner re-publishes the rules).
-4. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
+3. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
    another for the next match (online: each phone picks its own, the next match starts once both have
    chosen; hotseat: the setup screen with the last match's players filled in).
-5. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+4. **Refactoring phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
-6. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
+5. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
    implementation handover"). Web Push with VAPID, no new hosting and no Blaze plan. Two paths share one
    `evt-<id>` tag and an IndexedDB `seen` store, so each event alerts once:
    - Foreground: a live RTDB listener notifies within seconds while the game is open.
@@ -53,6 +50,9 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 4: `NetSession` phases.** One `phase` (lobby → match, rejoining → match | lobby, ended: left /
+  away / outdated / lost) instead of the `lost`, `rejoining` and `fallback` flags beside a nullable game,
+  so the impossible mixes can't happen; `lost` and `isRejoining` read it.
 - **Phase 4: the online screens.** `online.ts` split: the Game browser, host screen and Choose your tank in
   `ui/online/`, how this phone's matches stand in `net/matches.ts`. Each way in (browser, host, join,
   rejoin, watch, replay) is an attempt with one dispose path (`Scope`), replacing the `stopRoom` /

@@ -243,6 +243,19 @@ describe('networked match', { timeout: 30_000 }, () => {
     }
   });
 
+  it('away: this phone is out of the match (nothing sent or taken in), but the game stays to look at', async () => {
+    const { a, b, A } = await connected();
+    expect([a.lost, a.isRejoining, a.canAct()]).toEqual([false, false, true]);
+    a.away();
+    expect(a.lost).toBe(true);
+    expect(a.game).toBe(A);
+    expect(a.canAct()).toBe(false);
+    expect(a.fire()).toBe(false);
+    a.tick(FIXED_DT);
+    await flush();
+    expect(b.peerAway).toBe(true);
+  });
+
   it('notices when the other phone leaves', async () => {
     const { a, b } = await connected();
     let lost = false;

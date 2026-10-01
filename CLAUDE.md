@@ -77,7 +77,7 @@ what it's for; weapons are documented where they're defined.
 - **Online** (`src/net/`): phone → Firebase Realtime Database (REST + SSE, `rtdb.ts`) → phone, all sealed
   with AES-GCM from the room code (`seal.ts`). `rooms.ts` seats and codes, `relay.ts` the message pipe
   (numbered batches per epoch, stamped with the sender's seat id; silence = "quiet", not the end),
-  `session.ts` the match protocol (`NetSession`, which the screens follow with `on(event)`: the phone whose turn it is streams its aim, sends a
+  `session.ts` the match protocol (`NetSession`, in one `phase`: lobby, rejoining, match, ended; the screens follow it with `on(event)`: the phone whose turn it is streams its aim, sends a
   pre-fire snapshot, then the result snapshot + terrain, which the other phone snaps to; `rejoin` /
   `resume` for a phone that dropped out). Matches are live when both phones are there and **turn by
   turn** when not: `record.ts` is each room's lasting record (`game`: written by the phone in charge at
