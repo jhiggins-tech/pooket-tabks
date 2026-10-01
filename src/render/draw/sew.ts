@@ -1,5 +1,5 @@
 import { stitchPoint } from '../../game/game';
-import type { Stitch } from '../../game/state';
+import type { GameState, Stitch } from '../../game/state';
 import { weaponOf } from '../../weapons/registry';
 import type { Draw } from './context';
 
@@ -56,4 +56,8 @@ export function drawStitch(d: Draw, st: Stitch): void {
     ctx.stroke();
   }
   ctx.restore();
+}
+
+export function drawStitches(d: Draw, state: GameState): void {
+  for (const st of state.stitches) drawStitch(d, st);
 }

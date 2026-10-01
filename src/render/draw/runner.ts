@@ -106,3 +106,7 @@ export function drawRunner(d: Draw, r: Runner, state: GameState): void {
   ctx.fillRect(1.9, -18.6 + HIPS, 0.7, 0.8); // eye
   ctx.restore();
 }
+
+export function drawRunners(d: Draw, state: GameState): void {
+  for (const r of state.runners) drawRunner(d, r, state);
+}

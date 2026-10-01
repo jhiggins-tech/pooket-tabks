@@ -1,7 +1,7 @@
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
-import { jetCharge, muzzle, tankCentre } from '../../game/game';
+import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, tankCentre } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
-import { noise, withAlpha } from './colour';
+import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
 
 /** Tanks (and their hologram, twin and ghost copies), the jetpack flame, the spew gush, the swap marker and the aim guide. */
@@ -18,13 +18,7 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: num
 
   if (p.cooked && p.alive) {
     // Cooked: an orange heat glow and wisps of steam rising off the hull.
-    const heat = ctx.createRadialGradient(c.x, c.y + 4, 2, c.x, c.y + 4, 20);
-    heat.addColorStop(0, `rgba(255,140,40,${0.35 + 0.15 * Math.sin(d.time * 6)})`);
-    heat.addColorStop(1, 'rgba(255,120,30,0)');
-    ctx.fillStyle = heat;
-    ctx.beginPath();
-    ctx.arc(c.x, c.y + 4, 20, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, c.x, c.y + 4, 20, [[0, `rgba(255,140,40,${0.35 + 0.15 * Math.sin(d.time * 6)})`], [1, 'rgba(255,120,30,0)']], 2);
     ctx.save();
     ctx.lineWidth = 1.4;
     ctx.lineCap = 'round';
@@ -47,13 +41,7 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: num
   if (p.burn && p.alive) {
     // Pulsing glow while a Hyperfixate burn is still ticking.
     const pulse = 0.55 + 0.45 * Math.sin(d.time * 8);
-    const g = ctx.createRadialGradient(c.x, c.y, 2, c.x, c.y, 22);
-    g.addColorStop(0, withAlpha(p.burn.colour, 0.55 * pulse));
-    g.addColorStop(1, withAlpha(p.burn.colour, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(c.x, c.y, 22, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, c.x, c.y, 22, [[0, withAlpha(p.burn.colour, 0.55 * pulse)], [1, withAlpha(p.burn.colour, 0)]], 2);
   }
 
   ctx.save();
@@ -196,13 +184,7 @@ export function drawJet(d: Draw, p: Player, state: GameState, draw: () => void):
     const amp = 0.4 + 3.6 * charge * charge;
     const t = Math.floor(d.time * 45);
     // Dusty haze kicked up around the tracks.
-    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 10 + 18 * charge);
-    g.addColorStop(0, withAlpha('#8a6440', 0.1 + 0.45 * charge));
-    g.addColorStop(1, withAlpha('#8a6440', 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 10 + 18 * charge, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, p.x, p.y, 10 + 18 * charge, [[0, withAlpha('#8a6440', 0.1 + 0.45 * charge)], [1, withAlpha('#8a6440', 0)]]);
     ctx.save();
     ctx.translate((noise(t) - 0.5) * 2 * amp, (noise(t * 1.7 + 3) - 0.5) * amp);
     draw();
@@ -284,4 +266,32 @@ export function drawAimGuide(d: Draw, p: Player): void {
   ctx.lineTo(m.x + Math.cos(a) * len, m.y - Math.sin(a) * len);
   ctx.stroke();
   ctx.restore();
+}
+
+/**
+ * Every player's tanks: holograms (drawn exactly like the real tank, so there's no tell: the shared shimmer
+ * glitches every copy, real one included, at the same moment), the twin (phasing in when it appears), the
+ * tank itself (with a jetpack's charge and flame) and a spew's gush.
+ */
+export function drawTanks(d: Draw, state: GameState): void {
+  for (const p of state.players) {
+    const shimmer = state.fx.shimmers.find((s) => s.ownerId === p.id);
+    const shimmerAmt = shimmer ? Math.sin(Math.PI * (shimmer.age / shimmer.duration)) : 0;
+    for (const h of hologramsOf(state, p.id)) {
+      const phaseIn = Math.min(1, h.age / HOLOGRAM_PHASE_IN);
+      drawGlitchedTank(d, p, state, h, Math.max(shimmerAmt, 1 - phaseIn), phaseIn, 1);
+      if (state.swapTargetId === h.id && canPickDecoy(state) && currentPlayer(state) === p) drawSwapMarker(d, h);
+    }
+    if (p.twin && p.alive) {
+      const phaseIn = Math.min(1, p.twin.age / HOLOGRAM_PHASE_IN);
+      drawGlitchedTank(d, p, state, p.twin, 1 - phaseIn, phaseIn, 1);
+    }
+    drawJet(d, p, state, () => drawGlitchedTank(d, p, state, undefined, shimmerAmt, 1, 1));
+    if (isSpewing(state, p.id)) drawSpewGush(d, p);
+  }
+}
+
+/** The aim guide, while the current player is aiming something that aims. */
+export function drawAim(d: Draw, state: GameState): void {
+  if (state.phase === 'aiming' && !isAimless(state)) drawAimGuide(d, currentPlayer(state));
 }

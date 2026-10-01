@@ -1,6 +1,6 @@
 import { TANK_BODY_HEIGHT } from '../../game/constants';
 import type { GameState, HologramBlast } from '../../game/state';
-import { noise, withAlpha } from './colour';
+import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
 import { drawGlitchedTank } from './tank';
 
@@ -52,14 +52,11 @@ function drawBlast(d: Draw, state: GameState, b: HologramBlast): void {
   if (burst < 0.35) {
     const e = burst / 0.35;
     const fr = r * (0.6 + 1.8 * Math.sqrt(e));
-    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, fr);
-    g.addColorStop(0, withAlpha('#ffffff', 1 - e));
-    g.addColorStop(0.45, withAlpha(CYAN, 0.85 * (1 - e)));
-    g.addColorStop(1, withAlpha(CYAN, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(cx, cy, fr, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, cx, cy, fr, [
+      [0, withAlpha('#ffffff', 1 - e)],
+      [0.45, withAlpha(CYAN, 0.85 * (1 - e))],
+      [1, withAlpha(CYAN, 0)],
+    ]);
   }
 
   // Shockwave: two rings, a little out of register.
@@ -119,4 +116,14 @@ function drawBlast(d: Draw, state: GameState, b: HologramBlast): void {
     }
   }
   ctx.restore();
+}
+
+/** Holograms whose owner is out, phasing away: tearing apart, flattening to a line and fading. */
+export function drawGhosts(d: Draw, state: GameState): void {
+  for (const g of state.fx.ghosts) {
+    const owner = state.players[g.ownerId];
+    if (!owner) continue;
+    const k = g.age / g.duration;
+    drawGlitchedTank(d, owner, state, g, 0.4 + k, 1, 1 - k, 1 - k * 0.9);
+  }
 }

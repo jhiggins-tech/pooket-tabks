@@ -1,5 +1,6 @@
-import type { Apparition } from '../../game/state';
+import type { Apparition, GameState } from '../../game/state';
 import type { Draw } from './context';
+import { glow } from './colour';
 
 /** Sky apparitions (the kookaburra in parting clouds). */
 
@@ -18,14 +19,18 @@ export function drawApparition(d: Draw, a: Apparition): void {
 
   // Sun glow and slowly turning rays.
   ctx.globalAlpha = alpha;
-  const glow = ctx.createRadialGradient(0, 0, 4, 0, 0, 70);
-  glow.addColorStop(0, 'rgba(255,236,170,0.95)');
-  glow.addColorStop(0.35, 'rgba(255,196,90,0.45)');
-  glow.addColorStop(1, 'rgba(255,170,60,0)');
-  ctx.fillStyle = glow;
-  ctx.beginPath();
-  ctx.arc(0, 0, 70, 0, Math.PI * 2);
-  ctx.fill();
+  glow(
+    ctx,
+    0,
+    0,
+    70,
+    [
+      [0, 'rgba(255,236,170,0.95)'],
+      [0.35, 'rgba(255,196,90,0.45)'],
+      [1, 'rgba(255,170,60,0)'],
+    ],
+    4,
+  );
   ctx.save();
   ctx.rotate(d.time * 0.25);
   ctx.fillStyle = 'rgba(255,214,120,0.22)';
@@ -73,4 +78,9 @@ export function drawApparition(d: Draw, a: Apparition): void {
     }
   }
   ctx.restore();
+}
+
+/** Apparitions in the sky (behind the hills). */
+export function drawApparitions(d: Draw, state: GameState): void {
+  for (const a of state.fx.apparitions) drawApparition(d, a);
 }

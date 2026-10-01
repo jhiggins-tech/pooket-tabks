@@ -1,22 +1,47 @@
 import type { Terrain } from '../core/terrain';
-import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing } from '../game/game';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
-import { drawHologramBlasts } from './draw/copies';
+import { drawGhosts, drawHologramBlasts } from './draw/copies';
 import { drawExplosions, drawFloaters } from './draw/fx';
 import { drawPuddles, drawSludge } from './draw/gunk';
 import { drawNapCats } from './draw/nap';
 import { drawBeams, drawProjectiles } from './draw/projectiles';
-import { drawRunner } from './draw/runner';
-import { drawStitch } from './draw/sew';
-import { drawApparition } from './draw/sky';
+import { drawRunners } from './draw/runner';
+import { drawStitches } from './draw/sew';
+import { drawApparitions } from './draw/sky';
 import { drawBooms } from './draw/sonic';
 import { drawHeist } from './draw/steal';
 import { drawLiquid } from './draw/stream';
-import { drawAimGuide, drawGlitchedTank, drawJet, drawSpewGush, drawSwapMarker } from './draw/tank';
+import { drawAim, drawTanks } from './draw/tank';
 import { loadSprites } from './sprites';
 
 const MAX_DPR = 2; // Cap backing-store size so older phones keep 60fps.
+
+/** Something drawn every frame from the game state, in world coordinates. */
+type Layer = (d: Draw, state: GameState) => void;
+
+/** Drawn in the sky, behind the hills. */
+const BACKDROP: Layer[] = [drawApparitions];
+
+/** Drawn over the terrain, back to front: the order is the layering (like STEPPERS for the simulation). */
+const LAYERS: Layer[] = [
+  drawPuddles,
+  drawSludge, // behind the tanks so the jet flame stays visible
+  drawTanks,
+  drawNapCats,
+  drawGhosts,
+  drawAim,
+  drawProjectiles,
+  drawStitches,
+  drawRunners,
+  drawLiquid,
+  drawBeams,
+  drawBooms,
+  drawExplosions,
+  drawHologramBlasts,
+  drawHeist,
+  drawFloaters,
+];
 
 /**
  * Draws the fixed-size world scaled to fit (letterboxed) a full-screen canvas,
@@ -34,6 +59,8 @@ export class Renderer {
   private offsetX = 0;
   private offsetY = 0;
   private dpr = 1;
+  /** The sky (made when the canvas is sized). */
+  private sky!: CanvasGradient;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -59,6 +86,10 @@ export class Renderer {
     this.scale = Math.min(this.canvas.width / this.worldW, this.canvas.height / this.worldH);
     this.offsetX = (this.canvas.width - this.worldW * this.scale) / 2;
     this.offsetY = (this.canvas.height - this.worldH * this.scale) / 2;
+    this.sky = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+    this.sky.addColorStop(0, '#1b2440');
+    this.sky.addColorStop(0.6, '#3d5a8a');
+    this.sky.addColorStop(1, '#8fb3d9');
   }
 
   /** Converts a screen (CSS pixel) position to world coordinates. */
@@ -97,15 +128,11 @@ export class Renderer {
 
     const { ctx } = this;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const sky = ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-    sky.addColorStop(0, '#1b2440');
-    sky.addColorStop(0.6, '#3d5a8a');
-    sky.addColorStop(1, '#8fb3d9');
-    ctx.fillStyle = sky;
+    ctx.fillStyle = this.sky;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.setTransform(this.scale, 0, 0, this.scale, this.offsetX, this.offsetY);
-    for (const a of state.fx.apparitions) drawApparition(this.d, a); // in the sky, behind the hills
+    for (const draw of BACKDROP) draw(this.d, state);
     ctx.drawImage(this.terrainCanvas, 0, 0);
     // Stretch the edge columns into any side letterbox so hills run to the screen edge.
     const side = this.offsetX / this.scale;
@@ -114,46 +141,7 @@ export class Renderer {
       ctx.drawImage(this.terrainCanvas, 0, 0, 1, h, -side, 0, side, h);
       ctx.drawImage(this.terrainCanvas, this.worldW - 1, 0, 1, h, this.worldW, 0, side + 1, h);
     }
-
-    drawPuddles(this.d, state);
-    drawSludge(this.d, state); // behind the tanks so the jet flame stays visible
-    for (const p of state.players) {
-      // Holograms are drawn exactly like the real tank, so there is no visual tell. The shared
-      // shimmer glitches every copy (real one included) at the same moment.
-      const shimmer = state.fx.shimmers.find((s) => s.ownerId === p.id);
-      const shimmerAmt = shimmer ? Math.sin(Math.PI * (shimmer.age / shimmer.duration)) : 0;
-      for (const h of hologramsOf(state, p.id)) {
-        const phaseIn = Math.min(1, h.age / HOLOGRAM_PHASE_IN);
-        drawGlitchedTank(this.d, p, state, h, Math.max(shimmerAmt, 1 - phaseIn), phaseIn, 1);
-        if (state.swapTargetId === h.id && canPickDecoy(state) && currentPlayer(state) === p) drawSwapMarker(this.d, h);
-      }
-      if (p.twin && p.alive) {
-        // Twins: an identical second tank, phasing in when it first appears.
-        const phaseIn = Math.min(1, p.twin.age / HOLOGRAM_PHASE_IN);
-        drawGlitchedTank(this.d, p, state, p.twin, 1 - phaseIn, phaseIn, 1);
-      }
-      drawJet(this.d, p, state, () => drawGlitchedTank(this.d, p, state, undefined, shimmerAmt, 1, 1));
-      if (isSpewing(state, p.id)) drawSpewGush(this.d, p);
-    }
-    drawNapCats(this.d, state);
-    for (const g of state.fx.ghosts) {
-      const owner = state.players[g.ownerId];
-      if (!owner) continue;
-      // Phasing out: tears apart, flattens to a line and fades.
-      const k = g.age / g.duration;
-      drawGlitchedTank(this.d, owner, state, g, 0.4 + k, 1, 1 - k, 1 - k * 0.9);
-    }
-    if (state.phase === 'aiming' && !isAimless(state)) drawAimGuide(this.d, currentPlayer(state));
-    drawProjectiles(this.d, state);
-    for (const st of state.stitches) drawStitch(this.d, st);
-    for (const r of state.runners) drawRunner(this.d, r, state);
-    drawLiquid(this.d, state);
-    drawBeams(this.d, state);
-    drawBooms(this.d, state);
-    drawExplosions(this.d, state);
-    drawHologramBlasts(this.d, state);
-    drawHeist(this.d, state);
-    drawFloaters(this.d, state);
+    for (const draw of LAYERS) draw(this.d, state);
 
     // Bedrock strip below the world when the screen is taller than 2.2:1.
     if (this.offsetY > 0) {

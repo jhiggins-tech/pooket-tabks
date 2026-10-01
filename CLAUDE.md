@@ -122,7 +122,7 @@ entry and a what's-new release.
 3. `game/<mechanic>.ts`: `fire…(state, p, weapon: WeaponOf<'kind'>)` and a `Stepper` (`step` + `busy`;
    look the weapon up with `weaponOf(id, 'kind')`); add them to `FIRE` (or `FREE_ACTIONS`) and `STEPPERS`
    in `game/mechanics.ts` (the types insist). Hits go through `applyHit`.
-4. `render/draw/<mechanic>.ts` and a call in `Renderer.draw()` (order = layering).
+4. `render/draw/<mechanic>.ts` and its entry in `LAYERS` (`render/canvas.ts`; order = layering).
 5. Sounds, info text and tests as above; say what it does in its module's header comment.
 
 **Add a character**: a new kit file (colours, blurb, three weapons, optional `movement`), add it to `KITS`

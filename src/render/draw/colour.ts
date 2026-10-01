@@ -26,3 +26,13 @@ export function noise(n: number): number {
   const x = Math.sin(n * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
+
+/** A soft disc of radius `r` at (x, y): a radial gradient (from `inner` px out) through `stops`. */
+export function glow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, stops: readonly (readonly [number, string])[], inner = 0): void {
+  const g = ctx.createRadialGradient(x, y, inner, x, y, r);
+  for (const [at, colour] of stops) g.addColorStop(at, colour);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}

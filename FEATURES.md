@@ -9,7 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 3: presentation.**
-   - Draw-layer list (one signature, like `STEPPERS`); shared glow / sprite / pips helpers; cached sky.
    - `main.ts` split, with one `startMatch`.
 2. **Phase 4: online and screens.**
    - Sealed-store helpers (`putSealed` / `getSealed`, one encoding everywhere) and one latest-wins writer.
@@ -32,6 +31,11 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 3: draw layers.** `Renderer.draw` is an ordered list of layers with one signature (`BACKDROP`
+  behind the hills, `LAYERS` over them: the order is the layering, like `STEPPERS`), instead of a hand-kept
+  sequence with the tank, ghost and aim logic inline: those moved to `drawTanks` / `drawAim`
+  (draw/tank.ts) and `drawGhosts` (draw/copies.ts). One `glow()` helper (draw/colour.ts) for the soft
+  radial discs drawn in eight places; the sky gradient is made once per resize, not every frame.
 - **Phase 3: terrain uploads as separate rectangles.** Changes to the ground used to be merged into one
   bounding box a frame, so Unmedicated's pills popping all over the map re-uploaded most of the map
   every frame. Now changes far apart stay separate rectangles (ones that touch merge; past 24 it falls

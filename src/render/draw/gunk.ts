@@ -1,6 +1,6 @@
 import type { GameState } from '../../game/state';
 import { gunkWeapon } from '../../weapons/registry';
-import { noise } from './colour';
+import { glow, noise } from './colour';
 import type { Draw } from './context';
 
 /** Mud and sludge in flight, and toxic puddles. */
@@ -62,13 +62,10 @@ export function drawPuddles(d: Draw, state: GameState): void {
     const life = 1 - p.age / p.ttl;
     const alpha = Math.min(1, life * 2.5);
     // Glow
-    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius + 5);
-    g.addColorStop(0, `rgba(182,240,74,${0.55 * alpha})`);
-    g.addColorStop(1, 'rgba(120,200,40,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius + 5, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, p.x, p.y, p.radius + 5, [
+      [0, `rgba(182,240,74,${0.55 * alpha})`],
+      [1, 'rgba(120,200,40,0)'],
+    ]);
     // Slick coat hugging the surface
     ctx.globalAlpha = 0.85 * alpha;
     ctx.fillStyle = '#7fb31f';

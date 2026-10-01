@@ -1,7 +1,7 @@
 import { WALKER_BODY } from '../../game/game';
 import type { GameState, Projectile } from '../../game/state';
 import { projectileWeapon } from '../../weapons/registry';
-import { withAlpha } from './colour';
+import { glow, withAlpha } from './colour';
 import type { Draw } from './context';
 
 /** Projectiles (sprites, letters, plain shells) and laser beams. */
@@ -101,14 +101,11 @@ export function drawBeams(d: Draw, state: GameState): void {
     ctx.lineWidth = 1.2;
     line(d, b.x1, b.y1, b.x2, b.y2);
     // Impact flare
-    const g = ctx.createRadialGradient(b.x2, b.y2, 0, b.x2, b.y2, b.hitTank ? 16 : 10);
-    g.addColorStop(0, 'rgba(255,255,255,0.95)');
-    g.addColorStop(0.4, withAlpha(b.colour, 0.8));
-    g.addColorStop(1, withAlpha(b.colour, 0));
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(b.x2, b.y2, b.hitTank ? 16 : 10, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, b.x2, b.y2, b.hitTank ? 16 : 10, [
+      [0, 'rgba(255,255,255,0.95)'],
+      [0.4, withAlpha(b.colour, 0.8)],
+      [1, withAlpha(b.colour, 0)],
+    ]);
   }
   ctx.restore();
 }

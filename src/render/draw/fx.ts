@@ -1,5 +1,6 @@
 import type { GameState } from '../../game/state';
 import type { Draw } from './context';
+import { glow } from './colour';
 
 /** Explosions and floating damage numbers. */
 
@@ -49,13 +50,10 @@ export function drawExplosions(d: Draw, state: GameState): void {
       continue;
     }
     const r = e.radius * (0.5 + 0.7 * k);
-    const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, r);
-    g.addColorStop(0, `rgba(255,245,200,${1 - k})`);
-    g.addColorStop(0.4, `rgba(255,160,40,${0.9 * (1 - k)})`);
-    g.addColorStop(1, 'rgba(200,40,0,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
-    ctx.fill();
+    glow(ctx, e.x, e.y, r, [
+      [0, `rgba(255,245,200,${1 - k})`],
+      [0.4, `rgba(255,160,40,${0.9 * (1 - k)})`],
+      [1, 'rgba(200,40,0,0)'],
+    ]);
   }
 }
