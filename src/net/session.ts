@@ -66,7 +66,7 @@ export const RESUME_WAIT = 2.5;
  * - lobby: connected, picks going back and forth (setPick, 'hello');
  * - rejoining: back on a new connection, waiting to be caught up by the other phone, or after RESUME_WAIT
  *   by the match's record (`fallback`), into the match or the lobby;
- * - match: a game under way (or over: a rematch starts another);
+ * - match: a game under way (or over);
  * - ended: this phone left (for good, or for now: 'away'), the versions don't match, or the other phone
  *   left or the room went ('lost'). Nothing more is sent or taken in; the game, if any, stays to look at.
  */
@@ -90,6 +90,8 @@ export interface SessionEvents extends Record<string, unknown[]> {
   resumed: [inMatch: boolean];
   /** Spectators' feed: whatever this phone is in charge of sending (see ViewMsg). */
   view: [v: ViewMsg];
+  /** A shot is fired (by either phone, or played out from the record): the state just before it. */
+  shot: [shot: ShotRecord];
 }
 
 /**
@@ -237,6 +239,7 @@ export class NetSession {
     // In the record at once: closing the app mid-shot doesn't undo it.
     this.flyingShot = { turn: snap.turn, owner: this.localSeat, snap, terrain };
     this.record(snap, terrain);
+    this.events.emit('shot', this.flyingShot);
     return true;
   }
 
@@ -316,6 +319,7 @@ export class NetSession {
     const from = rec.flying ?? (replay ? rec.last : null);
     if (from) {
       putState(s, from.snap, from.terrain);
+      this.events.emit('shot', from);
       fire(s);
       this.shot = { turn: from.turn, owner: from.owner };
       if (rec.flying) this.flyingShot = rec.flying;
@@ -487,6 +491,7 @@ export class NetSession {
         this.pendingSync = null;
         applySnapshot(s, msg.snap);
         this.flyingShot = { turn: msg.turn, owner: s.current, snap: msg.snap, terrain: encodeSolid(s.terrain) };
+        this.events.emit('shot', this.flyingShot);
         fire(s);
         this.shot = { turn: msg.turn, owner: s.current };
         return;

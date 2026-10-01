@@ -43,6 +43,8 @@ import { Landing } from './ui/landing';
 import { SetupScreen } from './ui/setup';
 import { readParams } from './app/params';
 import { setupSoundToggle } from './app/sound';
+import { MatchTape } from './app/tape';
+import { GameOverButtons } from './ui/gameover';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const renderer = new Renderer(canvas, WORLD_W, WORLD_H);
@@ -107,9 +109,18 @@ document.getElementById('hotseat-info')!.addEventListener('click', () => info.op
 /** Which drive button is held (−1 / 0 / +1); applied every simulation step. */
 let driveDir = 0;
 
-/** A fresh match on the battlefield (local, online, watched, or just the backdrop behind the menus). */
-function startMatch(seed: number, chosen: PlayerConfig[]): GameState {
+/** The match being played here, recorded to watch again from the game over card. */
+const tape = new MatchTape();
+const gameOver = new GameOverButtons();
+
+/**
+ * A fresh match on the battlefield (local, online, watched, or just the backdrop behind the menus).
+ * `played`: it's played on this phone (hotseat, or online), so it's recorded.
+ */
+function startMatch(seed: number, chosen: PlayerConfig[], played = false): GameState {
   state = createGame({ seed, players: chosen, first });
+  if (played) tape.start(seed, chosen);
+  else tape.clear();
   hud.reset();
   sfx.tunes.stopAll();
   document.getElementById('gameover')!.hidden = true;
@@ -118,7 +129,7 @@ function startMatch(seed: number, chosen: PlayerConfig[]): GameState {
 
 /** A local (hotseat) match, with the players picked on the hotseat screen. */
 function newGame(): void {
-  startMatch(nextSeed, players);
+  startMatch(nextSeed, players, true);
   nextSeed = randomSeed();
 }
 
@@ -132,22 +143,23 @@ const online = new OnlineScreen({
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
 });
 /** An online match (or one being watched) starts: off the menus and into it. */
-function startOnline(seed: number, chosen: PlayerConfig[]): GameState {
+function startOnline(seed: number, chosen: PlayerConfig[], played = false): GameState {
   online.hide();
   hideMenus();
-  return startMatch(seed, chosen);
+  return startMatch(seed, chosen, played);
 }
 online.onConnected = (s) => {
   net = s;
   // Both phones build the same game from the same seed; the session keeps them in step.
   s.onStart = (seed, chosen) => {
     void goFullscreen();
-    return startOnline(seed, chosen);
+    return startOnline(seed, chosen, true);
   };
+  s.on('shot', (shot) => tape.shot(shot));
 };
 // Watching someone else's match (live, or a replay): view only.
 online.onSpectate = (sp) => {
-  sp.onStart = startOnline;
+  sp.onStart = (seed, chosen) => startOnline(seed, chosen);
 };
 const spectateLeave = document.getElementById('spectate-leave')!;
 spectateLeave.addEventListener('click', () => online.close());
@@ -230,7 +242,7 @@ bindControls(canvas, {
     const holo = hologramAt(state, w.x, w.y, 30 / renderer.cssScale);
     if (holo) toggleSwapTarget(state, holo.id);
   },
-  fire: () => (net ? net.fire() : fire(state)),
+  fire: () => (net ? net.fire() : fireHere()),
   done: () => finishDecoyPick(state),
 });
 
@@ -238,12 +250,23 @@ const onResize = () => renderer.resize();
 window.addEventListener('resize', onResize);
 window.visualViewport?.addEventListener('resize', onResize);
 
-document.getElementById('rematch')!.addEventListener('click', () => {
-  if (online.replay) online.replay.restart(); // Watch again
-  else if (!net) newGame();
-  else if (net.isHost) online.onHostStart(net);
+/** Fire in a hotseat match (recording the shot as it's fired). */
+function fireHere(): boolean {
+  const shot = tape.firing(state);
+  if (!fire(state)) return false;
+  tape.shot(shot);
+  return true;
+}
+
+// The game over card: watch the match again, or move on (no rematch: start a new game for that).
+gameOver.replay.addEventListener('click', () => {
+  if (online.replay) return online.replay.restart(); // Watch again
+  const replay = tape.replay;
+  if (!replay) return;
+  if (net) online.close(); // done with the match (it's over)
+  online.watchTape(replay);
 });
-document.getElementById('change-players')!.addEventListener('click', () => {
+gameOver.leave.addEventListener('click', () => {
   document.getElementById('gameover')!.hidden = true;
   if (net || online.spectator) online.close();
   else setup.show();
@@ -313,6 +336,8 @@ function runFrame(now: number): void {
     replaySpeed.textContent = `${replay?.speed ?? 1}×`;
   }
   document.body.dataset.online = String(!!net && !net.lost);
+  if (state.phase === 'gameover') tape.end(state);
+  gameOver.update(replay ? 'replay' : online.spectator ? 'watching' : net ? 'online' : 'hotseat', !!tape.replay);
   hud.update(state);
 }
 requestAnimationFrame(frame);

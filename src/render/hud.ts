@@ -204,16 +204,6 @@ export class Hud {
       this.bannerEl.classList.add('show');
     }
     this.gameOverEl.hidden = state.phase !== 'gameover';
-    // Online, only the host can start a rematch. A replay can be watched again.
-    const rematch = document.getElementById('rematch') as HTMLButtonElement | null;
-    const replay = !!this.online?.replay;
-    const guest = !!this.online && this.online.localSeat !== 0 && !replay;
-    if (rematch) {
-      rematch.disabled = guest;
-      rematch.textContent = replay ? '↺ Watch again' : guest ? 'Host rematches' : 'Rematch';
-    }
-    const change = document.getElementById('change-players');
-    if (change) change.textContent = this.online ? 'Leave' : 'Change players';
     if (state.phase === 'gameover') {
       this.winnerEl.textContent = state.winner ? `${state.winner.name} wins!` : 'Draw!';
       const loser = state.players.find((q) => q !== state.winner);

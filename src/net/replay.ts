@@ -61,7 +61,7 @@ const replaySealer = (id: string) => sealerFor('replay', id);
 const listSealer = (lobby: string) => sealerFor('replays', lobby);
 
 /** Where a shot goes: by turn, then by the shooter's rounds (a turn can have a bonus move or a steal first). */
-function shotKey(shot: ShotRecord): string {
+export function shotKey(shot: ShotRecord): string {
   const shooter = (shot.snap.players as { ammo: number[] }[] | undefined)?.[shot.owner];
   return `s${shot.turn}_${shooter?.ammo.join('-') ?? ''}`;
 }

@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 28,
+    title: 'Watch it again',
+    items: [
+      'When a match ends, ▶ Watch replay plays it back from the start (hotseat and online, at 1×, 2× or 4×).',
+      'Rematch is gone: start a new game to play again (and pick a different tank while you’re at it).',
+    ],
+  },
+  {
     version: 27,
     title: 'Who’s watching',
     items: [

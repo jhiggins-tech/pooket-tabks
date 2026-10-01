@@ -304,8 +304,8 @@ test('past matches: a finished public match can be watched again, start to finis
   await fan.screenshot({ path: 'test-results/replay-over.png' });
 
   // Watch again, or leave.
-  await expect(fan.locator('#rematch')).toHaveText('↺ Watch again');
-  await fan.locator('#rematch').tap();
+  await expect(fan.locator('#watch-replay')).toHaveText('↺ Watch again');
+  await fan.locator('#watch-replay').tap();
   await expect(fan.locator('#gameover')).toBeHidden();
   await fan.locator('#spectate-leave').tap();
   await expect(fan.locator('#setup')).toBeVisible();
@@ -548,14 +548,24 @@ test('turn by turn: take your turn and go back to the menu; the other player fin
   await guest.locator('#menu-resign').tap();
   await guest.locator('#menu-resign').tap();
   await expect(guest.locator('#winner')).toContainText('Ann wins!');
+  // No rematch: watch the match again (what this phone saw of it), or leave.
+  await expect(guest.locator('#gameover-leave')).toHaveText('Leave');
+  await expect(guest.locator('#watch-replay')).toHaveText('▶ Watch replay');
+  await guest.locator('#watch-replay').tap();
+  await expect(guest.locator('#spectate-leave')).toHaveText('▶ Replay · Leave', { timeout: 10_000 });
+  await expect(guest.locator('#watch-replay')).toHaveText('↺ Watch again', { timeout: 40_000 });
+  await expect(guest.locator('#winner')).toContainText('Ann wins!');
+  await guest.locator('#gameover-leave').tap();
+  await expect(guest.locator('#setup')).toBeVisible();
   await host.reload();
   await host.locator('#open-browser').tap();
   await expect(rows(host, 'mine')).toContainText('You won');
   await rows(host, 'mine').getByRole('button', { name: 'Open' }).tap();
   await expect(host.locator('#gameover')).toBeVisible({ timeout: 20_000 });
   await expect(host.locator('#winner')).toContainText('resigned');
+  await expect(host.locator('#watch-replay')).toBeHidden(); // nothing played on this phone since it came back
   // Seen how it ended: leaving forgets it.
-  await host.locator('#change-players').tap();
+  await host.locator('#gameover-leave').tap();
   await expect(host.locator('#setup')).toBeVisible();
   await host.locator('#open-browser').tap();
   await expect(rows(host, 'mine')).toHaveCount(0);

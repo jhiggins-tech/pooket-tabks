@@ -7,7 +7,7 @@ import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost
 import { Rtdb } from '../net/rtdb';
 import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
-import { loadReplay, ReplayPlayer, ReplayRecorder, type ReplayListing } from '../net/replay';
+import { loadReplay, ReplayPlayer, ReplayRecorder, type Replay, type ReplayListing } from '../net/replay';
 import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
@@ -492,6 +492,15 @@ export class OnlineScreen {
     } catch (e) {
       if (scope.alive) this.fail(e, () => void this.watchReplay(listing));
     }
+  }
+
+  /** Watch a match this phone just played again, from its own recording (app/tape.ts). */
+  watchTape(replay: Replay): void {
+    this.reset();
+    netLog(`ui: watching the match again (${replay.shots.length} shots)`);
+    const player = new ReplayPlayer(replay);
+    this.spectator = player;
+    this.onSpectate(player); // the game shows once it's built (on its first tick)
   }
 
   private watchEnded(): void {
