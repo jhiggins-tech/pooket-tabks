@@ -1,3 +1,4 @@
+import { blastOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
@@ -171,8 +172,20 @@ export function damageTarget(state: GameState, t: Target, amount: number, colour
   return false; // it'll blow up
 }
 
-export function explode(state: GameState, x: number, y: number, weapon: WeaponDef, ownerId?: number): void {
-  const r = weapon.blastRadius;
+/**
+ * A blast at (x, y): a crater, and every target in reach takes a hit from `weapon` (applyHit), falling off
+ * from `blast.damage` at the centre to nothing at the edge. The blast is the weapon's own (blastRadius /
+ * damage) unless it's given: a runner's finish, a hologram blowing up.
+ */
+export function explode(
+  state: GameState,
+  x: number,
+  y: number,
+  weapon: WeaponDef,
+  ownerId?: number,
+  blast: { radius: number; damage: number } = blastOf(weapon),
+): void {
+  const r = blast.radius;
   state.terrain.carveCircle(x, y, r);
   state.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
   sound(state, 'boom', weapon.id, r);
@@ -184,7 +197,7 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     const reach = r + TANK_HIT_RADIUS;
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
-    applyHit(state, t, weapon, shooterId, scaled(state, shooterId, weapon.damage * (1 - d / reach)));
+    applyHit(state, t, weapon, shooterId, scaled(state, shooterId, blast.damage * (1 - d / reach)));
   }
   // Any blast knocks out a marathon runner caught in it ("did not finish").
   for (const rn of state.runners) {

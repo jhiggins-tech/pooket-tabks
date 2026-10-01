@@ -1,5 +1,5 @@
 import { ring, sound, spawnFloater } from './fx';
-import { weaponForTier } from './game';
+import { reselect, weaponForTier } from './loadout';
 import type { GameState, Heist, Player } from './state';
 import { tankCentre } from './tanks';
 
@@ -72,10 +72,7 @@ export function stepHeist(state: GameState, dt: number): void {
     const victim = state.players[h.victimId]!;
     const weapon = weaponForTier(victim, h.victimTier);
     victim.ammo[h.victimTier]!--;
-    if ((victim.ammo[victim.selectedTier] ?? 0) <= 0) {
-      const next = victim.ammo.findIndex((n) => n > 0);
-      if (next >= 0) victim.selectedTier = next;
-    }
+    reselect(victim);
     thief.loadout[h.thiefTier] = weapon.id;
     thief.ammo[h.thiefTier] = 1;
     thief.selectedTier = h.thiefTier;

@@ -1,4 +1,5 @@
-import type { WeaponDef, WeaponKind } from '../weapons/types';
+import type { ShotKind, WeaponKind } from '../weapons/kinds';
+import type { WeaponOf } from '../weapons/types';
 import { decoyPickStepper, fireDecoys, hologramBlastStepper, spawnTwin, twinGun } from './copies';
 import { fireSpew, puddleStepper, sludgeStepper, spewStepper, toxinStepper } from './gunk';
 import { fireJetpack, jetStepper } from './jetpack';
@@ -8,16 +9,26 @@ import { fireRunner, runnerStepper } from './runner';
 import { fireSew, stitchStepper } from './sew';
 import { boomStepper, fireSonic } from './sonic';
 import type { GameState, Player } from './state';
+import { armScam } from './scam';
+import { startHeist } from './steal';
 import { dropletStepper, fireStream, streamStepper } from './stream';
 import { soakStepper } from './tanks';
 
 /**
- * The weapon mechanics, in one place. A new kind of weapon needs: its module (fire + stepper), an entry
- * in FIRE (the type insists every kind has one) and its stepper in STEPPERS.
+ * The weapon mechanics, in one place: how each kind goes off (`FIRE` for shots, `FREE_ACTIONS` for the rest:
+ * the types insist on one per kind, from weapons/kinds.ts) and what plays out during a shot (`STEPPERS`).
+ * A new kind of weapon: its row in weapons/kinds.ts and spec in weapons/types.ts, its module (fire +
+ * stepper), its entry here and its stepper in STEPPERS.
  */
 
 /** Sets a weapon of one kind going from player `p` (with its aim and power). */
-export type FireFn = (state: GameState, p: Player, weapon: WeaponDef) => void;
+export type FireFn<K extends ShotKind = ShotKind> = (state: GameState, p: Player, weapon: WeaponOf<K>) => void;
+
+/** Fire a shot of whatever kind `weapon` is. */
+export function fireShot(state: GameState, p: Player, weapon: WeaponOf<ShotKind>, kind: ShotKind): void {
+  // (A weapon's kind picks its entry, so the weapon is always the kind that entry takes.)
+  (FIRE[kind] as FireFn)(state, p, weapon);
+}
 
 /** Something that plays out while a shot is flying: advanced each tick, and holding the turn open while busy. */
 export interface Stepper {
@@ -25,11 +36,16 @@ export interface Stepper {
   busy(state: GameState): boolean;
 }
 
-/**
- * How each kind of weapon goes off. (Steal and Women in Scam aren't shots: `fire` hands them to the roulette
- * and the bonus move instead.)
- */
-export const FIRE: Record<Exclude<WeaponKind, 'steal' | 'scam'>, FireFn> = {
+/** What a weapon that isn't a shot does (from tier `tier`): it spends its own round; the turn carries on. */
+export type FreeActionFn = (state: GameState, p: Player, tier: number) => boolean;
+
+export const FREE_ACTIONS: Record<Exclude<WeaponKind, ShotKind>, FreeActionFn> = {
+  steal: startHeist,
+  scam: armScam,
+};
+
+/** How each kind of shot goes off (each given a weapon of its kind: see `fireShot`). */
+export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   // A twin fires the same weapon with the same aim and power from its own spot.
   ballistic: (state, p, weapon) => {
     fireRounds(state, p, weapon, 'main');

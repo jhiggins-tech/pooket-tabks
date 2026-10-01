@@ -1,5 +1,5 @@
 import type { Sfx, SfxCue } from '../game/state';
-import { findWeapon, getWeapon } from '../weapons/registry';
+import { findWeapon, isProjectileWeapon, weaponOf } from '../weapons/registry';
 import { midi, type Synth } from './chip';
 import { TunePlayer } from './tunes';
 
@@ -44,7 +44,7 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   },
   // Hissing water with a gurgle, swelling and sputtering like the jet itself.
   'ten-1': (s) => {
-    const st = getWeapon('ten-1').stream!;
+    const st = weaponOf('ten-1', 'stream').stream;
     const dur = st.rampUp + st.hold + st.rampDown;
     const up = st.rampUp / dur;
     const hold = (st.rampUp + st.hold) / dur;
@@ -54,7 +54,7 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   },
   // Putt-putt engine revving up for the whole charge (launch has its own sound).
   'ten-2': (s) => {
-    const charge = getWeapon('ten-2').jetpack!.chargeTime;
+    const charge = weaponOf('ten-2', 'jetpack').jetpack.chargeTime;
     let t = 0;
     for (let i = 0; t < charge; i++) {
       const k = t / charge;
@@ -65,7 +65,7 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   },
   // BLEURGH.
   'ten-3': (s) => {
-    const dur = getWeapon('ten-3').spew!.duration;
+    const dur = weaponOf('ten-3', 'spew').spew.duration;
     s.tone({ dur, from: 240, to: 65, duty: 0.125, vibrato: [17, 35], vol: 0.2 });
     s.noise({ dur, rate: 0.22, to: 0.12, vol: 0.14 });
   },
@@ -80,7 +80,7 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   },
   // WUB WUB WUB WUB, then the kookaburra has its own cue.
   'sonic-boom': (s) => {
-    const sp = getWeapon('sonic-boom').sonic!;
+    const sp = weaponOf('sonic-boom', 'sonic').sonic;
     for (let i = 0; i < sp.waves; i++) {
       s.tone({ at: i * sp.interval, dur: 0.2, from: 190, to: 48, duty: 0.5, vol: 0.26 });
       s.noise({ at: i * sp.interval, dur: 0.06, rate: 0.3, vol: 0.08 });
@@ -130,7 +130,7 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   },
   // A sewing machine: zip-zip-zip for as long as it sews.
   sew: (s, e) => {
-    const spec = getWeapon('sew').sew!;
+    const spec = weaponOf('sew', 'sew').sew;
     const dur = (spec.minRange + (spec.maxRange - spec.minRange) * ((e.size ?? 50) / 100)) / spec.speed;
     for (let t = 0, i = 0; t < dur; t += 0.05, i++) s.tone({ at: t, dur: 0.025, from: i % 2 ? 900 : 1250, duty: 0.125, vol: 0.08 });
   },
@@ -282,7 +282,8 @@ export class SfxPlayer {
 
   play(e: Sfx): void {
     // Walker chiptunes: strike up while they walk, stop dead when the last one is gone.
-    const tune = (e.cue === 'tune' || e.cue === 'tune-end') && e.weaponId ? findWeapon(e.weaponId)?.tune : undefined;
+    const w = (e.cue === 'tune' || e.cue === 'tune-end') && e.weaponId ? findWeapon(e.weaponId) : undefined;
+    const tune = w && isProjectileWeapon(w) ? w.tune : undefined;
     if (e.cue === 'tune') {
       if (tune) this.tunes.start(tune);
       this.played++;

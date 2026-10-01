@@ -1,5 +1,5 @@
-import { getWeapon } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import { weaponOf } from '../weapons/registry';
+import type { WeaponOf } from '../weapons/types';
 import type { Stepper } from './mechanics';
 import type { GameState, Player, Stitch } from './state';
 import { applyHit, muzzle, scaled, targetAt, targetKey, targetOwner } from './tanks';
@@ -19,8 +19,8 @@ export function stitchPoint(st: Stitch, amplitude: number, wavelength: number, t
  * and leaving stitch marks in the soil. The thread lingers a moment after. Returns true when finished.
  */
 export function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
-  const weapon = getWeapon(st.weaponId);
-  const spec = weapon.sew!;
+  const weapon = weaponOf(st.weaponId, 'sew');
+  const spec = weapon.sew;
   const { terrain } = state;
   if (st.done) {
     st.linger -= dt;
@@ -47,8 +47,8 @@ export function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
 }
 
 /** Sew: a needle sets off from the barrel along the aim; power is how far it sews. */
-export function fireSew(state: GameState, p: Player, weapon: WeaponDef): void {
-  const spec = weapon.sew!;
+export function fireSew(state: GameState, p: Player, weapon: WeaponOf<'sew'>): void {
+  const spec = weapon.sew;
   const m = muzzle(p);
   state.stitches.push({
     ownerId: p.id,

@@ -1,5 +1,5 @@
 import { randRange } from '../core/rng';
-import { getWeapon } from '../weapons/registry';
+import { weaponOf } from '../weapons/registry';
 import type { StreamSpec, WeaponDef } from '../weapons/types';
 import { GRAVITY, MAX_SPEED } from './constants';
 import { spawnSplash } from './fx';
@@ -79,7 +79,7 @@ function spurts(u: number, seed: number): number {
 
 /** Emits droplets for one stream. Returns true once its pressure profile has finished. */
 export function stepStream(state: GameState, st: Stream, dt: number): boolean {
-  const spec = getWeapon(st.weaponId).stream!;
+  const spec = weaponOf(st.weaponId, 'stream').stream;
   st.elapsed += dt;
   const pressure = streamPressure(spec, st.elapsed, st.seed);
   // Flow scales with pressure: a sparse dribble at first, a solid jet at full.
@@ -111,7 +111,7 @@ export function stepStream(state: GameState, st: Stream, dt: number): boolean {
 /** Moves one droplet. Returns true when it has landed, soaked a tank or left the map. */
 export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
   const { terrain } = state;
-  const weapon = getWeapon(d.weaponId);
+  const weapon = weaponOf(d.weaponId, 'stream');
   d.vy += GRAVITY * dt;
   const nx = d.x + d.vx * dt;
   const ny = d.y + d.vy * dt;
@@ -124,7 +124,7 @@ export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     if (target) noteHit(state, target, d.ownerId);
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
       // A weak dribble stings much less than the full-pressure jet.
-      const drop = (weapon.stream?.damagePerDrop ?? 0) * (0.1 + 0.9 * d.pressure ** 2);
+      const drop = weapon.stream.damagePerDrop * (0.1 + 0.9 * d.pressure ** 2);
       soakTarget(target, drop * offence(state, d.ownerId), tint(d.colour, 0.35));
       spawnSplash(state, x, y, d, 3);
       return true;

@@ -34,7 +34,7 @@ what it's for; weapons are documented where they're defined.
 | `src/core/` | seeded RNG (`Rng.state` is serialisable), `Terrain` (per-pixel solid mask + RGBA with dirty rects), terrain generation |
 | `src/characters/kits/<name>.ts` | a character **and** their three weapons (`kit()`); `kits/index.ts` lists them in setup order |
 | `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1), colour assignment |
-| `src/weapons/` | `types.ts` (`WeaponDef`, `WeaponKind`, specs, `SpriteId`), `registry.ts` (`getWeapon`, `ignoresAim`, the plain `shell`) |
+| `src/weapons/` | `kinds.ts` (`KINDS`: every kind of weapon, aimed or not, shot / free / bonus), `types.ts` (`WeaponDef`: what every weapon has, plus its kind's spec, as a union by kind; `SpriteId`), `registry.ts` (`getWeapon`, `weaponOf(id, kind)` for a kind's spec, `ignoresAim`, `isBonus`, `blastOf`, the plain `shell`) |
 | `src/game/` | the match, pure and DOM-free (below) |
 | `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order) and `draw/<mechanic>.ts` (mirrors `src/game/`); `hud.ts` (DOM HUD); `sprites.ts` |
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
@@ -105,19 +105,23 @@ screen is built from it). Bump `RULES` (see Versions) unless it's text only. Add
 entry and a what's-new release.
 
 **Add a weapon using an existing mechanic** (e.g. another ballistic shot):
-1. Define it in the character's kit file and put it in their `kit(…, [t1, t2, t3])` (or `[t1, t2, t3, bonus]`).
+1. Define it in the character's kit file (`export const x = { … } satisfies WeaponDef`: its `kind` decides
+   which spec it must have) and put it in their `kit(…, [t1, t2, t3])` (or `[t1, t2, t3, bonus]`). Effects
+   (`dot`, `debuff`, `tattoo`, `pin`, …) work on any kind.
 2. `src/audio/sfx.ts`: a `FIRE_SOUNDS` entry (and `ROUND_SOUNDS` if it has a `burst`); tests enforce both.
 3. Optional look: an SVG in `src/assets/sprites/`, its id in `SpriteId` (`weapons/types.ts`) and an entry
    in `render/sprites.ts`.
-4. If it ignores the aim, add its kind to `ignoresAim()` (`weapons/registry.ts`).
-5. Unit tests in the character's test file; update the kit's e2e step in `e2e/smoke.spec.ts`.
+4. Unit tests in the character's test file; update the kit's e2e step in `e2e/smoke.spec.ts`.
 
 **Add a new mechanic** (a new `WeaponKind`):
-1. `weapons/types.ts`: the kind and its spec field on `WeaponDef`.
+1. `weapons/kinds.ts`: its row in `KINDS` (aimed? shot, free action or bonus move?) and what it is;
+   `weapons/types.ts`: its spec type and its member of the `WeaponDef` union.
 2. `game/state.ts`: the entity type and its array on `GameState`; initialise it in `createGame`.
-   (Snapshots, sync and spectating copy the whole state, so plain data needs nothing more.)
-3. `game/<mechanic>.ts`: `fire…(state, p, weapon)` and a `Stepper` (`step` + `busy`); add them to `FIRE`
-   and `STEPPERS` in `game/mechanics.ts`.
+   (Snapshots, sync and spectating copy the whole state, so plain data needs nothing more; stored matches
+   need a fill-in in `upgradeSnapshot`.)
+3. `game/<mechanic>.ts`: `fire…(state, p, weapon: WeaponOf<'kind'>)` and a `Stepper` (`step` + `busy`;
+   look the weapon up with `weaponOf(id, 'kind')`); add them to `FIRE` (or `FREE_ACTIONS`) and `STEPPERS`
+   in `game/mechanics.ts` (the types insist). Hits go through `applyHit`.
 4. `render/draw/<mechanic>.ts` and a call in `Renderer.draw()` (order = layering).
 5. Sounds, info text and tests as above; say what it does in its module's header comment.
 

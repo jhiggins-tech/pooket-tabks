@@ -1,5 +1,5 @@
 import type { GameState } from '../../game/state';
-import { getWeapon } from '../../weapons/registry';
+import { gunkWeapon } from '../../weapons/registry';
 import { noise } from './colour';
 import type { Draw } from './context';
 
@@ -8,8 +8,8 @@ import type { Draw } from './context';
 /** Gunk in flight: mud clumps for ten-2's propellant, chunky spew for ten-3. */
 export function drawSludge(d: Draw, state: GameState): void {
   if (state.sludge.length === 0) return;
-  const mud = state.sludge.filter((s) => getWeapon(s.weaponId).gunk?.look !== 'spew');
-  const spew = state.sludge.filter((s) => getWeapon(s.weaponId).gunk?.look === 'spew');
+  const mud = state.sludge.filter((s) => gunkWeapon(s.weaponId).gunk.look !== 'spew');
+  const spew = state.sludge.filter((s) => gunkWeapon(s.weaponId).gunk.look === 'spew');
   drawClumps(d, mud, ['#5c3d22', '#6e4a2a', '#7d5632', '#4d321c'], '#2e1d10', 'rgba(220,190,150,0.7)', 1.5, 1.9);
   // Chunky: bigger, lumpier, in bile yellows and oranges with darker bits.
   drawClumps(d, spew, ['#e8b84e', '#d99a3a', '#c7b24a', '#b8742a'], '#6b4a16', 'rgba(255,250,215,0.85)', 2, 2.6);

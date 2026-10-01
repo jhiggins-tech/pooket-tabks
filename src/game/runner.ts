@@ -1,4 +1,4 @@
-import { getWeapon } from '../weapons/registry';
+import { weaponOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
 import { sound, spawnFloater } from './fx';
@@ -13,7 +13,8 @@ export function stepRunner(state: GameState, r: Runner, dt: number): boolean {
   const owner = state.players[r.ownerId];
   if (!owner?.alive || r.out) return true;
   if (r.legLeft <= 0) return false; // waiting for the next shot to set it off again
-  const spec = getWeapon(r.weaponId).runner!;
+  const weapon = weaponOf(r.weaponId, 'runner');
+  const spec = weapon.runner;
   const { terrain } = state;
   let targetX: number | null = null;
   for (const t of allTargets(state)) {
@@ -36,12 +37,10 @@ export function stepRunner(state: GameState, r: Runner, dt: number): boolean {
     r.y = terrain.surfaceY(r.x); // up and over anything
     const hit = targetAt(state, r.x, r.y - 6);
     if (hit && targetOwner(hit) !== r.ownerId) {
-      // Finish line: a big hit.
-      const finish: WeaponDef = { ...getWeapon(r.weaponId), kind: 'ballistic', blastRadius: spec.radius, damage: spec.damage };
+      // Finish line: a big hit, full force: the blast goes off right on the tank it reached.
       r.out = true; // it's done: don't DNF itself in its own blast
-      // Full force at the finish line: the blast goes off right on the tank it reached.
       const at = targetPos(hit);
-      explode(state, at.x, at.y - TANK_BODY_HEIGHT, finish, r.ownerId);
+      explode(state, at.x, at.y - TANK_BODY_HEIGHT, weapon, r.ownerId, { radius: spec.radius, damage: spec.damage });
       spawnFloater(state, r.x, r.y - 30, 'FINISH!', '#f472b6');
       sound(state, 'finish');
       return true;
@@ -53,7 +52,7 @@ export function stepRunner(state: GameState, r: Runner, dt: number): boolean {
 
 /** The marathon goes on: every shot fired (by anyone) sends every runner off on another leg. */
 export function runLegs(state: GameState): void {
-  for (const r of state.runners) r.legLeft += getWeapon(r.weaponId).runner!.leg;
+  for (const r of state.runners) r.legLeft += weaponOf(r.weaponId, 'runner').runner.leg;
   if (state.runners.some((r) => !r.out)) sound(state, 'leg');
 }
 

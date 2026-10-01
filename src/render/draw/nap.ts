@@ -1,6 +1,6 @@
 import { TANK_HALF_WIDTH } from '../../game/constants';
 import type { GameState } from '../../game/state';
-import { getWeapon } from '../../weapons/registry';
+import { weaponOf } from '../../weapons/registry';
 import type { SpriteId } from '../../weapons/types';
 import type { Draw } from './context';
 
@@ -19,7 +19,7 @@ export function drawNapCats(d: Draw, state: GameState): void {
   for (const n of state.naps) {
     const p = state.players[n.playerId];
     if (!p?.alive) continue;
-    const napTime = getWeapon(n.weaponId).heal!.napTime;
+    const napTime = weaponOf(n.weaponId, 'heal').heal.napTime;
     const fadeOut = Math.min(1, Math.max(0, (napTime - n.elapsed) / 0.3));
     for (const [i, cat] of CATS.entries()) {
       const sprite = d.sprites[cat.sprite];

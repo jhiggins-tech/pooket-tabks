@@ -1,6 +1,6 @@
 import { WALKER_BODY } from '../../game/game';
 import type { GameState, Projectile } from '../../game/state';
-import { getWeapon } from '../../weapons/registry';
+import { projectileWeapon } from '../../weapons/registry';
 import { withAlpha } from './colour';
 import type { Draw } from './context';
 
@@ -30,7 +30,7 @@ export function drawProjectiles(d: Draw, state: GameState): void {
 /** Debate: each round is a letter, tumbling through the air. */
 export function drawGlyph(d: Draw, pr: Projectile): void {
   const { ctx } = d;
-  const spin = getWeapon(pr.weaponId).spin ?? 0;
+  const spin = projectileWeapon(pr.weaponId).spin ?? 0;
   ctx.save();
   ctx.translate(pr.x, pr.y);
   ctx.rotate(pr.age * spin * (pr.vx < 0 ? -1 : 1));
@@ -52,7 +52,7 @@ export function drawGlyph(d: Draw, pr: Projectile): void {
  * Returns false if there isn't one (yet).
  */
 export function drawSprite(d: Draw, pr: Projectile): boolean {
-  const weapon = getWeapon(pr.weaponId);
+  const weapon = projectileWeapon(pr.weaponId);
   const variants = weapon.spriteVariants;
   const id = variants?.length ? variants[(pr.variant ?? 0) % variants.length] : weapon.sprite;
   const sprite = id && d.sprites[id];

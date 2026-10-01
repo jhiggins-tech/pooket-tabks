@@ -1,9 +1,8 @@
 import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
-import { getWeapon } from '../weapons/registry';
+import { getWeapon, isBonus, weaponOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { isBonus } from './scam';
 import type { GameState, Nap, Player } from './state';
 import { tankCentre } from './tanks';
 
@@ -12,7 +11,7 @@ import { tankCentre } from './tanks';
 /** Doze, with z's drifting up, then wake at full health and full ammo (except the nap). Returns true once awake. */
 export function stepNap(state: GameState, n: Nap, dt: number): boolean {
   const p = state.players[n.playerId]!;
-  const spec = getWeapon(n.weaponId).heal!;
+  const spec = weaponOf(n.weaponId, 'heal').heal;
   n.elapsed += dt;
   n.nextZ -= dt;
   if (n.nextZ <= 0 && n.elapsed < spec.napTime - 0.3) {
@@ -43,7 +42,7 @@ function restock(p: Player, napId: string): boolean {
   let changed = false;
   loadout.forEach((id, tier) => {
     const full = AMMO_PER_TIER[tier] ?? 0;
-    if (id === napId || isBonus(id) || (p.ammo[tier] ?? 0) >= full) return;
+    if (id === napId || isBonus(getWeapon(id)) || (p.ammo[tier] ?? 0) >= full) return;
     p.ammo[tier] = full;
     changed = true;
   });

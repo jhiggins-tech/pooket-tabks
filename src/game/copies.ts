@@ -1,6 +1,6 @@
 import { randRange } from '../core/rng';
-import { getWeapon } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import { weaponOf } from '../weapons/registry';
+import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
 import { ring, sound } from './fx';
 import type { Stepper } from './mechanics';
@@ -45,13 +45,13 @@ export function spawnTwin(state: GameState, p: Player): void {
 }
 
 /** Replace the firer's holograms with fresh ones at random, well-spaced spots on the ground. */
-export function fireDecoys(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireDecoys(state: GameState, p: Player, weapon: WeaponOf<'decoy'>): void {
   const { terrain, rng } = state;
   // Each use adds more: earlier holograms stay out (and a swap already picked still happens).
   const colour = weapon.colour ?? HOLOGRAM_COLOUR;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, colour);
   shimmer(state, p.id);
-  for (let n = 0; n < (weapon.decoys ?? 2); n++) {
+  for (let n = 0; n < weapon.decoys; n++) {
     const taken = [...tankBodies(state).map((q) => q.x), ...state.holograms.map((h) => h.x)];
     let x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
     for (let tries = 0; tries < 60 && taken.some((t) => Math.abs(t - x) < HOLOGRAM_MIN_SPACING); tries++) {
@@ -154,12 +154,12 @@ function hitHolograms(state: GameState): Hologram[] {
 function detonate(state: GameState, h: Hologram): void {
   state.holograms = state.holograms.filter((x) => x !== h);
   if (state.swapTargetId === h.id) state.swapTargetId = null;
-  const weapon = getWeapon(h.weaponId);
-  const blast = weapon.decoyBlast ?? { radius: 0, damage: 0 };
+  const weapon = weaponOf(h.weaponId, 'decoy');
+  const blast = weapon.decoyBlast;
   state.holoBlasts.push({ ownerId: h.ownerId, x: h.x, y: h.y, radius: blast.radius, age: 0, duration: HOLOGRAM_BLAST_TIME });
   sound(state, 'holo-boom');
   // The weapon that cast it goes off, as a blast.
-  explode(state, h.x, h.y - TANK_BODY_HEIGHT, { ...weapon, blastRadius: blast.radius, damage: blast.damage }, h.ownerId);
+  explode(state, h.x, h.y - TANK_BODY_HEIGHT, weapon, h.ownerId, blast);
 }
 
 /** Hit holograms blow up as the shot plays out (and hold the turn open until every one has). */

@@ -2,16 +2,18 @@ import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
 import { createRng, randRange } from '../core/rng';
 import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
-import { getWeapon, ignoresAim } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import { ignoresAim, kindOf } from '../weapons/registry';
+import { isShotKind, type ShotKind } from '../weapons/kinds';
+import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
 import { resolveHolograms, stepPhaseFx } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
-import { FIRE, STEPPERS } from './mechanics';
+import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
+import { reselect, weaponForTier } from './loadout';
 import { runLegs } from './runner';
 import type { GameState, Player, PlayerConfig } from './state';
-import { armScam, endScams } from './scam';
-import { startHeist, stepHeist } from './steal';
+import { endScams } from './scam';
+import { stepHeist } from './steal';
 import { turnEnding, turnStarting } from './statuses';
 import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
 import { clamp, normalizeAngle } from './util';
@@ -181,9 +183,7 @@ export function hasAmmo(p: Player): boolean {
   return p.ammo.some((n) => n > 0);
 }
 
-export function weaponForTier(p: Player, tier: number): WeaponDef {
-  return getWeapon(p.loadout[tier]!);
-}
+export { weaponForTier } from './loadout';
 
 /** Choose which tier the current player fires next. Returns false if it has no rounds left. */
 export function selectTier(state: GameState, tier: number): boolean {
@@ -201,21 +201,15 @@ export function fire(state: GameState): boolean {
   const tier = p.selectedTier;
   if ((p.ammo[tier] ?? 0) <= 0) return false;
   const weapon = weaponForTier(p, tier);
-  const kind = weapon.kind ?? 'ballistic';
-  // Steal isn't a shot: it lifts a round from an enemy, then the turn carries on.
-  if (kind === 'steal') return startHeist(state, p, tier);
-  // Women in Scam is a bonus move: the turn carries on.
-  if (kind === 'scam') return armScam(state, p, tier);
+  const kind = kindOf(weapon);
+  // Not a shot (Steal, a bonus move): it does its thing, and the turn carries on.
+  if (!isShotKind(kind)) return FREE_ACTIONS[kind](state, p, tier);
   p.ammo[tier]!--;
-  if (p.ammo[tier] === 0) {
-    // Fall back to the lowest tier that still has rounds.
-    const next = p.ammo.findIndex((n) => n > 0);
-    if (next >= 0) p.selectedTier = next;
-  }
+  reselect(p);
   // A miss gets the round back (checked when the turn ends).
   state.refund = weapon.refundOnMiss ? { playerId: p.id, tier, hit: false } : null;
   state.lastShot = { playerId: p.id, weaponId: weapon.id };
-  FIRE[kind](state, p, weapon);
+  fireShot(state, p, weapon as WeaponOf<ShotKind>, kind);
   sound(state, 'fire', weapon.id, p.power);
   runLegs(state);
   if (weapon.apparition) summonApparition(state, p, weapon.apparition);

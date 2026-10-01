@@ -9,8 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 2: game core.**
-   - Weapon kinds table (`fire`, aimless, is a shot, twin mirrors) replacing scattered kind checks.
-   - `WeaponDef` as a union by kind (no `spec!` assertions, no `blastRadius: 0, damage: 0` boilerplate).
    - Simulation vs cosmetic state: cosmetics left out of snapshots, a gameplay id counter, `winnerId`.
    - Stepper and helper cleanup: allocation-free target scans, one swept-segment helper, shared spacing /
      nearest-enemy / ammo-fallback helpers.
@@ -40,6 +38,15 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 2: weapon kinds and types.** `weapons/kinds.ts` is a table of every kind (what it is, aimed or
+  not, shot / free action / bonus move), replacing the scattered `kind === 'scam'` / `ignoresAim` lists;
+  `FIRE` and `FREE_ACTIONS` (mechanics.ts) must have one entry per kind. `WeaponDef` is a union by kind:
+  a weapon's kind decides which spec it must have (a sonic weapon without `sonic` doesn't compile), kits
+  use `satisfies WeaponDef`, and specs are read with `weaponOf(id, kind)` instead of `getWeapon(id).sonic!`
+  (24 assertions gone; `blastRadius: 0, damage: 0` boilerplate gone from the non-blast weapons).
+  `explode` takes an explicit blast size, so the runner's finish and hologram blasts no longer build fake
+  weapons. `game/loadout.ts`: `weaponForTier` and one `reselect` for "fall back to a loaded tier"
+  (was in three places), which also untangles steal.ts ↔ game.ts. No change to how anything plays.
 - **Phase 2: one hit path, and statuses in one place.** Every mechanic's hits go through `applyHit`
   (tanks.ts): damage, then the weapon's effect flags (`dot`, `debuff`, `tattoo`, and Sew's pin, now a
   `pin` flag), friendly fire and refund-on-miss, so every effect works on every kind of weapon (a

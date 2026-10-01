@@ -1,5 +1,5 @@
 import { randRange } from '../core/rng';
-import { getWeapon } from '../weapons/registry';
+import { getWeapon, gunkWeapon, weaponOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import type { Stepper } from './mechanics';
@@ -12,7 +12,7 @@ import { hash } from './util';
 /** Gush chunks from the barrel for the spew's duration. Returns true once it has finished. */
 export function stepSpew(state: GameState, sp: Spew, dt: number): boolean {
   const p = state.players[sp.playerId]!;
-  const spec = getWeapon(sp.weaponId).spew!;
+  const spec = weaponOf(sp.weaponId, 'spew').spew;
   sp.elapsed += dt;
   sp.emitCarry += spec.chunksPerSecond * dt;
   const m = muzzle(p);
@@ -48,7 +48,7 @@ const GUNK_GRACE = 0.05;
 /** Moves one gunk particle. Returns true when it has landed (as dirt) or hit a tank. */
 export function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
   const { terrain } = state;
-  const spec = getWeapon(sl.weaponId).gunk!;
+  const spec = gunkWeapon(sl.weaponId).gunk;
   sl.age += dt;
   sl.vy += GRAVITY * dt;
   const nx = sl.x + sl.vx * dt;
@@ -138,8 +138,7 @@ export function stepPuddles(state: GameState, dt: number): void {
     // One burn per sludge owner, however many patches the tank is sitting in.
     const burning = state.puddles.find((p) => p.ownerId !== targetOwner(t) && touchesPuddle(p, pos.x, pos.y));
     if (!burning) continue;
-    const w = getWeapon(burning.weaponId);
-    const amount = (w.gunk?.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
+    const amount = (gunkWeapon(burning.weaponId).gunk.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
     soakTarget(t, amount, '#b6f04a');
   }
   for (const p of state.puddles) p.age += dt;

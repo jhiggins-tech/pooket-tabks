@@ -1,5 +1,5 @@
-import { getWeapon } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import { projectileWeapon } from '../weapons/registry';
+import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound } from './fx';
 import type { GameState, Projectile } from './state';
@@ -20,7 +20,7 @@ export function startWalking(state: GameState, pr: Projectile, x: number, y: num
   pr.walkDir = directionToNearestEnemy(state, pr);
   pr.fuseDist = undefined;
   // The first one to land strikes up the band.
-  const weapon = getWeapon(pr.weaponId);
+  const weapon = projectileWeapon(pr.weaponId);
   if (weapon.tune && !state.tunes.includes(weapon.id)) {
     state.tunes.push(weapon.id);
     sound(state, 'tune', weapon.id);
@@ -52,9 +52,9 @@ function directionToNearestEnemy(state: GameState, pr: Projectile): number {
  * falling off real ledges), popping on contact with a target or when the walk time runs out.
  * Returns true once it has exploded.
  */
-export function stepWalker(state: GameState, pr: Projectile, weapon: WeaponDef, dt: number): boolean {
+export function stepWalker(state: GameState, pr: Projectile, weapon: WeaponOf<'ballistic' | 'rain'>, dt: number): boolean {
   const { terrain } = state;
-  const walk = weapon.walk!;
+  const walk = weapon.walk!; // (only walkers walk)
   pr.walkTime += dt;
   if (pr.walkTime >= walk.duration) {
     explode(state, pr.x, pr.y - 3, weapon, pr.ownerId);

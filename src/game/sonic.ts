@@ -1,5 +1,5 @@
-import { getWeapon } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import { getWeapon, weaponOf } from '../weapons/registry';
+import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import type { Stepper } from './mechanics';
 import type { Boom, GameState, Player } from './state';
@@ -7,8 +7,8 @@ import { allTargets, applyHit, gone, muzzle, scaled, targetKey, targetOwner, tar
 
 /** torikloud's Sonic Boom: waves of expanding arcs, and twin booms phasing where they overlap. */
 
-export function fireSonic(state: GameState, p: Player, weapon: WeaponDef, gun: Player): void {
-  const spec = weapon.sonic!;
+export function fireSonic(state: GameState, p: Player, weapon: WeaponOf<'sonic'>, gun: Player): void {
+  const spec = weapon.sonic;
   const m = muzzle(gun);
   state.booms.push({
     ownerId: p.id,
@@ -24,7 +24,7 @@ export function fireSonic(state: GameState, p: Player, weapon: WeaponDef, gun: P
 
 /** Radius of each wave of a boom right now (negative = not emitted yet). */
 export function boomRadii(b: Boom): number[] {
-  const spec = getWeapon(b.weaponId).sonic!;
+  const spec = weaponOf(b.weaponId, 'sonic').sonic;
   return b.hits.map((_, k) => (b.elapsed - k * spec.interval) * spec.speed);
 }
 
@@ -34,7 +34,7 @@ export function boomRadii(b: Boom): number[] {
  * the last wave has reached full range.
  */
 export function stepBoom(state: GameState, b: Boom, dt: number): boolean {
-  const spec = getWeapon(b.weaponId).sonic!;
+  const spec = weaponOf(b.weaponId, 'sonic').sonic;
   b.elapsed += dt;
   const radii = boomRadii(b);
   // Twins: another boom from the same player at the same time. Where their arcs cross, the waves
@@ -88,7 +88,7 @@ export function boomPhaseArcs(state: GameState): { x: number; y: number; r: numb
   for (const b of state.booms) {
     const siblings = state.booms.filter((o) => o !== b && o.ownerId === b.ownerId);
     if (siblings.length === 0) continue;
-    const spec = getWeapon(b.weaponId).sonic!;
+    const spec = weaponOf(b.weaponId, 'sonic').sonic;
     const half = (spec.halfAngleDeg * Math.PI) / 180;
     const maxR = b.range * PHASE_RANGE;
     for (const r of boomRadii(b)) {

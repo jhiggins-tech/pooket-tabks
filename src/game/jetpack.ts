@@ -1,5 +1,5 @@
 import { randRange } from '../core/rng';
-import { getWeapon } from '../weapons/registry';
+import { weaponOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust } from './fx';
@@ -19,7 +19,7 @@ const JET_MAX_FLIGHT = 8; // s
 export function jetCharge(state: GameState, playerId: number): number | null {
   const j = state.jets.find((x) => x.playerId === playerId);
   if (!j || j.launched) return null;
-  return Math.min(1, j.elapsed / getWeapon(j.weaponId).jetpack!.chargeTime);
+  return Math.min(1, j.elapsed / weaponOf(j.weaponId, 'jetpack').jetpack.chargeTime);
 }
 
 function jetBodyHits(state: GameState, x: number, y: number, self: Player): boolean {
@@ -34,7 +34,7 @@ function jetBodyHits(state: GameState, x: number, y: number, self: Player): bool
 /** Charge, launch, fly, land. Returns true once the tank has landed. */
 export function stepJet(state: GameState, j: Jet, dt: number): boolean {
   const p = state.players[j.playerId]!;
-  const spec = getWeapon(j.weaponId).jetpack!;
+  const spec = weaponOf(j.weaponId, 'jetpack').jetpack;
   const { terrain } = state;
   j.elapsed += dt;
 

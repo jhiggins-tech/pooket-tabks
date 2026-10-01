@@ -6,7 +6,7 @@ import { kit } from '../kit';
  * scurries along the ground towards the nearest enemy and pops right under it (or as close as it can get
  * within blast range), or when it runs out of steam.
  */
-export const weaselPop: WeaponDef = {
+export const weaselPop = {
   id: 'weasel-pop',
   name: 'Weasel Pop',
   shortName: 'Weasel Pop',
@@ -20,7 +20,7 @@ export const weaselPop: WeaponDef = {
   trail: false,
   walk: { speed: 40, duration: 2.5, climb: 6, fuse: 3 },
   tune: 'pop-goes-the-weasel',
-};
+} satisfies WeaponDef;
 
 /**
  * kie's tier 2: two more hologram copies of kie's tank appear across the battlefield each use. On later turns
@@ -28,7 +28,7 @@ export const weaselPop: WeaponDef = {
  * (it shows the damage like a real tank) blows up: a small blast that hurts every tank in reach, kie's
  * included, and can set off other holograms.
  */
-export const trollogram: WeaponDef = {
+export const trollogram = {
   id: 'trollogram',
   name: 'Trollogram',
   shortName: 'Trollogram',
@@ -37,26 +37,22 @@ export const trollogram: WeaponDef = {
   kind: 'decoy',
   decoys: 2,
   decoyBlast: { radius: 20, damage: 20 },
-  blastRadius: 0,
-  damage: 0,
   colour: '#7cf7d4',
-};
+} satisfies WeaponDef;
 
 /**
  * kie's tier 3: a roulette spins over a random enemy's weapons and lands on one; kie takes a round of it
  * (they lose it) and it replaces Steal in his slot, ready to fire. Stealing doesn't use up the turn.
  */
-export const steal: WeaponDef = {
+export const steal = {
   id: 'steal',
   name: 'Steal',
   shortName: 'Steal',
   info:
     'No aiming. A roulette spins over the enemy’s weapons and lands on one at random: kie pinches a round of it (they lose it), and it takes Steal’s place, ready to fire this turn.',
   kind: 'steal',
-  blastRadius: 0,
-  damage: 0,
   colour: '#4ea8ff',
-};
+} satisfies WeaponDef;
 
 export const kie = kit(
   {

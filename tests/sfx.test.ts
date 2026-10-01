@@ -4,7 +4,7 @@ import type { NoiseOpts, Synth, ToneOpts } from '../src/audio/chip';
 import { FIXED_DT } from '../src/game/constants';
 import { createGame, explode, fire, selectTier, STEAL_SPIN, step } from '../src/game/game';
 import type { SfxCue } from '../src/game/state';
-import { allWeapons, getWeapon } from '../src/weapons/registry';
+import { allWeapons, getWeapon, weaponOf } from '../src/weapons/registry';
 
 /** Records what a recipe plays instead of making noise. */
 class Recorder implements Synth {
@@ -46,7 +46,7 @@ describe('sound effects', () => {
   });
 
   it('burst weapons blip on every round', () => {
-    for (const w of allWeapons().filter((w) => w.burst)) {
+    for (const w of allWeapons().filter((w) => 'burst' in w && w.burst)) {
       const r = new Recorder();
       ROUND_SOUNDS[w.id]!(r, { cue: 'round', weaponId: w.id });
       sane(r);
@@ -65,7 +65,7 @@ describe('sound effects', () => {
     const r = new Recorder();
     FIRE_SOUNDS['ten-2']!(r, { cue: 'fire', weaponId: 'ten-2' });
     const last = Math.max(...r.tones.map((t) => (t.at ?? 0) + t.dur));
-    expect(last).toBeGreaterThan(getWeapon('ten-2').jetpack!.chargeTime - 0.4);
+    expect(last).toBeGreaterThan(weaponOf('ten-2', 'jetpack').jetpack.chargeTime - 0.4);
   });
 
   it('throttles rapid repeats (a pill storm) but not different sounds', () => {

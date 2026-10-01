@@ -2,7 +2,7 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /** kcaj's tier 1: two ice cream cones fanned ±2° either side of the aim. */
-export const doublePark: WeaponDef = {
+export const doublePark = {
   id: 'double-park',
   name: 'Double Park',
   shortName: 'Double Park',
@@ -12,10 +12,10 @@ export const doublePark: WeaponDef = {
   damage: 25,
   volley: { count: 2, spreadDeg: 2 },
   sprite: 'ice-cream-cone',
-};
+} satisfies WeaponDef;
 
 /** kcaj's tier 2: a straight laser from the barrel; a direct hit keeps burning for 3 turns. */
-export const hyperfixate: WeaponDef = {
+export const hyperfixate = {
   id: 'hyperfixate',
   name: 'Hyperfixate',
   shortName: 'Hyperfixate',
@@ -26,10 +26,10 @@ export const hyperfixate: WeaponDef = {
   damage: 15,
   dot: { damagePerTurn: 8, turns: 3 },
   colour: '#ff3df2',
-};
+} satisfies WeaponDef;
 
 /** kcaj's tier 3: pills rain over the whole stage, bounce twice, then pop. Never hurts kcaj. */
-export const unmedicated: WeaponDef = {
+export const unmedicated = {
   id: 'unmedicated',
   name: 'Unmedicated',
   shortName: 'Unmedicated',
@@ -44,7 +44,7 @@ export const unmedicated: WeaponDef = {
   friendlyFire: false,
   sprite: 'pill',
   trail: false,
-};
+} satisfies WeaponDef;
 
 export const kcaj = kit(
   {

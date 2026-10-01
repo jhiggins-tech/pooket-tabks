@@ -1,7 +1,7 @@
 import { randRange } from '../core/rng';
 import { DICTIONARIES } from '../weapons/dictionaries';
-import { getWeapon } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import { projectileWeapon } from '../weapons/registry';
+import type { WeaponOf } from '../weapons/types';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT } from './constants';
 import { twinGun } from './copies';
 import { sound, spawnFloater } from './fx';
@@ -11,6 +11,9 @@ import type { Burst, GameState, Player, Projectile } from './state';
 import { allTargets, applyHit, explode, muzzle, scaled, tankCentre, type Target, targetAt, targetOwner, targetPos } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
 
+/** Weapons that fire projectiles. */
+type Projectiles = WeaponOf<'ballistic' | 'rain'>;
+
 /** Projectiles: shells, volleys and bursts (with homing and bounces), beams and rain. */
 
 const BEAM_DURATION = 0.6;
@@ -19,11 +22,11 @@ const PROJECTILE_MAX_AGE = 12; // s; anything still bouncing around by then just
 
 const DEFAULT_BEAM_COLOUR = '#ff3df2';
 
-function spawnProjectile(state: GameState, owner: Player, weapon: WeaponDef, x: number, y: number, vx: number, vy: number, variant = 0): void {
+function spawnProjectile(state: GameState, owner: Player, weapon: Projectiles, x: number, y: number, vx: number, vy: number, variant = 0): void {
   state.projectiles.push({ x, y, vx, vy, weaponId: weapon.id, ownerId: owner.id, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0, variant });
 }
 
-function fireBallistic(state: GameState, p: Player, weapon: WeaponDef): void {
+function fireBallistic(state: GameState, p: Player, weapon: Projectiles): void {
   const speed = (p.power / 100) * MAX_SPEED;
   const m = muzzle(p);
   volleyOffsets(weapon).forEach((offset, i) => {
@@ -33,7 +36,7 @@ function fireBallistic(state: GameState, p: Player, weapon: WeaponDef): void {
 }
 
 /** Ballistic rounds from the main tank or the twin: a single shot/volley, a burst, or a word. */
-export function fireRounds(state: GameState, p: Player, weapon: WeaponDef, origin: 'main' | 'twin'): void {
+export function fireRounds(state: GameState, p: Player, weapon: Projectiles, origin: 'main' | 'twin'): void {
   const gun = origin === 'twin' ? twinGun(p) : p;
   if (!weapon.burst) {
     fireBallistic(state, gun, weapon);
@@ -70,7 +73,7 @@ export function traceBeam(state: GameState, p: Player): { x: number; y: number; 
   return { x: m.x + dx * maxLen, y: m.y + dy * maxLen, hit: null };
 }
 
-export function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireBeam(state: GameState, p: Player, weapon: WeaponOf<'beam'>): void {
   const m = muzzle(p);
   const end = traceBeam(state, p);
   const colour = weapon.colour ?? DEFAULT_BEAM_COLOUR;
@@ -83,9 +86,9 @@ export function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
   }
 }
 
-export function fireRain(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireRain(state: GameState, p: Player, weapon: WeaponOf<'rain'>): void {
   const { rng, terrain } = state;
-  const count = weapon.rainCount ?? 1;
+  const count = weapon.rainCount;
   for (let i = 0; i < count; i++) {
     // Staggered heights above the screen make it arrive as a downpour rather than a wall.
     const x = randRange(rng, 4, terrain.width - 4);
@@ -95,7 +98,7 @@ export function fireRain(state: GameState, p: Player, weapon: WeaponDef): void {
 }
 
 /** Angle offsets (degrees) for each projectile in a round, spread evenly across ±spreadDeg. */
-export function volleyOffsets(weapon: WeaponDef): number[] {
+export function volleyOffsets(weapon: Projectiles): number[] {
   const count = weapon.volley?.count ?? 1;
   const spread = weapon.volley?.spreadDeg ?? 0;
   if (count <= 1) return [0];
@@ -105,7 +108,7 @@ export function volleyOffsets(weapon: WeaponDef): number[] {
 /** Moves one projectile. Returns true when it is finished (exploded or left the map). */
 export function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
   const { terrain } = state;
-  const weapon = getWeapon(pr.weaponId);
+  const weapon = projectileWeapon(pr.weaponId);
   pr.age += dt;
   if (pr.age > PROJECTILE_MAX_AGE) {
     explode(state, pr.x, pr.y, weapon, pr.ownerId);
@@ -159,8 +162,8 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
 
 /** Fire the next rounds of a burst as their time comes. Returns true once all are away. */
 export function stepBurst(state: GameState, b: Burst, dt: number): boolean {
-  const weapon = getWeapon(b.weaponId);
-  const spec = weapon.burst!;
+  const weapon = projectileWeapon(b.weaponId);
+  const spec = weapon.burst!; // (only burst weapons have bursts)
   const p = state.players[b.playerId]!;
   const count = b.word ? b.word.length : spec.count;
   // A twin destroyed mid-burst (or a dead player) stops firing.
@@ -184,7 +187,7 @@ export function stepBurst(state: GameState, b: Burst, dt: number): boolean {
 }
 
 /** Reflect off the ground at the contact point and back up to the last free position. */
-function bounce(state: GameState, pr: Projectile, weapon: WeaponDef, hitX: number, hitY: number, freeX: number, freeY: number): void {
+function bounce(state: GameState, pr: Projectile, weapon: Projectiles, hitX: number, hitY: number, freeX: number, freeY: number): void {
   const n = state.terrain.normalAt(hitX, hitY);
   const e = weapon.restitution ?? 0.5;
   const vn = pr.vx * n.x + pr.vy * n.y;
@@ -201,7 +204,7 @@ function bounce(state: GameState, pr: Projectile, weapon: WeaponDef, hitX: numbe
 }
 
 /** Homing: lock on to the nearest enemy within range, then turn towards it (keeping up speed). */
-function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<WeaponDef['homing']>, dt: number): void {
+function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<Projectiles['homing']>, dt: number): void {
   let best: { x: number; y: number } | null = null;
   let bestD = pr.homing ? Infinity : spec.radius;
   for (const t of allTargets(state)) {

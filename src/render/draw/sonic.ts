@@ -1,6 +1,6 @@
 import { boomPhaseArcs, boomRadii } from '../../game/game';
 import type { GameState } from '../../game/state';
-import { getWeapon } from '../../weapons/registry';
+import { weaponOf } from '../../weapons/registry';
 import type { Draw } from './context';
 
 /** torikloud's Sonic Boom arcs and where twin booms phase. */
@@ -28,8 +28,8 @@ export function drawBooms(d: Draw, state: GameState): void {
   ctx.globalAlpha = 1;
   ctx.lineCap = 'round';
   for (const b of state.booms) {
-    const w = getWeapon(b.weaponId);
-    const half = ((w.sonic?.halfAngleDeg ?? 30) * Math.PI) / 180;
+    const w = weaponOf(b.weaponId, 'sonic');
+    const half = (w.sonic.halfAngleDeg * Math.PI) / 180;
     const colour = w.colour ?? '#c9b6ff';
     for (const r of boomRadii(b)) {
       if (r <= 2 || r > b.range) continue;

@@ -1,5 +1,5 @@
 import { AMMO_PER_TIER, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
-import { getWeapon, ignoresAim } from '../weapons/registry';
+import { getWeapon, ignoresAim, isBonus } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from '../game/constants';
 
@@ -15,7 +15,7 @@ export function movementInfo(c: CharacterDef): { label: string; text: string } {
 /** Little tags for a weapon card: rounds, and whether it needs aiming. */
 export function weaponTags(w: WeaponDef, tier: number): string[] {
   const rounds = AMMO_PER_TIER[tier] ?? 1;
-  if (w.kind === 'scam') return ['Bonus move', 'Once a match', 'No aiming'];
+  if (isBonus(w)) return ['Bonus move', 'Once a match', 'No aiming'];
   return [`Tier ${tier + 1}`, `${rounds} round${rounds === 1 ? '' : 's'}`, ignoresAim(w) ? 'No aiming' : 'Aimed'];
 }
 

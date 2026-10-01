@@ -1,4 +1,5 @@
 import { FUEL_PER_MATCH } from '../game/constants';
+import { isBonus, weaponOf } from '../weapons/registry';
 import { AMMO_PER_TIER } from '../characters/roster';
 import { currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
@@ -73,7 +74,7 @@ export class Hud {
       ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
       ? `ten-2 charging… ${countdown}`
-      : weaponForTier(p, p.selectedTier).kind === 'scam'
+      : isBonus(weaponForTier(p, p.selectedTier))
       ? 'Bonus move: FIRE it, then take your turn'
       : aimless
       ? 'No aiming needed. Just FIRE'
@@ -252,7 +253,7 @@ function jetCountdown(state: GameState): number | null {
   const p = currentPlayer(state);
   const jet = state.jets.find((j) => j.playerId === p.id);
   if (jetCharge(state, p.id) === null || !jet) return null;
-  return Math.max(1, Math.ceil(getWeapon(jet.weaponId).jetpack!.chargeTime - jet.elapsed));
+  return Math.max(1, Math.ceil(weaponOf(jet.weaponId, 'jetpack').jetpack.chargeTime - jet.elapsed));
 }
 
 /**

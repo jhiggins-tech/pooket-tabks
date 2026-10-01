@@ -2,7 +2,7 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /** larinovsky's tier 1: indirect fire, a series of four pills lobbed along the aim that walk across the target. */
-export const pillPusher: WeaponDef = {
+export const pillPusher = {
   id: 'pill-pusher',
   name: 'Pill Pusher',
   shortName: 'Pill Pusher',
@@ -15,13 +15,13 @@ export const pillPusher: WeaponDef = {
   // A mixed handful: a red and white capsule, a round mint tablet, a blue and yellow capsule, a lilac caplet.
   spriteVariants: ['pill-red', 'pill-round', 'pill-blue', 'pill-oval'],
   trail: false,
-};
+} satisfies WeaponDef;
 
 /**
  * larinovsky's tier 2: a spinning heart in shades. Its blast "cooks" any enemy it catches: on their
  * next turn everything they fire does half damage.
  */
-export const theRizzler: WeaponDef = {
+export const theRizzler = {
   id: 'the-rizzler',
   name: 'the Rizzler',
   shortName: 'the Rizzler',
@@ -34,37 +34,33 @@ export const theRizzler: WeaponDef = {
   sprite: 'rizz',
   spin: 5,
   colour: '#ff6fb5',
-};
+} satisfies WeaponDef;
 
 /** larinovsky's tier 3: a quick nap (with cats), waking at full health and with the other weapons fully restocked. Takes the turn; no aiming. */
-export const takeANap: WeaponDef = {
+export const takeANap = {
   id: 'take-a-nap',
   name: 'Take a Nap',
   shortName: 'Take a Nap',
   info:
     'No aiming. larinovsky dozes off for 2 seconds (two cats curl up alongside) and wakes up at full health, with Pill Pusher and the Rizzler fully restocked. Uses the turn; the nap itself doesn’t come back.',
   kind: 'heal',
-  blastRadius: 0,
-  damage: 0,
   heal: { napTime: 2 },
   colour: '#7ee7a8',
-};
+} satisfies WeaponDef;
 
 /**
  * larinovsky's bonus move, once a match: using it doesn't take the turn. Until the end of the next enemy
  * turn, an enemy attack that hits larinovsky's own tank earns a round of it (game/scam.ts).
  */
-export const womenInScam: WeaponDef = {
+export const womenInScam = {
   id: 'women-in-scam',
   name: 'Women in Scam',
   shortName: 'Women in Scam',
   info:
     'Bonus move: doesn’t use your turn (aim and fire as usual after it), once a match. Until the end of the next enemy turn, if an enemy attack hits larinovsky’s tank, larinovsky gets a round of that weapon to use. Hits on anything else don’t count.',
   kind: 'scam',
-  blastRadius: 0,
-  damage: 0,
   colour: '#ff9ad5',
-};
+} satisfies WeaponDef;
 
 export const larinovsky = kit(
   {

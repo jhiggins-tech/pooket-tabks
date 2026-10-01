@@ -1,6 +1,6 @@
 import { stitchPoint } from '../../game/game';
 import type { Stitch } from '../../game/state';
-import { getWeapon } from '../../weapons/registry';
+import { weaponOf } from '../../weapons/registry';
 import type { Draw } from './context';
 
 /** ciarra's Sew: the needle and its stitched thread. */
@@ -9,8 +9,8 @@ import type { Draw } from './context';
 export function drawStitch(d: Draw, st: Stitch): void {
   const { ctx } = d;
   if (st.path.length < 2) return;
-  const w = getWeapon(st.weaponId);
-  const spec = w.sew!;
+  const w = weaponOf(st.weaponId, 'sew');
+  const spec = w.sew;
   ctx.save();
   ctx.globalAlpha = st.done ? Math.max(0, st.linger / 1.2) : 1;
   ctx.lineCap = 'round';

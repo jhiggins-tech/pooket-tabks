@@ -5,35 +5,31 @@ import { kit } from '../kit';
  * tones' tier 1: a pressurised water jet. Builds from a dribble to the full aimed arc over 2s,
  * holds briefly, then eases off. Water doesn't dig; it trickles damage onto whatever it soaks.
  */
-export const ten1: WeaponDef = {
+export const ten1 = {
   id: 'ten-1',
   name: 'ten-1',
   shortName: 'ten-1',
   info:
     'A yellow water jet. The pressure builds in spurts over 2s, holds at full for a moment, then sputters out. While it’s weak it sprays all over and barely stings; the full-pressure jet is a clean line that does the real damage. Trickles damage onto anything it soaks; doesn’t dig. Miss completely and you get the round back.',
   kind: 'stream',
-  blastRadius: 0,
-  damage: 0,
   stream: { rampUp: 2, hold: 0.7, rampDown: 1.2, dropsPerSecond: 110, damagePerDrop: 0.35, spray: 40, speedSpread: 0.35 },
   refundOnMiss: true,
   friendlyFire: false,
   colour: '#ffcc1f',
-};
+} satisfies WeaponDef;
 
 /**
  * tones' tier 2: the tank shakes for 10s, then blasts off jetpack-style along the aim (power sets
  * thrust) and flies to a new spot. Its exhaust is toxic dirt that piles up where it lands and
  * poisons enemy tanks it falls on.
  */
-export const ten2: WeaponDef = {
+export const ten2 = {
   id: 'ten-2',
   name: 'ten-2',
   shortName: 'ten-2',
   info:
     'tones shakes for 10 seconds, then jetpacks off along your aim (power = thrust) to a new spot. The exhaust is a huge blast of toxic mud that piles up and poisons enemies it lands on.',
   kind: 'jetpack',
-  blastRadius: 0,
-  damage: 0,
   jetpack: {
     chargeTime: 10,
     thrust: 0.85,
@@ -48,7 +44,7 @@ export const ten2: WeaponDef = {
   gunk: { dosePerParticle: 0.25, dosePerSecond: 12, deposit: [92, 62, 36], depositRadius: 2.2, look: 'mud' },
   friendlyFire: false,
   colour: '#9be22d',
-};
+} satisfies WeaponDef;
 
 /**
  * tones' tier 3: an incredibly powerful, short-range gush of chunky spew. Chunks that land on an
@@ -56,15 +52,13 @@ export const ten2: WeaponDef = {
  * ground coat it in toxic sludge that burns any enemy touching it for the rest of the turn.
  * Best case ~90–98 at 70–100px: deliberately just short of a one-shot.
  */
-export const ten3: WeaponDef = {
+export const ten3 = {
   id: 'ten-3',
   name: 'ten-3',
   shortName: 'ten-3',
   info:
     'An incredibly powerful short-range spew (about 200px). Coated enemies burn fast, and the chunks leave toxic sludge that burns anyone touching it for the rest of the turn. Get close.',
   kind: 'spew',
-  blastRadius: 0,
-  damage: 0,
   spew: { duration: 1.4, chunksPerSecond: 50, speed: 250, spreadDeg: 10 },
   gunk: {
     dosePerParticle: 1,
@@ -77,7 +71,7 @@ export const ten3: WeaponDef = {
   },
   friendlyFire: false,
   colour: '#f0c050',
-};
+} satisfies WeaponDef;
 
 export const tones = kit(
   {

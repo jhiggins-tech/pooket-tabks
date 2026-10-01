@@ -2,6 +2,7 @@ import { getWeapon } from '../weapons/registry';
 import { SETTLE_TIME } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { GameState, Player } from './state';
+import { reselect } from './loadout';
 import { tankCentre } from './tanks';
 
 /**
@@ -18,10 +19,7 @@ export function armScam(state: GameState, p: Player, tier: number): boolean {
   const c = tankCentre(p);
   spawnFloater(state, c.x, c.y - 18, 'SCAM ON 💅', '#ff9ad5');
   sound(state, 'fire', p.loadout[tier]);
-  const next = p.ammo.findIndex((n) => n > 0);
-  if (next >= 0) {
-    p.selectedTier = next;
-  } else {
+  if (!reselect(p)) {
     // Nothing left to fire: the scam still stands for the next enemy turn.
     state.phase = 'settling';
     state.settleTimer = SETTLE_TIME;
@@ -56,7 +54,3 @@ export function endScams(state: GameState): void {
   }
 }
 
-/** Once-a-match moves don't come back (Take a Nap's restock skips them). */
-export function isBonus(weaponId: string): boolean {
-  return getWeapon(weaponId).kind === 'scam';
-}
