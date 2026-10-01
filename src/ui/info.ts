@@ -2,6 +2,7 @@ import { AMMO_PER_TIER, getCharacter, ROSTER, type CharacterDef } from '../chara
 import { getWeapon, ignoresAim, isBonus } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from '../game/constants';
+import { el } from './dom';
 
 const BASICS = 'basics';
 
@@ -150,10 +151,4 @@ export function characterDetails(c: CharacterDef, colour: string): HTMLElement[]
     cards.append(card);
   });
   return [header, cards];
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  return e;
 }

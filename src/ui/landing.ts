@@ -3,6 +3,9 @@
  * turns waiting for you; a line under it says how many games are open or live) and Local hotseat, plus
  * Weapons & how to play and What's new.
  */
+
+import { byId } from './dom';
+
 export class Landing {
   private readonly root = byId('setup');
   private readonly name = byId('you-name');
@@ -44,8 +47,4 @@ export class Landing {
     this.counts.hidden = parts.length === 0;
     this.counts.textContent = parts.join(' · ');
   }
-}
-
-function byId(id: string): HTMLElement {
-  return document.getElementById(id)!;
 }

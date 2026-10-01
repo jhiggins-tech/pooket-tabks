@@ -10,12 +10,40 @@ flagged to the owner as they come up.
 
 1. **Phase 4: online and screens.**
    - A shared base for watching and replays (`applyState`, resolved, previews).
-   - `ui/dom.ts`: one set of DOM helpers for every screen.
    - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
      events with listeners instead of wrapped callbacks.
    - `NetSession` as an explicit state machine.
-2. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+2. **Lobby: drop the leftover character picker** (owner, 1 Oct). The "Connected!" lobby still has a
+   character dropdown while it's saying hello, from before Choose your tank; your tank is picked before
+   hosting or joining now, so the lobby should just show who's playing as what.
+3. **Spectators, live** (owner, 1 Oct). During a match, the players (and watchers) see who's watching: a
+   live list with a counter, and a toast when someone starts watching ("Kim just started watching").
+   Watchers check in to the room while they watch (a new database path: the owner re-publishes the rules).
+4. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
+   another for the next match (online: each phone picks its own, the next match starts once both have
+   chosen; hotseat: the setup screen with the last match's players filled in).
+5. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
+6. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
+   implementation handover"). Web Push with VAPID, no new hosting and no Blaze plan. Two paths share one
+   `evt-<id>` tag and an IndexedDB `seen` store, so each event alerts once:
+   - Foreground: a live RTDB listener notifies within seconds while the game is open.
+   - Background: a 5-minute scheduled GitHub Action (`notifier/`, firebase-admin + web-push) drains
+     `/outbox` and pushes to `/pushSubscriptions`.
+
+   The client gets a service worker (`public/sw.js`, relative scope) and an Enable button (tap only;
+   denied and iOS "Add to Home Screen" states). Outbox entries carry no text; one shared templates module
+   renders them on both paths. Logs never show endpoints or keys.
+
+   **Owner setup needed:** VAPID keys, a service account, repo secrets and variables, and a rules
+   re-publish.
+
+   **To settle first:**
+   - Which events notify: "your turn" in a turn-by-turn match, and someone joining your open game?
+   - Targeting: the opponent only, not everyone. That means a `to` field (the seat's clientId) and the
+     templates resolving names.
+   - Keeping room codes out of the outbox (`ref` = the room's hashed path).
+   - No Firebase Auth here, so the outbox is append-only and shape-checked only.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -28,6 +56,8 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 4: one set of DOM helpers.** `ui/dom.ts` (typed `el`, `byId`, `button`, `screenTop`) replaces the
+  copies in the online, info, profile, what's-new, landing and hotseat screens.
 - **Phase 4: sealed entries and one writer.** `net/sealed.ts` (`putSealed` / `openSealed` / `getSealed`) is
   the one way to write and read a sealed `{ m, ts }` entry (records, open offers, the Games list,
   replays), instead of the same base64 + seal + server-time lines in five places. `seal` now uses the

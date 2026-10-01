@@ -1,5 +1,6 @@
 import { assignColours, getCharacter, loadoutSummary, ROSTER } from '../characters/roster';
 import type { PlayerConfig } from '../game/state';
+import { byId, el } from './dom';
 import { loadUsername } from './profile';
 import { changeCharacter, NAME_MAX, parseSeats, resolveNames, type Seat } from './seats';
 
@@ -11,14 +12,14 @@ const STORAGE_KEY = 'pooket-tabks.setup.v2';
  * here are just for the match (the username changes from the landing screen).
  */
 export class SetupScreen {
-  private readonly root = document.getElementById('hotseat')!;
-  private readonly list = document.getElementById('setup-players')!;
+  private readonly root = byId('hotseat');
+  private readonly list = byId('setup-players');
   private seats: Seat[] = loadSeats();
   private you: string | null = loadUsername();
 
   constructor(onStart: (players: PlayerConfig[]) => void) {
     if (this.you) this.seats[0]!.name = this.you;
-    document.getElementById('start')!.addEventListener('click', () => {
+    byId('start').addEventListener('click', () => {
       (document.activeElement as HTMLElement | null)?.blur(); // dismiss the phone keyboard
       saveSeats(this.seats);
       onStart(this.players());
@@ -62,22 +63,17 @@ export class SetupScreen {
   private render(): void {
     const colours = assignColours(this.seats.map((s) => s.characterId));
     const cards = this.seats.map((seat, i) => this.card(seat, i, colours[i]!));
-    const vs = document.createElement('span');
-    vs.className = 'seats-vs';
-    vs.textContent = 'vs';
+    const vs = el('span', 'seats-vs', 'vs');
     this.list.replaceChildren(...cards.flatMap((c, i) => (i ? [vs.cloneNode(true) as HTMLElement, c] : [c])));
   }
 
   private card(seat: Seat, i: number, colour: string): HTMLElement {
-    const card = document.createElement('div');
-    card.className = 'seat-card';
+    const card = el('div', 'seat-card');
     card.style.setProperty('--c', colour);
 
-    const label = document.createElement('span');
-    label.className = 'seat';
-    label.textContent = `PLAYER ${i + 1}`;
+    const label = el('span', 'seat', `PLAYER ${i + 1}`);
 
-    const character = document.createElement('select');
+    const character = el('select');
     character.setAttribute('aria-label', `Player ${i + 1} character`);
     for (const c of ROSTER) character.add(new Option(c.name, c.id, false, c.id === seat.characterId));
     character.addEventListener('change', () => {
@@ -85,7 +81,7 @@ export class SetupScreen {
       this.render();
     });
 
-    const name = document.createElement('input');
+    const name = el('input');
     name.type = 'text';
     name.maxLength = NAME_MAX;
     name.placeholder = getCharacter(seat.characterId).name;
@@ -96,9 +92,7 @@ export class SetupScreen {
     name.addEventListener('input', () => (seat.name = name.value));
     name.addEventListener('keydown', (e) => e.key === 'Enter' && name.blur());
 
-    const loadout = document.createElement('span');
-    loadout.className = 'loadout';
-    loadout.textContent = loadoutSummary(getCharacter(seat.characterId));
+    const loadout = el('span', 'loadout', loadoutSummary(getCharacter(seat.characterId)));
 
     card.append(label, character, name, loadout);
     return card;

@@ -1,5 +1,6 @@
 import { isCharacterId } from '../characters/roster';
 import { NAME_MAX } from './seats';
+import { el } from './dom';
 
 /**
  * Who's playing on this phone: a username asked for the first time the game opens in a browser, saved in
@@ -106,10 +107,4 @@ export class NamePrompt {
   private refresh(): void {
     this.ok.disabled = cleanName(this.input.value) === '';
   }
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  return e;
 }

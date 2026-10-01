@@ -3,6 +3,8 @@
  * remembered in localStorage, so the popup only comes back when there's something new.
  */
 
+import { el } from './dom';
+
 export interface Release {
   /** Goes up by one per release. */
   version: number;
@@ -283,10 +285,4 @@ export class WhatsNew {
     this.root.hidden = true;
     markSeen();
   }
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  return e;
 }

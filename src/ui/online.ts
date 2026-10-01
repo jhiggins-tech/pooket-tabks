@@ -15,6 +15,7 @@ import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
 import type { Transport } from '../net/transport';
+import { button, el, screenTop } from './dom';
 
 export interface OnlineOptions {
   /** This phone's pick (character and name). */
@@ -106,7 +107,7 @@ export class OnlineScreen {
     let id = loadCharacter() ?? this.pick().characterId;
     const render = () => {
       const c = getCharacter(id);
-      const sel = el('select', 'tank-select') as HTMLSelectElement;
+      const sel = el('select', 'tank-select');
       sel.setAttribute('aria-label', 'Your tank');
       for (const r of ROSTER) sel.add(new Option(r.name, r.id, false, r.id === id));
       sel.addEventListener('change', () => {
@@ -182,7 +183,7 @@ export class OnlineScreen {
     const render = () => {
       const big = el('div', 'online-code', room.code);
       big.id = 'online-room-code';
-      const toggle = el('button', 'online-listed', listing.listed ? '🌐 Listed in Games' : '🔒 Private') as HTMLButtonElement;
+      const toggle = el('button', 'online-listed', listing.listed ? '🌐 Listed in Games' : '🔒 Private');
       toggle.id = 'online-listed';
       toggle.setAttribute('aria-pressed', String(listing.listed));
       toggle.addEventListener('click', () => {
@@ -319,7 +320,7 @@ export class OnlineScreen {
     let adverts: Advert[] = [];
     /** Past matches (null: loading). */
     let past: ReplayListing[] | null = null;
-    const pastBox = el('input') as HTMLInputElement;
+    const pastBox = el('input');
     pastBox.type = 'checkbox';
     pastBox.id = 'online-past';
     pastBox.checked = showPast();
@@ -331,8 +332,7 @@ export class OnlineScreen {
       r.dataset.kind = kind;
       const name = el('span', 'games-name', title);
       name.append(el('small', undefined, detail));
-      const b = el('button', `games-go ${action[1]}`, action[0]);
-      b.addEventListener('click', go);
+      const b = button(action[0], go, `games-go ${action[1]}`);
       r.append(name, el('span', `pill ${pill[1]}`, pill[0]), b);
       return r;
     };
@@ -423,10 +423,9 @@ export class OnlineScreen {
     });
     loadPast();
 
-    const host = el('button', 'games-host', '📶 Host a game');
+    const host = button('📶 Host a game', () => void this.host(), 'games-host');
     host.id = 'online-host';
-    host.addEventListener('click', () => void this.host());
-    const input = el('input', 'online-code-input') as HTMLInputElement;
+    const input = el('input', 'online-code-input');
     input.placeholder = 'CODE';
     input.maxLength = 6;
     input.autocomplete = 'off';
@@ -517,9 +516,8 @@ export class OnlineScreen {
     netLog(`ui: invited to ${code}`);
     const seat = findSeat(code);
     if (seat) return void this.rejoin(seat); // our own match
-    const go = el('button', 'big', 'Join game');
+    const go = button('Join game', () => void this.join(code), 'big');
     go.id = 'online-accept';
-    go.addEventListener('click', () => void this.join(code));
     this.show([heading('Join a game?'), text(`You've been invited to a Pooket Tabks game (room ${code}).`), go, cancelButton(() => this.close(), 'Not now')]);
   }
 
@@ -602,9 +600,8 @@ export class OnlineScreen {
   matchMenu(): void {
     const s = this.session;
     if (!s?.game || s.lost) return;
-    const back = el('button', 'big', 'Back to menu');
+    const back = button('Back to menu', () => this.close(), 'big');
     back.id = 'menu-leave';
-    back.addEventListener('click', () => this.close());
     const resign = el('button', 'online-alt', '🏳 Resign');
     resign.id = 'menu-resign';
     let sure = false;
@@ -686,7 +683,7 @@ export class OnlineScreen {
       r.append(el('b', undefined, label));
       if (mine && p) {
         // You can still change character here.
-        const sel = el('select') as HTMLSelectElement;
+        const sel = el('select');
         sel.setAttribute('aria-label', 'Your character');
         for (const c of ROSTER) sel.add(new Option(c.name, c.id, false, c.id === p.characterId));
         sel.addEventListener('change', () => {
@@ -699,7 +696,7 @@ export class OnlineScreen {
       }
       return r;
     };
-    const start = el('button', 'big', 'Start battle') as HTMLButtonElement;
+    const start = el('button', 'big', 'Start battle');
     start.id = 'online-start';
     start.disabled = !s.ready;
     start.addEventListener('click', () => this.onHostStart(s));
@@ -731,9 +728,8 @@ export class OnlineScreen {
     this.endSeat();
     this.cleanup();
     this.session = null;
-    const reload = el('button', 'big', '↻ Reload');
+    const reload = button('↻ Reload', () => location.reload(), 'big');
     reload.id = 'online-reload';
-    reload.addEventListener('click', () => location.reload());
     this.show(
       who === 'us'
         ? [heading('Update needed'), text('Pooket Tabks has been updated since this page was loaded. Reload to play: your game will still be there.'), reload, cancelButton(() => this.close(), 'Back')]
@@ -835,8 +831,7 @@ export class OnlineScreen {
     if (key === this.awayKey || !show) return;
     this.awayKey = key;
     const name = s.remotePick?.name ?? 'The other player';
-    const menu = el('button', undefined, 'Menu');
-    menu.addEventListener('click', () => this.close());
+    const menu = button('Menu', () => this.close());
     this.away.dataset.turn = mine ? 'yours' : 'theirs';
     this.away.replaceChildren(
       el('span', undefined, mine ? `${name} isn't here. Take your turn: they'll see it when they're back.` : `It's ${name}'s turn, and they're not here. The game waits (up to 3 days).`),
@@ -1013,27 +1008,11 @@ function charName(id: string): string {
   }
 }
 
-/** A screen's header: Back, the title, a note on the right. */
-function screenTop(title: string, note: string, back: () => void): HTMLElement {
-  const r = el('div', 'screen-top');
-  const b = el('button', 'back', '‹ Back');
-  b.addEventListener('click', back);
-  r.append(b, el('h2', undefined, title), el('span', 'screen-note', note));
-  return r;
-}
-
 function message(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
-function el(tag: string, className?: string, textContent?: string): HTMLElement {
-  const e = document.createElement(tag);
-  if (className) e.className = className;
-  if (textContent !== undefined) e.textContent = textContent;
-  return e;
-}
-
-function heading(t: string, tag = 'h2'): HTMLElement {
+function heading(t: string, tag: 'h2' | 'h3' = 'h2'): HTMLElement {
   return el(tag, undefined, t);
 }
 
@@ -1067,8 +1046,7 @@ function logsButton(): HTMLElement {
       await navigator.clipboard.writeText(text);
       b.textContent = '✓ Logs copied';
     } catch {
-      const area = document.createElement('textarea');
-      area.className = 'online-logs-text';
+      const area = el('textarea', 'online-logs-text');
       area.readOnly = true;
       area.value = text;
       b.replaceWith(area);
@@ -1086,21 +1064,17 @@ function buttons(...bs: HTMLElement[]): HTMLElement {
 }
 
 function linkButton(label: string, onClick: () => void): HTMLElement {
-  const b = el('button', 'online-alt', label);
-  b.addEventListener('click', onClick);
-  return b;
+  return button(label, onClick, 'online-alt');
 }
 
 function cancelButton(onClick: () => void, label = 'Cancel'): HTMLElement {
-  const b = el('button', 'online-cancel', label);
-  b.addEventListener('click', onClick);
-  return b;
+  return button(label, onClick, 'online-cancel');
 }
 
 /** The link as selectable text, with Copy (and Share where the phone supports it). */
 function shareRow(link: string, title: string, share = true): HTMLElement {
   const r = el('div', 'online-share');
-  const input = el('input', 'online-link') as HTMLInputElement;
+  const input = el('input', 'online-link');
   input.readOnly = true;
   input.value = link;
   input.addEventListener('focus', () => input.select());
@@ -1115,8 +1089,7 @@ function shareRow(link: string, title: string, share = true): HTMLElement {
   });
   r.append(input, copy);
   if (share && typeof navigator.share === 'function') {
-    const s = el('button', undefined, 'Share');
-    s.addEventListener('click', () => void navigator.share({ title, url: link }).catch(() => {}));
+    const s = button('Share', () => void navigator.share({ title, url: link }).catch(() => {}));
     r.append(s);
   }
   return r;
