@@ -763,8 +763,7 @@ body[data-remote='true'] .drive button {
   width: 100%;
 }
 .online-share input,
-.online-paste input,
-.online-seat select {
+.online-paste input {
   flex: 1;
   min-width: 0;
   height: 38px;

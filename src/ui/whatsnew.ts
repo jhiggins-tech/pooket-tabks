@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 26,
+    title: 'Tidier online screens',
+    items: [
+      'The lobby just shows who’s playing as what: the leftover character dropdown is gone (you choose your tank before hosting or joining).',
+      'Fixed: a few online screens could pop back up after you’d already left them.',
+    ],
+  },
+  {
     version: 25,
     title: 'Twin fixes',
     items: ['Fixed: sludge on torikloud’s twin now drains over a couple of seconds, like on any tank, and hits on the twin go “oof”.'],

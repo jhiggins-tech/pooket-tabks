@@ -125,7 +125,7 @@ function newGame(): void {
 // ---- Online: two phones, one each, through a Firebase room. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
 const online = new OnlineScreen({
-  // Online you're you: your name, and the character you last played online (changeable in the lobby).
+  // Online you're you: your name, and the character you last played online.
   pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId }),
   dbUrl: params.db || FIREBASE_DATABASE_URL || null,
   lobby: params.lobby || PUBLIC_LOBBY,

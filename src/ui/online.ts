@@ -1,4 +1,4 @@
-import { getCharacter, ROSTER } from '../characters/roster';
+import { getCharacter } from '../characters/roster';
 import { roomLink } from '../net/links';
 import { netLog } from '../net/log';
 import { Listing, lobbySealer, watchLobby } from '../net/lobby';
@@ -490,28 +490,15 @@ export class OnlineScreen {
     this.show([heading('The match has ended'), text('The host closed the room.'), cancelButton(() => this.close(), 'Back')]);
   }
 
-  /** The lobby: both picks, and (host) the Start button. */
+  /** The lobby: who's playing as what (tanks were chosen before hosting or joining), and (host) the Start button. */
   lobby(): void {
     const s = this.session;
     if (!s) return;
     const me = s.localPick;
     const them = s.remotePick;
-    const line = (label: string, p: Pick | null, mine: boolean) => {
+    const line = (label: string, p: Pick | null) => {
       const r = el('div', 'online-seat');
-      r.append(el('b', undefined, label));
-      if (mine && p) {
-        // You can still change character here.
-        const sel = el('select');
-        sel.setAttribute('aria-label', 'Your character');
-        for (const c of ROSTER) sel.add(new Option(c.name, c.id, false, c.id === p.characterId));
-        sel.addEventListener('change', () => {
-          saveCharacter(sel.value); // your character online from now on
-          s.setPick({ name: p.name, characterId: sel.value });
-        });
-        r.append(el('span', undefined, p.name), sel);
-      } else {
-        r.append(el('span', undefined, p ? `${p.name} (${getCharacter(p.characterId).name})` : '…'));
-      }
+      r.append(el('b', undefined, label), el('span', undefined, p ? `${p.name} (${getCharacter(p.characterId).name})` : '…'));
       return r;
     };
     const start = button('Start battle', () => this.onHostStart(s), 'big');
@@ -519,8 +506,8 @@ export class OnlineScreen {
     start.disabled = !s.ready;
     this.show([
       heading('Connected!'),
-      line(s.isHost ? 'You (host)' : 'Host', s.isHost ? me : them, s.isHost),
-      line(s.isHost ? 'Them' : 'You', s.isHost ? them : me, !s.isHost),
+      line(s.isHost ? 'You (host)' : 'Host', s.isHost ? me : them),
+      line(s.isHost ? 'Them' : 'You', s.isHost ? them : me),
       s.isHost ? start : status(them ? 'Waiting for the host to start…' : 'Saying hello…', 'online-status'),
       cancelButton(() => this.close(), 'Leave'),
     ]);

@@ -5,20 +5,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
 ## Queue
 
 The refactoring pass (from the code assessment, 1 Oct) has shipped up to phase 4 (see **Refactoring** under
-Shipped); its last phase, the tidy, is item 4.
+Shipped); its last phase, the tidy, is item 3.
 
-1. **Lobby: drop the leftover character picker** (owner, 1 Oct). The "Connected!" lobby still has a
-   character dropdown while it's saying hello, from before Choose your tank; your tank is picked before
-   hosting or joining now, so the lobby should just show who's playing as what.
-2. **Spectators, live** (owner, 1 Oct). During a match, the players (and watchers) see who's watching: a
+1. **Spectators, live** (owner, 1 Oct). During a match, the players (and watchers) see who's watching: a
    live list with a counter, and a toast when someone starts watching ("Kim just started watching").
    Watchers check in to the room while they watch (a new database path: the owner re-publishes the rules).
-3. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
+2. **Rematch: pick a new tank** (owner, 1 Oct). At a rematch each player can keep their tank or choose
    another for the next match (online: each phone picks its own, the next match starts once both have
    chosen; hotseat: the setup screen with the last match's players filled in).
-4. **Refactoring phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+3. **Refactoring phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
-5. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
+4. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
    implementation handover"). Web Push with VAPID, no new hosting and no Blaze plan. Two paths share one
    `evt-<id>` tag and an IndexedDB `seen` store, so each event alerts once:
    - Foreground: a live RTDB listener notifies within seconds while the game is open.
@@ -173,6 +170,8 @@ Shipped); its last phase, the tidy, is item 4.
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **The lobby shows who's playing as what** (owner, 1 Oct): its leftover character dropdown (from before
+  Choose your tank) is gone; your tank is chosen before hosting or joining.
 - **Replays (Past matches)**: tick **Past matches** in the Game browser (remembered) and every public
   match that finished in the last two weeks is listed under the games ("Ann vs Bo · tones vs kcaj · Bo
   resigned · 2 h ago") with **▶ Replay**. A replay plays the match back view only, like watching it live:

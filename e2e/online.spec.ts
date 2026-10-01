@@ -84,6 +84,11 @@ async function phones(browser: Browser, lobby: string) {
 async function playFromLobby(host: Page, guest: Page) {
   await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
   await expect(guest.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
+  // Who's playing as what (tanks were chosen before hosting or joining): nothing to pick here.
+  for (const p of [host, guest]) {
+    await expect(p.locator('#online .online-seat')).toHaveCount(2);
+    await expect(p.locator('#online select')).toHaveCount(0);
+  }
   await expect(host.locator('#online-start')).toBeEnabled();
   await host.locator('#online-start').tap();
   await expect(guest.locator('#online')).toBeHidden({ timeout: 15_000 });
