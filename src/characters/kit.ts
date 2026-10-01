@@ -13,6 +13,8 @@ export interface CharacterDef {
   loadout: Loadout;
   /** How the ◀ ▶ buttons move this character: roll along the ground, or frog hops. Default drive. */
   movement?: 'drive' | 'hop';
+  /** Starting (and full) health, if not the usual MAX_HP. */
+  maxHp?: number;
 }
 
 /** A character and the weapons of their loadout (tiers 1, 2 and 3, and optionally a bonus move), defined together in one file. */

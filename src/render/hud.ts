@@ -1,4 +1,4 @@
-import { FUEL_PER_MATCH, MAX_HP } from '../game/constants';
+import { FUEL_PER_MATCH } from '../game/constants';
 import { AMMO_PER_TIER } from '../characters/roster';
 import { currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
@@ -46,7 +46,7 @@ export class Hud {
       state.heist ? `${heistIndex(state.heist)}${state.heist.locked}` : '',
       ...state.players.map(
         (pl) =>
-          `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}` +
+          `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}/${pl.twin?.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}` +
           `${pl.tattoo?.turnsLeft ?? ''}${pl.pinned ? 'P' : ''}${pl.scam ? 'S' : ''}`,
       ),
     ].join('|');
@@ -103,7 +103,7 @@ export class Hud {
           const track = document.createElement('span');
           track.className = 'hp';
           const fill = document.createElement('span');
-          fill.style.width = `${(hp / (pl.twin ? MAX_HP / 2 : MAX_HP)) * 100}%`;
+          fill.style.width = `${(hp / (pl.twin ? pl.maxHp / 2 : pl.maxHp)) * 100}%`;
           track.append(fill);
           bar.append(track);
         }
@@ -117,12 +117,14 @@ export class Hud {
           cooked.title = pl.cooked.active ? 'Cooked: half damage this turn' : 'Cooked: half damage next turn';
           name.append(cooked);
         }
-        if (pl.burn && pl.alive) {
+        // Burning (the main tank, the twin, or both: one mark each).
+        for (const b of [pl.burn, pl.twin?.burn]) {
+          if (!b || !pl.alive) continue;
           const burn = document.createElement('span');
           burn.className = 'burn';
-          burn.style.color = pl.burn.colour;
-          burn.textContent = ` ✦${pl.burn.turnsLeft}`;
-          burn.title = `Burning: ${pl.burn.damagePerTurn} damage for ${pl.burn.turnsLeft} more turns`;
+          burn.style.color = b.colour;
+          burn.textContent = ` ✦${b.turnsLeft}`;
+          burn.title = `Burning: ${b.damagePerTurn} damage for ${b.turnsLeft} more turns`;
           name.append(burn);
         }
         el.append(name, bar);

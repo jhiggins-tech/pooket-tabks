@@ -59,10 +59,11 @@ what it's for; weapons are documented where they're defined.
   twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than
   switching on the kind. Damage: `damageTarget()` → `damagePlayer()` (floating numbers). Outgoing damage
   × the shooter's `offence()` (halved while cooked) at every source; incoming × the victim's
-  `vulnerable()` (tattoos).
+  `vulnerable()` (tattoos). Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`).
 - **Statuses** live in `endTurn`: `cooked` and `pinned` become active when the victim's next turn starts
   and clear when it ends; `tattoo.turnsLeft` counts down per victim turn; Hyperfixate burns tick as the
-  victim's turn comes up; `scam` (Women in Scam) notes the first enemy hit on the tank in `damagePlayer`
+  victim's turn comes up (a burn is on the tank that was hit: a twin has its own, `Twin.burn`; the
+  other statuses are the player's, whichever of their tanks was hit); `scam` (Women in Scam) notes the first enemy hit on the tank in `damagePlayer`
   and pays out a round of `lastShot`'s weapon at the end of the next enemy turn (a new slot on the
   player's own `loadout` / `ammo`, which can outgrow the character's).
 - **Movement** (`game/movement.ts`): one tank of fuel per match (`FUEL_PER_MATCH`), driving before

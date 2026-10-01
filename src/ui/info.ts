@@ -1,6 +1,7 @@
 import { AMMO_PER_TIER, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
 import { getWeapon, ignoresAim } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
+import { MAX_HP } from '../game/constants';
 
 const BASICS = 'basics';
 
@@ -124,7 +125,10 @@ export function characterDetails(c: CharacterDef, colour: string): HTMLElement[]
   const label = el('b');
   label.textContent = move.label;
   moves.append(label, ` · ${move.text}`);
-  header.append(name, blurb, moves);
+  const health = el('p', 'info-move info-health');
+  const hp = c.maxHp ?? MAX_HP;
+  health.append(Object.assign(el('b'), { textContent: 'Health' }), ` · ${hp}${hp > MAX_HP ? ` (most start with ${MAX_HP})` : ''}`);
+  header.append(name, blurb, moves, health);
 
   const cards = el('div', 'info-cards');
   cards.style.setProperty('--c', colour);

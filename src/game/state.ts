@@ -21,6 +21,8 @@ export interface Player {
   /** Ground contact y (bottom of the tank). */
   y: number;
   hp: number;
+  /** Full health (the character's: MAX_HP, or more). */
+  maxHp: number;
   /** Degrees in [0, 360): 0 = right, 90 = straight up, 180 = left, 270 = straight down. */
   angle: number;
   /** 0–100. */
@@ -32,8 +34,8 @@ export interface Player {
   /** Rounds left per tier. */
   ammo: number[];
   selectedTier: number;
-  /** Active burn from a beam hit: ticks at the start of this player's next turns. */
-  burn: { damagePerTurn: number; turnsLeft: number; colour: string } | null;
+  /** Active burn from a beam hit on this tank: ticks at the start of this player's next turns. */
+  burn: Burn | null;
   /** Fractional stream damage soaked up but not yet applied (applied in small batches). */
   soak: number;
   /** Colour for the soak damage numbers (the liquid's colour). */
@@ -58,6 +60,13 @@ export interface Player {
   /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
   toxin: number;
   toxinRate: number;
+}
+
+/** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
+export interface Burn {
+  damagePerTurn: number;
+  turnsLeft: number;
+  colour: string;
 }
 
 /** One frog hop: a little parabolic leap from (x0, y0) to (x1, y1). */
@@ -111,6 +120,8 @@ export interface Twin {
   x: number;
   y: number;
   hp: number;
+  /** A burn on the twin itself (statuses that aren't about one tank, like cooked or tattooed, are the player's). */
+  burn: Burn | null;
   /** Fractional damage soaked (water, mud, sludge) not yet applied. */
   soak: number;
   soakColour: string;

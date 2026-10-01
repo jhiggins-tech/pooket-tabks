@@ -4,7 +4,7 @@ import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import { noteScamHit } from './scam';
-import type { GameState, Hologram, Player } from './state';
+import type { Burn, GameState, Hologram, Player } from './state';
 
 /** Tanks and targets: where a tank is, what a shot at (x, y) hits (tank, twin or hologram), and damage (blasts, soak, burns, cooking, tattoos). */
 
@@ -157,6 +157,7 @@ function damageTwin(state: GameState, p: Player, amount: number, colour: string)
   const tw = p.twin;
   if (!tw || amount <= 0) return;
   amount = vulnerable(p, amount);
+  noteScamHit(state, p);
   tw.hp = Math.max(0, tw.hp - amount);
   spawnFloater(state, tw.x, tw.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
   if (tw.hp === 0) {
@@ -180,7 +181,7 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
     damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)));
-    if (weapon.debuff && t.kind !== 'hologram' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier);
+    if (weapon.debuff && t.kind !== 'hologram' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier, targetPos(t));
     if (weapon.tattoo && t.kind !== 'hologram' && t.player.alive) {
       if (!t.player.tattoo) {
         const c = targetPos(t);
@@ -201,10 +202,9 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
 }
 
 /** The Rizzler's debuff: halves (etc.) everything this player fires on their next turn. */
-function cook(state: GameState, p: Player, multiplier: number): void {
+function cook(state: GameState, p: Player, multiplier: number, at: { x: number; y: number }): void {
   p.cooked = { active: false, multiplier };
-  const c = tankCentre(p);
-  spawnFloater(state, c.x, c.y - 10, 'COOKED', '#ff9f43');
+  spawnFloater(state, at.x, at.y - TANK_BODY_HEIGHT - 10, 'COOKED', '#ff9f43');
   sound(state, 'cook');
 }
 
@@ -231,18 +231,27 @@ export function damagePlayer(state: GameState, p: Player, amount: number, colour
     p.y = tw.y;
     p.hp = tw.hp;
     p.soak += tw.soak;
+    p.burn = tw.burn; // the main tank's burn went with it; the twin's carries on
     p.twin = null;
     return;
   }
   p.alive = false;
 }
 
+/** Burns tick as their player's turn comes up: the main tank's, then the twin's. */
 export function tickBurn(state: GameState, p: Player): void {
-  if (!p.burn) return;
-  const { damagePerTurn, colour } = p.burn;
-  p.burn.turnsLeft--;
-  if (p.burn.turnsLeft <= 0) p.burn = null;
-  damagePlayer(state, p, damagePerTurn, colour);
+  const tick = (tank: { burn: Burn | null }): Burn | null => {
+    const b = tank.burn;
+    if (!b) return null;
+    b.turnsLeft--;
+    if (b.turnsLeft <= 0) tank.burn = null;
+    return b;
+  };
+  const main = tick(p);
+  if (main) damagePlayer(state, p, main.damagePerTurn, main.colour);
+  const tw = p.twin;
+  const twin = tw && tick(tw);
+  if (twin) damageTwin(state, p, twin.damagePerTurn, twin.colour);
 }
 
 /** Soaked-up damage, shown in small batches as it builds (the last batch is flushed when the turn settles). */

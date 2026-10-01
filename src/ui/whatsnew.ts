@@ -13,6 +13,15 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 23,
+    title: 'torikloud toughens up',
+    items: [
+      'torikloud now starts with 150 health (everyone else has 100): two tanks are two targets. Twins splits it 75 / 75.',
+      'Fixed: a Hyperfixate beam into torikloud’s twin now sets the twin burning, like the main tank.',
+      'Online matches started before this update can’t carry on. Sorry!',
+    ],
+  },
+  {
     version: 22,
     title: 'Trollogram rebalanced',
     items: [

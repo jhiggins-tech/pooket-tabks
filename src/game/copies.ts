@@ -37,7 +37,7 @@ export function spawnTwin(state: GameState, p: Player): void {
     x = randRange(rng, terrain.width * 0.12, terrain.width * 0.88);
   }
   x = Math.round(x);
-  const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), soak: 0, soakColour: '#ffffff', age: 0 };
+  const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), burn: null, soak: 0, soakColour: '#ffffff', age: 0 };
   p.hp -= twin.hp;
   p.twin = twin;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, p.colour);

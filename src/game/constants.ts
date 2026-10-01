@@ -12,6 +12,7 @@ export const TANK_BODY_HEIGHT = 8;
 export const TANK_HIT_RADIUS = 11;
 export const BARREL_LENGTH = 18;
 
+/** A tank's starting (and full) health, unless its character says otherwise (`CharacterDef.maxHp`). */
 export const MAX_HP = 100;
 export const SETTLE_TIME = 0.8; // s pause after the last impact before the turn passes
 export const FIXED_DT = 1 / 120;

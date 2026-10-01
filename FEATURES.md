@@ -19,6 +19,15 @@ Everything queued so far has shipped (details under **Shipped** below).
 ## Shipped
 
 ### Balance
+- **torikloud starts with 150 health** (two tanks are two targets, so the twins tended to take more
+  damage): everyone else still has 100; Twins splits it 75 / 75. Per character (`maxHp`), shown on the
+  info screen (Health · 150) and filling the health bars; Take a Nap heals to the character's full.
+- **Statuses on the twin** (bug fix): a Hyperfixate beam into torikloud's twin now sets the twin burning
+  (it had no burn at all); each tank's burn ticks on its own as his turn comes up, and a burning twin
+  that takes over from a destroyed main tank keeps burning. Checked the rest: cooked, tattooed and
+  pinned already applied to torikloud from a twin hit (now "COOKED" shows over the twin that was hit),
+  soak / sludge / toxin already hurt the twin, and a hit on a scamming player's twin now counts for
+  Women in Scam. Online protocol 7.
 - **Trollogram holograms blow up** (deemed overpowered: hitting one cost the shooter half the damage
   they'd have dealt): a hologram that gets hit now self-destructs straight away, a small blast (radius 20,
   up to 20 damage, a little crater) that hurts every tank in reach, friend or foe, kie included, and can
@@ -162,6 +171,6 @@ between visits.
 | **tones** | ten-1: yellow water jet that builds in spurts, trickle damage; a complete miss refunds the round | ten-2: shakes for 10s, then jetpacks away on a huge, wide blast of toxic mud | ten-3: short-range chunky spew, intense damage over one turn; coats the ground in toxic sludge that burns enemies for the rest of the turn |
 | **kie** | Weasel Pop: 3 tumbling weasels that scurry right up under the enemy and pop for full damage (or as close as they can get in range), to Pop Goes the Weasel | Trollogram: 2 decoys per use (3 uses, they add up), secret swap (even on the turn it's cast: tap one, then DONE); a hit one blows up (20px blast, 20 damage, hurts any tank, kie's too, and can set off the next) | Steal: a slot-machine roulette spins over the enemy's weapons and lands on one at random; kie takes a round of it (they lose it), it replaces Steal and he can fire it the same turn |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
-| **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary) |
+| **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

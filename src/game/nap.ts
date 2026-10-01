@@ -1,7 +1,6 @@
 import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
-import { MAX_HP } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { isBonus } from './scam';
@@ -23,9 +22,11 @@ export function stepNap(state: GameState, n: Nap, dt: number): boolean {
   }
   if (n.elapsed < spec.napTime) return false;
   sound(state, 'wake');
-  if (p.alive && p.hp < MAX_HP) {
-    const gained = MAX_HP - p.hp;
-    p.hp = MAX_HP;
+  // Full health is the character's (the main tank's share of it, with a twin out).
+  const full = p.twin ? p.maxHp - Math.floor(p.maxHp / 2) : p.maxHp;
+  if (p.alive && p.hp < full) {
+    const gained = full - p.hp;
+    p.hp = full;
     const c = tankCentre(p);
     spawnFloater(state, c.x, c.y, `+${gained}`, '#7ee7a8');
   }

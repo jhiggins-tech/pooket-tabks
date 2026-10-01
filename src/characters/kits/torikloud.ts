@@ -40,7 +40,10 @@ export const sonicBoom: WeaponDef = {
   apparition: 'kookaburra',
 };
 
-/** torikloud's tier 3: a twin tank appears and his HP is split between them; the twin mirrors his shots. */
+/**
+ * torikloud's tier 3: a twin tank appears and his HP is split between them; the twin mirrors his shots.
+ * (Two tanks are two targets, so torikloud starts with more health: 150.)
+ */
 export const twins: WeaponDef = {
   id: 'twins',
   name: 'Twins',
@@ -59,6 +62,7 @@ export const torikloud = kit(
     name: 'torikloud',
     blurb: 'Debate, Sonic Boom and a twin to argue alongside.',
     colours: ['#a78bfa', '#818cf8', '#e879f9'],
+    maxHp: 150,
   },
   [debate, sonicBoom, twins],
 );

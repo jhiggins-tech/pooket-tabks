@@ -7,7 +7,7 @@ import { newReplayId } from './replay';
 import type { Transport } from './transport';
 
 /** Bumped whenever the messages or the game rules change: both phones must run the same code. */
-export const PROTOCOL = 6;
+export const PROTOCOL = 7;
 
 /**
  * A match's setup: the map's seed, the players ([host, guest]), and (a public match) the id its replay

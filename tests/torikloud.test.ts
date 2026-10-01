@@ -3,9 +3,9 @@ import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { currentPlayer, explode, fire, isAimless, selectTier, setAim, step, targetAt } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
 import { DICTIONARIES } from '../src/weapons/dictionaries';
-import { debate, sonicBoom } from '../src/characters/kits';
+import { debate, hyperfixate, sonicBoom, tattooGun, theRizzler } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
-import { passTurn, testGame, whileFlying } from './support/game';
+import { passTurn, testGame, untilNextTurn, whileFlying } from './support/game';
 
 const players = [
   { name: 'torikloud', colour: '#a78bfa', characterId: 'torikloud' },
@@ -184,5 +184,80 @@ describe('Sonic Boom crossover', () => {
     whileFlying(g, () => (seen += boomPhaseArcs(g).length));
     expect(seen).toBeGreaterThan(0);
     expect(sonicBoom.sonic!.waves).toBe(4);
+  });
+});
+
+describe("torikloud's health, and statuses on the twin", () => {
+  /** torikloud (with a twin at x = 450) against kcaj, kcaj to play. */
+  function versusKcaj(): GameState {
+    const g = testGame({
+      seed: 70,
+      players: [players[0]!, { name: 'kcaj', colour: '#ffc53d', characterId: 'kcaj' }],
+      xs: [200, 800],
+    });
+    withTwin(g);
+    passTurn(g); // torikloud
+    expect(currentPlayer(g).name).toBe('kcaj');
+    return g;
+  }
+
+  it('starts with 150 health (two tanks are two targets); Twins splits it 75 / 75', () => {
+    const g = game();
+    const [tori, kie] = g.players as [GameState['players'][0], GameState['players'][0]];
+    expect(tori.hp).toBe(150);
+    expect(tori.maxHp).toBe(150);
+    expect(kie.hp).toBe(MAX_HP);
+    selectTier(g, 2);
+    fire(g);
+    expect([tori.hp, tori.twin!.hp]).toEqual([75, 75]);
+  });
+
+  it('a Hyperfixate beam into the twin sets the twin burning, and it burns as his turns come up', () => {
+    const g = versusKcaj();
+    const [tori, kcaj] = g.players as [GameState['players'][0], GameState['players'][0]];
+    const tw = tori.twin!;
+    tw.x = kcaj.x - 150; // level with kcaj, in the line of fire
+    tw.y = kcaj.y;
+    tori.x = 20;
+    selectTier(g, 1);
+    setAim(g, 180, 50);
+    fire(g);
+    expect(g.beams[0]!.hitTank).toBe(true);
+    expect(tw.hp).toBe(75 - hyperfixate.damage);
+    expect(tw.burn).toMatchObject({ damagePerTurn: hyperfixate.dot!.damagePerTurn, turnsLeft: hyperfixate.dot!.turns });
+    expect(tori.burn).toBeNull();
+    const main = tori.hp;
+    untilNextTurn(g); // torikloud's turn comes up: the twin burns, not the main tank
+    expect(currentPlayer(g)).toBe(tori);
+    expect(tw.hp).toBe(75 - hyperfixate.damage - hyperfixate.dot!.damagePerTurn);
+    expect(tori.hp).toBe(main);
+    expect(tw.burn!.turnsLeft).toBe(hyperfixate.dot!.turns - 1);
+  });
+
+  it("a burning twin that takes over from a destroyed main tank keeps burning; the main tank's burn goes with it", () => {
+    const g = versusKcaj();
+    const tori = g.players[0]!;
+    tori.burn = { damagePerTurn: 4, turnsLeft: 2, colour: '#f00' };
+    tori.twin!.burn = { damagePerTurn: 9, turnsLeft: 3, colour: '#0f0' };
+    tori.hp = 5;
+    explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
+    expect(tori.twin).toBeNull();
+    expect(tori.burn).toMatchObject({ damagePerTurn: 9, turnsLeft: 3 });
+  });
+
+  it('hits on the twin cook and tattoo torikloud (all of him), shown on the twin', () => {
+    const g = versusKcaj();
+    const tori = g.players[0]!;
+    const tw = tori.twin!;
+    explode(g, tw.x, tw.y - TANK_BODY_HEIGHT, theRizzler, 1);
+    expect(tori.cooked).toMatchObject({ active: false });
+    const cooked = g.floaters.find((f) => f.text === 'COOKED')!;
+    expect(Math.abs(cooked.x - tw.x)).toBeLessThan(20);
+    explode(g, tw.x, tw.y - TANK_BODY_HEIGHT, tattooGun, 1);
+    expect(tori.tattoo).not.toBeNull();
+    // Tattooed: the main tank takes the extra damage too.
+    const before = tori.hp;
+    explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
+    expect(before - tori.hp).toBe(Math.round(shell.damage * tattooGun.tattoo!.multiplier));
   });
 });

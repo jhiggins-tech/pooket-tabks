@@ -72,7 +72,7 @@ describe('Sonic Boom', () => {
   it('never hurts torikloud, and the turn passes', () => {
     const g = game(100);
     boom(g);
-    expect(g.players[0]!.hp).toBe(MAX_HP);
+    expect(g.players[0]!.hp).toBe(g.players[0]!.maxHp);
     for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
     expect(currentPlayer(g).name).toBe('kie');
   });

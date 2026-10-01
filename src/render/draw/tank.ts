@@ -1,15 +1,18 @@
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
 import { jetCharge, muzzle, tankCentre } from '../../game/game';
-import type { GameState, Player } from '../../game/state';
+import type { Burn, GameState, Player } from '../../game/state';
 import { noise, withAlpha } from './colour';
 import type { Draw } from './context';
 
 /** Tanks (and their hologram, twin and ghost copies), the jetpack flame, the spew gush, the swap marker and the aim guide. */
 
-/** Draws player p's tank, or (with `at`) a hologram copy of it at another spot. */
-export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: number; y: number }): void {
+/**
+ * Draws player p's tank, or (with `at`) a copy of it at another spot: their twin (with its own burn), or
+ * a hologram (looking just like the real tank, statuses and all).
+ */
+export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: number; y: number; burn?: Burn | null }): void {
   const { ctx } = d;
-  const p: Player = at ? { ...owner, x: at.x, y: at.y } : owner;
+  const p: Player = at ? { ...owner, x: at.x, y: at.y, burn: at.burn === undefined ? owner.burn : at.burn } : owner;
   const c = tankCentre(p);
   const isCurrent = !at && state.players[state.current] === owner && state.phase !== 'gameover';
 
@@ -133,7 +136,7 @@ export function drawGlitchedTank(
   d: Draw,
   owner: Player,
   state: GameState,
-  at: { x: number; y: number } | undefined,
+  at: { x: number; y: number; burn?: Burn | null } | undefined,
   glitch: number,
   build: number,
   alpha: number,

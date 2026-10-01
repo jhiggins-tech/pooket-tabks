@@ -588,7 +588,8 @@ test('info screen explains every character and weapon', async ({ page }) => {
   await expect(info).toBeVisible();
   await expect(page.locator('.info-character h2')).toHaveText('ciarra');
   await expect(page.locator('.info-card h3')).toHaveText(['Tattoo Gun', 'Sew', 'Marathon']);
-  await expect(page.locator('.info-move b')).toHaveText('Frog hops');
+  await expect(page.locator('.info-move b')).toHaveText(['Frog hops', 'Health']);
+  await expect(page.locator('.info-health')).toHaveText('Health · 100');
   await page.getByRole('tab', { name: 'How to play' }).tap();
   await expect(page.locator('.info-list h2')).toHaveText(['Controls', 'Status effects']);
   await page.screenshot({ path: 'test-results/info-basics.png' });
@@ -612,6 +613,8 @@ test('info screen explains every character and weapon', async ({ page }) => {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
   }
+  await page.getByRole('tab', { name: 'torikloud', exact: true }).tap();
+  await expect(page.locator('.info-health')).toHaveText('Health · 150 (most start with 100)');
   await page.locator('#info-close').tap();
   await expect(info).toBeHidden();
   await expect.poll(shots).not.toBe(frozen); // and carries on once it's closed
