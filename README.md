@@ -38,11 +38,14 @@ src/
   input/       touch controls
   audio/       8-bit synth, sound effects and chiptunes
   net/         online play through Firebase: rooms, relay, match session, spectating, rejoining, replays
+  push/        push notifications: subscribing, the templates (shared with notifier/), the open page's alerts
   ui/          setup, info, what's new, online screens
   main.ts      fixed-timestep loop wiring it all together
 tests/         Vitest unit tests (Node; a local Firebase stand-in for the online code)
 e2e/           Playwright on an emulated landscape phone (incl. multi-phone online flows)
 firebase/      database security rules and setup guide
+notifier/      the push sender, run every 5 minutes by .github/workflows/notify.yml (not part of the site)
+public/sw.js   the service worker: shows pushes, opens the game when one is tapped
 ```
 
 Game logic is pure and seeded: `?seed=123` reproduces a map.
@@ -60,3 +63,38 @@ npm run build      # typecheck + production build into dist/
 `.github/workflows/deploy.yml` runs typecheck, unit tests, build and e2e on every push, and deploys
 `dist/` to GitHub Pages on pushes to `main`. Online play needs the Firebase database in
 `src/net/config.ts` (see `firebase/README.md`).
+
+## Push notifications
+Phones that turn notifications on (the 🔔 on the landing screen) hear "your turn" when the other player
+has played and they're away, and "someone joined your game" when someone starts their open game. When
+the other player should hear about something, the phone in the match adds an entry to the database's
+`outbox` (no text, and the room's topic, never its code). An open page shows its entries at once; the
+scheduled workflow `.github/workflows/notify.yml` (`notifier/`) pushes the rest within about 5–15
+minutes, as Web Push (VAPID; no Firebase Cloud Messaging, no paid plan), and clears the outbox.
+
+### One-time setup (the owner, by hand: never commit the private key or the service account)
+1. **VAPID keys**: `npx web-push generate-vapid-keys`. The public key goes in `VAPID_PUBLIC_KEY` in
+   `src/net/config.ts` (safe to commit: it switches the 🔔 on); the private key only into a GitHub secret.
+2. **Firebase service account**: Firebase console → Project settings → Service accounts → Generate new
+   private key (a JSON file).
+3. **GitHub** (Settings → Secrets and variables → Actions):
+
+   | Name | Kind | Value |
+   |---|---|---|
+   | `VAPID_PRIVATE_KEY` | Secret | the private key from step 1 |
+   | `FIREBASE_SERVICE_ACCOUNT` | Secret | the whole JSON file from step 2 |
+   | `VAPID_PUBLIC_KEY` | Variable | the public key from step 1 (the workflow only runs once this is set) |
+   | `VAPID_SUBJECT` | Variable | `mailto:` an address the push services can write to |
+   | `FIREBASE_DATABASE_URL` | Variable | the database URL in `src/net/config.ts` |
+4. The repo stays **public** (a 5-minute schedule would use up a private repo's free Actions minutes).
+5. **Database rules**: publish `firebase/database.rules.json` (Firebase console → Realtime Database →
+   Rules): it has `outbox`, `pushSubscriptions` and each room's `devices`.
+
+GitHub pauses a schedule after 60 days without a commit (it emails first); any commit restarts it.
+Run it by hand from the Actions tab ("Send push notifications" → Run workflow) to test; to run the sender
+locally, put the five values in a git-ignored `notifier/.env` and `cd notifier && npm ci && node --env-file=.env notify.ts`.
+
+**Testing on phones** (desktop emulation can't do background pushes): Android Chrome, and an iPhone on
+iOS 16.4+ with the game added to the Home Screen and opened from there. Turn on 🔔 on one phone, start a
+match with the other, go back to the menu (or close the app), take a turn on the other phone, then run the
+workflow: the notification arrives, and tapping it opens that match. The run's log has counts only.

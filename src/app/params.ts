@@ -16,6 +16,8 @@ export interface Params {
   lobby: string | null;
   /** `?debug&lost=MS`: notice a quiet phone sooner. */
   lostMs: number | null;
+  /** `?debug&vapid=KEY`: a VAPID key, so tests see the notifications button. */
+  vapid: string | null;
   /** Show the what's-new popup (`?whatsnew`) and the first-visit name prompt (`?askname`) in a test anyway. */
   whatsNew: boolean;
   askName: boolean;
@@ -33,6 +35,7 @@ export function readParams(search: string, automated: boolean): Params {
     db: (debug && q.get('db')) || null,
     lobby: (debug && q.get('lobby')) || null,
     lostMs: debug && q.has('lost') ? Number(q.get('lost')) : null,
+    vapid: (debug && q.get('vapid')) || null,
     whatsNew: !automated || q.has('whatsnew'),
     askName: !automated || q.has('askname'),
   };

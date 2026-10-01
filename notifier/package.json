@@ -1,0 +1,14 @@
+{
+  "name": "pooket-tabks-notifier",
+  "private": true,
+  "description": "Sends Pooket Tabks' push notifications (run by .github/workflows/notify.yml; not part of the site)",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "notify": "node notify.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "web-push": "^3.6.7"
+  }
+}

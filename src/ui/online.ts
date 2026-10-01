@@ -11,7 +11,8 @@ import { loadReplay, ReplayPlayer, ReplayRecorder, type Replay, type ReplayListi
 import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
-import { checkIn } from '../net/watchers';
+import { announceDevice, notifySeat } from '../net/push';
+import { checkIn, type RoomRef } from '../net/watchers';
 import type { Transport } from '../net/transport';
 import { button, el } from './dom';
 import { loadCharacter, saveCharacter } from './profile';
@@ -74,8 +75,11 @@ export class OnlineScreen {
   /** Who's watching (the 👁 chip and "just started watching"). */
   private readonly audience = new Audience();
   private seatTimer: ReturnType<typeof setInterval> | null = null;
-  /** The seat of the match this phone is in. */
+  /** The seat of the match this phone is in, and its room. */
   private seat: Omit<Seat, 'ts'> | null = null;
+  private room: RoomRef | null = null;
+  /** For "your turn" notifications: the last turn seen (match and turn) and whose it was. */
+  private turnSeen: { key: string; current: number; told: boolean } | null = null;
 
   constructor(private readonly opts: OnlineOptions) {
     this.pick = opts.pick;
@@ -99,6 +103,11 @@ export class OnlineScreen {
   /** The database matches go through (null: online play isn't set up). */
   get dbUrl(): string | null {
     return this.opts.dbUrl;
+  }
+
+  /** The topic of the room of the match this phone is in (a notification's `ref`), if it's in one. */
+  get roomTopic(): string | null {
+    return this.session && !this.session.lost ? (this.room?.sealer.topic ?? null) : null;
   }
 
   /**
@@ -175,6 +184,7 @@ export class OnlineScreen {
   /** The host screen for an open room, waiting for someone to join. */
   private hosting(room: HostedRoom, listing: Listing, pick: Pick): void {
     this.listing = listing;
+    announceDevice(room.ref, 'host', room.id); // so we hear when someone starts it
     const waiting = (scope: Scope) => {
       // Leaving the screen (not Cancel) leaves the game open.
       const keepOpen = scope.onEnd(() => {
@@ -308,6 +318,7 @@ export class OnlineScreen {
       s.publicReplay = offer.listed;
       this.onHostStart(s);
       s.assumeAway();
+      if (this.room) void notifySeat(this.room, 'host', 'joined');
       if (offer.listed && s.localPick) {
         // On the Games list as live now (the host isn't there to say so).
         const lobby = await lobbySealer(this.opts.lobby);
@@ -623,7 +634,9 @@ export class OnlineScreen {
       const replay = new ReplayRecorder(peer.db, this.opts.lobby);
       s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
       s.publicReplay = !!seat.listed;
-      this.audience.follow({ db: peer.db, path: peer.roomPath, sealer: peer.sealer });
+      this.room = { db: peer.db, path: peer.roomPath, sealer: peer.sealer };
+      this.audience.follow(this.room);
+      announceDevice(this.room, seat.role, seat.id);
     }
     s.on('lobby', () => this.lobby());
     s.on('lost', () => this.lost());
@@ -646,6 +659,7 @@ export class OnlineScreen {
 
   /** Call once a frame: keeps the "they're not here" line right as turns come and go. */
   tick(): void {
+    this.tellTheirTurn();
     const s = this.session;
     const g = s?.game;
     const show = !!s && s.peerAway && !s.lost && !!g && g.phase === 'aiming';
@@ -661,6 +675,24 @@ export class OnlineScreen {
       ...(mine ? [] : [this.nudgeButton()]),
       button('Menu', () => this.close()),
     );
+  }
+
+  /**
+   * The turn has passed from us to them and they're not here: notify them (once a turn; if they only go
+   * quiet later in it, then).
+   */
+  private tellTheirTurn(): void {
+    const s = this.session;
+    const g = s?.game;
+    if (!s || !g || s.lost || !this.room || !this.seat || g.phase !== 'aiming') return;
+    const key = `${this.seat.code}:${g.turn}`;
+    if (this.turnSeen?.key !== key) {
+      const ours = this.turnSeen?.current === s.localSeat && this.turnSeen.key.startsWith(`${this.seat.code}:`);
+      this.turnSeen = { key, current: g.current, told: !ours }; // (only a turn we've just handed over)
+    }
+    if (this.turnSeen.told || g.current === s.localSeat || !s.peerAway) return;
+    this.turnSeen.told = true;
+    void notifySeat(this.room, s.isHost ? 'guest' : 'host', 'your-turn');
   }
 
   /** Nudge: send them the game's link (the phone's share sheet, or copied). */
@@ -705,6 +737,8 @@ export class OnlineScreen {
     if (this.seatTimer) clearInterval(this.seatTimer);
     this.seatTimer = null;
     this.seat = null;
+    this.room = null;
+    this.turnSeen = null;
     this.audience.stop();
     this.away.hidden = true;
     this.awayKey = '';

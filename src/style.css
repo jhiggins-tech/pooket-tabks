@@ -1506,7 +1506,7 @@ body[data-online='true'] #net-menu {
   top: calc(var(--safe-t) + 100px);
   left: 50%;
   transform: translateX(-50%);
-  z-index: 14;
+  z-index: 18; /* over the menus too (a notification while on the landing screen) */
   max-width: calc(100% - 32px);
   padding: 8px 16px;
   border-radius: 999px;
@@ -1517,9 +1517,28 @@ body[data-online='true'] #net-menu {
   pointer-events: none;
   animation: toast-in 0.25s ease-out;
 }
+#toast.tappable {
+  pointer-events: auto;
+  cursor: pointer;
+}
 @keyframes toast-in {
   from {
     opacity: 0;
     transform: translate(-50%, -8px);
   }
+}
+
+/* ---------- Notifications (the landing screen's 🔔) ---------- */
+#notify[aria-pressed='true'] {
+  border-color: rgba(120, 220, 160, 0.7);
+}
+.notify-note {
+  max-width: 460px;
+  margin: 0;
+  font-size: 13px;
+  text-align: center;
+  opacity: 0.85;
+}
+.notify-note[hidden] {
+  display: none;
 }

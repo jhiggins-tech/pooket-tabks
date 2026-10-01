@@ -3,6 +3,7 @@ import { RelayTransport, ROOM_CLEARED } from './relay';
 import { RtdbError, SERVER_TIME, type Rtdb } from './rtdb';
 import { saveOffer, type OpenRecord } from './record';
 import { sealerFor, type Sealer } from './seal';
+import type { RoomRef } from './watchers';
 
 /**
  * Online play through Firebase (Realtime Database, REST): a room is `rooms/<hash of the code>` with a
@@ -47,6 +48,11 @@ export class HostedRoom {
     private readonly sealer: Sealer,
     private readonly hostId: string,
   ) {}
+
+  /** The room in the database (for checking in, notifications). */
+  get ref(): RoomRef {
+    return { db: this.db, path: this.path, sealer: this.sealer };
+  }
 
   /**
    * Claim a fresh room code (trying another if it's taken). With an `offer`, the game is open: whoever

@@ -647,3 +647,39 @@ test('Cancel game takes a hosted game down', async ({ browser }) => {
   await expect(guest.locator('#online')).toContainText('No game with code', { timeout: 10_000 });
   await close();
 });
+
+test("notifications: the host's away; the guest's turn ends, and the host's open page says it's their turn", async ({ browser }) => {
+  test.setTimeout(120_000);
+  const { host, guest, q: base, errors, close } = await phones(browser, 'games-push');
+  const q = `${base}&lost=1500&vapid=test-key`;
+  await host.addInitScript(() => localStorage.setItem('pooket.push', 'on')); // (as if turned on: tests can't subscribe)
+  await host.goto(`./?${q}`);
+  await setName(host, 'Ann');
+  // The 🔔 is there to turn on (only from a tap; a test browser can't actually subscribe).
+  await expect(host.locator('#notify')).toBeVisible();
+  await host.locator('#open-browser').tap();
+  await host.locator('#online-host').tap();
+  await pickTank(host);
+  const code = (await host.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await guest.goto(`./?${q}#room=${code}`);
+  await guest.locator('#online-accept').tap();
+  await pickTank(guest);
+  await playFromLobby(host, guest); // the guest's turn now
+
+  // The host goes back to the menu; the guest plays: it's the host's turn, and the host's page says so.
+  await host.locator('#net-menu').tap();
+  await host.locator('#menu-leave').tap();
+  await expect(host.locator('#setup')).toBeVisible();
+  await expect(guest.locator('#net-away')).toBeVisible({ timeout: 10_000 });
+  await guest.locator('#fire').tap();
+  await expect(host.locator('#toast')).toHaveText('🎯 Your turn! Your move in Pooket Tabks. Tap to play.', { timeout: 30_000 });
+  await host.screenshot({ path: 'test-results/notified.png' });
+  // Tapping it goes straight to that match.
+  await host.locator('#toast').tap();
+  await expect(host.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect.poll(() => canAct(host), { timeout: 40_000 }).toBe(true);
+  // (The guest didn't hear about its own turn.)
+  await expect(guest.locator('#toast')).toBeHidden();
+  expect(errors).toEqual([]);
+  await close();
+});

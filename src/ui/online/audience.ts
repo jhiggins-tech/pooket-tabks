@@ -1,9 +1,7 @@
 import { netLog } from '../../net/log';
 import { followWatchers, type RoomRef, type Watcher } from '../../net/watchers';
 import { byId, el } from '../dom';
-
-/** How long "Kim just started watching" stays up. */
-const TOAST_MS = 3500;
+import { hideToast, showToast } from '../toast';
 
 /**
  * Who's watching, on screen: a 👁 chip with the count in the top bar (tap it for the names) and a toast
@@ -12,8 +10,6 @@ const TOAST_MS = 3500;
 export class Audience {
   private readonly chip = byId<HTMLButtonElement>('watchers');
   private readonly list = byId('watchers-list');
-  private readonly toast = byId('toast');
-  private toastTimer: ReturnType<typeof setTimeout> | null = null;
   private stopFollowing: (() => void) | null = null;
 
   constructor() {
@@ -27,7 +23,7 @@ export class Audience {
     const f = followWatchers(room, {
       list: (watchers) => this.show(watchers, self),
       arrive: (w) => {
-        if (w.id !== self) this.announce(`👁 ${w.name} just started watching`);
+        if (w.id !== self) showToast(`👁 ${w.name} just started watching`);
       },
     });
     const stop = () => {
@@ -35,7 +31,7 @@ export class Audience {
       this.stopFollowing = null;
       f.stop();
       this.show([]);
-      this.hideToast();
+      hideToast();
     };
     this.stopFollowing = stop;
     return stop;
@@ -61,18 +57,5 @@ export class Audience {
   private open(on: boolean): void {
     this.list.hidden = !on;
     this.chip.setAttribute('aria-expanded', String(on));
-  }
-
-  private announce(text: string): void {
-    this.toast.textContent = text;
-    this.toast.hidden = false;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => this.hideToast(), TOAST_MS);
-  }
-
-  private hideToast(): void {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = null;
-    this.toast.hidden = true;
   }
 }

@@ -40,6 +40,7 @@ what it's for; weapons are documented where they're defined.
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
 | `src/net/` | online play (below) |
+| `src/push/` + `notifier/` + `public/sw.js` | push notifications (below) |
 | `src/ui/` | `dom.ts` (typed `el`, `byId`, `button`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (`OnlineScreen`: hosting, joining, rejoining, watching, the lobby and match menu; each way in is an attempt, `online/scope.ts`, ended by the next one) and `online/` (its screens: the Game browser, the host screen, Choose your tank, shared widgets) |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle; `tape.ts`: the match being played, recorded for ▶ Watch replay); `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in), `tests/support/wait.ts` (`flush`, `until`, `settled`) |
@@ -98,6 +99,16 @@ what it's for; weapons are documented where they're defined.
   (listed first in the Game browser, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy
   logs" button; `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test
   its own Games list).
+
+- **Push notifications**: `net/push.ts` (each phone's `clientId`; `announceDevice` in each room it's
+  in; `notifySeat` adds an `outbox` entry for the other seat's device, from `OnlineScreen`: your turn
+  when they're away, someone joined), `push/templates.ts` (the words: shared with the sender, plain
+  TypeScript Node runs as is), `push/client.ts` (service worker, subscribing, `pushSubscriptions`),
+  `push/foreground.ts` (an open page alerts at once; `push/seen.ts` and `public/sw.js` keep one alert per
+  entry), `notifier/` (the sender: `drain.ts` is the logic, tested in `tests/notifier.test.ts`; run every
+  5 minutes by `.github/workflows/notify.yml`). Owner setup and testing: README, "Push notifications".
+  A new kind of notification: its type in `PUSH_TYPES` and `render`, the rules' `type` pattern, and a
+  `notifySeat` where it happens.
 
 ## Recipes
 **Tweak a weapon** (numbers, text): its kit file in `src/characters/kits/`. Keep `info` accurate (the info

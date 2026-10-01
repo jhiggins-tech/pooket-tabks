@@ -19,7 +19,7 @@ type Json = unknown;
 
 export async function startRtdb(): Promise<FakeRtdb> {
   let root: Record<string, Json> = {};
-  const listeners = new Set<{ segs: string[]; res: ServerResponse }>();
+  const listeners = new Set<{ segs: string[]; res: ServerResponse; where?: { child: string; value: Json } }>();
   const requests: FakeRtdb['requests'] = [];
   let pushN = 0;
   const fake = { latency: 0 } as FakeRtdb;
@@ -63,11 +63,23 @@ export async function startRtdb(): Promise<FakeRtdb> {
     }
     // Tell streams.
     for (const l of listeners) {
+      // A filtered stream (orderBy / equalTo) gets the whole filtered value again on any change under it.
+      if (l.where) {
+        if (segs.length >= l.segs.length && l.segs.every((s, i) => segs[i] === s)) sse(l.res, 'put', { path: '/', data: filtered(l) });
+        continue;
+      }
       const isUnder = segs.length >= l.segs.length && l.segs.every((s, i) => segs[i] === s);
       const isAbove = l.segs.length > segs.length && segs.every((s, i) => l.segs[i] === s);
       if (isUnder) sse(l.res, 'put', { path: `/${segs.slice(l.segs.length).join('/')}`, data: getAt(segs) });
       else if (isAbove) sse(l.res, 'put', { path: '/', data: getAt(l.segs) });
     }
+  };
+  const filtered = (l: { segs: string[]; where?: { child: string; value: Json } }): Json => {
+    const all = getAt(l.segs);
+    if (!l.where || !all || typeof all !== 'object') return all;
+    const w = l.where;
+    const kept = Object.entries(all as Record<string, Json>).filter(([, v]) => (v as Record<string, Json> | null)?.[w.child] === w.value);
+    return kept.length ? Object.fromEntries(kept) : null;
   };
   const sse = (res: ServerResponse, event: string, data: Json) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 
@@ -110,9 +122,11 @@ export async function startRtdb(): Promise<FakeRtdb> {
     requests.push({ method: req.method!, path: segs.join('/') });
     if (req.method === 'GET' && req.headers.accept?.includes('text/event-stream')) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
-      const l = { segs, res };
+      const orderBy = url.searchParams.get('orderBy');
+      const equalTo = url.searchParams.get('equalTo');
+      const l = { segs, res, where: orderBy && equalTo ? { child: JSON.parse(orderBy) as string, value: JSON.parse(equalTo) as Json } : undefined };
       listeners.add(l);
-      sse(res, 'put', { path: '/', data: getAt(segs) });
+      sse(res, 'put', { path: '/', data: filtered(l) });
       req.on('close', () => listeners.delete(l));
       return;
     }

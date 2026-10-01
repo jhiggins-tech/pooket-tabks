@@ -87,15 +87,17 @@ export class Rtdb {
 
   /**
    * Stream a path: first the whole value (path "/"), then every change. Reconnects by itself (and so
-   * may repeat the whole value), so handlers must cope with seeing things twice.
+   * may repeat the whole value), so handlers must cope with seeing things twice. `where` narrows it to
+   * the children whose `child` equals `value` (the rules need an `.indexOn` for it).
    */
-  stream(path: string, onEvent: (e: RtdbEvent) => void): { close: () => void } {
+  stream(path: string, onEvent: (e: RtdbEvent) => void, where?: { child: string; value: string }): { close: () => void } {
+    const query = where ? `?orderBy=${encodeURIComponent(JSON.stringify(where.child))}&equalTo=${encodeURIComponent(JSON.stringify(where.value))}` : '';
     const abort = new AbortController();
     let closed = false;
     const run = async (): Promise<void> => {
       while (!closed) {
         try {
-          const res = await fetch(this.url(path), { headers: { Accept: 'text/event-stream' }, signal: abort.signal });
+          const res = await fetch(this.url(path, query), { headers: { Accept: 'text/event-stream' }, signal: abort.signal });
           if (!res.ok || !res.body) throw new RtdbError(res.status, `stream ${res.status}`);
           netLog(`db: streaming ${short(path)}`);
           const reader = res.body.getReader();

@@ -4,28 +4,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-The refactoring pass (from the code assessment, 1 Oct) is done (see **Refactoring** under Shipped).
-
-1. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
-   implementation handover"). Web Push with VAPID, no new hosting and no Blaze plan. Two paths share one
-   `evt-<id>` tag and an IndexedDB `seen` store, so each event alerts once:
-   - Foreground: a live RTDB listener notifies within seconds while the game is open.
-   - Background: a 5-minute scheduled GitHub Action (`notifier/`, firebase-admin + web-push) drains
-     `/outbox` and pushes to `/pushSubscriptions`.
-
-   The client gets a service worker (`public/sw.js`, relative scope) and an Enable button (tap only;
-   denied and iOS "Add to Home Screen" states). Outbox entries carry no text; one shared templates module
-   renders them on both paths. Logs never show endpoints or keys.
-
-   **Owner setup needed:** VAPID keys, a service account, repo secrets and variables, and a rules
-   re-publish.
-
-   **To settle first:**
-   - Which events notify: "your turn" in a turn-by-turn match, and someone joining your open game?
-   - Targeting: the opponent only, not everyone. That means a `to` field (the seat's clientId) and the
-     templates resolving names.
-   - Keeping room codes out of the outbox (`ref` = the room's hashed path).
-   - No Firebase Auth here, so the outbox is append-only and shape-checked only.
+Nothing queued: the refactoring pass (from the code assessment, 1 Oct) is done (see **Refactoring** under
+Shipped).
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -166,6 +146,15 @@ The refactoring pass (from the code assessment, 1 Oct) is done (see **Refactorin
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Push notifications** (owner, 1 Oct; from the owner's handover doc). Turn them on with 🔔 on the landing
+  screen; then "🎯 Your turn!" when the other player has played and you're away, and "🎮 Someone joined
+  your game" when someone starts your open game. Two ways in, one alert: an open page shows it at once
+  (a toast to tap, or a system notification in the background); otherwise a scheduled GitHub Action
+  (`notifier/`, every 5 minutes) sends a Web Push (VAPID, no paid Firebase plan). Tapping one opens that
+  match. Each phone says which device it is in each room (`devices/`, sealed); entries in the `outbox` are
+  addressed to that device only, carry no text (`push/templates.ts`, shared by both ways) and the room's
+  topic, never its code. On iPhone it needs the Home Screen app. **Waiting on the owner's one-time
+  setup** (README, "Push notifications"); the 🔔 stays hidden until the VAPID key is in `config.ts`.
 - **Watch replay instead of Rematch** (owner, 1 Oct): the game over card offers **▶ Watch replay** (the
   match just played, hotseat or online, public or private: each phone records the match it plays, in
   memory, as the same pre-shot snapshots a public replay keeps; `app/tape.ts`) and **New game** (hotseat:

@@ -11,3 +11,14 @@ export function takeRoomCode(): string | null {
   history.replaceState(null, '', location.pathname + location.search);
   return m[1]!;
 }
+
+/**
+ * A match a notification opened (`#play=<the room's topic>`, see push/templates.ts), from the address
+ * bar (removed from it) or a URL the service worker passed on.
+ */
+export function takePlayRef(url = location.href): string | null {
+  const m = /#play=([0-9a-f]{24})/.exec(url);
+  if (!m) return null;
+  if (url === location.href) history.replaceState(null, '', location.pathname + location.search);
+  return m[1]!;
+}

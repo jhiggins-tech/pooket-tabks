@@ -1,0 +1,40 @@
+# Push notifications: every 5 minutes, drain the outbox in the Firebase Realtime Database into Web Push
+# (notifier/). Does nothing until the owner has set it up (README, "Push notifications"): the job only
+# runs once the VAPID_PUBLIC_KEY variable exists. Run it by hand from the Actions tab to test.
+name: Send push notifications
+
+on:
+  schedule:
+    - cron: '3-59/5 * * * *' # off the hour's :00, when GitHub is busiest (UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: push-notifier
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    if: vars.VAPID_PUBLIC_KEY != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: notifier
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: notifier/package-lock.json
+      - run: npm ci
+      - run: node notify.ts
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+          VAPID_SUBJECT: ${{ vars.VAPID_SUBJECT }}
+          FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL }}

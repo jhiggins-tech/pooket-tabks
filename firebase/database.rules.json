@@ -34,6 +34,15 @@
           "ts": { ".validate": true },
           "$other": { ".validate": false }
         },
+        "devices": {
+          "$role": {
+            ".write": true,
+            ".validate": "($role === 'host' || $role === 'guest') && newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 1024 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+            "m": { ".validate": true },
+            "ts": { ".validate": true },
+            "$other": { ".validate": false }
+          }
+        },
         "watchers": {
           "$watcher": {
             ".write": true,
@@ -69,6 +78,36 @@
           "ts": { ".validate": true },
           "$other": { ".validate": false }
         }
+      }
+    },
+    "outbox": {
+      ".read": "query.orderByChild === 'to' && query.equalTo != null",
+      ".indexOn": ["createdAt", "to"],
+      "$event": {
+        ".write": "!data.exists()",
+        ".validate": "newData.hasChildren(['type', 'ref', 'to', 'originClientId', 'createdAt']) && newData.child('type').isString() && newData.child('type').val().matches(/^(your-turn|joined)$/) && newData.child('ref').isString() && newData.child('ref').val().matches(/^[0-9a-f]{24}$/) && newData.child('to').isString() && newData.child('to').val().length <= 64 && newData.child('originClientId').isString() && newData.child('originClientId').val().length <= 64 && newData.child('createdAt').val() === now",
+        "type": { ".validate": true },
+        "ref": { ".validate": true },
+        "to": { ".validate": true },
+        "originClientId": { ".validate": true },
+        "createdAt": { ".validate": true },
+        "$other": { ".validate": false }
+      }
+    },
+    "pushSubscriptions": {
+      "$sub": {
+        ".write": "$sub.matches(/^[0-9a-f]{32}$/)",
+        ".validate": "newData.hasChildren(['endpoint', 'keys', 'clientId', 'createdAt']) && newData.child('endpoint').isString() && newData.child('endpoint').val().beginsWith('https://') && newData.child('endpoint').val().length < 1024 && newData.child('clientId').isString() && newData.child('clientId').val().length <= 64 && newData.child('createdAt').val() === now",
+        "endpoint": { ".validate": true },
+        "keys": {
+          ".validate": "newData.hasChildren(['p256dh', 'auth'])",
+          "p256dh": { ".validate": "newData.isString() && newData.val().length < 256" },
+          "auth": { ".validate": "newData.isString() && newData.val().length < 256" },
+          "$other": { ".validate": false }
+        },
+        "clientId": { ".validate": true },
+        "createdAt": { ".validate": true },
+        "$other": { ".validate": false }
       }
     },
     "lobby": {

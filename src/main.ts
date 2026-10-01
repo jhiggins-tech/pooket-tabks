@@ -27,11 +27,16 @@ import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
-import { takeRoomCode } from './net/links';
+import { takePlayRef, takeRoomCode } from './net/links';
 import { netLog, netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
-import { AUTO_REJOIN_MS, latestSeat } from './net/seat';
-import { FIREBASE_DATABASE_URL } from './net/config';
+import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
+import { FIREBASE_DATABASE_URL, VAPID_PUBLIC_KEY } from './net/config';
+import { wantsPush } from './net/push';
+import { sealerFor } from './net/seal';
+import { PushClient } from './push/client';
+import { notifyWhileOpen } from './push/foreground';
+import { NotifyButton } from './ui/notify';
 import type { NetSession } from './net/session';
 import { InfoScreen } from './ui/info';
 import { WhatsNew } from './ui/whatsnew';
@@ -202,18 +207,41 @@ function showLanding(): void {
   stopCounts();
   stopCounts = online.watchCounts((waiting, live) => landing.setCounts(waiting, live));
 }
-// Opened from a room link: join that room (or rejoin it, if it's ours). Reloaded mid-match: straight back in.
+// ---- Notifications ("your turn", "someone joined your game"): push/, net/push.ts, public/sw.js. ----
+const pushDb = online.dbUrl ? new Rtdb(online.dbUrl) : null;
+const push = new PushClient(pushDb, params.vapid ?? VAPID_PUBLIC_KEY);
+void push.start();
+new NotifyButton(push);
+/** A notification was tapped: into that match (one of this phone's), else the Game browser. */
+async function openMatch(ref: string): Promise<void> {
+  netLog('ui: opened from a notification');
+  if (online.roomTopic === ref) return;
+  for (const seat of loadSeats()) {
+    if ((await sealerFor('room', seat.code)).topic === ref) return void online.rejoin(seat);
+  }
+  void online.join();
+}
+if (pushDb && wantsPush()) notifyWhileOpen(pushDb, { open: (ref) => void openMatch(ref), here: (ref) => online.roomTopic === ref });
+navigator.serviceWorker?.addEventListener('message', (e: MessageEvent<{ type?: string; url?: string }>) => {
+  const ref = e.data?.type === 'open' && e.data.url ? takePlayRef(e.data.url) : null;
+  if (ref) void openMatch(ref);
+});
+
+// Opened from a room link: join that room (or rejoin it, if it's ours). From a notification: that match.
+// Reloaded mid-match: straight back in.
 const openedRoom = takeRoomCode();
+const openedPlay = takePlayRef();
 const droppedSeat = latestSeat();
-const autoRejoin = !openedRoom && !!droppedSeat && !droppedSeat.left && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
+const autoRejoin = !openedRoom && !openedPlay && !!droppedSeat && !droppedSeat.left && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
 showLanding();
 const whatsNew = new WhatsNew();
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
 function welcome(): void {
   if (openedRoom) online.invite(openedRoom);
+  else if (openedPlay) void openMatch(openedPlay);
   else if (autoRejoin) void online.rejoin(droppedSeat!);
-  // What's new since this phone last looked (not over a room link, nor in automated tests unless asked).
-  if (!openedRoom && !autoRejoin && params.whatsNew) whatsNew.showUnseen();
+  // What's new since this phone last looked (not over a link, nor in automated tests unless asked).
+  if (!openedRoom && !openedPlay && !autoRejoin && params.whatsNew) whatsNew.showUnseen();
 }
 // A browser that's never been told who's playing asks first (automated tests only with `?askname`).
 if (!loadUsername() && params.askName) {

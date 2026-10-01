@@ -36,7 +36,6 @@
         <button id="watchers" aria-label="Who's watching" aria-expanded="false" hidden>👁 0</button>
       </div>
       <div id="watchers-list" hidden></div>
-      <div id="toast" role="status" aria-live="polite" hidden></div>
 
       <div class="pad left">
         <div class="control">
@@ -88,7 +87,9 @@
       <div class="setup-actions minor">
         <button id="setup-info">ⓘ Weapons &amp; how to play</button>
         <button id="setup-whatsnew">✨ What’s new</button>
+        <button id="notify" aria-pressed="false" hidden>🔔 Notifications</button>
       </div>
+      <p id="notify-note" class="notify-note" hidden></p>
     </div>
 
     <div id="hotseat" class="overlay" hidden>
@@ -111,6 +112,8 @@
         <button id="watch-replay" class="big">▶ Watch replay</button>
       </div>
     </div>
+
+    <div id="toast" role="status" aria-live="polite" hidden></div>
 
     <div id="rotate" class="overlay">
       <div class="phone-icon"></div>
