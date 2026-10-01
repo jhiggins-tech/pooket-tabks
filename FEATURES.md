@@ -9,7 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 3: presentation.**
-   - HUD: readouts update in place; chips and weapon buttons rebuild only when they change.
    - Terrain uploads as several dirty rectangles, not one union.
    - Draw-layer list (one signature, like `STEPPERS`); shared glow / sprite / pips helpers; cached sky.
    - `main.ts` split, with one `startMatch`.
@@ -34,6 +33,12 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 3: the HUD only touches what changed.** It used to rebuild every name chip and weapon button
+  whenever anything moved, including every frame of aiming and driving (40 element rebuilds for 20 taps
+  of ↺; now none). Each part has its own key: angle / power / fuel are just text and a width; name chips
+  are kept and patched (so the health bars now slide down when hit, and the burn badge pulses
+  steadily); weapon buttons, the status line, the steal roulette and the turn banner update only when
+  theirs changes. Status badges come from one table (`BADGES` in hud.ts).
 - **Phase 2: hot-path scans and shared helpers.** `forEachTargetPos` / `nearestEnemyX` / `someTankBody`
   (tanks.ts) scan targets and tank bodies without building lists: walkers (every pixel they walk),
   runners, homing, the jetpack (every pixel of flight) and driving / hopping (every pixel) no longer

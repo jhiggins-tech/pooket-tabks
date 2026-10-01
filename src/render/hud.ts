@@ -4,9 +4,13 @@ import { AMMO_PER_TIER } from '../characters/roster';
 import { currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
-import type { GameState } from '../game/state';
+import type { GameState, Player } from '../game/state';
 
-/** Keeps the DOM overlay in sync with game state, touching the DOM only on change. */
+/**
+ * Keeps the DOM overlay in sync with game state. Each part keeps its own key and is touched only when that
+ * changes: readouts (angle, power, fuel) every time they move, the name chips and weapon buttons only when
+ * what they show changes (chips are kept and patched, so the health bars animate), the rest per turn.
+ */
 export class Hud {
   private readonly playersEl = byId('players');
   private readonly angleEl = byId('angle');
@@ -21,49 +25,68 @@ export class Hud {
   private readonly gameOverEl = byId('gameover');
   private readonly winnerEl = byId('winner');
   private readonly heistEl = byId('heist');
-  private last = '';
-  private lastTurnKey = '';
+  /** The last key each part was drawn for. */
+  private readonly keys = { readouts: '', status: '', chips: '', chipsShape: '', weapons: '', heist: '', turn: '' };
+  /** The name chips, kept between updates (rebuilt when the players or their number of bars change). */
+  private chips: { el: HTMLElement; fills: HTMLElement[]; badges: HTMLElement; badgeKey: string }[] = [];
   /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
   online: { localSeat: number; syncing: boolean; replay?: boolean } | null = null;
 
   update(state: GameState): void {
     const p = currentPlayer(state);
     const picking = decoyPickLeft(state);
+    // Online: when it isn't this phone's turn, the controls step aside and it just watches.
+    const remote = !!this.online && (state.current !== this.online.localSeat || this.online.syncing);
+    this.updateReadouts(state, p);
+    this.updateStatus(state, p, picking, remote);
+    this.updateChips(state, p);
+    this.updateWeapons(state, p);
+    this.updateHeist(state);
+    this.updateTurn(state, p);
+  }
+
+  /** Angle, power and fuel: they move while you aim and drive, so they're just text and a width. */
+  private updateReadouts(state: GameState, p: Player): void {
+    const key = `${p.angle}|${p.power}|${Math.round(p.fuel)}|${p.characterId}|${state.phase}`;
+    if (key === this.keys.readouts) return;
+    this.keys.readouts = key;
+    this.angleEl.textContent = angleLabel(p.angle);
+    this.powerEl.textContent = `${p.power}`;
+    this.fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
+    this.fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
+    const empty = p.fuel <= 0.5;
+    this.driveEl.dataset.empty = String(empty);
+    for (const b of this.driveEl.querySelectorAll('button')) b.disabled = state.phase !== 'aiming' || empty;
+  }
+
+  /** The page's state flags, the hint line and FIRE / DONE. */
+  private updateStatus(state: GameState, p: Player, picking: number | null, remote: boolean): void {
+    const countdown = jetCountdown(state);
+    const decoys = hologramsOf(state, p.id).length;
     const key = [
-      picking === null ? '' : Math.ceil(picking),
       state.phase,
       state.current,
       state.turn,
-      p.angle,
-      p.power,
-      p.selectedTier,
-      Math.round(p.fuel),
-      state.holograms.length,
+      picking === null ? '' : Math.ceil(picking),
       state.swapTargetId,
-      jetCountdown(state),
-      p.ammo.join(','),
-      p.loadout.join(','),
-      this.online ? `${this.online.localSeat}${this.online.syncing}` : '',
-      state.heist ? `${heistIndex(state.heist)}${state.heist.locked}` : '',
-      ...state.players.map(
-        (pl) =>
-          `${pl.hp}/${pl.twin?.hp ?? '-'}${pl.name}${pl.burn?.turnsLeft ?? ''}/${pl.twin?.burn?.turnsLeft ?? ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}` +
-          `${pl.tattoo?.turnsLeft ?? ''}${pl.pinned ? 'P' : ''}${pl.scam ? 'S' : ''}`,
-      ),
+      countdown,
+      decoys,
+      p.selectedTier,
+      p.ammo[p.selectedTier],
+      p.loadout[p.selectedTier],
+      remote,
+      this.online?.syncing,
     ].join('|');
-    if (key === this.last) return;
-    this.last = key;
-
-    document.body.dataset.phase = state.phase;
-    // Online: when it isn't this phone's turn, the controls step aside and it just watches.
-    const remote = !!this.online && (state.current !== this.online.localSeat || this.online.syncing);
-    document.body.dataset.remote = String(remote);
+    if (key === this.keys.status) return;
+    this.keys.status = key;
     const aimless = isAimless(state);
+    document.body.dataset.phase = state.phase;
+    document.body.dataset.remote = String(remote);
     document.body.dataset.aimless = String(aimless);
-    const decoys = hologramsOf(state, p.id).length;
-    const countdown = jetCountdown(state);
     document.body.dataset.charging = String(countdown !== null);
     document.body.dataset.picking = String(picking !== null && !remote);
+    document.body.dataset.turn = String(state.turn);
+    document.body.style.setProperty('--player-colour', p.colour);
     this.hintEl.textContent = remote && this.online?.syncing
       ? 'Syncing…'
       : remote && state.phase !== 'gameover'
@@ -83,68 +106,68 @@ export class Hud {
           ? 'Swapping to that decoy after you fire'
           : 'Drag to aim · tap a decoy to swap after firing'
         : 'Drag & pull back to aim';
-    document.body.dataset.turn = String(state.turn);
-    document.body.style.setProperty('--player-colour', p.colour);
-
-    this.playersEl.replaceChildren(
-      ...state.players.map((pl) => {
-        const el = document.createElement('div');
-        el.className = 'chip';
-        el.classList.toggle('active', pl === p && state.phase !== 'gameover');
-        el.classList.toggle('dead', !pl.alive);
-        el.style.setProperty('--c', pl.colour);
-        const name = document.createElement('span');
-        name.className = 'name';
-        name.textContent = pl.name;
-        // One bar, or two half-size bars once Twins has split the health between two tanks.
-        const bar = document.createElement('span');
-        bar.className = 'bars';
-        const bars = pl.twin ? [pl.hp, pl.twin.hp] : [pl.hp];
-        for (const hp of bars) {
-          const track = document.createElement('span');
-          track.className = 'hp';
-          const fill = document.createElement('span');
-          fill.style.width = `${(hp / (pl.twin ? pl.maxHp / 2 : pl.maxHp)) * 100}%`;
-          track.append(fill);
-          bar.append(track);
-        }
-        if (pl.tattoo && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'tattoo', textContent: ' ✒', title: 'Tattooed: takes extra damage' }));
-        if (pl.scam && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'scam', textContent: ' 💅', title: 'Women in Scam: an enemy hit this turn earns a round of it' }));
-        if (pl.pinned && pl.alive) name.append(Object.assign(document.createElement('span'), { className: 'pinned', textContent: ' 📌', title: 'Pinned: can’t move next turn' }));
-        if (pl.cooked && pl.alive) {
-          const cooked = document.createElement('span');
-          cooked.className = 'cooked';
-          cooked.textContent = ' 🍳';
-          cooked.title = pl.cooked.active ? 'Cooked: half damage this turn' : 'Cooked: half damage next turn';
-          name.append(cooked);
-        }
-        // Burning (the main tank, the twin, or both: one mark each).
-        for (const b of [pl.burn, pl.twin?.burn]) {
-          if (!b || !pl.alive) continue;
-          const burn = document.createElement('span');
-          burn.className = 'burn';
-          burn.style.color = b.colour;
-          burn.textContent = ` ✦${b.turnsLeft}`;
-          burn.title = `Burning: ${b.damagePerTurn} damage for ${b.turnsLeft} more turns`;
-          name.append(burn);
-        }
-        el.append(name, bar);
-        return el;
-      }),
-    );
-
-    this.renderHeist(state);
-
-    this.fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
-    this.fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
-    this.driveEl.dataset.empty = String(p.fuel <= 0.5);
-    for (const b of this.driveEl.querySelectorAll('button')) b.disabled = state.phase !== 'aiming' || p.fuel <= 0.5;
-    this.angleEl.textContent = `${angleLabel(p.angle)}`;
-    this.powerEl.textContent = `${p.power}`;
     // Just after casting Trollogram, FIRE becomes DONE: finished picking a decoy to swap into.
     const done = picking !== null && !remote;
     this.fireEl.textContent = done ? 'DONE' : 'FIRE';
     this.fireEl.disabled = !done && (state.phase !== 'aiming' || (p.ammo[p.selectedTier] ?? 0) <= 0);
+  }
+
+  /** A chip per player: name, status badges, and one health bar (two once Twins has split it). */
+  private updateChips(state: GameState, current: Player): void {
+    const shape = state.players.map((pl) => `${pl.name}|${pl.colour}|${pl.twin ? 2 : 1}`).join('/');
+    if (shape !== this.keys.chipsShape) {
+      this.keys.chipsShape = shape;
+      this.keys.chips = '';
+      this.chips = state.players.map((pl) => {
+        const el = document.createElement('div');
+        el.className = 'chip';
+        el.style.setProperty('--c', pl.colour);
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = pl.name;
+        const badges = document.createElement('span');
+        name.append(badges);
+        const bar = document.createElement('span');
+        bar.className = 'bars';
+        const fills = (pl.twin ? [0, 1] : [0]).map(() => {
+          const track = document.createElement('span');
+          track.className = 'hp';
+          const fill = document.createElement('span');
+          track.append(fill);
+          bar.append(track);
+          return fill;
+        });
+        el.append(name, bar);
+        return { el, fills, badges, badgeKey: '' };
+      });
+      this.playersEl.replaceChildren(...this.chips.map((c) => c.el));
+    }
+    const key = state.players
+      .map((pl) => `${pl.hp}/${pl.twin?.hp}/${pl.maxHp}/${pl.alive}/${pl === current && state.phase !== 'gameover'}/${badgeKey(pl)}`)
+      .join('|');
+    if (key === this.keys.chips) return;
+    this.keys.chips = key;
+    state.players.forEach((pl, i) => {
+      const chip = this.chips[i]!;
+      chip.el.classList.toggle('active', pl === current && state.phase !== 'gameover');
+      chip.el.classList.toggle('dead', !pl.alive);
+      const full = pl.twin ? pl.maxHp / 2 : pl.maxHp;
+      [pl.hp, pl.twin?.hp ?? 0].forEach((hp, k) => {
+        if (chip.fills[k]) chip.fills[k].style.width = `${(hp / full) * 100}%`;
+      });
+      const bk = badgeKey(pl);
+      if (bk !== chip.badgeKey) {
+        chip.badgeKey = bk;
+        chip.badges.replaceChildren(...badgesOf(pl));
+      }
+    });
+  }
+
+  /** The weapon buttons: rebuilt only when the loadout, rounds, selection or phase change. */
+  private updateWeapons(state: GameState, p: Player): void {
+    const key = `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}`;
+    if (key === this.keys.weapons) return;
+    this.keys.weapons = key;
     this.weaponsEl.replaceChildren(
       ...p.loadout.map((_, tier) => {
         const w = weaponForTier(p, tier);
@@ -161,25 +184,25 @@ export class Hud {
         name.textContent = w.shortName;
         name.classList.toggle('long', w.shortName.length > 8);
         name.classList.toggle('longer', w.shortName.length > 11);
-        const pips = document.createElement('span');
-        pips.className = 'pips';
-        const max = AMMO_PER_TIER[tier] ?? left;
-        pips.textContent = '●'.repeat(left) + '○'.repeat(Math.max(0, max - left));
-        btn.append(name, pips);
+        btn.append(name, pips(left, AMMO_PER_TIER[tier] ?? left));
         return btn;
       }),
     );
+  }
 
-    const turnKey = `${state.turn}:${state.phase === 'gameover'}`;
-    if (turnKey !== this.lastTurnKey && state.phase === 'aiming') {
+  /** The turn banner (once per turn) and the game over card. */
+  private updateTurn(state: GameState, p: Player): void {
+    const key = `${state.turn}|${state.phase === 'gameover'}|${state.phase === 'aiming'}|${this.online?.localSeat}|${this.online?.replay}`;
+    if (key === this.keys.turn) return;
+    const newTurn = key.split('|').slice(0, 2).join('|') !== this.keys.turn.split('|').slice(0, 2).join('|');
+    this.keys.turn = key;
+    if (newTurn && state.phase === 'aiming') {
       this.bannerEl.textContent = this.online && state.current === this.online.localSeat ? 'Your turn!' : `${p.name}'s turn`;
       this.bannerEl.style.color = p.colour;
       this.bannerEl.classList.remove('show');
       void this.bannerEl.offsetWidth; // restart the CSS animation
       this.bannerEl.classList.add('show');
     }
-    this.lastTurnKey = turnKey;
-
     this.gameOverEl.hidden = state.phase !== 'gameover';
     // Online, only the host can start a rematch. A replay can be watched again.
     const rematch = document.getElementById('rematch') as HTMLButtonElement | null;
@@ -193,7 +216,7 @@ export class Hud {
     if (change) change.textContent = this.online ? 'Leave' : 'Change players';
     if (state.phase === 'gameover') {
       this.winnerEl.textContent = state.winner ? `${state.winner.name} wins!` : 'Draw!';
-      const loser = state.players.find((p) => p !== state.winner);
+      const loser = state.players.find((q) => q !== state.winner);
       if (state.endReason && loser) {
         const why = document.createElement('small');
         why.className = 'end-reason';
@@ -205,8 +228,11 @@ export class Hud {
   }
 
   /** kie's Steal: the victim's weapons as cards, one lit at a time, slowing down until one is stolen. */
-  private renderHeist(state: GameState): void {
+  private updateHeist(state: GameState): void {
     const h = state.heist;
+    const key = h ? `${heistIndex(h)}|${h.locked}|${state.players[h.victimId]!.ammo.join(',')}` : '';
+    if (key === this.keys.heist) return;
+    this.keys.heist = key;
     this.heistEl.hidden = !h;
     if (!h) return;
     const thief = state.players[h.thiefId]!;
@@ -230,11 +256,7 @@ export class Hud {
         const wname = document.createElement('span');
         wname.className = 'wname';
         wname.textContent = w.shortName;
-        const pips = document.createElement('span');
-        pips.className = 'pips';
-        const max = AMMO_PER_TIER[tier] ?? shown;
-        pips.textContent = '●'.repeat(shown) + '○'.repeat(Math.max(0, max - shown));
-        card.append(wname, pips);
+        card.append(wname, pips(shown, AMMO_PER_TIER[tier] ?? shown));
         return card;
       }),
     );
@@ -243,8 +265,7 @@ export class Hud {
   }
 
   reset(): void {
-    this.last = '';
-    this.lastTurnKey = '';
+    for (const k of Object.keys(this.keys) as (keyof Hud['keys'])[]) this.keys[k] = '';
   }
 }
 
@@ -268,6 +289,56 @@ export function angleLabel(angle: number): string {
   if (a < 90) return `${fmt(a)} ▸`;
   if (a > 270) return `${fmt(a - 360)} ▸`;
   return `◂ ${fmt(180 - a)}`;
+}
+
+/**
+ * The badges by a player's name, one per status they have (game/statuses.ts), in this order: what shows,
+ * its tooltip, and its class (style.css).
+ */
+const BADGES: { cls: string; of: (pl: Player) => { text: string; title: string; colour?: string }[] }[] = [
+  { cls: 'tattoo', of: (pl) => (pl.tattoo ? [{ text: ' ✒', title: 'Tattooed: takes extra damage' }] : []) },
+  { cls: 'scam', of: (pl) => (pl.scam ? [{ text: ' 💅', title: 'Women in Scam: an enemy hit this turn earns a round of it' }] : []) },
+  { cls: 'pinned', of: (pl) => (pl.pinned ? [{ text: ' 📌', title: 'Pinned: can’t move next turn' }] : []) },
+  {
+    cls: 'cooked',
+    of: (pl) => (pl.cooked ? [{ text: ' 🍳', title: pl.cooked.active ? 'Cooked: half damage this turn' : 'Cooked: half damage next turn' }] : []),
+  },
+  {
+    // One mark per burning tank (the main tank, the twin, or both).
+    cls: 'burn',
+    of: (pl) =>
+      [pl.burn, pl.twin?.burn].flatMap((b) =>
+        b ? [{ text: ` ✦${b.turnsLeft}`, title: `Burning: ${b.damagePerTurn} damage for ${b.turnsLeft} more turns`, colour: b.colour }] : [],
+      ),
+  },
+];
+
+/** What a player's badges show (for telling when they've changed), without building them. */
+function badgeKey(pl: Player): string {
+  if (!pl.alive) return '';
+  return `${pl.tattoo ? 't' : ''}${pl.scam ? 's' : ''}${pl.pinned ? 'p' : ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}${pl.burn?.turnsLeft ?? ''}/${pl.twin?.burn?.turnsLeft ?? ''}`;
+}
+
+function badgesOf(pl: Player): HTMLElement[] {
+  if (!pl.alive) return [];
+  return BADGES.flatMap((b) =>
+    b.of(pl).map((x) => {
+      const span = document.createElement('span');
+      span.className = b.cls;
+      span.textContent = x.text;
+      span.title = x.title;
+      if (x.colour) span.style.color = x.colour;
+      return span;
+    }),
+  );
+}
+
+/** Rounds left as pips: ●●○ */
+function pips(left: number, max: number): HTMLElement {
+  const el = document.createElement('span');
+  el.className = 'pips';
+  el.textContent = '●'.repeat(left) + '○'.repeat(Math.max(0, max - left));
+  return el;
 }
 
 function name(text: string, colour: string): HTMLElement {
