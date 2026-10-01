@@ -164,10 +164,8 @@ export class Renderer {
   }
 
   private syncTerrain(): void {
-    const d = this.terrain?.takeDirty();
-    if (d && this.terrainImage) {
-      this.terrainCtx.putImageData(this.terrainImage, 0, 0, d.x, d.y, d.w, d.h);
-    }
+    if (!this.terrain || !this.terrainImage) return;
+    for (const d of this.terrain.takeDirty()) this.terrainCtx.putImageData(this.terrainImage, 0, 0, d.x, d.y, d.w, d.h);
   }
 
 }

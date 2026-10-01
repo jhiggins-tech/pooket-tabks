@@ -17,7 +17,8 @@ export class Terrain {
   readonly pixels: Uint8ClampedArray<ArrayBuffer>;
   /** Soil darkened by water (cosmetic). */
   private readonly wet: Uint8Array;
-  private dirty: Rect | null = null;
+  /** What's changed since the renderer last looked (see markDirty). */
+  private dirty: Rect[] = [];
 
   constructor(
     readonly width: number,
@@ -44,7 +45,7 @@ export class Terrain {
         t.pixels[p + 3] = 255;
       }
     }
-    t.dirty = { x: 0, y: 0, w: width, h: height };
+    t.dirty = [{ x: 0, y: 0, w: width, h: height }];
     return t;
   }
 
@@ -222,25 +223,45 @@ export class Terrain {
     return changed;
   }
 
-  /** Returns and clears the region changed since the last call. */
-  takeDirty(): Rect | null {
+  /** Returns and clears the regions changed since the last call. */
+  takeDirty(): Rect[] {
     const d = this.dirty;
-    this.dirty = null;
+    this.dirty = [];
     return d;
   }
 
+  /**
+   * A region has changed. Changes are kept as a few separate rectangles, so scattered small ones (a
+   * downpour of pills across the map) don't mean re-uploading the whole map: a rectangle that overlaps
+   * or nearly touches another merges with it, and past DIRTY_MAX they all merge into one.
+   */
   private markDirty(r: Rect): void {
-    if (!this.dirty) {
-      this.dirty = r;
-      return;
+    let cur = r;
+    for (let i = 0; i < this.dirty.length; ) {
+      const d = this.dirty[i]!;
+      if (near(d, cur)) {
+        cur = union(d, cur);
+        this.dirty.splice(i, 1);
+        i = 0; // the grown one may now reach others
+      } else i++;
     }
-    const d = this.dirty;
-    const x0 = Math.min(d.x, r.x);
-    const y0 = Math.min(d.y, r.y);
-    const x1 = Math.max(d.x + d.w, r.x + r.w);
-    const y1 = Math.max(d.y + d.h, r.y + r.h);
-    this.dirty = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    this.dirty.push(cur);
+    if (this.dirty.length > DIRTY_MAX) this.dirty = [this.dirty.reduce(union)];
   }
+}
+
+const DIRTY_MAX = 24;
+/** Rectangles closer than this (px) merge. */
+const DIRTY_JOIN = 8;
+
+function near(a: Rect, b: Rect): boolean {
+  return a.x <= b.x + b.w + DIRTY_JOIN && b.x <= a.x + a.w + DIRTY_JOIN && a.y <= b.y + b.h + DIRTY_JOIN && b.y <= a.y + a.h + DIRTY_JOIN;
+}
+
+function union(a: Rect, b: Rect): Rect {
+  const x = Math.min(a.x, b.x);
+  const y = Math.min(a.y, b.y);
+  return { x, y, w: Math.max(a.x + a.w, b.x + b.w) - x, h: Math.max(a.y + a.h, b.y + b.h) - y };
 }
 
 function soilColour(depth: number, rng: Rng): [number, number, number] {

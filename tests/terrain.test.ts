@@ -50,11 +50,22 @@ describe('Terrain', () => {
     expect(t.isSolid(50, 31)).toBe(true);
     expect(t.isSolid(30, 25)).toBe(true);
     expect(t.surfaceY(50)).toBe(30);
-    const dirty = t.takeDirty();
-    expect(dirty).not.toBeNull();
+    const [dirty, more] = t.takeDirty();
+    expect(more).toBeUndefined();
     expect(dirty!.x).toBeLessThanOrEqual(40);
     expect(dirty!.x + dirty!.w).toBeGreaterThanOrEqual(60);
-    expect(t.takeDirty()).toBeNull();
+    expect(t.takeDirty()).toEqual([]);
+  });
+
+  it('keeps changes far apart as separate dirty rects (and merges ones that touch)', () => {
+    const t = flat(400, 60, 20);
+    t.takeDirty();
+    t.carveCircle(30, 20, 6);
+    t.carveCircle(36, 20, 6); // overlaps the first
+    t.carveCircle(350, 20, 6); // far away
+    const dirty = t.takeDirty();
+    expect(dirty).toHaveLength(2);
+    expect(dirty.reduce((n, r) => n + r.w * r.h, 0)).toBeLessThan(2 * 30 * 20);
   });
 
   it('keeps pixel alpha in sync with the solid mask', () => {

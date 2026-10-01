@@ -9,7 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 3: presentation.**
-   - Terrain uploads as several dirty rectangles, not one union.
    - Draw-layer list (one signature, like `STEPPERS`); shared glow / sprite / pips helpers; cached sky.
    - `main.ts` split, with one `startMatch`.
 2. **Phase 4: online and screens.**
@@ -33,6 +32,10 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 3: terrain uploads as separate rectangles.** Changes to the ground used to be merged into one
+  bounding box a frame, so Unmedicated's pills popping all over the map re-uploaded most of the map
+  every frame. Now changes far apart stay separate rectangles (ones that touch merge; past 24 it falls
+  back to one box), each uploaded on its own.
 - **Phase 3: the HUD only touches what changed.** It used to rebuild every name chip and weapon button
   whenever anything moved, including every frame of aiming and driving (40 element rebuilds for 20 taps
   of ↺; now none). Each part has its own key: angle / power / fuel are just text and a width; name chips

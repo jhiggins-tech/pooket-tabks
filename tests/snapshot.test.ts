@@ -52,7 +52,7 @@ describe('snapshots', () => {
     expect(firstDifference(B.terrain.solid, A.terrain.solid)).toBe(-1);
     const i = 200 * B.terrain.width + 600;
     expect(B.terrain.pixels[i * 4 + 3]).toBe(255); // the new dirt is drawn
-    expect(B.terrain.takeDirty()).not.toBeNull();
+    expect(B.terrain.takeDirty().length).toBeGreaterThan(0);
   });
 
   it("leaves cosmetic effects out (each phone keeps its own), and upgrades a stored one that has them", () => {
