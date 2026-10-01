@@ -5,6 +5,7 @@ import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
+import { afflict, scaled, vulnerable } from './statuses';
 
 /**
  * Tanks and targets: where a tank is, what a shot at (x, y) hits (a player's tank, or a hologram), and
@@ -31,17 +32,8 @@ export function muzzle(p: Player): { x: number; y: number } {
   return { x: c.x + Math.cos(a) * BARREL_LENGTH, y: c.y - Math.sin(a) * BARREL_LENGTH };
 }
 
-/** Damage multiplier for everything a player fires: halved (etc.) while they're cooked. */
-export function offence(state: GameState, playerId: number): number {
-  const c = state.players[playerId]?.cooked;
-  return c?.active ? c.multiplier : 1;
-}
-
-/** Scale a hit by the shooter's offence and round it (a real hit never rounds down to 0). */
-export function scaled(state: GameState, shooterId: number, amount: number): number {
-  if (Math.round(amount) <= 0) return 0;
-  return Math.max(1, Math.round(amount * offence(state, shooterId)));
-}
+// (How hard a player hits, for the mechanics that work it out: statuses.ts.)
+export { offence, scaled } from './statuses';
 
 /** Apply soaked-up stream damage in small batches so the numbers trickle rather than spam. */
 export function stepSoak(state: GameState, dt: number, final: boolean): void {
@@ -147,6 +139,24 @@ export function doseTarget(t: Target, amount: number, rate: number, colour: stri
 }
 
 /**
+ * A hit from any weapon, by any mechanic (they all come through here): the damage (already scaled by the
+ * shooter's offence), whatever the weapon's effect flags leave on a tank (statuses.ts), and a refund-on-miss
+ * round knows it's hit someone. Returns whether the target is still standing as itself.
+ */
+export function applyHit(state: GameState, t: Target, weapon: WeaponDef, shooterId: number, amount: number, colour?: string): boolean {
+  if (weapon.friendlyFire === false && targetOwner(t) === shooterId) return !gone(t);
+  noteHit(state, t, shooterId);
+  const standing = damageTarget(state, t, amount, colour);
+  if (t.kind === 'tank') afflict(state, t.player, t.tank, weapon, shooterId, standing);
+  return standing;
+}
+
+/** A shot has touched an enemy (or their decoy): its refund-on-miss round isn't coming back. */
+export function noteHit(state: GameState, t: Target, shooterId: number): void {
+  if (state.refund?.playerId === shooterId && targetOwner(t) !== shooterId) state.refund.hit = true;
+}
+
+/**
  * A player's tanks take the damage. Holograms put on a show (same floating number) and are marked as hit:
  * they blow up (copies.ts). Returns whether the target is still there afterwards, as itself (not
  * destroyed, nor a main tank whose twin has taken over).
@@ -170,21 +180,11 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
   const shooterId = ownerId ?? currentPlayer(state).id;
   for (const t of allTargets(state)) {
     if (gone(t)) continue; // e.g. a twin promoted by this very blast
-    if (weapon.friendlyFire === false && targetOwner(t) === shooterId) continue;
     const pos = targetPos(t);
     const reach = r + TANK_HIT_RADIUS;
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
-    damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)));
-    if (weapon.debuff && t.kind === 'tank' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier, targetPos(t));
-    if (weapon.tattoo && t.kind === 'tank' && t.player.alive) {
-      if (!t.player.tattoo) {
-        const c = targetPos(t);
-        spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'TATTOOED', '#b8c4ff');
-        sound(state, 'tattoo');
-      }
-      t.player.tattoo = { multiplier: weapon.tattoo.multiplier, turnsLeft: weapon.tattoo.turns };
-    }
+    applyHit(state, t, weapon, shooterId, scaled(state, shooterId, weapon.damage * (1 - d / reach)));
   }
   // Any blast knocks out a marathon runner caught in it ("did not finish").
   for (const rn of state.runners) {
@@ -194,18 +194,6 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     sound(state, 'dnf');
   }
   settleTanks(state);
-}
-
-/** The Rizzler's debuff: halves (etc.) everything this player fires on their next turn. */
-function cook(state: GameState, p: Player, multiplier: number, at: { x: number; y: number }): void {
-  p.cooked = { active: false, multiplier };
-  spawnFloater(state, at.x, at.y - TANK_BODY_HEIGHT - 10, 'COOKED', '#ff9f43');
-  sound(state, 'cook');
-}
-
-/** Tattooed tanks take extra damage from everything. */
-function vulnerable(p: Player, amount: number): number {
-  return p.tattoo ? Math.round(amount * p.tattoo.multiplier) : amount;
 }
 
 /** Damage to a player's main tank. */

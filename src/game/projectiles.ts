@@ -8,7 +8,7 @@ import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import type { Burst, GameState, Player, Projectile } from './state';
-import { allTargets, damageTarget, explode, muzzle, scaled, tankCentre, type Target, targetAt, targetOwner, targetPos } from './tanks';
+import { allTargets, applyHit, explode, muzzle, scaled, tankCentre, type Target, targetAt, targetOwner, targetPos } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
 
 /** Projectiles: shells, volleys and bursts (with homing and bounces), beams and rain. */
@@ -79,13 +79,7 @@ export function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
     state.terrain.carveCircle(end.x, end.y, weapon.blastRadius);
     settleTanks(state);
   } else if (end.hit) {
-    const hit = end.hit;
-    // The tank it hit burns (a twin as much as a main tank; not a hologram), if it's still there.
-    const standing = damageTarget(state, hit, scaled(state, p.id, weapon.damage));
-    if (weapon.dot && hit.kind === 'tank' && standing) {
-      // A fresh hit refreshes the burn rather than stacking it.
-      hit.tank.burn = { damagePerTurn: scaled(state, p.id, weapon.dot.damagePerTurn), turnsLeft: weapon.dot.turns, colour };
-    }
+    applyHit(state, end.hit, weapon, p.id, scaled(state, p.id, weapon.damage));
   }
 }
 

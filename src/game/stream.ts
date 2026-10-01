@@ -5,7 +5,7 @@ import { GRAVITY, MAX_SPEED } from './constants';
 import { spawnSplash } from './fx';
 import type { Stepper } from './mechanics';
 import type { Droplet, GameState, Player, Stream } from './state';
-import { muzzle, offence, soakTarget, targetAt, targetOwner } from './tanks';
+import { muzzle, noteHit, offence, soakTarget, targetAt, targetOwner } from './tanks';
 import { hash, hexToRgb, tint } from './util';
 
 /** tones' ten-1: the water jet, its pressure profile and droplets. */
@@ -121,7 +121,7 @@ export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const x = d.x + (nx - d.x) * t;
     const y = d.y + (ny - d.y) * t;
     const target = targetAt(state, x, y);
-    if (target && state.refund?.playerId === d.ownerId && targetOwner(target) !== d.ownerId) state.refund.hit = true;
+    if (target) noteHit(state, target, d.ownerId);
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
       // A weak dribble stings much less than the full-pressure jet.
       const drop = (weapon.stream?.damagePerDrop ?? 0) * (0.1 + 0.9 * d.pressure ** 2);

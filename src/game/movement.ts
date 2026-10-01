@@ -2,6 +2,7 @@ import { getCharacter } from '../characters/roster';
 import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust } from './fx';
 import type { GameState, Hop, Player } from './state';
+import { canMove } from './statuses';
 import { currentPlayer, tankBodies } from './tanks';
 import { clamp, hash } from './util';
 
@@ -17,7 +18,7 @@ export function drive(state: GameState, dir: number, dt: number): number {
   if (state.phase !== 'aiming') return 0;
   const p = currentPlayer(state);
   if (getCharacter(p.characterId).movement === 'hop') return hopDrive(state, p, dir, dt);
-  if (dir === 0 || p.pinned?.active) return 0;
+  if (dir === 0 || !canMove(p)) return 0;
   const { terrain } = state;
   let budget = Math.min(p.fuel, DRIVE_SPEED * dt);
   let moved = 0;
@@ -112,7 +113,7 @@ function hopDrive(state: GameState, p: Player, dir: number, dt: number): number 
     }
     return Math.abs(p.x - before);
   }
-  if (dir === 0 || p.pinned?.active) return 0;
+  if (dir === 0 || !canMove(p)) return 0;
   const hop = planHop(state, p, Math.sign(dir));
   if (!hop) return 0;
   p.fuel = Math.max(0, p.fuel - Math.abs(hop.x1 - hop.x0) * HOP_FUEL);

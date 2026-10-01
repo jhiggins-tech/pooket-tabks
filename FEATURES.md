@@ -9,9 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 2: game core.**
-   - One hit pipeline (`applyHit`): every mechanic goes through it, so every weapon effect (burn, cook,
-     tattoo, pin, refund-on-miss, friendly fire) works on every kind of weapon.
-   - Status registry: each status's apply / turn start / turn end / tick / effect / badge / look in one place.
    - Weapon kinds table (`fire`, aimless, is a shot, twin mirrors) replacing scattered kind checks.
    - `WeaponDef` as a union by kind (no `spec!` assertions, no `blastRadius: 0, damage: 0` boilerplate).
    - Simulation vs cosmetic state: cosmetics left out of snapshots, a gameplay id counter, `winnerId`.
@@ -43,6 +40,12 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 2: one hit path, and statuses in one place.** Every mechanic's hits go through `applyHit`
+  (tanks.ts): damage, then the weapon's effect flags (`dot`, `debuff`, `tattoo`, and Sew's pin, now a
+  `pin` flag), friendly fire and refund-on-miss, so every effect works on every kind of weapon (a
+  tattooing sound wave or a pinning blast just works). `game/statuses.ts` has each status's whole course:
+  put on (`afflict`), turn end / start, and what it does (`offence`, `vulnerable`, `canMove`), with a
+  table in its header; `endTurn` and movement call it. No change to how anything plays.
 - **Phase 2: one tank shape.** A player's tanks (the main tank is the `Player`, a twin a `Twin`) share
   `TankBody` (position, health, burn, soak, toxin), and `Target` is `{ kind: 'tank', player, tank }` or a
   hologram, so there's one damage path (`hurt`) instead of `damagePlayer` / `damageTwin`, and the

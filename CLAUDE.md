@@ -57,15 +57,19 @@ what it's for; weapons are documented where they're defined.
   `runner`, `nap`, `steal`, `scam`, `projectiles`, `copies`) owns its fire function, steppers and rules.
 - **Tanks and damage** (`game/tanks.ts`): hit-testing goes through `targetAt()` / `Target` (a tank, a
   twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than
-  switching on the kind. Damage: `damageTarget()` → `damagePlayer()` (floating numbers). Outgoing damage
-  × the shooter's `offence()` (halved while cooked) at every source; incoming × the victim's
-  `vulnerable()` (tattoos). Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`).
-- **Statuses** live in `endTurn`: `cooked` and `pinned` become active when the victim's next turn starts
-  and clear when it ends; `tattoo.turnsLeft` counts down per victim turn; Hyperfixate burns tick as the
-  victim's turn comes up (a burn is on the tank that was hit: a twin has its own, `Twin.burn`; the
-  other statuses are the player's, whichever of their tanks was hit); `scam` (Women in Scam) notes the first enemy hit on the tank in `damagePlayer`
-  and pays out a round of `lastShot`'s weapon at the end of the next enemy turn (a new slot on the
-  player's own `loadout` / `ammo`, which can outgrow the character's).
+  switching on the kind. A player's tanks (the `Player` itself, and `player.twin`) are `TankBody`s: a
+  `Target` is `{ kind: 'tank', player, tank }` or a hologram. **Every mechanic's hits go through
+  `applyHit()`** (damage, the weapon's effect flags, friendly fire, refund-on-miss), then
+  `damageTarget()` → `hurt()` (floating numbers, a twin taking over). Outgoing damage × the shooter's
+  `offence()` (halved while cooked) at every source; incoming × the victim's `vulnerable()` (tattoos).
+  Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`).
+- **Statuses** (`game/statuses.ts`, a table in its header): `afflict()` puts them on from a hit's weapon flags
+  (`dot` → burn on the tank hit, `debuff` → cooked, `tattoo`, `pin` → pinned, on the player), `turnEnding`
+  / `turnStarting` run their course from `endTurn`, and `offence` / `vulnerable` / `canMove` are what
+  they do; burns tick (as damage) in `tickBurn` as their player's turn comes up. `scam` (Women in Scam)
+  notes the first enemy hit on the player's tanks in `hurt` and pays out a round of `lastShot`'s weapon
+  at the end of the next enemy turn (a new slot on the player's own `loadout` / `ammo`, which can outgrow
+  the character's).
 - **Movement** (`game/movement.ts`): one tank of fuel per match (`FUEL_PER_MATCH`), driving before
   firing; tanks roll over small lips, stop at slopes > 45° unless the climb is short or they're in a
   hollow (so craters are always escapable). ciarra hops instead (bigger, higher, half the fuel). Pinned
@@ -120,6 +124,12 @@ entry and a what's-new release.
 **Add a character**: a new kit file (colours, blurb, three weapons, optional `movement`), add it to `KITS`
 in `kits/index.ts`, then update `tests/roster.test.ts` and the character list in `e2e/smoke.spec.ts`
 (both list every character), add a row to the FEATURES character table and a what's-new release.
+
+**Add a status effect**: its field on `Player` (or `TankBody`, if it's about one tank) and its starting
+value in `createGame`; its weapon flag on `WeaponDef` (the effects group); in `game/statuses.ts`: the
+table row, `afflict` (put on), `turnEnding` / `turnStarting` (its course) and what it does (a reader like
+`canMove`, used where it matters); a fill-in in `upgradeSnapshot` (stored matches); its look in
+`render/draw/tank.ts` and badge in `render/hud.ts`; a sound cue; tests in `tests/statuses.test.ts`.
 
 **Add a sound cue** for a game event: the cue name in `SfxCue` (`game/state.ts`), `sound(state, cue)` where
 it happens (game logic only queues cues), and its recipe in `CUE_SOUNDS` (`audio/sfx.ts`). Keep it kitschy.

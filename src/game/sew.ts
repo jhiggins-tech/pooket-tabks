@@ -1,10 +1,8 @@
 import { getWeapon } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
-import { TANK_BODY_HEIGHT } from './constants';
-import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Player, Stitch } from './state';
-import { damageTarget, muzzle, scaled, targetAt, targetKey, targetOwner, targetPos } from './tanks';
+import { applyHit, muzzle, scaled, targetAt, targetKey, targetOwner } from './tanks';
 
 /** ciarra's Sew: a needle and thread stitched through the terrain. */
 
@@ -39,13 +37,7 @@ export function stepStitch(state: GameState, st: Stitch, dt: number): boolean {
     const target = targetAt(state, pt.x, pt.y);
     if (target && targetOwner(target) !== st.ownerId && !st.hits.includes(targetKey(target))) {
       st.hits.push(targetKey(target));
-      damageTarget(state, target, scaled(state, st.ownerId, spec.damage), weapon.colour);
-      if (target.kind !== 'hologram' && target.player.alive) {
-        target.player.pinned = { active: false };
-        const c = targetPos(target);
-        spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'PINNED', weapon.colour ?? '#f472b6');
-        sound(state, 'pin');
-      }
+      applyHit(state, target, weapon, st.ownerId, scaled(state, st.ownerId, spec.damage), weapon.colour);
     }
     if (Math.round(t) % 4 === 0) st.path.push(pt);
   }

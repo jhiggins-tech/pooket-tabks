@@ -31,6 +31,7 @@ export const sew: WeaponDef = {
   blastRadius: 0,
   damage: 0,
   sew: { speed: 520, minRange: 200, maxRange: 700, amplitude: 7, wavelength: 56, damage: 20 },
+  pin: true,
   colour: '#f472b6',
 };
 

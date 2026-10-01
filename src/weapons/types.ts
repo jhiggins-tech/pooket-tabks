@@ -149,10 +149,13 @@ export interface WeaponDef {
   bounces?: number;
   /** Fraction of speed kept (along the surface normal) on each bounce. */
   restitution?: number;
-  /** Direct hit applies a burn that deals damage at the start of each of the victim's next turns. */
+  // Effects of a hit, whatever the kind of weapon (applyHit in game/tanks.ts; statuses in game/statuses.ts):
+  /** A burn on the tank hit, dealing damage at the start of each of its player's next `turns` turns. */
   dot?: { damagePerTurn: number; turns: number };
-  /** Whether blasts hurt the player who fired them. Default true. */
+  /** Whether its hits hurt the player who fired them (blasts, stream). Default true. */
   friendlyFire?: boolean;
+  /** Pins whoever it hits: they can't drive or hop on their next turn. */
+  pin?: boolean;
   /** Draw the projectile as a sprite pointing along its flight path; default is a plain shell. */
   sprite?: SpriteId;
   /** A mix of looks: round n of a burst (or shot n of a volley) is drawn with `spriteVariants[n % length]`. */
@@ -187,10 +190,7 @@ export interface WeaponDef {
    * with its power varied by up to ±`powerJitter` (a fraction), so they walk across the target area.
    */
   burst?: { count: number; interval: number; powerJitter: number };
-  /**
-   * "Cook" debuff: any enemy tank caught in the blast deals `offenceMultiplier` × damage with everything
-   * it fires on its next turn.
-   */
+  /** "Cook" debuff: whoever it hits deals `offenceMultiplier` × damage with everything they fire on their next turn. */
   debuff?: { offenceMultiplier: number };
   /**
    * Homing: once the projectile comes within `radius` px of an enemy tank (or one of its decoys or twin),
@@ -203,7 +203,7 @@ export interface WeaponDef {
    * so the round count is the word's length. A twin fires from its own dictionary.
    */
   words?: { main: DictionaryId; twin: DictionaryId; mainColour: string; twinColour: string };
-  /** "Tattoo" mark: any tank hit takes `multiplier` × damage from everything until it has had `turns` more turns. */
+  /** "Tattoo" mark: whoever it hits takes `multiplier` × damage from everything until they've had `turns` more turns. */
   tattoo?: { multiplier: number; turns: number };
   /**
    * Sew: a needle zig-zags along the aim at `speed` px/s (stitches `amplitude` px either side, one every

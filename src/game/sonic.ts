@@ -3,7 +3,7 @@ import type { WeaponDef } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import type { Stepper } from './mechanics';
 import type { Boom, GameState, Player } from './state';
-import { allTargets, damageTarget, gone, muzzle, scaled, targetKey, targetOwner, targetPos } from './tanks';
+import { allTargets, applyHit, gone, muzzle, scaled, targetKey, targetOwner, targetPos } from './tanks';
 
 /** torikloud's Sonic Boom: waves of expanding arcs, and twin booms phasing where they overlap. */
 
@@ -55,7 +55,8 @@ export function stepBoom(state: GameState, b: Boom, dt: number): boolean {
       b.hits[k]!.push(key);
       const falloff = Math.min(1, spec.refDistance / Math.max(d, 1));
       const dmg = scaled(state, b.ownerId, spec.damage * falloff * (phased ? PHASE_FOCUS : 1));
-      damageTarget(state, t, dmg, phased ? '#ffffff' : (getWeapon(b.weaponId).colour ?? '#c9b6ff'));
+      const weapon = getWeapon(b.weaponId);
+      applyHit(state, t, weapon, b.ownerId, dmg, phased ? '#ffffff' : (weapon.colour ?? '#c9b6ff'));
     });
   }
   return radii[radii.length - 1]! >= b.range * (siblings.length > 0 ? PHASE_RANGE : 1);

@@ -12,6 +12,7 @@ import { runLegs } from './runner';
 import type { GameState, Player, PlayerConfig } from './state';
 import { armScam, endScams } from './scam';
 import { startHeist, stepHeist } from './steal';
+import { turnEnding, turnStarting } from './statuses';
 import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
 import { clamp, normalizeAngle } from './util';
 
@@ -260,11 +261,7 @@ function endTurn(state: GameState): void {
     spawnFloater(state, c.x, c.y - 18, 'REFUNDED', '#ffcc1f');
     sound(state, 'refund');
   }
-  // A cook lasts exactly one of the victim's turns.
-  const ending = currentPlayer(state);
-  if (ending.cooked?.active) ending.cooked = null;
-  if (ending.pinned?.active) ending.pinned = null;
-  if (ending.tattoo && --ending.tattoo.turnsLeft <= 0) ending.tattoo = null;
+  turnEnding(currentPlayer(state));
   endScams(state);
   state.lastShot = null; // burns ticking below aren't this turn's attack
   resolveHolograms(state);
@@ -303,7 +300,5 @@ function endTurn(state: GameState): void {
   state.current = next;
   state.turn++;
   state.phase = 'aiming';
-  const up = state.players[next]!;
-  if (up.cooked) up.cooked.active = true;
-  if (up.pinned) up.pinned.active = true;
+  turnStarting(state.players[next]!);
 }
