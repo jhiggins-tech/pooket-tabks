@@ -40,18 +40,16 @@ import { Rtdb } from './net/rtdb';
 import { loadCharacter, loadUsername, NamePrompt } from './ui/profile';
 import { Landing } from './ui/landing';
 import { SetupScreen } from './ui/setup';
+import { readParams } from './app/params';
+import { setupSoundToggle } from './app/sound';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const renderer = new Renderer(canvas, WORLD_W, WORLD_H);
 const hud = new Hud();
 
-// `?seed=N` fixes the first map (handy for tests and sharing a layout).
-const seedParam = Number(new URLSearchParams(location.search).get('seed'));
-let nextSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : randomSeed();
-// Who goes first is random (from the seed, so both phones agree). Automated tests get player 1
-// unless they ask: `?first=random`, or `?first=N` for player N + 1.
-const firstParam = new URLSearchParams(location.search).get('first') ?? (navigator.webdriver ? '0' : 'random');
-const first: number | 'random' = firstParam === 'random' ? 'random' : Number(firstParam) || 0;
+const params = readParams(location.search, navigator.webdriver);
+let nextSeed = params.seed ?? randomSeed();
+const first = params.first;
 let players: PlayerConfig[] = [];
 
 // The menus: the landing screen (Game browser, Local hotseat), and the hotseat screen that starts a local match.
@@ -92,35 +90,10 @@ let stopCounts = () => {};
 // A live battlefield sits behind the setup screen until the real match starts.
 let state: GameState = createGame({ seed: nextSeed, players: setup.players(), first });
 
-// Kitschy 8-bit sound effects, synthesised live. Audio can only start from a user gesture.
-const SOUND_KEY = 'pooket-tabks.sound';
+// Kitschy 8-bit sound effects, synthesised live.
 const chip = new Chip();
 const sfx = new SfxPlayer(chip, () => chip.now);
-const soundBtn = document.getElementById('sound-toggle')!;
-function setSound(on: boolean): void {
-  chip.setMuted(!on);
-  soundBtn.textContent = on ? '🔊' : '🔇';
-  soundBtn.setAttribute('aria-pressed', String(on));
-  soundBtn.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
-  try {
-    localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
-  } catch {
-    /* not critical */
-  }
-}
-let soundOn = true;
-try {
-  soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
-} catch {
-  /* storage unavailable */
-}
-setSound(soundOn);
-soundBtn.addEventListener('click', () => {
-  chip.unlock();
-  soundOn = !soundOn;
-  setSound(soundOn);
-});
-window.addEventListener('pointerdown', () => chip.unlock(), { capture: true });
+setupSoundToggle(chip, document.getElementById('sound-toggle')!);
 
 // Characters in this match show in their match colours; the rest in their signature colour.
 const info = new InfoScreen(
@@ -133,52 +106,47 @@ document.getElementById('hotseat-info')!.addEventListener('click', () => info.op
 /** Which drive button is held (−1 / 0 / +1); applied every simulation step. */
 let driveDir = 0;
 
-function newGame(): void {
-  state = createGame({ seed: nextSeed, players, first });
-  nextSeed = randomSeed();
+/** A fresh match on the battlefield (local, online, watched, or just the backdrop behind the menus). */
+function startMatch(seed: number, chosen: PlayerConfig[]): GameState {
+  state = createGame({ seed, players: chosen, first });
   hud.reset();
   sfx.tunes.stopAll();
+  document.getElementById('gameover')!.hidden = true;
+  return state;
+}
+
+/** A local (hotseat) match, with the players picked on the hotseat screen. */
+function newGame(): void {
+  startMatch(nextSeed, players);
+  nextSeed = randomSeed();
 }
 
 // ---- Online: two phones, one each, through a Firebase room. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
-// `?debug&db=URL` points at a test database.
-const query = new URLSearchParams(location.search);
-const debugNet = query.has('debug');
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online (changeable in the lobby).
   pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId }),
-  dbUrl: (debugNet && query.get('db')) || FIREBASE_DATABASE_URL || null,
-  // `?debug&lobby=NAME`: a Games list of its own (tests, so they don't see each other's games).
-  lobby: (debugNet && query.get('lobby')) || PUBLIC_LOBBY,
-  // `?debug&lost=MS`: notice a quiet phone sooner (tests).
-  relay: debugNet && query.has('lost') ? { pingMs: 250, lostMs: Number(query.get('lost')) } : undefined,
+  dbUrl: params.db || FIREBASE_DATABASE_URL || null,
+  lobby: params.lobby || PUBLIC_LOBBY,
+  relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
 });
+/** An online match (or one being watched) starts: off the menus and into it. */
+function startOnline(seed: number, chosen: PlayerConfig[]): GameState {
+  online.hide();
+  hideMenus();
+  return startMatch(seed, chosen);
+}
 online.onConnected = (s) => {
   net = s;
+  // Both phones build the same game from the same seed; the session keeps them in step.
   s.onStart = (seed, chosen) => {
-    // Both phones build the same game from the same seed; the session keeps them in step.
-    state = createGame({ seed, players: chosen, first });
-    hud.reset();
-    sfx.tunes.stopAll();
-    online.hide();
-    hideMenus();
-    document.getElementById('gameover')!.hidden = true;
     void goFullscreen();
-    return state;
+    return startOnline(seed, chosen);
   };
 };
 // Watching someone else's match (live, or a replay): view only.
 online.onSpectate = (sp) => {
-  sp.onStart = (seed, chosen) => {
-    state = createGame({ seed, players: chosen, first });
-    hud.reset();
-    sfx.tunes.stopAll();
-    online.hide();
-    hideMenus();
-    document.getElementById('gameover')!.hidden = true;
-    return state;
-  };
+  sp.onStart = startOnline;
 };
 const spectateLeave = document.getElementById('spectate-leave')!;
 spectateLeave.addEventListener('click', () => online.close());
@@ -200,10 +168,7 @@ online.onHostStart = (s) => {
 online.onClosed = () => {
   net = null;
   // Back to the landing screen, with a fresh battlefield behind it.
-  state = createGame({ seed: randomSeed(), players: setup.players(), first });
-  hud.reset();
-  sfx.tunes.stopAll();
-  document.getElementById('gameover')!.hidden = true;
+  startMatch(randomSeed(), setup.players());
   showLanding();
 };
 /**
@@ -235,10 +200,10 @@ function welcome(): void {
   if (openedRoom) online.invite(openedRoom);
   else if (autoRejoin) void online.rejoin(droppedSeat!);
   // What's new since this phone last looked (not over a room link, nor in automated tests unless asked).
-  if (!openedRoom && !autoRejoin && (!navigator.webdriver || query.has('whatsnew'))) whatsNew.showUnseen();
+  if (!openedRoom && !autoRejoin && params.whatsNew) whatsNew.showUnseen();
 }
 // A browser that's never been told who's playing asks first (automated tests only with `?askname`).
-if (!loadUsername() && (!navigator.webdriver || query.has('askname'))) {
+if (!loadUsername() && params.askName) {
   void namePrompt.ask(setup.suggestedName()).then((name) => {
     setUsername(name);
     welcome();
@@ -284,7 +249,7 @@ document.getElementById('change-players')!.addEventListener('click', () => {
 });
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
-if (new URLSearchParams(location.search).has('debug')) {
+if (params.debug) {
   Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText } });
 }
 

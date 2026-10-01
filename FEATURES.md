@@ -8,16 +8,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
 item says otherwise; each step ships on its own with the full test suite. Live play-test checkpoints are
 flagged to the owner as they come up.
 
-1. **Phase 3: presentation.**
-   - `main.ts` split, with one `startMatch`.
-2. **Phase 4: online and screens.**
+1. **Phase 4: online and screens.**
    - Sealed-store helpers (`putSealed` / `getSealed`, one encoding everywhere) and one latest-wins writer.
    - A shared base for watching and replays (`applyState`, resolved, previews).
    - `ui/dom.ts`: one set of DOM helpers for every screen.
    - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
      events with listeners instead of wrapped callbacks.
    - `NetSession` as an explicit state machine.
-3. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
+2. **Phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
    `tests/support`, stale comments.
 
 ### Backlog (ideas, not yet scheduled)
@@ -31,6 +29,9 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 3: main.ts tidied.** One `startMatch` (new game, HUD and tunes reset, game over card hidden)
+  instead of four copies (hotseat, online, watching, back to the menu); the query string is read once
+  (`app/params.ts`, documented); the sound toggle is `app/sound.ts`.
 - **Phase 3: draw layers.** `Renderer.draw` is an ordered list of layers with one signature (`BACKDROP`
   behind the hills, `LAYERS` over them: the order is the layering, like `STEPPERS`), instead of a hand-kept
   sequence with the tank, ghost and aim logic inline: those moved to `drawTanks` / `drawAim`

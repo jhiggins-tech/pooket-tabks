@@ -41,7 +41,7 @@ what it's for; weapons are documented where they're defined.
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
 | `src/net/` | online play (below) |
 | `src/ui/` | `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (Game browser, hosting, lobby, match menu) |
-| `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together; `?debug` exposes `window.__pooket` |
+| `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle); `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in) |
 | `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows, replays) |
 
