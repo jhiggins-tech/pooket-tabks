@@ -30,7 +30,7 @@ export class Hud {
   /** The name chips, kept between updates (rebuilt when the players or their number of bars change). */
   private chips: { el: HTMLElement; fills: HTMLElement[]; badges: HTMLElement; badgeKey: string }[] = [];
   /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
-  online: { localSeat: number; syncing: boolean; replay?: boolean } | null = null;
+  online: { localSeat: number; syncing: boolean } | null = null;
 
   update(state: GameState): void {
     const p = currentPlayer(state);
@@ -192,7 +192,7 @@ export class Hud {
 
   /** The turn banner (once per turn) and the game over card. */
   private updateTurn(state: GameState, p: Player): void {
-    const key = `${state.turn}|${state.phase === 'gameover'}|${state.phase === 'aiming'}|${this.online?.localSeat}|${this.online?.replay}`;
+    const key = `${state.turn}|${state.phase === 'gameover'}|${state.phase === 'aiming'}|${this.online?.localSeat}`;
     if (key === this.keys.turn) return;
     const newTurn = key.split('|').slice(0, 2).join('|') !== this.keys.turn.split('|').slice(0, 2).join('|');
     this.keys.turn = key;

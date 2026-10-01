@@ -4,12 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-The refactoring pass (from the code assessment, 1 Oct) has shipped up to phase 4 (see **Refactoring** under
-Shipped); its last phase, the tidy, is item 1.
+The refactoring pass (from the code assessment, 1 Oct) is done (see **Refactoring** under Shipped).
 
-1. **Refactoring phase 5: tidy.** Dead CSS and the `#online button` specificity fight, test helpers into
-   `tests/support`, stale comments.
-2. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
+1. **Push notifications** (owner, 1 Oct; the owner's handover doc "Web push notifications —
    implementation handover"). Web Push with VAPID, no new hosting and no Blaze plan. Two paths share one
    `evt-<id>` tag and an IndexedDB `seen` store, so each event alerts once:
    - Foreground: a live RTDB listener notifies within seconds while the game is open.
@@ -41,6 +38,11 @@ Shipped); its last phase, the tidy, is item 1.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 5: tidy.** Dead CSS gone (`.online-paste`, `.setup-row`); the online screens' default button
+  size has no specificity (`:where(#online button:not(.big))`), so class rules win without `!important`
+  or `#online` prefixes (one `!important` left, on purpose: a remote turn's controls). Tests share
+  `flush` / `until` / `settled` (`tests/support/wait.ts`) instead of eight copies; the Trollogram e2e
+  gets the time budget its length needs.
 - **Phase 4: `NetSession` phases.** One `phase` (lobby → match, rejoining → match | lobby, ended: left /
   away / outdated / lost) instead of the `lost`, `rejoining` and `fallback` flags beside a nullable game,
   so the impossible mixes can't happen; `lost` and `isRejoining` read it.
@@ -280,7 +282,7 @@ Shipped); its last phase, the tidy, is item 1.
 - **360° aiming** with slingshot drag (pull back to aim, pull length = power) plus fine-tune buttons.
 - **Floating damage numbers** for every hit, sloping off the tank and fading into the sky.
 - Seeded random destructible terrain (`?seed=N` reproduces a map), turn-based hotseat for 2 players,
-  5 / 3 / 1 rounds per weapon tier, game over / rematch.
+  5 / 3 / 1 rounds per weapon tier, game over (▶ Watch replay, or a new game).
 - Phone-first: landscape layout, rotate prompt, fullscreen on Android, Add to Home Screen on iOS.
 
 ### Characters

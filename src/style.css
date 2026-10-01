@@ -756,14 +756,12 @@ body[data-remote='true'] .drive button {
   min-width: 0;
   max-width: 340px;
 }
-.online-share,
-.online-paste {
+.online-share {
   display: flex;
   gap: 6px;
   width: 100%;
 }
-.online-share input,
-.online-paste input {
+.online-share input {
   flex: 1;
   min-width: 0;
   height: 38px;
@@ -777,10 +775,10 @@ body[data-remote='true'] .drive button {
   -webkit-user-select: text;
   touch-action: manipulation;
 }
+/* The online screens' buttons, unless a class says otherwise (no specificity: any class rule wins). */
+:where(#online button:not(.big)),
 .online-share button,
-.online-paste button,
-.online-cancel,
-#online button:not(.big) {
+.online-cancel {
   height: 38px;
   padding: 0 14px;
   flex: none;
@@ -813,21 +811,15 @@ body[data-remote='true'] .drive button {
 .online-code-input {
   text-transform: uppercase;
   letter-spacing: 6px;
-  font: 800 22px ui-monospace, 'SF Mono', Menlo, Consolas, monospace !important;
+  font: 800 22px ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   text-align: center;
   max-width: 160px;
 }
-#online .online-row + .online-row {
+.online-row + .online-row {
   margin-top: 2px;
 }
-#online .online-row .online-label {
+.online-row .online-label {
   font-size: 13px;
-}
-#online .online-row .online-paste {
-  width: auto;
-}
-#online .online-paste input {
-  width: 110px;
 }
 #online-listed[aria-pressed='false'] {
   opacity: 0.8;
@@ -842,8 +834,8 @@ body[data-remote='true'] .drive button {
   justify-content: center;
 }
 .online-alt {
-  background: transparent !important;
-  border-color: transparent !important;
+  background: transparent;
+  border-color: transparent;
   text-decoration: underline;
   opacity: 0.8;
 }
@@ -854,8 +846,8 @@ body[data-remote='true'] .drive button {
   position: absolute;
   right: var(--safe-r);
   bottom: var(--safe-b);
-  height: 30px !important;
-  padding: 0 10px !important;
+  height: 30px;
+  padding: 0 10px;
   font-size: 12px;
   opacity: 0.7;
 }
@@ -896,9 +888,9 @@ body[data-remote='true'] .drive button {
 }
 #spectate-leave {
   display: none;
-  width: auto !important;
-  padding: 0 14px !important;
-  border-radius: 18px !important;
+  width: auto;
+  padding: 0 14px;
+  border-radius: 18px;
   font-size: 13px;
   font-weight: 800;
 }
@@ -1078,9 +1070,6 @@ body[data-phase='gameover'] .top-mid {
   .weapon .wname { font-size: 12px; }
   .weapon .wname.long { font-size: 10px; }
   .weapon .wname.longer { font-size: 8.5px; }
-}
-@media (max-width: 700px) {
-  .setup-row .loadout { display: none; }
 }
 
 /* ---------- What's new ---------- */
@@ -1308,7 +1297,7 @@ body[data-online='true'] #net-menu {
   background: rgba(255, 204, 31, 0.18);
   color: #ffcc1f;
 }
-#online button.games-go {
+.games-go {
   height: 36px;
   padding: 0 8px;
   white-space: nowrap;
@@ -1363,7 +1352,7 @@ body[data-online='true'] #net-menu {
   background: rgba(12, 16, 32, 0.6);
   border: 1.5px solid rgba(255, 255, 255, 0.18);
 }
-#online button.games-host {
+.games-host {
   height: auto;
   padding: 12px 8px;
   font-size: 16px;
@@ -1391,7 +1380,7 @@ body[data-online='true'] #net-menu {
   text-align: left;
   opacity: 0.85;
 }
-#online .games-private input {
+.games-private input {
   width: 100%;
   max-width: none;
   height: 38px;
@@ -1409,7 +1398,7 @@ body[data-online='true'] #net-menu {
   align-self: flex-end;
   flex: none;
 }
-#online .games-private button:not(.big) {
+.games-private button {
   height: 36px;
   font-weight: 800;
 }
@@ -1418,7 +1407,7 @@ body[data-online='true'] #net-menu {
     width: 118px;
     padding: 10px;
   }
-  #online button.games-host {
+  .games-host {
     font-size: 13px;
     padding: 10px 4px;
   }
@@ -1441,7 +1430,7 @@ body[data-online='true'] #net-menu {
   width: 100%;
   flex-wrap: wrap;
 }
-#online .tank-bar select {
+.tank-bar select {
   flex: 1 1 160px;
   min-width: 0;
   max-width: 280px;
@@ -1453,7 +1442,7 @@ body[data-online='true'] #net-menu {
   border-radius: 10px;
   font: 800 18px system-ui, -apple-system, sans-serif;
 }
-#online .tank-bar .big {
+.tank-bar .big {
   margin-left: auto;
   padding: 10px 26px;
   font-size: 18px;

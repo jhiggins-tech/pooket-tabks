@@ -10,6 +10,7 @@ import { NetSession } from '../src/net/session';
 import { loopback } from '../src/net/transport';
 import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
+import { flush, settled } from './support/wait';
 
 let server: FakeRtdb;
 let db: Rtdb;
@@ -20,10 +21,6 @@ beforeAll(async () => {
   db = new Rtdb(server.url);
 });
 afterAll(() => server.close());
-
-const flush = async () => {
-  for (let i = 0; i < 4; i++) await Promise.resolve();
-};
 
 const PLAYERS: PlayerConfig[] = [
   { name: 'A', characterId: 'larinovsky', colour: '#f00' },
@@ -66,8 +63,6 @@ async function until(done: () => Promise<boolean>) {
   for (let i = 0; i < 100 && !(await done()); i++) await new Promise((r) => setTimeout(r, 20));
   expect(await done()).toBe(true);
 }
-
-const settled = (s: NetSession, turn: number) => () => !!s.game && s.game.turn === turn && s.game.phase === 'aiming';
 
 describe('replays', () => {
   it("records a public match's shots (bonus moves too) and how it ended, and plays it back", async () => {

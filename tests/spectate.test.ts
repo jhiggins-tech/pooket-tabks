@@ -9,10 +9,8 @@ import { NetSession, type ViewMsg } from '../src/net/session';
 import { Spectator } from '../src/net/spectate';
 import { loopback } from '../src/net/transport';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
+import { flush } from './support/wait';
 
-const flush = async () => {
-  for (let i = 0; i < 4; i++) await Promise.resolve();
-};
 const players: PlayerConfig[] = [
   { name: 'H', characterId: 'kcaj', colour: '#fc0' },
   { name: 'G', characterId: 'tones', colour: '#f55' },

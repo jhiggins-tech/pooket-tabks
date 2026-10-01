@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Rtdb, SERVER_TIME, type RtdbEvent } from '../src/net/rtdb';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
+import { until } from './support/wait';
 
 let server: FakeRtdb;
 let db: Rtdb;
@@ -11,13 +12,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await server.close();
 });
-const until = async (cond: () => boolean, ms = 3000) => {
-  const t0 = Date.now();
-  while (!cond()) {
-    if (Date.now() - t0 > ms) throw new Error('timed out');
-    await new Promise((r) => setTimeout(r, 10));
-  }
-};
 
 describe('Firebase REST client', () => {
   it('reads and writes JSON at paths, with server timestamps', async () => {

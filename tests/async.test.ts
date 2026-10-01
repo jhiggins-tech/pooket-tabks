@@ -8,10 +8,7 @@ import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
 import { takeSnapshot } from '../src/net/snapshot';
 import { loopback } from '../src/net/transport';
 import { decodeMsg, encodeMsg } from '../src/net/wire';
-
-const flush = async () => {
-  for (let i = 0; i < 4; i++) await Promise.resolve();
-};
+import { flush, settled } from './support/wait';
 
 /** The room's record, in memory (copied through the wire format, like the real thing). */
 class MemoryStore implements GameStore {
@@ -65,8 +62,6 @@ async function run(phones: [NetSession, () => GameState | null][], done: () => b
   }
   expect(done()).toBe(true);
 }
-
-const settled = (s: NetSession, turn: number) => () => !!s.game && s.game.turn === turn && s.game.phase === 'aiming';
 
 const strip = (s: GameState) => {
   const snap = takeSnapshot(s) as Record<string, unknown>;

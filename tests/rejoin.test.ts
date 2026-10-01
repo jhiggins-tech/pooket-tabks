@@ -10,6 +10,7 @@ import { NetSession } from '../src/net/session';
 import { sealerFor } from '../src/net/seal';
 import { takeSnapshot } from '../src/net/snapshot';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
+import { until } from './support/wait';
 
 let server: FakeRtdb;
 let db: Rtdb;
@@ -20,13 +21,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await server.close();
 });
-const until = async (cond: () => boolean, ms = 8000) => {
-  const t0 = Date.now();
-  while (!cond()) {
-    if (Date.now() - t0 > ms) throw new Error('timed out');
-    await new Promise((r) => setTimeout(r, 5));
-  }
-};
 const fast = { pingMs: 100, lostMs: 500 };
 const onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players });
 const PLAYERS: PlayerConfig[] = [

@@ -176,6 +176,7 @@ test("tones' ten-1 water jet", async ({ page }) => {
 });
 
 test("kie's Trollogram decoys and secret swap", async ({ page }) => {
+  test.setTimeout(60_000); // several turns, each played out (about 30 s)
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=31&debug');

@@ -4,6 +4,7 @@ import { sealerFor } from '../src/net/seal';
 import { putSealed } from '../src/net/sealed';
 import { checkIn, followWatchers, WATCHER_STALE_MS, type RoomRef, type Watcher } from '../src/net/watchers';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
+import { until } from './support/wait';
 
 let server: FakeRtdb;
 let room: RoomRef;
@@ -15,13 +16,6 @@ beforeEach(async () => {
 afterEach(async () => {
   await server.close();
 });
-const until = async (cond: () => boolean, ms = 5000) => {
-  const t0 = Date.now();
-  while (!cond()) {
-    if (Date.now() - t0 > ms) throw new Error('timed out');
-    await new Promise((r) => setTimeout(r, 10));
-  }
-};
 
 describe("who's watching", () => {
   it('lists everyone checked in, and announces only those who turn up after we started following', async () => {

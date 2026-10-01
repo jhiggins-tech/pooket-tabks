@@ -6,10 +6,7 @@ import { NetSession } from '../src/net/session';
 import { RULES, WIRE } from '../src/net/version';
 import { takeSnapshot } from '../src/net/snapshot';
 import { loopback } from '../src/net/transport';
-
-const flush = async () => {
-  for (let i = 0; i < 4; i++) await Promise.resolve();
-};
+import { flush } from './support/wait';
 
 async function connected(host = 'tones', guest = 'kie', first: number | 'random' = 0) {
   const [ta, tb] = loopback();
