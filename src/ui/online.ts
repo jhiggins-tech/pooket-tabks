@@ -244,16 +244,15 @@ export class OnlineScreen {
         this.trackOpponent(s);
         // Someone who joins and goes quiet before the match starts was probably never there (a link
         // preview in a messaging app): free the seat and wait for a real player.
-        const onAway = s.onPeerAway;
-        s.onPeerAway = (away) => {
-          if (!away || s.game || s.lost || this.session !== s) return onAway(away);
+        s.on('peerAway', (away) => {
+          if (!away || s.game || s.lost || this.session !== s) return;
           netLog('ui: the guest went quiet in the lobby: freeing the seat');
           t.detach();
           this.session = null;
           this.peer = null;
           listing.update({ playing: false, open: true, opponent: undefined });
           void room.reopen().then(waiting, (e: unknown) => this.fail(e, () => void this.host()));
-        };
+        });
       });
     };
     waiting();
@@ -569,17 +568,14 @@ export class OnlineScreen {
     const s = this.setupSession(t, seat);
     if (stored) {
       // Nobody's moved for three days: once we're caught up, whoever's turn it is forfeits.
-      const onResumed = s.onResumed;
-      s.onResumed = (inMatch) => {
-        onResumed(inMatch);
+      s.on('resumed', (inMatch) => {
         if (inMatch && stored && forfeitDue(stored)) s.forfeit();
-      };
+      });
     }
     if (seat.role === 'host' && seat.listed) {
       // Back on the Games list once we know who's playing.
       const lobby = await lobbySealer(this.opts.lobby);
-      const onResumed = s.onResumed;
-      s.onResumed = (inMatch) => {
+      s.on('resumed', () => {
         if (this.session === s && s.localPick) {
           const listing = new Listing(db, lobby, { hostId: seat.id, name: s.localPick.name, characterId: s.localPick.characterId, room: seat.code, playing: true });
           if (s.remotePick) listing.update({ opponent: { name: s.remotePick.name, characterId: s.remotePick.characterId } });
@@ -587,8 +583,7 @@ export class OnlineScreen {
           this.listing = listing;
           this.trackOpponent(s);
         }
-        onResumed(inMatch);
-      };
+      });
     }
     waiting(stored ? 'Catching up…' : 'Waiting for the other phone to catch you up…');
     const rec = stored?.rec;
@@ -794,23 +789,23 @@ export class OnlineScreen {
     if (peer instanceof RelayTransport) {
       // Publish the spectator feed for anyone watching, and keep the match's record.
       const pub = new ViewPublisher(peer);
-      s.onView = (v) => pub.push(v);
+      s.on('view', (v) => pub.push(v));
       // And a public match's replay (the host's game on the Games list; the guest's, if it starts one).
       const record = new RecordStore(peer.db, peer.roomPath, peer.sealer);
       const replay = new ReplayRecorder(peer.db, this.opts.lobby);
       s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
       s.publicReplay = !!seat.listed;
     }
-    s.onLobby = () => this.lobby();
-    s.onLost = () => this.lost();
-    s.onOutdated = (who) => this.outdated(who);
-    s.onPeerAway = () => this.showAway();
-    s.onResumed = (inMatch) => {
+    s.on('lobby', () => this.lobby());
+    s.on('lost', () => this.lost());
+    s.on('outdated', (who) => this.outdated(who));
+    s.on('peerAway', () => this.showAway());
+    s.on('resumed', (inMatch) => {
       netLog(`ui: rejoined ${inMatch ? 'the match' : 'the lobby'}`);
       if (inMatch) return; // the game takes over (onStart)
       if (s.localPick) this.lobby();
       else s.setPick(this.pick());
-    };
+    });
     this.onConnected(s);
     return s;
   }
@@ -864,11 +859,9 @@ export class OnlineScreen {
 
   /** Hosting a listed game: show who's playing against us, once they've said hello. */
   private trackOpponent(s: NetSession): void {
-    const onLobby = s.onLobby;
-    s.onLobby = () => {
+    s.on('lobby', () => {
       if (s.remotePick) this.listing?.update({ opponent: { name: s.remotePick.name, characterId: s.remotePick.characterId } });
-      onLobby();
-    };
+    });
   }
 
   /** The match on this phone has finished (or a new one started): keeps a listed game's status right. */

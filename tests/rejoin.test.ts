@@ -76,7 +76,7 @@ async function guestComesBack(code: string, old: NetSession, whileAway: () => Pr
   const back = new NetSession(await rejoinRoom(db, code, 'guest', 'guest-id', fast), 'guest');
   back.onStart = onStart;
   let resumed: boolean | null = null;
-  back.onResumed = (inMatch) => (resumed = inMatch);
+  back.on('resumed', (inMatch) => (resumed = inMatch));
   back.rejoin();
   return { back, resumed: () => resumed };
 }
@@ -85,7 +85,7 @@ describe('rejoining a match', { timeout: 60_000 }, () => {
   it('a phone that drops out mid-match comes back to the same game and plays on', async () => {
     const { room, host, guest } = await match();
     const away: boolean[] = [];
-    host.onPeerAway = (a) => away.push(a);
+    host.on('peerAway', (a) => away.push(a));
     host.start(99, PLAYERS);
     await until(() => !!guest.game);
     const H = host.game!;

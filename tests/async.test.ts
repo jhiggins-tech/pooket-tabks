@@ -106,7 +106,7 @@ describe('the game record', () => {
     const back = alone('guest');
     back.store = store;
     let resumed = false;
-    back.onResumed = () => (resumed = true);
+    back.on('resumed', () => (resumed = true));
     back.rejoin({ rec: store.rec!, replay: true });
     await run([[back, () => back.game]], () => resumed, RESUME_WAIT + 1);
     expect(back.game!.turn).toBe(1); // replaying the host's shot
@@ -192,7 +192,7 @@ describe('the game record', () => {
     ta.onMessage = (m) => (a as unknown as { receive(m: unknown): void }).receive(m);
     const back = new NetSession(tb, 'guest');
     back.onStart = onStart;
-    back.onResumed = () => (caughtUp = true);
+    back.on('resumed', () => (caughtUp = true));
     const saves = store.saves;
     back.rejoin({ rec: store.rec!, replay: true });
     await run([[a, () => a.game], [back, () => back.game]], () => caughtUp, 1);

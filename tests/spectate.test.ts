@@ -31,7 +31,7 @@ async function match(feed: (v: ViewMsg) => void) {
   const guest = new NetSession(tb, 'guest');
   for (const s of [host, guest]) {
     s.onStart = build;
-    s.onView = feed;
+    s.on('view', feed);
   }
   host.setPick({ name: 'H', characterId: 'kcaj' });
   guest.setPick({ name: 'G', characterId: 'tones' });
@@ -128,8 +128,8 @@ describe('spectating through Firebase', () => {
     const guest = new NetSession(gt, 'guest');
     const hp = new ViewPublisher(ht);
     const gp = new ViewPublisher(gt);
-    host.onView = (v) => hp.push(v);
-    guest.onView = (v) => gp.push(v);
+    host.on('view', (v) => hp.push(v));
+    guest.on('view', (v) => gp.push(v));
     for (const s of [host, guest]) s.onStart = build;
     host.setPick({ name: 'H', characterId: 'kcaj' });
     guest.setPick({ name: 'G', characterId: 'tones' });

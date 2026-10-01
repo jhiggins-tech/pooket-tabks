@@ -234,7 +234,7 @@ describe('networked match', { timeout: 30_000 }, () => {
       ta.close = () => (closed = true);
       const a = new NetSession(ta, 'host');
       let outdated: string | null = null;
-      a.onOutdated = (w) => (outdated = w);
+      a.on('outdated', (w) => (outdated = w));
       (a as unknown as { receive(m: unknown): void }).receive({ k: 'hello', ...hello, pick: { name: 'B', characterId: 'kie' } });
       expect(outdated).toBe(who);
       expect(a.lost).toBe(true);
@@ -246,7 +246,7 @@ describe('networked match', { timeout: 30_000 }, () => {
   it('notices when the other phone leaves', async () => {
     const { a, b } = await connected();
     let lost = false;
-    b.onLost = () => (lost = true);
+    b.on('lost', () => (lost = true));
     a.leave();
     await flush();
     expect(lost).toBe(true);
@@ -278,7 +278,7 @@ describe('networked match', { timeout: 30_000 }, () => {
     const back = new NetSession(ta, 'host');
     back.onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first: 0 });
     let caughtUp = false;
-    back.onResumed = () => (caughtUp = true);
+    back.on('resumed', () => (caughtUp = true));
     back.rejoin();
     await flush();
     // B answers with how things stand: A's result, not its own drift.

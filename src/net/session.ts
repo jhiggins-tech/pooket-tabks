@@ -1,5 +1,6 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
 import type { GameState, Hop, PlayerConfig } from '../game/state';
+import { Emitter } from '../core/emitter';
 import { applyPreview, previewOf, putState, shotResolved, SYNC_GRACE, type Preview } from './follow';
 import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
@@ -60,6 +61,22 @@ const REPLAY_GRACE = 60;
 /** Rejoining: how long to wait for the other phone to catch us up before going by the record instead. */
 export const RESUME_WAIT = 2.5;
 
+/** What a session tells the screens (NetSession.on). */
+export interface SessionEvents extends Record<string, unknown[]> {
+  /** Picks changed (ours or theirs): the lobby shows them. */
+  lobby: [];
+  /** The match is over for good: the other phone left before it started, or the room has gone. */
+  lost: [];
+  /** The other phone runs another version of the game: one of them has to reload first. */
+  outdated: [who: Outdated];
+  /** The other phone went quiet (true) or came back (false). The match waits for it; it may rejoin. */
+  peerAway: [away: boolean];
+  /** Rejoined and caught up: back in the match (true), or in the lobby (false). */
+  resumed: [inMatch: boolean];
+  /** Spectators' feed: whatever this phone is in charge of sending (see ViewMsg). */
+  view: [v: ViewMsg];
+}
+
 /**
  * One networked match between two phones. Host is seat 0, guest is seat 1 (who goes first is up to the game).
  *
@@ -80,27 +97,18 @@ export class NetSession {
   /** The remote side left or the connection dropped. */
   lost = false;
 
-  onLobby: () => void = () => {};
   /** Build a fresh game for these players (both phones call createGame with the same seed). */
   onStart: (seed: number, players: PlayerConfig[]) => GameState = () => {
     throw new Error('onStart not set');
   };
-  onLost: () => void = () => {};
-  /** The other phone runs another version of the game: one of them has to reload first. */
-  onOutdated: (who: Outdated) => void = () => {};
-  /** The other phone went quiet (true) or came back (false). The match waits for it; it may rejoin. */
-  onPeerAway: (away: boolean) => void = () => {};
-  /** Rejoined and caught up: back in the match (true), or in the lobby (false). */
-  onResumed: (inMatch: boolean) => void = () => {};
   /** Whether the other phone has gone quiet. */
   peerAway = false;
-  /** Spectators' feed: whatever this phone is in charge of sending (see ViewMsg). */
-  onView: ((v: ViewMsg) => void) | null = null;
   /** Where the match's lasting record goes (null: nowhere, e.g. in tests over a loopback). */
   store: GameStore | null = null;
   /** Matches this phone starts are public (on the Games list): record their replays. */
   publicReplay = false;
 
+  private readonly events = new Emitter<SessionEvents>();
   private state: GameState | null = null;
   private setup: MatchSetup = { seed: 0, players: [], rules: RULES };
   /** The turn a shot was fired in (and whose it was) until its result is synced. */
@@ -141,6 +149,11 @@ export class NetSession {
     this.transport.send({ k: 'rejoin', v: WIRE, rules: RULES } satisfies NetMsg);
   }
 
+  /** Listen for one of the session's events (see SessionEvents); returns the function that stops listening. */
+  on<E extends keyof SessionEvents>(event: E, fn: (...args: SessionEvents[E]) => void): () => void {
+    return this.events.on(event, fn);
+  }
+
   get isRejoining(): boolean {
     return this.rejoining;
   }
@@ -161,7 +174,7 @@ export class NetSession {
   setPick(pick: Pick): void {
     this.localPick = pick;
     this.transport.send({ k: 'hello', v: WIRE, rules: RULES, pick } satisfies NetMsg);
-    this.onLobby();
+    this.events.emit('lobby');
   }
 
   /**
@@ -236,7 +249,7 @@ export class NetSession {
         if (key !== this.lastPreview) {
           this.lastPreview = key;
           this.transport.send(msg satisfies NetMsg);
-          this.onView?.(msg);
+          this.events.emit('view', msg);
         }
       }
     }
@@ -301,7 +314,7 @@ export class NetSession {
       putState(s, rec.snap, rec.terrain);
     }
     this.setPeerAway(true);
-    this.onResumed(true);
+    this.events.emit('resumed', true);
   }
 
   /** Give up the match: the other player wins. */
@@ -357,7 +370,7 @@ export class NetSession {
   private setPeerAway(away: boolean): void {
     if (this.peerAway === away) return;
     this.peerAway = away;
-    this.onPeerAway(away);
+    this.events.emit('peerAway', away);
   }
 
   /** Catch up a phone that rejoined, from a settled moment (not mid-shot). Our result of that turn stands. */
@@ -400,7 +413,7 @@ export class NetSession {
   }
 
   private view(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
-    this.onView?.({ k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
+    this.events.emit('view', { k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
   }
 
   private begin(setup: MatchSetup): GameState {
@@ -438,7 +451,7 @@ export class NetSession {
         netLog(`session: hello from the other phone (${msg.pick.characterId})`);
         if (this.mismatched(msg)) return;
         this.remotePick = msg.pick;
-        this.onLobby();
+        this.events.emit('lobby');
         return;
       case 'start': {
         // Usually the host starts; the guest does if it joined while the host was away.
@@ -487,10 +500,10 @@ export class NetSession {
           netLog(`session: caught up (turn ${msg.snap.turn})`);
           const s = this.begin(msg.setup);
           putState(s, msg.snap, msg.terrain);
-          this.onResumed(true);
+          this.events.emit('resumed', true);
         } else {
           netLog('session: caught up (lobby)');
-          this.onResumed(false);
+          this.events.emit('resumed', false);
         }
         return;
       }
@@ -525,7 +538,7 @@ export class NetSession {
     // Not the end of the match: leave the room as it is, to carry on once both are up to date.
     this.lost = true;
     (this.transport.detach ?? this.transport.close).call(this.transport);
-    this.onOutdated(who);
+    this.events.emit('outdated', who);
     return true;
   }
 
@@ -533,6 +546,6 @@ export class NetSession {
     if (this.lost) return;
     this.lost = true;
     this.transport.close();
-    this.onLost();
+    this.events.emit('lost');
   }
 }
