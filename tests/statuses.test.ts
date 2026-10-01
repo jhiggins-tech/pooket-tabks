@@ -50,7 +50,7 @@ describe('a hit, from any weapon', () => {
     expect(tori.cooked).toEqual({ active: false, multiplier: 0.5 });
     expect(tori.tattoo).toEqual({ multiplier: 1.25, turnsLeft: 2 });
     expect(tori.pinned).toEqual({ active: false });
-    expect(g.floaters.map((f) => f.text)).toEqual(expect.arrayContaining(['COOKED', 'TATTOOED', 'PINNED']));
+    expect(g.fx.floaters.map((f) => f.text)).toEqual(expect.arrayContaining(['COOKED', 'TATTOOED', 'PINNED']));
   });
 
   it('a hit that destroys the tank leaves no burn, but its player is still cooked (if alive)', () => {

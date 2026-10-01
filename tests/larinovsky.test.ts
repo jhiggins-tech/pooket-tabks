@@ -73,7 +73,7 @@ describe('the Rizzler', () => {
     explode(g, kie.x, kie.y - TANK_BODY_HEIGHT, theRizzler, 0);
     expect(kie.hp).toBe(MAX_HP - theRizzler.damage);
     expect(kie.cooked).toEqual({ active: false, multiplier: 0.5 });
-    expect(g.floaters.some((f) => f.text === 'COOKED')).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === 'COOKED')).toBe(true);
   });
 
   it('a cooked enemy deals half damage on their next turn only', () => {
@@ -145,10 +145,10 @@ describe('Take a Nap', () => {
     fire(g);
     for (let t = 0; t < takeANap.heal!.napTime - 0.2; t += FIXED_DT) step(g, FIXED_DT);
     expect(lari.hp).toBe(37); // still asleep
-    expect(g.floaters.some((f) => f.text === 'z' || f.text === 'Z')).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === 'z' || f.text === 'Z')).toBe(true);
     whileFlying(g);
     expect(lari.hp).toBe(MAX_HP);
-    expect(g.floaters.some((f) => f.text === `+${MAX_HP - 37}`)).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === `+${MAX_HP - 37}`)).toBe(true);
     expect(lari.ammo[2]).toBe(0);
     for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
     expect(currentPlayer(g).name).toBe('kie');
@@ -162,7 +162,7 @@ describe('Take a Nap', () => {
     fire(g);
     whileFlying(g);
     expect(lari.ammo).toEqual([5, 3, 0, 1]);
-    expect(g.floaters.some((f) => f.text === 'Ammo restocked')).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === 'Ammo restocked')).toBe(true);
   });
 
   it("keeps a stolen round on top of a full stock, and doesn't brag about a restock that changed nothing", () => {
@@ -173,7 +173,7 @@ describe('Take a Nap', () => {
     fire(g);
     whileFlying(g);
     expect(lari.ammo).toEqual([6, 3, 0, 1]);
-    expect(g.floaters.some((f) => f.text === 'Ammo restocked')).toBe(false);
+    expect(g.fx.floaters.some((f) => f.text === 'Ammo restocked')).toBe(false);
   });
 });
 
@@ -217,7 +217,7 @@ describe('Women in Scam', () => {
     expect(lari.scam).toBeNull();
     expect(lari.loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap', 'women-in-scam', 'weasel-pop']);
     expect(lari.ammo[4]).toBe(1);
-    expect(g.floaters.some((f) => f.text.startsWith('SCAMMED'))).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text.startsWith('SCAMMED'))).toBe(true);
     // And it fires like any other weapon.
     expect(selectTier(g, 4)).toBe(true);
     setAim(g, 60, 50);

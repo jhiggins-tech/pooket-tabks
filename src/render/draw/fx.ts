@@ -10,7 +10,7 @@ export function drawFloaters(d: Draw, state: GameState): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  for (const f of state.floaters) {
+  for (const f of state.fx.floaters) {
     const k = f.age / f.duration;
     ctx.globalAlpha = k < 0.35 ? 1 : Math.max(0, 1 - (k - 0.35) / 0.65);
     const scale = 0.8 + 0.4 * Math.min(1, k * 6); // quick pop-in
@@ -29,7 +29,7 @@ export function drawFloaters(d: Draw, state: GameState): void {
 
 export function drawExplosions(d: Draw, state: GameState): void {
   const { ctx } = d;
-  for (const e of state.explosions) {
+  for (const e of state.fx.explosions) {
     const k = e.age / e.duration;
     if (e.ring) {
       // Hologram shimmer: a couple of expanding, fading rings with scan lines.

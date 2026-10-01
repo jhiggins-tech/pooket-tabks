@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createGame, explode, fire, setAim, step } from '../src/game/game';
 import { FIXED_DT } from '../src/game/constants';
 import { decodeMsg, encodeMsg } from '../src/net/wire';
-import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot } from '../src/net/snapshot';
+import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, upgradeSnapshot } from '../src/net/snapshot';
 import { getWeapon } from '../src/weapons/registry';
 
 const players = [
@@ -53,5 +53,23 @@ describe('snapshots', () => {
     const i = 200 * B.terrain.width + 600;
     expect(B.terrain.pixels[i * 4 + 3]).toBe(255); // the new dirt is drawn
     expect(B.terrain.takeDirty()).not.toBeNull();
+  });
+
+  it("leaves cosmetic effects out (each phone keeps its own), and upgrades a stored one that has them", () => {
+    const A = createGame({ seed: 9, players });
+    explode(A, 300, 300, getWeapon('marathon'));
+    expect(A.fx.explosions.length).toBeGreaterThan(0);
+    const snap = takeSnapshot(A);
+    expect(snap.fx).toBeUndefined();
+    const B = createGame({ seed: 9, players });
+    applySnapshot(B, snap);
+    expect(B.fx.explosions).toEqual([]);
+
+    // A snapshot stored before effects moved to `fx` (rules 8).
+    const old = { ...snap, floaters: [{ text: 'old' }], explosions: [], fxSeq: 12 } as Record<string, unknown>;
+    delete old.nextId;
+    applySnapshot(B, upgradeSnapshot(old as typeof snap));
+    expect(B.nextId).toBe(12);
+    expect('floaters' in B).toBe(false);
   });
 });

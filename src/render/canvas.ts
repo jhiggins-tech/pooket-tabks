@@ -105,7 +105,7 @@ export class Renderer {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     ctx.setTransform(this.scale, 0, 0, this.scale, this.offsetX, this.offsetY);
-    for (const a of state.apparitions) drawApparition(this.d, a); // in the sky, behind the hills
+    for (const a of state.fx.apparitions) drawApparition(this.d, a); // in the sky, behind the hills
     ctx.drawImage(this.terrainCanvas, 0, 0);
     // Stretch the edge columns into any side letterbox so hills run to the screen edge.
     const side = this.offsetX / this.scale;
@@ -120,7 +120,7 @@ export class Renderer {
     for (const p of state.players) {
       // Holograms are drawn exactly like the real tank, so there is no visual tell. The shared
       // shimmer glitches every copy (real one included) at the same moment.
-      const shimmer = state.shimmers.find((s) => s.ownerId === p.id);
+      const shimmer = state.fx.shimmers.find((s) => s.ownerId === p.id);
       const shimmerAmt = shimmer ? Math.sin(Math.PI * (shimmer.age / shimmer.duration)) : 0;
       for (const h of hologramsOf(state, p.id)) {
         const phaseIn = Math.min(1, h.age / HOLOGRAM_PHASE_IN);
@@ -136,7 +136,7 @@ export class Renderer {
       if (isSpewing(state, p.id)) drawSpewGush(this.d, p);
     }
     drawNapCats(this.d, state);
-    for (const g of state.ghosts) {
+    for (const g of state.fx.ghosts) {
       const owner = state.players[g.ownerId];
       if (!owner) continue;
       // Phasing out: tears apart, flattens to a line and fades.

@@ -435,6 +435,17 @@ export interface Heist {
   locked: boolean;
 }
 
+/** Cosmetic effects: they only age and are drawn. */
+export interface Fx {
+  explosions: Explosion[];
+  floaters: Floater[];
+  splashes: Splash[];
+  shimmers: PhaseShimmer[];
+  ghosts: HologramGhost[];
+  holoBlasts: HologramBlast[];
+  apparitions: Apparition[];
+}
+
 export interface GameState {
   seed: number;
   terrain: Terrain;
@@ -459,9 +470,6 @@ export interface GameState {
   swapTargetId: number | null;
   /** Seconds left to pick a decoy to swap with on the turn Trollogram is cast (0: no window open). */
   decoyPick: number;
-  shimmers: PhaseShimmer[];
-  ghosts: HologramGhost[];
-  holoBlasts: HologramBlast[];
   streams: Stream[];
   jets: Jet[];
   spews: Spew[];
@@ -470,17 +478,17 @@ export interface GameState {
   bursts: Burst[];
   naps: Nap[];
   booms: Boom[];
-  apparitions: Apparition[];
   sludge: Sludge[];
   puddles: Puddle[];
   droplets: Droplet[];
-  splashes: Splash[];
   /** Seconds since stream damage was last applied. */
   soakTimer: number;
-  explosions: Explosion[];
-  floaters: Floater[];
+  /** Cosmetic effects: never read by the simulation, and not in snapshots (each phone keeps its own). */
+  fx: Fx;
   /** Seeded gameplay randomness (e.g. where rain falls), continuing from terrain generation. */
   rng: Rng;
+  /** Ids for things in the game that need one (holograms, streams). */
+  nextId: number;
   /** Counter for cosmetic variation that must not consume gameplay randomness. */
   fxSeq: number;
   settleTimer: number;

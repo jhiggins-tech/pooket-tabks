@@ -210,8 +210,8 @@ describe('damage numbers', () => {
     const g = flatGame();
     const tones = g.players[1]!;
     damagePlayer(g, tones, 12);
-    expect(g.floaters).toHaveLength(1);
-    const f = g.floaters[0]!;
+    expect(g.fx.floaters).toHaveLength(1);
+    const f = g.fx.floaters[0]!;
     expect(f.text).toBe('-12');
     expect(Math.abs(f.x - tones.x)).toBeLessThan(10);
     const y0 = f.y;
@@ -220,13 +220,13 @@ describe('damage numbers', () => {
     expect(f.y).toBeLessThan(y0); // up into the sky
     expect(f.x).not.toBe(x0); // sloping off to one side
     step(g, 2);
-    expect(g.floaters).toHaveLength(0);
+    expect(g.fx.floaters).toHaveLength(0);
   });
 
   it('every blast that hurts a tank shows its number', () => {
     const g = flatGame();
     const tones = g.players[1]!;
     explode(g, tones.x, tones.y - 8, shell);
-    expect(g.floaters.map((f) => f.text)).toEqual([`-${MAX_HP - tones.hp}`]);
+    expect(g.fx.floaters.map((f) => f.text)).toEqual([`-${MAX_HP - tones.hp}`]);
   });
 });

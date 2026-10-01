@@ -13,14 +13,14 @@ const MAX_FLOATERS = 40;
 const MAX_SPLASHES = 220;
 
 export function ring(state: GameState, x: number, y: number, colour: string): void {
-  state.explosions.push({ x, y, radius: 26, age: 0, duration: 0.7, ring: colour });
+  state.fx.explosions.push({ x, y, radius: 26, age: 0, duration: 0.7, ring: colour });
 }
 
 export function spawnDust(state: GameState, x: number, y: number, strength: number): void {
   const n = strength >= 1 ? 10 : 1;
   for (let i = 0; i < n; i++) {
     const h = hash(state.fxSeq++);
-    state.splashes.push({
+    state.fx.splashes.push({
       x: x + (h - 0.5) * 24,
       y: y - 1,
       vx: (hash(h * 17) - 0.5) * 80 * (0.4 + strength),
@@ -37,7 +37,7 @@ export function spawnSplash(state: GameState, x: number, y: number, d: Droplet, 
   for (let i = 0; i < count; i++) {
     const h = hash(state.fxSeq++);
     const back = -Math.sign(d.vx || 1) * (20 + h * 50);
-    state.splashes.push({
+    state.fx.splashes.push({
       x,
       y: y - 1,
       vx: back * (0.3 + hash(h * 97) * 0.9) + (hash(h * 13) - 0.5) * 40,
@@ -47,17 +47,17 @@ export function spawnSplash(state: GameState, x: number, y: number, d: Droplet, 
       colour: d.colour,
     });
   }
-  if (state.splashes.length > MAX_SPLASHES) state.splashes.splice(0, state.splashes.length - MAX_SPLASHES);
+  if (state.fx.splashes.length > MAX_SPLASHES) state.fx.splashes.splice(0, state.fx.splashes.length - MAX_SPLASHES);
 }
 
 export function stepSplashes(state: GameState, dt: number): void {
-  for (const sp of state.splashes) {
+  for (const sp of state.fx.splashes) {
     sp.age += dt;
     sp.vy += GRAVITY * dt;
     sp.x += sp.vx * dt;
     sp.y += sp.vy * dt;
   }
-  state.splashes = state.splashes.filter((sp) => sp.age < sp.life && !state.terrain.isSolid(sp.x, sp.y));
+  state.fx.splashes = state.fx.splashes.filter((sp) => sp.age < sp.life && !state.terrain.isSolid(sp.x, sp.y));
 }
 
 /** How many sound cues can wait for the audio layer (oldest dropped first; tests never drain them). */
@@ -75,23 +75,23 @@ export function spawnFloater(state: GameState, x: number, y: number, text: strin
   // Alternate sides and vary the slope a little so bursts of hits fan out.
   const side = seq % 2 === 0 ? 1 : -1;
   const drift = 18 + ((seq * 7) % 5) * 6;
-  state.floaters.push({ x: c.x + side * 4, y: c.y - 14, vx: side * drift, vy: -55, text, colour, age: 0, duration: FLOATER_DURATION });
-  if (state.floaters.length > MAX_FLOATERS) state.floaters.shift();
+  state.fx.floaters.push({ x: c.x + side * 4, y: c.y - 14, vx: side * drift, vy: -55, text, colour, age: 0, duration: FLOATER_DURATION });
+  if (state.fx.floaters.length > MAX_FLOATERS) state.fx.floaters.shift();
 }
 
 export function stepFloaters(state: GameState, dt: number): void {
-  for (const f of state.floaters) {
+  for (const f of state.fx.floaters) {
     f.age += dt;
     f.x += f.vx * dt;
     f.y += f.vy * dt;
     f.vy *= 1 - 0.6 * dt; // ease out as it rises
   }
-  state.floaters = state.floaters.filter((f) => f.age < f.duration);
+  state.fx.floaters = state.fx.floaters.filter((f) => f.age < f.duration);
 }
 
 /** A cosmetic sky effect above the firer (torikloud's kookaburra in parting clouds). */
 export function summonApparition(state: GameState, p: Player, kind: ApparitionKind): void {
   sound(state, 'kookaburra');
   const c = tankCentre(p);
-  state.apparitions.push({ kind, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
+  state.fx.apparitions.push({ kind, x: c.x, y: Math.max(40, c.y - 120), age: 0, duration: 3.2 });
 }

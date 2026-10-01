@@ -244,7 +244,7 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   const before = await kiePos();
   await page.locator('#fire').tap();
   // Catch the end-of-turn shimmer that hides the swap.
-  await page.waitForFunction(() => (window as unknown as { __pooket: { state: { shimmers: unknown[] } } }).__pooket.state.shimmers.length > 0, undefined, { timeout: 15_000, polling: 16 });
+  await page.waitForFunction(() => (window as unknown as { __pooket: { state: { fx: { shimmers: unknown[] } } } }).__pooket.state.fx.shimmers.length > 0, undefined, { timeout: 15_000, polling: 16 });
   await page.waitForTimeout(250);
   await page.screenshot({ path: 'test-results/trollogram-shimmer.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 15_000 });

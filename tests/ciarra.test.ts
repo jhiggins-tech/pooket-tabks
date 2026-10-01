@@ -52,7 +52,7 @@ describe('Tattoo Gun', () => {
     g.bursts = [];
     explode(g, kie.x, kie.y - TANK_BODY_HEIGHT, tattooGun, 0);
     expect(kie.tattoo).toEqual({ multiplier: 1.25, turnsLeft: 2 });
-    expect(g.floaters.some((f) => f.text === 'TATTOOED')).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === 'TATTOOED')).toBe(true);
     let hp = kie.hp;
     explode(g, kie.x, kie.y - TANK_BODY_HEIGHT, shell, 0);
     expect(hp - kie.hp).toBe(Math.round(shell.damage * 1.25));

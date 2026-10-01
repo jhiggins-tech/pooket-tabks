@@ -153,12 +153,12 @@ describe('Trollogram', () => {
     fire(g);
     g.projectiles = [];
     explode(g, h.x, h.y - TANK_BODY_HEIGHT, shell, kcaj.id);
-    expect(g.floaters.at(-1)!.text).toBe(`-${shell.damage}`); // looks like a real hit
+    expect(g.fx.floaters.at(-1)!.text).toBe(`-${shell.damage}`); // looks like a real hit
     expect(h.hit).toBe(true);
     step(g, FIXED_DT);
     expect(hologramsOf(g, 0)).not.toContain(h);
-    expect(g.holoBlasts).toMatchObject([{ ownerId: 0, x: h.x, y: h.y, radius: trollogram.decoyBlast!.radius }]);
-    expect(g.explosions.some((e) => e.x === h.x && e.radius === trollogram.decoyBlast!.radius)).toBe(true);
+    expect(g.fx.holoBlasts).toMatchObject([{ ownerId: 0, x: h.x, y: h.y, radius: trollogram.decoyBlast!.radius }]);
+    expect(g.fx.explosions.some((e) => e.x === h.x && e.radius === trollogram.decoyBlast!.radius)).toBe(true);
     expect(g.sfx.map((e) => e.cue)).toContain('holo-boom');
 
     untilNextTurn(g);
@@ -166,7 +166,7 @@ describe('Trollogram', () => {
     expect(kie.hp).toBe(MAX_HP);
     expect(hologramsOf(g, 0)).toHaveLength(1);
     step(g, 1);
-    expect(g.holoBlasts).toHaveLength(0); // the animation's done
+    expect(g.fx.holoBlasts).toHaveLength(0); // the animation's done
   });
 
   it('the blast hurts every tank in reach, friend or foe', () => {
@@ -204,7 +204,7 @@ describe('Trollogram', () => {
     expect(b.hit).toBe(true);
     step(g, FIXED_DT);
     expect(hologramsOf(g, 0)).toEqual([]);
-    expect(g.holoBlasts).toHaveLength(2);
+    expect(g.fx.holoBlasts).toHaveLength(2);
   });
 
   it('a hologram hit after the shot has played out (the last of a stream) blows up as the turn ends', () => {
@@ -217,7 +217,7 @@ describe('Trollogram', () => {
     h.hit = true;
     untilNextTurn(g);
     expect(hologramsOf(g, 0)).not.toContain(h);
-    expect(g.holoBlasts).toHaveLength(1);
+    expect(g.fx.holoBlasts).toHaveLength(1);
   });
 
   it('a Hyperfixate beam into a hologram blows it up, and nobody burns', () => {
@@ -235,7 +235,7 @@ describe('Trollogram', () => {
     expect(g.beams[0]!.hitTank).toBe(true);
     for (let i = 0; i < 300 && g.holograms.includes(h); i++) step(g, FIXED_DT);
     expect(hologramsOf(g, 0)).not.toContain(h);
-    expect(g.holoBlasts).toHaveLength(1);
+    expect(g.fx.holoBlasts).toHaveLength(1);
     untilNextTurn(g);
     expect(kcaj.hp).toBe(MAX_HP);
     expect(kcaj.burn).toBeNull();
@@ -261,9 +261,9 @@ describe('Trollogram', () => {
     for (const swap of [false, true]) {
       const g = withDecoys();
       if (swap) toggleSwapTarget(g, hologramsOf(g, 0)[0]!.id);
-      g.shimmers = [];
+      g.fx.shimmers = [];
       passTurn(g);
-      expect(g.shimmers.map((s) => s.ownerId)).toEqual([0]);
+      expect(g.fx.shimmers.map((s) => s.ownerId)).toEqual([0]);
     }
   });
 
@@ -281,8 +281,8 @@ describe('Trollogram', () => {
     g.players[0]!.alive = false;
     passTurn(g);
     expect(g.holograms).toEqual([]);
-    expect(g.holoBlasts).toEqual([]); // no blast: they just fade
-    expect(g.ghosts[0]).toMatchObject({ x: h!.x, y: h!.y, ownerId: 0 });
+    expect(g.fx.holoBlasts).toEqual([]); // no blast: they just fade
+    expect(g.fx.ghosts[0]).toMatchObject({ x: h!.x, y: h!.y, ownerId: 0 });
   });
 
   describe('picking a decoy on the turn it is cast', () => {

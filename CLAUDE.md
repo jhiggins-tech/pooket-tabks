@@ -151,7 +151,9 @@ test over `loopback()` (`tests/net-session.test.ts`) and the fake Firebase (`tes
 
 ## Invariants and gotchas
 - **Deterministic**: gameplay randomness only through the seeded RNG (`?seed=N` reproduces a map);
-  cosmetic randomness (splashes, floater drift) uses `fxSeq` or `hash`, never the gameplay RNG. Both
+  cosmetic randomness (splashes, floater drift) uses `fxSeq` or `hash`, never the gameplay RNG. Cosmetic
+  effects live in `state.fx` (never read by the simulation, not in snapshots: each phone keeps its own);
+  gameplay ids come from `state.nextId`. Both
   phones must run identical code, so don't reorder `STEPPERS` or steps casually.
 - **Holograms look exactly like the real tank** (no tells: shared shimmer at the end of every turn,
   swap or not), and the swap target is secret online (`NetSession.fire` blanks `swapTargetId` in the

@@ -27,7 +27,7 @@ function fireDebate(g: GameState): Projectile[] {
   selectTier(g, 0);
   setAim(g, 50, 60);
   fire(g);
-  lastWords = g.floaters.filter((f) => f.text.startsWith('“')).map((f) => f.text.slice(1, -1));
+  lastWords = g.fx.floaters.filter((f) => f.text.startsWith('“')).map((f) => f.text.slice(1, -1));
   const seen: Projectile[] = [];
   whileFlying(g, () => g.projectiles.forEach((p) => !seen.includes(p) && seen.push(p)));
   return seen;
@@ -254,7 +254,7 @@ describe("torikloud's health, and statuses on the twin", () => {
     const tw = tori.twin!;
     explode(g, tw.x, tw.y - TANK_BODY_HEIGHT, theRizzler, 1);
     expect(tori.cooked).toMatchObject({ active: false });
-    const cooked = g.floaters.find((f) => f.text === 'COOKED')!;
+    const cooked = g.fx.floaters.find((f) => f.text === 'COOKED')!;
     expect(Math.abs(cooked.x - tw.x)).toBeLessThan(20);
     explode(g, tw.x, tw.y - TANK_BODY_HEIGHT, tattooGun, 1);
     expect(tori.tattoo).not.toBeNull();

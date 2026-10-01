@@ -187,7 +187,7 @@ export function explode(
 ): void {
   const r = blast.radius;
   state.terrain.carveCircle(x, y, r);
-  state.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
+  state.fx.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
   sound(state, 'boom', weapon.id, r);
 
   const shooterId = ownerId ?? currentPlayer(state).id;
@@ -232,7 +232,7 @@ export function hurt(state: GameState, p: Player, tank: TankBody, amount: number
     p.alive = false;
     return false;
   }
-  state.explosions.push({ x: tank.x, y: tank.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
+  state.fx.explosions.push({ x: tank.x, y: tank.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
   if (tank === p) Object.assign(p, tankBody(p.twin!)); // the twin carries on as the player's tank
   p.twin = null;
   return false;

@@ -21,7 +21,7 @@ const OVERLOAD = 0.16;
 const GRAVITY = 260;
 
 export function drawHologramBlasts(d: Draw, state: GameState): void {
-  for (const b of state.holoBlasts) drawBlast(d, state, b);
+  for (const b of state.fx.holoBlasts) drawBlast(d, state, b);
 }
 
 function drawBlast(d: Draw, state: GameState, b: HologramBlast): void {

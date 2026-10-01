@@ -5,11 +5,11 @@ import { decodeMsg, encodeMsg } from './wire';
 
 /**
  * Network snapshots: the whole game state except the terrain (sent separately as a compact solid
- * mask) and local-only cosmetics (sound cues, playing tunes). Plain JSON-safe data.
+ * mask) and what's local to each phone (cosmetic effects, sound cues, playing tunes). Plain JSON-safe data.
  */
 export type Snapshot = Record<string, unknown> & { rng: number; winner: number | null; turn: number };
 
-const LOCAL_ONLY = new Set(['terrain', 'sfx', 'tunes', 'rng', 'winner']);
+const LOCAL_ONLY = new Set(['terrain', 'fx', 'sfx', 'tunes', 'rng', 'winner']);
 
 export function takeSnapshot(state: GameState): Snapshot {
   const out: Record<string, unknown> = {};
@@ -26,6 +26,9 @@ export function takeSnapshot(state: GameState): Snapshot {
  * here, rather than raising OLDEST_RULES; every fill-in is safe to apply twice.
  */
 export function upgradeSnapshot(snap: Snapshot): Snapshot {
+  // Rules 9: cosmetic effects stay out of snapshots (they're under `fx`), and ids have their own counter.
+  for (const k of ['explosions', 'floaters', 'splashes', 'shimmers', 'ghosts', 'holoBlasts', 'apparitions']) delete snap[k];
+  snap.nextId ??= snap.fxSeq;
   for (const p of (snap.players as { twin?: Record<string, unknown> | null }[] | undefined) ?? []) {
     // Rules 8: a twin drains toxin like any tank.
     if (p.twin) {
@@ -40,7 +43,7 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
 export function applySnapshot(state: GameState, snap: Snapshot): void {
   const copy = decodeMsg(encodeMsg(snap)) as Snapshot;
   for (const [k, v] of Object.entries(copy)) {
-    if (LOCAL_ONLY.has(k)) continue;
+    if (LOCAL_ONLY.has(k) || !(k in state)) continue; // (nothing the game doesn't have)
     (state as unknown as Record<string, unknown>)[k] = v;
   }
   state.rng.state = copy.rng;

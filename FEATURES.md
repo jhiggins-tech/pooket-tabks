@@ -9,7 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 2: game core.**
-   - Simulation vs cosmetic state: cosmetics left out of snapshots, a gameplay id counter, `winnerId`.
    - Stepper and helper cleanup: allocation-free target scans, one swept-segment helper, shared spacing /
      nearest-enemy / ammo-fallback helpers.
 2. **Phase 3: presentation.**
@@ -38,6 +37,11 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 2: simulation vs cosmetic state.** Effects that only age and get drawn (explosions, floaters,
+  splashes, shimmers, ghosts, hologram blasts, apparitions) live under `state.fx`, which snapshots leave
+  out: smaller messages and records, and the other phone keeps its own animations instead of snapping to
+  the sender's. Hologram and stream ids come from a gameplay counter (`nextId`), not the cosmetic one.
+  `applySnapshot` only takes keys the game has. Rules 9 (matches carry on: `upgradeSnapshot`).
 - **Phase 2: weapon kinds and types.** `weapons/kinds.ts` is a table of every kind (what it is, aimed or
   not, shot / free action / bonus move), replacing the scattered `kind === 'scam'` / `ignoresAim` lists;
   `FIRE` and `FREE_ACTIONS` (mechanics.ts) must have one entry per kind. `WeaponDef` is a union by kind:

@@ -81,9 +81,9 @@ describe('Sonic Boom', () => {
     const g = game(100);
     selectTier(g, 1);
     fire(g);
-    expect(g.apparitions).toHaveLength(1);
-    expect(g.apparitions[0]!.kind).toBe('kookaburra');
-    expect(g.apparitions[0]!.y).toBeLessThan(g.players[0]!.y - 60);
-    expect(Math.abs(g.apparitions[0]!.x - g.players[0]!.x)).toBeLessThan(2);
+    expect(g.fx.apparitions).toHaveLength(1);
+    expect(g.fx.apparitions[0]!.kind).toBe('kookaburra');
+    expect(g.fx.apparitions[0]!.y).toBeLessThan(g.players[0]!.y - 60);
+    expect(Math.abs(g.fx.apparitions[0]!.x - g.players[0]!.x)).toBeLessThan(2);
   });
 });

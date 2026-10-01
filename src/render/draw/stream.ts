@@ -11,8 +11,8 @@ import type { Draw } from './context';
 export function drawLiquid(d: Draw, state: GameState): void {
   const { ctx } = d;
   const drops = state.droplets;
-  if (drops.length === 0 && state.splashes.length === 0) return;
-  const colour = drops[0]?.colour ?? state.splashes[0]?.colour ?? '#3fb6ff';
+  if (drops.length === 0 && state.fx.splashes.length === 0) return;
+  const colour = drops[0]?.colour ?? state.fx.splashes[0]?.colour ?? '#3fb6ff';
   const width = (d: Droplet) => 1.5 + 5.5 * d.pressure;
   const JOIN_DIST = 14;
 
@@ -73,7 +73,7 @@ export function drawLiquid(d: Draw, state: GameState): void {
   }
 
   // Spray
-  for (const sp of state.splashes) {
+  for (const sp of state.fx.splashes) {
     ctx.globalAlpha = 1 - sp.age / sp.life;
     ctx.fillStyle = tint(sp.colour, 0.45);
     ctx.beginPath();

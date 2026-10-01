@@ -122,7 +122,7 @@ describe('ten-1 stream', () => {
     aimAtKie(g);
     fire(g);
     const seen = new Set<object>();
-    untilAiming(g, (s) => s.floaters.forEach((f) => f.colour !== '#ffffff' && seen.add(f)));
+    untilAiming(g, (s) => s.fx.floaters.forEach((f) => f.colour !== '#ffffff' && seen.add(f)));
     const [tones, kie] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
     const dealt = MAX_HP - kie.hp;
     expect(dealt).toBeGreaterThan(20);
@@ -170,7 +170,7 @@ describe('ten-1 refund on a miss', () => {
     untilAiming(g);
     expect(currentPlayer(g).name).toBe('kie');
     expect(tones.ammo[0]).toBe(5);
-    expect(g.floaters.some((f) => f.text === 'REFUNDED')).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === 'REFUNDED')).toBe(true);
     expect(g.sfx.some((e) => e.cue === 'refund')).toBe(true);
     expect(g.players[1]!.hp).toBe(MAX_HP);
   });
@@ -183,7 +183,7 @@ describe('ten-1 refund on a miss', () => {
     untilAiming(g);
     expect(g.players[1]!.hp).toBeLessThan(MAX_HP);
     expect(tones.ammo[0]).toBe(4);
-    expect(g.floaters.some((f) => f.text === 'REFUNDED')).toBe(false);
+    expect(g.fx.floaters.some((f) => f.text === 'REFUNDED')).toBe(false);
   });
 
   it('refunds the last round too, so a player out of everything else keeps their turn coming', () => {

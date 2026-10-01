@@ -59,7 +59,7 @@ export function fireDecoys(state: GameState, p: Player, weapon: WeaponOf<'decoy'
     }
     x = Math.round(x);
     const holo: Hologram = {
-      id: state.fxSeq++,
+      id: state.nextId++,
       ownerId: p.id,
       weaponId: weapon.id,
       x,
@@ -84,18 +84,18 @@ const GHOST_DURATION = 0.8;
 export const HOLOGRAM_PHASE_IN = 0.8;
 
 function shimmer(state: GameState, ownerId: number): void {
-  state.shimmers.push({ ownerId, age: 0, duration: SHIMMER_DURATION });
+  state.fx.shimmers.push({ ownerId, age: 0, duration: SHIMMER_DURATION });
 }
 
 export function stepPhaseFx(state: GameState, dt: number): void {
   for (const h of state.holograms) h.age += dt;
   for (const p of state.players) if (p.twin) p.twin.age += dt;
-  for (const s of state.shimmers) s.age += dt;
-  for (const g of state.ghosts) g.age += dt;
-  for (const b of state.holoBlasts) b.age += dt;
-  state.shimmers = state.shimmers.filter((s) => s.age < s.duration);
-  state.ghosts = state.ghosts.filter((g) => g.age < g.duration);
-  state.holoBlasts = state.holoBlasts.filter((b) => b.age < b.duration);
+  for (const s of state.fx.shimmers) s.age += dt;
+  for (const g of state.fx.ghosts) g.age += dt;
+  for (const b of state.fx.holoBlasts) b.age += dt;
+  state.fx.shimmers = state.fx.shimmers.filter((s) => s.age < s.duration);
+  state.fx.ghosts = state.fx.ghosts.filter((g) => g.age < g.duration);
+  state.fx.holoBlasts = state.fx.holoBlasts.filter((b) => b.age < b.duration);
 }
 
 /** Holograms belonging to a (living) player. */
@@ -156,7 +156,7 @@ function detonate(state: GameState, h: Hologram): void {
   if (state.swapTargetId === h.id) state.swapTargetId = null;
   const weapon = weaponOf(h.weaponId, 'decoy');
   const blast = weapon.decoyBlast;
-  state.holoBlasts.push({ ownerId: h.ownerId, x: h.x, y: h.y, radius: blast.radius, age: 0, duration: HOLOGRAM_BLAST_TIME });
+  state.fx.holoBlasts.push({ ownerId: h.ownerId, x: h.x, y: h.y, radius: blast.radius, age: 0, duration: HOLOGRAM_BLAST_TIME });
   sound(state, 'holo-boom');
   // The weapon that cast it goes off, as a blast.
   explode(state, h.x, h.y - TANK_BODY_HEIGHT, weapon, h.ownerId, blast);
@@ -179,7 +179,7 @@ export function resolveHolograms(state: GameState): void {
   const orphans = state.holograms.filter((h) => !state.players[h.ownerId]?.alive);
   for (const h of orphans) {
     ring(state, h.x, h.y - TANK_BODY_HEIGHT, HOLOGRAM_COLOUR);
-    state.ghosts.push({ ownerId: h.ownerId, x: h.x, y: h.y, age: 0, duration: GHOST_DURATION });
+    state.fx.ghosts.push({ ownerId: h.ownerId, x: h.x, y: h.y, age: 0, duration: GHOST_DURATION });
   }
   state.holograms = state.holograms.filter((h) => !orphans.includes(h));
   if (orphans.length > 0) sound(state, 'busted');

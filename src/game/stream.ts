@@ -13,7 +13,7 @@ import { hash, hexToRgb, tint } from './util';
 export function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
   const m = muzzle(p);
   state.streams.push({
-    id: state.fxSeq++,
+    id: state.nextId++,
     weaponId: weapon.id,
     ownerId: p.id,
     x: m.x,

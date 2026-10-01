@@ -125,9 +125,6 @@ export function createGame(cfg: GameConfig): GameState {
     holograms: [],
     swapTargetId: null,
     decoyPick: 0,
-    shimmers: [],
-    ghosts: [],
-    holoBlasts: [],
     streams: [],
     jets: [],
     spews: [],
@@ -136,16 +133,14 @@ export function createGame(cfg: GameConfig): GameState {
     bursts: [],
     naps: [],
     booms: [],
-    apparitions: [],
     sludge: [],
     puddles: [],
     droplets: [],
-    splashes: [],
     soakTimer: 0,
-    explosions: [],
-    floaters: [],
     rng,
+    nextId: 0,
     fxSeq: 0,
+    fx: { explosions: [], floaters: [], splashes: [], shimmers: [], ghosts: [], holoBlasts: [], apparitions: [] },
     settleTimer: 0,
     winner: null,
     endReason: null,
@@ -219,12 +214,12 @@ export function fire(state: GameState): boolean {
 
 /** Advance the simulation by dt seconds. Pure logic: no DOM, safe to run in tests. */
 export function step(state: GameState, dt: number): void {
-  for (const e of state.explosions) e.age += dt;
-  state.explosions = state.explosions.filter((e) => e.age < e.duration);
+  for (const e of state.fx.explosions) e.age += dt;
+  state.fx.explosions = state.fx.explosions.filter((e) => e.age < e.duration);
   stepFloaters(state, dt);
   stepPhaseFx(state, dt);
-  for (const a of state.apparitions) a.age += dt;
-  state.apparitions = state.apparitions.filter((a) => a.age < a.duration);
+  for (const a of state.fx.apparitions) a.age += dt;
+  state.fx.apparitions = state.fx.apparitions.filter((a) => a.age < a.duration);
 
   stepSplashes(state, dt);
 
