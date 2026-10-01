@@ -40,7 +40,7 @@ what it's for; weapons are documented where they're defined.
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
 | `src/net/` | online play (below) |
-| `src/ui/` | `dom.ts` (typed `el`, `byId`, `button`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (Game browser, hosting, lobby, match menu) |
+| `src/ui/` | `dom.ts` (typed `el`, `byId`, `button`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (`OnlineScreen`: hosting, joining, rejoining, watching, the lobby and match menu; each way in is an attempt, `online/scope.ts`, ended by the next one) and `online/` (its screens: the Game browser, the host screen, Choose your tank, shared widgets) |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle); `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in) |
 | `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows, replays) |
@@ -77,7 +77,7 @@ what it's for; weapons are documented where they're defined.
 - **Online** (`src/net/`): phone → Firebase Realtime Database (REST + SSE, `rtdb.ts`) → phone, all sealed
   with AES-GCM from the room code (`seal.ts`). `rooms.ts` seats and codes, `relay.ts` the message pipe
   (numbered batches per epoch, stamped with the sender's seat id; silence = "quiet", not the end),
-  `session.ts` the match protocol (`NetSession`: the phone whose turn it is streams its aim, sends a
+  `session.ts` the match protocol (`NetSession`, which the screens follow with `on(event)`: the phone whose turn it is streams its aim, sends a
   pre-fire snapshot, then the result snapshot + terrain, which the other phone snaps to; `rejoin` /
   `resume` for a phone that dropped out). Matches are live when both phones are there and **turn by
   turn** when not: `record.ts` is each room's lasting record (`game`: written by the phone in charge at
@@ -94,7 +94,7 @@ what it's for; weapons are documented where they're defined.
   a host rejoin via `Seat.listed`; `watchLobby` hides stale listings), `replay.ts` replays of public
   matches (`ReplayRecorder`, a GameStore next to the record, writes each shot as fired and the end, by the
   replay id in the match setup, `NetSession.publicReplay`; `loadReplays` is the Game browser's Past
-  matches; `ReplayPlayer` plays one back, view only, like a Spectator), `seat.ts` this phone's matches
+  matches; `ReplayPlayer` plays one back, view only, like a Spectator), `seat.ts` this phone's matches (`matches.ts`: how each stands)
   (listed first in the Game browser, with `left` / `seen` per match). Log every network step with `netLog` (the "Copy
   logs" button; `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test
   its own Games list).

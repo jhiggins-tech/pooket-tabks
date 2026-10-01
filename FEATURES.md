@@ -9,8 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 4: online and screens.**
-   - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
-     events with listeners instead of wrapped callbacks.
    - `NetSession` as an explicit state machine.
 2. **Lobby: drop the leftover character picker** (owner, 1 Oct). The "Connected!" lobby still has a
    character dropdown while it's saying hello, from before Choose your tank; your tank is picked before
@@ -55,6 +53,11 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 4: the online screens.** `online.ts` split: the Game browser, host screen and Choose your tank in
+  `ui/online/`, how this phone's matches stand in `net/matches.ts`. Each way in (browser, host, join,
+  rejoin, watch, replay) is an attempt with one dispose path (`Scope`), replacing the `stopRoom` /
+  `cancelled` juggling; that also stops a few late screens popping up after leaving. Session events are
+  listeners (`NetSession.on`), not wrapped callbacks.
 - **Phase 4: following a match, shared.** `net/follow.ts` (`previewOf` / `applyPreview`, `putState`,
   `shotResolved`, `SYNC_GRACE`) for the session, spectators and replays, which each had their own copies
   (snapshot + terrain was put back by hand in eight places).

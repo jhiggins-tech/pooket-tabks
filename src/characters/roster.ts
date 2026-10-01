@@ -18,6 +18,11 @@ export function getCharacter(id: string): CharacterDef {
   return c;
 }
 
+/** A character's name (or its id, for one this version doesn't have: a match from a newer version). */
+export function characterName(id: string): string {
+  return byId.get(id)?.name ?? id;
+}
+
 export function isCharacterId(id: string): boolean {
   return byId.has(id);
 }
