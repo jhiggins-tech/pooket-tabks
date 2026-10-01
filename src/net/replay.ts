@@ -5,7 +5,7 @@ import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
-import { applySnapshot, decodeSolid, type Snapshot } from './snapshot';
+import { applySnapshot, decodeSolid, upgradeSnapshot, type Snapshot } from './snapshot';
 import { compat, WIRE } from './version';
 
 /**
@@ -157,8 +157,14 @@ export async function loadReplay(db: Rtdb, listing: ReplayListing): Promise<Repl
   let end: Replay['end'] = null;
   for (const e of entries) {
     if (!e) continue;
-    if (e.key === 'end') end = e.value as Replay['end'];
-    else shots.push({ shot: e.value as ShotRecord, ts: e.ts });
+    if (e.key === 'end') {
+      end = e.value as NonNullable<Replay['end']>;
+      upgradeSnapshot(end.snap);
+    } else {
+      const shot = e.value as ShotRecord;
+      upgradeSnapshot(shot.snap);
+      shots.push({ shot, ts: e.ts });
+    }
   }
   shots.sort((a, b) => a.shot.turn - b.shot.turn || a.ts - b.ts);
   netLog(`replay: loaded ${shots.length} shots${end ? '' : ' (no ending)'}`);

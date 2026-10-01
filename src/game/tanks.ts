@@ -4,15 +4,16 @@ import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import { noteScamHit } from './scam';
-import type { Burn, GameState, Hologram, Player } from './state';
+import type { GameState, Hologram, Player, TankBody } from './state';
 
-/** Tanks and targets: where a tank is, what a shot at (x, y) hits (tank, twin or hologram), and damage (blasts, soak, burns, cooking, tattoos). */
+/**
+ * Tanks and targets: where a tank is, what a shot at (x, y) hits (a player's tank, or a hologram), and
+ * damage (blasts, soak, toxin, burns, cooking, tattoos). A player's tanks are the player itself (the main
+ * tank) and, with Twins, `player.twin`: both are `TankBody`s and take damage the same way (`hurt`).
+ */
 
-/** Something a shot can hit: a real tank or a hologram of one. */
-export type Target =
-  | { kind: 'player'; player: Player }
-  | { kind: 'hologram'; holo: Hologram }
-  | { kind: 'twin'; player: Player };
+/** Something a shot can hit: one of a player's tanks (`tank === player` for the main one), or a hologram. */
+export type Target = { kind: 'tank'; player: Player; tank: TankBody } | { kind: 'hologram'; holo: Hologram };
 
 const SOAK_FLUSH_INTERVAL = 0.18; // s between batched stream-damage numbers
 
@@ -47,31 +48,30 @@ export function stepSoak(state: GameState, dt: number, final: boolean): void {
   state.soakTimer += dt;
   if (!final && state.soakTimer < SOAK_FLUSH_INTERVAL) return;
   state.soakTimer = 0;
-  for (const p of state.players) {
-    const whole = final ? Math.round(p.soak) : Math.floor(p.soak);
-    if (whole > 0) damagePlayer(state, p, whole, p.soakColour);
-    p.soak = final ? 0 : p.soak - whole;
-  }
-  for (const h of state.holograms) {
-    const whole = final ? Math.round(h.soak) : Math.floor(h.soak);
-    if (whole > 0) damageTarget(state, { kind: 'hologram', holo: h }, whole, h.soakColour);
-    h.soak = final ? 0 : h.soak - whole;
-  }
+  const flush = (t: { soak: number }): number => {
+    const whole = final ? Math.round(t.soak) : Math.floor(t.soak);
+    t.soak = final ? 0 : t.soak - whole;
+    return whole;
+  };
   for (const p of state.players) {
     const tw = p.twin;
-    if (!tw) continue;
-    const whole = final ? Math.round(tw.soak) : Math.floor(tw.soak);
-    tw.soak = final ? 0 : tw.soak - whole;
-    if (whole > 0) damageTwin(state, p, whole, tw.soakColour);
+    for (const tank of tw ? [p, tw] : [p]) {
+      const whole = flush(tank);
+      if (whole > 0) hurt(state, p, tank, whole, tank.soakColour);
+    }
+  }
+  for (const h of state.holograms) {
+    const whole = flush(h);
+    if (whole > 0) damageTarget(state, { kind: 'hologram', holo: h }, whole, h.soakColour);
   }
 }
 
-/** The real tank, twin or hologram whose hit circle contains (x, y). */
+/** The tank (main or twin) or hologram whose hit circle contains (x, y). */
 export function targetAt(state: GameState, x: number, y: number): Target | undefined {
   // The hottest path in the game (every projectile, droplet and blob of mud, every ~1px): no allocations
-  // unless something is hit. Same order as allTargets: tanks, then twins, then holograms.
-  for (const player of state.players) if (player.alive && overHull(x, y, player)) return { kind: 'player', player };
-  for (const player of state.players) if (player.alive && player.twin && overHull(x, y, player.twin)) return { kind: 'twin', player };
+  // unless something is hit. Same order as allTargets: main tanks, then twins, then holograms.
+  for (const player of state.players) if (player.alive && overHull(x, y, player)) return { kind: 'tank', player, tank: player };
+  for (const player of state.players) if (player.alive && player.twin && overHull(x, y, player.twin)) return { kind: 'tank', player, tank: player.twin };
   for (const holo of state.holograms) if (state.players[holo.ownerId]?.alive && overHull(x, y, holo)) return { kind: 'hologram', holo };
   return undefined;
 }
@@ -85,12 +85,22 @@ function overHull(x: number, y: number, at: { x: number; y: number }): boolean {
 
 /** Where a target's hull rests (x centre, y = ground contact). */
 export function targetPos(t: Target): { x: number; y: number } {
-  return t.kind === 'player' ? t.player : t.kind === 'twin' ? t.player.twin! : t.holo;
+  return t.kind === 'tank' ? t.tank : t.holo;
+}
+
+/** Whether a tank is still on the field as its player's (not destroyed, nor a main tank the twin has taken over from). */
+function onField(p: Player, tank: TankBody): boolean {
+  return p.alive && (tank === p || tank === p.twin);
 }
 
 /** A target that has left the field since the target list was taken (dead, or a twin promoted/destroyed). */
 export function gone(t: Target): boolean {
-  return t.kind === 'hologram' ? false : !t.player.alive || (t.kind === 'twin' && !t.player.twin);
+  return t.kind === 'tank' && !onField(t.player, t.tank);
+}
+
+/** Is it a player's second tank (their twin)? */
+export function isTwin(t: Target): boolean {
+  return t.kind === 'tank' && t.tank !== t.player;
 }
 
 export function targetOwner(t: Target): number {
@@ -98,14 +108,14 @@ export function targetOwner(t: Target): number {
 }
 
 export function targetKey(t: Target): string {
-  return t.kind === 'player' ? `p${t.player.id}` : t.kind === 'twin' ? `t${t.player.id}` : `h${t.holo.id}`;
+  return t.kind === 'hologram' ? `h${t.holo.id}` : `${isTwin(t) ? 't' : 'p'}${t.player.id}`;
 }
 
 export function allTargets(state: GameState): Target[] {
   const alive = state.players.filter((p) => p.alive);
   return [
-    ...alive.map((player): Target => ({ kind: 'player', player })),
-    ...alive.filter((p) => p.twin).map((player): Target => ({ kind: 'twin', player })),
+    ...alive.map((player): Target => ({ kind: 'tank', player, tank: player })),
+    ...alive.filter((p) => p.twin).map((player): Target => ({ kind: 'tank', player, tank: player.twin! })),
     ...state.holograms.filter((h) => state.players[h.ownerId]?.alive).map((holo): Target => ({ kind: 'hologram', holo })),
   ];
 }
@@ -123,47 +133,32 @@ export function tankBodies(state: GameState): { x: number; y: number; owner: Pla
 
 /** Add damage-over-time "soak" (water, mud, sludge) to any kind of target. */
 export function soakTarget(t: Target, amount: number, colour: string): void {
-  if (t.kind === 'player') {
-    t.player.soak += amount;
-    t.player.soakColour = colour;
-  } else if (t.kind === 'twin') {
-    t.player.twin!.soak += amount;
-    t.player.twin!.soakColour = colour;
-  } else {
-    t.holo.soak += amount;
-    t.holo.soakColour = colour;
-  }
+  const body = t.kind === 'tank' ? t.tank : t.holo;
+  body.soak += amount;
+  body.soakColour = colour;
+}
+
+/** A dose of toxin: a tank drains it into damage at `rate` per second; a hologram just soaks it up. */
+export function doseTarget(t: Target, amount: number, rate: number, colour: string): void {
+  if (t.kind === 'hologram') return soakTarget(t, amount, colour);
+  t.tank.toxin += amount;
+  t.tank.toxinRate = rate;
+  t.tank.soakColour = colour;
 }
 
 /**
- * Real tanks and twins take the damage. Holograms put on a show (same floating number) and are marked
- * as hit: they blow up (copies.ts).
+ * A player's tanks take the damage. Holograms put on a show (same floating number) and are marked as hit:
+ * they blow up (copies.ts). Returns whether the target is still there afterwards, as itself (not
+ * destroyed, nor a main tank whose twin has taken over).
  */
-export function damageTarget(state: GameState, t: Target, amount: number, colour = '#ffffff'): void {
-  if (amount <= 0) return;
-  if (t.kind === 'player') {
-    damagePlayer(state, t.player, amount, colour);
-  } else if (t.kind === 'twin') {
-    damageTwin(state, t.player, amount, colour);
-  } else {
-    // A decoy of a tattooed tank shows the same boosted number, so it gives nothing away.
-    const shown = vulnerable(state.players[t.holo.ownerId]!, amount);
-    t.holo.hit = true;
-    spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${shown}`, colour);
-  }
-}
-
-function damageTwin(state: GameState, p: Player, amount: number, colour: string): void {
-  const tw = p.twin;
-  if (!tw || amount <= 0) return;
-  amount = vulnerable(p, amount);
-  noteScamHit(state, p);
-  tw.hp = Math.max(0, tw.hp - amount);
-  spawnFloater(state, tw.x, tw.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
-  if (tw.hp === 0) {
-    state.explosions.push({ x: tw.x, y: tw.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
-    p.twin = null;
-  }
+export function damageTarget(state: GameState, t: Target, amount: number, colour = '#ffffff'): boolean {
+  if (t.kind === 'tank') return amount <= 0 ? !gone(t) : hurt(state, t.player, t.tank, amount, colour);
+  if (amount <= 0) return true;
+  // A decoy of a tattooed tank shows the same boosted number, so it gives nothing away.
+  const shown = vulnerable(state.players[t.holo.ownerId]!, amount);
+  t.holo.hit = true;
+  spawnFloater(state, t.holo.x, t.holo.y - TANK_BODY_HEIGHT, `-${shown}`, colour);
+  return false; // it'll blow up
 }
 
 export function explode(state: GameState, x: number, y: number, weapon: WeaponDef, ownerId?: number): void {
@@ -181,8 +176,8 @@ export function explode(state: GameState, x: number, y: number, weapon: WeaponDe
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
     damageTarget(state, t, scaled(state, shooterId, weapon.damage * (1 - d / reach)));
-    if (weapon.debuff && t.kind !== 'hologram' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier, targetPos(t));
-    if (weapon.tattoo && t.kind !== 'hologram' && t.player.alive) {
+    if (weapon.debuff && t.kind === 'tank' && t.player.alive) cook(state, t.player, weapon.debuff.offenceMultiplier, targetPos(t));
+    if (weapon.tattoo && t.kind === 'tank' && t.player.alive) {
       if (!t.player.tattoo) {
         const c = targetPos(t);
         spawnFloater(state, c.x, c.y - TANK_BODY_HEIGHT - 10, 'TATTOOED', '#b8c4ff');
@@ -208,50 +203,55 @@ function cook(state: GameState, p: Player, multiplier: number, at: { x: number; 
   sound(state, 'cook');
 }
 
-/** Every source of damage goes through here so it always gets a floating number. */
 /** Tattooed tanks take extra damage from everything. */
 function vulnerable(p: Player, amount: number): number {
   return p.tattoo ? Math.round(amount * p.tattoo.multiplier) : amount;
 }
 
+/** Damage to a player's main tank. */
 export function damagePlayer(state: GameState, p: Player, amount: number, colour = '#ffffff'): void {
-  if (amount <= 0 || !p.alive) return;
+  hurt(state, p, p, amount, colour);
+}
+
+/**
+ * Damage to one of a player's tanks: every source of damage to a tank ends up here, so it always gets a
+ * floating number. A destroyed twin is gone; a destroyed main tank hands over to the twin, if there is
+ * one; otherwise the player is out. Returns whether the tank is still there, as itself.
+ */
+export function hurt(state: GameState, p: Player, tank: TankBody, amount: number, colour = '#ffffff'): boolean {
+  if (!onField(p, tank)) return false;
+  if (amount <= 0) return true;
   amount = vulnerable(p, amount);
   noteScamHit(state, p);
-  p.hp = Math.max(0, p.hp - amount);
-  const c = tankCentre(p);
-  spawnFloater(state, c.x, c.y, `-${amount}`, colour);
+  tank.hp = Math.max(0, tank.hp - amount);
+  spawnFloater(state, tank.x, tank.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
   sound(state, 'hit', undefined, amount);
-  if (p.hp > 0) return;
-  if (p.twin) {
-    // The main tank is destroyed, but the twin carries on as the player's tank.
-    state.explosions.push({ x: c.x, y: c.y, radius: 22, age: 0, duration: 0.5 });
-    const tw = p.twin;
-    p.x = tw.x;
-    p.y = tw.y;
-    p.hp = tw.hp;
-    p.soak += tw.soak;
-    p.burn = tw.burn; // the main tank's burn went with it; the twin's carries on
-    p.twin = null;
-    return;
+  if (tank.hp > 0) return true;
+  if (tank === p && !p.twin) {
+    p.alive = false;
+    return false;
   }
-  p.alive = false;
+  state.explosions.push({ x: tank.x, y: tank.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
+  if (tank === p) Object.assign(p, tankBody(p.twin!)); // the twin carries on as the player's tank
+  p.twin = null;
+  return false;
+}
+
+/** A tank's own things (where it is, health, burn, soak, toxin): what a twin hands over when it takes over. */
+function tankBody(t: TankBody): TankBody {
+  return { x: t.x, y: t.y, hp: t.hp, burn: t.burn, soak: t.soak, soakColour: t.soakColour, toxin: t.toxin, toxinRate: t.toxinRate };
 }
 
 /** Burns tick as their player's turn comes up: the main tank's, then the twin's. */
 export function tickBurn(state: GameState, p: Player): void {
-  const tick = (tank: { burn: Burn | null }): Burn | null => {
+  const tw = p.twin;
+  for (const tank of tw ? [p, tw] : [p]) {
     const b = tank.burn;
-    if (!b) return null;
+    if (!b) continue;
     b.turnsLeft--;
     if (b.turnsLeft <= 0) tank.burn = null;
-    return b;
-  };
-  const main = tick(p);
-  if (main) damagePlayer(state, p, main.damagePerTurn, main.colour);
-  const tw = p.twin;
-  const twin = tw && tick(tw);
-  if (twin) damageTwin(state, p, twin.damagePerTurn, twin.colour);
+    hurt(state, p, tank, b.damagePerTurn, b.colour);
+  }
 }
 
 /** Soaked-up damage, shown in small batches as it builds (the last batch is flushed when the turn settles). */

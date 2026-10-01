@@ -126,8 +126,9 @@ it happens (game logic only queues cues), and its recipe in `CUE_SOUNDS` (`audio
 
 **Versions** (`net/version.ts`): any gameplay change (a balance tweak, a mechanic) bumps `RULES`: phones
 playing live must match exactly, and an older phone is told to reload. Matches in progress carry on under
-the new rules unless you also raise `OLDEST_RULES` (do that when older matches' saved state no longer fits
-the game, e.g. a state field changed shape); replays from rules older than that are hidden. A change to
+the new rules unless you also raise `OLDEST_RULES`; replays from rules older than that are hidden. A
+change to the state's shape (a new field) gets a fill-in in `upgradeSnapshot` (`net/snapshot.ts`) for
+stored matches and replays, rather than raising `OLDEST_RULES`. A change to
 the messages or stored records that an older build can't read bumps `WIRE`.
 
 **Change the online protocol**: `NetMsg` in `net/session.ts`, bump `WIRE` (see Versions), `netLog` the new steps,

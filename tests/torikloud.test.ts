@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { currentPlayer, explode, fire, isAimless, selectTier, setAim, step, targetAt } from '../src/game/game';
+import { drainToxin } from '../src/game/gunk';
+import { doseTarget } from '../src/game/tanks';
+import { applySnapshot, takeSnapshot, upgradeSnapshot } from '../src/net/snapshot';
 import type { GameState, Projectile } from '../src/game/state';
 import { DICTIONARIES } from '../src/weapons/dictionaries';
 import { debate, hyperfixate, sonicBoom, tattooGun, theRizzler } from '../src/characters/kits';
@@ -122,7 +125,7 @@ describe('Twins', () => {
     const tori = g.players[0]!;
     const main = tori.hp;
     const twinHp = tori.twin!.hp;
-    expect(targetAt(g, 450, 392)?.kind).toBe('twin');
+    expect(targetAt(g, 450, 392)).toMatchObject({ kind: 'tank', tank: g.players[0]!.twin });
     explode(g, 450, 392, shell, 1);
     expect(tori.hp).toBe(main);
     expect(tori.twin?.hp ?? 0).toBeLessThan(twinHp);
@@ -259,5 +262,38 @@ describe("torikloud's health, and statuses on the twin", () => {
     const before = tori.hp;
     explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
     expect(before - tori.hp).toBe(Math.round(shell.damage * tattooGun.tattoo!.multiplier));
+  });
+
+  it("gunk on the twin drains as toxin, like on the main tank, and stops the turn until it's drained", () => {
+    const g = versusKcaj();
+    const tw = g.players[0]!.twin!;
+    const target = targetAt(g, tw.x, tw.y - TANK_BODY_HEIGHT)!;
+    doseTarget(target, 6, 3, '#9be22d');
+    expect(tw.toxin).toBe(6);
+    expect(tw.hp).toBe(75);
+    drainToxin(g, 1);
+    expect(tw.toxin).toBeCloseTo(3);
+    expect(tw.soak).toBeCloseTo(3);
+  });
+
+  it("a twin taking over from a destroyed main tank brings its own soak, toxin and burn; the main tank's go with it", () => {
+    const g = versusKcaj();
+    const tori = g.players[0]!;
+    Object.assign(tori, { soak: 5, toxin: 4, burn: { damagePerTurn: 4, turnsLeft: 2, colour: '#f00' } });
+    Object.assign(tori.twin!, { soak: 1, toxin: 2, toxinRate: 7 });
+    tori.hp = 5;
+    explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
+    expect(tori.twin).toBeNull();
+    expect(tori).toMatchObject({ x: 450, soak: 1, toxin: 2, toxinRate: 7, burn: null });
+  });
+
+  it('a stored match from before twins had toxin carries on (its snapshot is filled in)', () => {
+    const g = versusKcaj();
+    const snap = takeSnapshot(g);
+    const twin = (snap.players as { twin: Record<string, unknown> }[])[0]!.twin;
+    delete twin.toxin;
+    delete twin.toxinRate;
+    applySnapshot(g, upgradeSnapshot(snap));
+    expect(g.players[0]!.twin).toMatchObject({ toxin: 0, toxinRate: 0 });
   });
 });

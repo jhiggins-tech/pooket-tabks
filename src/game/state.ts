@@ -12,15 +12,32 @@ export interface PlayerConfig {
   characterId: string;
 }
 
-export interface Player {
-  id: number;
-  name: string;
-  colour: string;
+/**
+ * What each of a player's tanks has of its own: where it is, its health, and what's eating at it (a burn,
+ * soaked-up damage, toxin). The main tank is the `Player` itself; torikloud's second tank is a `Twin`.
+ * Everything else about a player (statuses like cooked or tattooed, ammo, fuel) is the player's.
+ */
+export interface TankBody {
   /** Centre x of the tank. */
   x: number;
   /** Ground contact y (bottom of the tank). */
   y: number;
   hp: number;
+  /** Hyperfixate's burn on this tank: ticks at the start of its player's next turns. */
+  burn: Burn | null;
+  /** Fractional damage soaked up (water, mud, sludge) but not yet applied (applied in small batches). */
+  soak: number;
+  /** Colour for the soak damage numbers (the liquid's colour). */
+  soakColour: string;
+  /** Toxin still to drain into damage (from jetpack propellant and spew), and how fast. */
+  toxin: number;
+  toxinRate: number;
+}
+
+export interface Player extends TankBody {
+  id: number;
+  name: string;
+  colour: string;
   /** Full health (the character's: MAX_HP, or more). */
   maxHp: number;
   /** Degrees in [0, 360): 0 = right, 90 = straight up, 180 = left, 270 = straight down. */
@@ -34,12 +51,6 @@ export interface Player {
   /** Rounds left per tier. */
   ammo: number[];
   selectedTier: number;
-  /** Active burn from a beam hit on this tank: ticks at the start of this player's next turns. */
-  burn: Burn | null;
-  /** Fractional stream damage soaked up but not yet applied (applied in small batches). */
-  soak: number;
-  /** Colour for the soak damage numbers (the liquid's colour). */
-  soakColour: string;
   /**
    * The Rizzler's "cook" debuff: pending until this player's next turn starts, active during that turn
    * (everything they fire deals `multiplier` × damage), then gone.
@@ -57,9 +68,6 @@ export interface Player {
   fuel: number;
   /** Women in Scam in play: until the end of the next enemy turn; `loot` is the weapon of the first enemy hit on this tank. */
   scam: { loot: string | null } | null;
-  /** Toxin still to drain into damage (from jetpack propellant), and its colour. */
-  toxin: number;
-  toxinRate: number;
 }
 
 /** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
@@ -115,16 +123,8 @@ export interface Runner {
   out: boolean;
 }
 
-/** A player's second tank. */
-export interface Twin {
-  x: number;
-  y: number;
-  hp: number;
-  /** A burn on the twin itself (statuses that aren't about one tank, like cooked or tattooed, are the player's). */
-  burn: Burn | null;
-  /** Fractional damage soaked (water, mud, sludge) not yet applied. */
-  soak: number;
-  soakColour: string;
+/** A player's second tank (torikloud's Twins). */
+export interface Twin extends TankBody {
   /** Seconds since it appeared (cosmetic phase-in). */
   age: number;
 }

@@ -4,7 +4,7 @@ import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import type { Stepper } from './mechanics';
 import type { GameState, Player, Puddle, Sludge, Spew } from './state';
-import { allTargets, muzzle, offence, soakTarget, tankBodies, targetAt, targetOwner, targetPos } from './tanks';
+import { allTargets, doseTarget, muzzle, offence, soakTarget, tankBodies, targetAt, targetOwner, targetPos } from './tanks';
 import { hash } from './util';
 
 /** Gunk: ten-3's spew, the mud and sludge it throws (and ten-2's propellant), toxic puddles and toxin doses. */
@@ -64,13 +64,7 @@ export function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
     if (target && targetOwner(target) !== sl.ownerId) {
       const dose = spec.dosePerParticle * offence(state, sl.ownerId);
       const colour = getWeapon(sl.weaponId).colour ?? '#9be22d';
-      if (target.kind === 'player') {
-        target.player.toxin += dose;
-        target.player.toxinRate = spec.dosePerSecond;
-        target.player.soakColour = colour;
-      } else {
-        soakTarget(target, dose, colour);
-      }
+      doseTarget(target, dose, spec.dosePerSecond, colour);
       return true;
     }
     if (!target && sl.age > GUNK_GRACE && terrain.isSolid(x, y)) {
@@ -155,10 +149,13 @@ export function stepPuddles(state: GameState, dt: number): void {
 /** Toxin on a tank drains into (batched, trickling) damage over a couple of seconds. */
 export function drainToxin(state: GameState, dt: number): void {
   for (const p of state.players) {
-    if (p.toxin <= 0) continue;
-    const d = Math.min(p.toxin, p.toxinRate * dt);
-    p.toxin = p.toxin - d < 1e-6 ? 0 : p.toxin - d;
-    p.soak += d;
+    const tw = p.twin;
+    for (const tank of tw ? [p, tw] : [p]) {
+      if (tank.toxin <= 0) continue;
+      const d = Math.min(tank.toxin, tank.toxinRate * dt);
+      tank.toxin = tank.toxin - d < 1e-6 ? 0 : tank.toxin - d;
+      tank.soak += d;
+    }
   }
 }
 
@@ -189,5 +186,5 @@ export const puddleStepper: Stepper = {
 /** Toxin doses drain into damage before the turn can end. */
 export const toxinStepper: Stepper = {
   step: drainToxin,
-  busy: (state) => state.players.some((p) => p.toxin > 0),
+  busy: (state) => state.players.some((p) => p.toxin > 0 || (p.twin?.toxin ?? 0) > 0),
 };

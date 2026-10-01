@@ -20,6 +20,22 @@ export function takeSnapshot(state: GameState): Snapshot {
   return decodeMsg(encodeMsg(out)) as Snapshot;
 }
 
+/**
+ * Bring a stored snapshot (from a record or a replay, maybe written under older rules: version.ts) up to
+ * this build's state shape. Each change of shape that older matches carry on through adds its fill-in
+ * here, rather than raising OLDEST_RULES; every fill-in is safe to apply twice.
+ */
+export function upgradeSnapshot(snap: Snapshot): Snapshot {
+  for (const p of (snap.players as { twin?: Record<string, unknown> | null }[] | undefined) ?? []) {
+    // Rules 8: a twin drains toxin like any tank.
+    if (p.twin) {
+      p.twin.toxin ??= 0;
+      p.twin.toxinRate ??= 0;
+    }
+  }
+  return snap;
+}
+
 /** Overwrite `state` with a snapshot (terrain and local cosmetics are left alone). */
 export function applySnapshot(state: GameState, snap: Snapshot): void {
   const copy = decodeMsg(encodeMsg(snap)) as Snapshot;

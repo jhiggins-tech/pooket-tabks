@@ -4,7 +4,7 @@ import { SERVER_TIME, type Rtdb } from './rtdb';
 import { seal, sealerFor, unseal, type Sealer } from './seal';
 import type { MatchSetup, Pick } from './session';
 import { compat, RULES, WIRE, type Compat } from './version';
-import type { Snapshot } from './snapshot';
+import { upgradeSnapshot, type Snapshot } from './snapshot';
 import { decodeMsg, encodeMsg } from './wire';
 
 /**
@@ -120,7 +120,9 @@ export async function loadRoomRecord(
     rec.rules ??= 7;
     if ('setup' in rec) rec.setup.rules ??= 7;
   }
-  return 'open' in rec ? { offer: rec.open, compat: compat(rec.v, rec.rules), ts: raw.ts } : { game: { rec, ts: raw.ts } };
+  if ('open' in rec) return { offer: rec.open, compat: compat(rec.v, rec.rules), ts: raw.ts };
+  for (const snap of [rec.snap, rec.last?.snap, rec.flying?.snap]) if (snap) upgradeSnapshot(snap);
+  return { game: { rec, ts: raw.ts } };
 }
 
 /** Whether this build can carry a stored match on: yes, it's too old, or it's from a newer build (reload first). */

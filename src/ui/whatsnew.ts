@@ -13,6 +13,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 25,
+    title: 'Twin fixes',
+    items: ['Fixed: sludge on torikloud’s twin now drains over a couple of seconds, like on any tank, and hits on the twin go “oof”.'],
+  },
+  {
     version: 24,
     title: 'Updates won’t end your games',
     items: [

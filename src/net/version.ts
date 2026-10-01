@@ -7,11 +7,12 @@
  * - `RULES`: the game itself (the simulation). Bump it on every gameplay change, balance tweaks included:
  *   two phones playing live must agree on it exactly.
  * - `OLDEST_RULES`: the oldest rules a stored match or replay can carry on under (playing on by this build's
- *   rules). A balance tweak leaves it alone, so matches in progress carry on with the new numbers; raise
- *   it to `RULES` when older matches can't (their saved state no longer fits the game).
+ *   rules). A balance tweak leaves it alone, so matches in progress carry on with the new numbers. When
+ *   the state's shape changes, add a fill-in to `upgradeSnapshot` (snapshot.ts) for stored matches; raise
+ *   `OLDEST_RULES` to `RULES` only when older matches really can't carry on.
  */
 export const WIRE = 7;
-export const RULES = 7;
+export const RULES = 8;
 export const OLDEST_RULES = 7;
 
 /** How this build stands with something from another: fine, too old to carry on, or from a newer build (reload). */

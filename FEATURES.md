@@ -12,9 +12,6 @@ flagged to the owner as they come up.
    - One hit pipeline (`applyHit`): every mechanic goes through it, so every weapon effect (burn, cook,
      tattoo, pin, refund-on-miss, friendly fire) works on every kind of weapon.
    - Status registry: each status's apply / turn start / turn end / tick / effect / badge / look in one place.
-   - One `Tank` shape for a player's tanks (main and twin): one damage path, no field copying on promotion.
-     Fixes the twin toxin gap: a twin hit by gunk takes it as instant damage instead of draining toxin,
-     and promotion doesn't hand toxin over (a rules change: after the versioning).
    - Weapon kinds table (`fire`, aimless, is a shot, twin mirrors) replacing scattered kind checks.
    - `WeaponDef` as a union by kind (no `spec!` assertions, no `blastRadius: 0, damage: 0` boilerplate).
    - Simulation vs cosmetic state: cosmetics left out of snapshots, a gameplay id counter, `winnerId`.
@@ -46,6 +43,12 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 2: one tank shape.** A player's tanks (the main tank is the `Player`, a twin a `Twin`) share
+  `TankBody` (position, health, burn, soak, toxin), and `Target` is `{ kind: 'tank', player, tank }` or a
+  hologram, so there's one damage path (`hurt`) instead of `damagePlayer` / `damageTwin`, and the
+  per-kind switches are gone. Fixes: gunk on the twin now drains as toxin like on any tank (it hit at
+  once); a twin taking over hands over its own soak, toxin and burn (the main tank's go with it); hits on
+  the twin make the hit sound. Rules 8 (matches carry on: `upgradeSnapshot` fills in older snapshots).
 - **Phase 1: versioning** (`net/version.ts`). The one `PROTOCOL` number became `WIRE` (messages and stored
   records) and `RULES` (the game), plus `OLDEST_RULES`, the oldest rules a stored match or replay can carry
   on under. A balance tweak bumps `RULES` only, so matches in progress carry on with the new numbers

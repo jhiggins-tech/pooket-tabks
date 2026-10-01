@@ -81,13 +81,10 @@ export function fireBeam(state: GameState, p: Player, weapon: WeaponDef): void {
   } else if (end.hit) {
     const hit = end.hit;
     // The tank it hit burns (a twin as much as a main tank; not a hologram), if it's still there.
-    const target = hit.kind === 'player' ? hit.player : hit.kind === 'twin' ? hit.player.twin : null;
-    const twinBefore = hit.kind === 'hologram' ? null : hit.player.twin;
-    damageTarget(state, hit, scaled(state, p.id, weapon.damage));
-    const survived = hit.kind !== 'hologram' && hit.player.alive && hit.player.twin === twinBefore;
-    if (weapon.dot && target && survived) {
+    const standing = damageTarget(state, hit, scaled(state, p.id, weapon.damage));
+    if (weapon.dot && hit.kind === 'tank' && standing) {
       // A fresh hit refreshes the burn rather than stacking it.
-      target.burn = { damagePerTurn: scaled(state, p.id, weapon.dot.damagePerTurn), turnsLeft: weapon.dot.turns, colour };
+      hit.tank.burn = { damagePerTurn: scaled(state, p.id, weapon.dot.damagePerTurn), turnsLeft: weapon.dot.turns, colour };
     }
   }
 }
