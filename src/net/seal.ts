@@ -5,6 +5,8 @@
  * won't stop a determined attacker; it's to keep casual eyes out of a game lobby, not a bank.)
  */
 
+import { decodeMsg, encodeMsg } from './wire';
+
 const enc = new TextEncoder();
 
 export interface Sealer {
@@ -21,9 +23,10 @@ export async function sealerFor(purpose: string, secret: string): Promise<Sealer
   return { topic: [...t.subarray(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join(''), key };
 }
 
+/** Seal a message: in the wire format (wire.ts: JSON that keeps Infinity and NaN), encrypted. */
 export async function seal(s: Sealer, msg: unknown): Promise<Uint8Array> {
   const iv = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, s.key, enc.encode(JSON.stringify(msg))));
+  const ct = new Uint8Array(await globalThis.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, s.key, enc.encode(encodeMsg(msg))));
   const out = new Uint8Array(12 + ct.length);
   out.set(iv);
   out.set(ct, 12);
@@ -35,7 +38,7 @@ export async function unseal(s: Sealer, bytes: Uint8Array): Promise<unknown> {
   if (bytes.length < 13) return null;
   try {
     const pt = await globalThis.crypto.subtle.decrypt({ name: 'AES-GCM', iv: bytes.slice(0, 12) }, s.key, bytes.slice(12));
-    return JSON.parse(new TextDecoder().decode(pt));
+    return decodeMsg(new TextDecoder().decode(pt));
   } catch {
     return null;
   }

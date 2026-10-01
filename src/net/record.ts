@@ -1,11 +1,12 @@
-import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
-import { SERVER_TIME, type Rtdb } from './rtdb';
-import { seal, sealerFor, unseal, type Sealer } from './seal';
+import type { Rtdb } from './rtdb';
+import { sealerFor, type Sealer } from './seal';
+import { getSealed, putSealed } from './sealed';
 import type { MatchSetup, Pick } from './session';
 import { compat, RULES, WIRE, type Compat } from './version';
 import { upgradeSnapshot, type Snapshot } from './snapshot';
 import { decodeMsg, encodeMsg } from './wire';
+import { LatestWriter } from './writer';
 
 /**
  * The lasting record of an online match, so it can be played turn by turn (take your turn, leave, and the
@@ -62,46 +63,32 @@ export interface GameStore {
   save(rec: GameRecord): void;
 }
 
-/** Writes a room's record, one write at a time, always the newest. */
+/**
+ * Writes a room's record, one write at a time, always the newest (a failed write goes with the next save).
+ * (The record is sealed as a string of the wire format, inside: how it has always been stored.)
+ */
 export class RecordStore implements GameStore {
-  private latest: GameRecord | null = null;
-  private busy = false;
+  private readonly writer: LatestWriter<GameRecord>;
 
-  constructor(
-    private readonly db: Rtdb,
-    private readonly roomPath: string,
-    private readonly sealer: Sealer,
-  ) {}
-
-  save(rec: GameRecord): void {
-    this.latest = rec;
-    void this.write();
+  constructor(db: Rtdb, roomPath: string, sealer: Sealer) {
+    this.writer = new LatestWriter(
+      async (rec) => {
+        await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
+        netLog(`record: saved (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : ''})`);
+      },
+      { retry: true, failed: (e) => netLog(`record: couldn't save (${e instanceof Error ? e.message : e})`) },
+    );
   }
 
-  private async write(): Promise<void> {
-    const rec = this.latest;
-    if (!rec || this.busy) return;
-    this.busy = true;
-    this.latest = null;
-    let saved = false;
-    try {
-      await this.db.put(`${this.roomPath}/game`, { m: toB64(await seal(this.sealer, encodeMsg(rec))), ts: SERVER_TIME });
-      netLog(`record: saved (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : ''})`);
-      saved = true;
-    } catch (e) {
-      netLog(`record: couldn't save (${e instanceof Error ? e.message : e})`);
-      this.latest ??= rec; // goes with the next save (not straight away: no hammering the server)
-    } finally {
-      this.busy = false;
-    }
-    if (saved && this.latest) void this.write();
+  save(rec: GameRecord): void {
+    this.writer.save(rec);
   }
 }
 
 /** Put up a hosted game's open offer (before anyone has joined). */
 export async function saveOffer(db: Rtdb, roomPath: string, sealer: Sealer, offer: OpenRecord['open']): Promise<void> {
   const rec: OpenRecord = { v: WIRE, rules: RULES, open: offer };
-  await db.put(`${roomPath}/game`, { m: toB64(await seal(sealer, encodeMsg(rec))), ts: SERVER_TIME });
+  await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
 }
 
 /** Whatever's in a room's record slot: a match, an open offer, or nothing. */
@@ -110,11 +97,9 @@ export async function loadRoomRecord(
   code: string,
 ): Promise<{ game: StoredGame } | { offer: OpenRecord['open']; compat: Compat; ts: number } | null> {
   const sealer = await sealerFor('room', code);
-  const raw = await db.get<{ m?: unknown; ts?: unknown }>(`rooms/${sealer.topic}/game`);
-  if (!raw || typeof raw.m !== 'string' || typeof raw.ts !== 'number') return null;
-  const text = await unseal(sealer, fromB64(raw.m));
-  if (typeof text !== 'string') return null;
-  const rec = decodeMsg(text) as GameRecord | OpenRecord;
+  const raw = await getSealed<unknown>(db, `rooms/${sealer.topic}/game`, sealer);
+  if (!raw || typeof raw.value !== 'string') return null;
+  const rec = decodeMsg(raw.value) as GameRecord | OpenRecord;
   // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches are over by 5 Oct.)
   if (rec.v === 7) {
     rec.rules ??= 7;

@@ -1,12 +1,12 @@
 import { finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
-import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
-import { SERVER_TIME, type Rtdb } from './rtdb';
-import { seal, sealerFor, unseal, type Sealer } from './seal';
+import { type Rtdb } from './rtdb';
+import { type Sealer, sealerFor } from './seal';
 import { applySnapshot, decodeSolid, upgradeSnapshot, type Snapshot } from './snapshot';
 import { compat, WIRE } from './version';
+import { openSealed, putSealed } from './sealed';
 
 /**
  * Replays of public matches (ones on the Games list), to watch once they're over: the Game browser's
@@ -104,7 +104,7 @@ export class ReplayRecorder implements GameStore {
 
   private async put(id: string, entry: string, value: unknown): Promise<void> {
     const sealer = await replaySealer(id);
-    await this.db.put(`replays/${sealer.topic}/${entry}`, { m: toB64(await seal(sealer, value)), ts: SERVER_TIME });
+    await putSealed(this.db, `replays/${sealer.topic}/${entry}`, sealer, value);
     netLog(`replay: saved ${entry}`);
   }
 
@@ -113,7 +113,7 @@ export class ReplayRecorder implements GameStore {
     const listing: Omit<ReplayListing, 'ts'> = { id, v: WIRE, rules: rec.setup.rules, seed: rec.setup.seed, players: rec.setup.players };
     if (snap.phase === 'gameover') listing.over = { winner: snap.winner, endReason: snap.endReason, turns: snap.turn };
     const [lobby, sealer] = await Promise.all([listSealer(this.lobby), replaySealer(id)]);
-    await this.db.put(`replayList/${lobby.topic}/${sealer.topic}`, { m: toB64(await seal(lobby, listing)), ts: SERVER_TIME });
+    await putSealed(this.db, `replayList/${lobby.topic}/${sealer.topic}`, lobby, listing);
     netLog(`replay: listed${listing.over ? ' (over)' : ''}`);
   }
 }
@@ -121,18 +121,18 @@ export class ReplayRecorder implements GameStore {
 /** The finished public matches, newest first (and old ones tidied away). */
 export async function loadReplays(db: Rtdb, lobbyName: string, now = Date.now()): Promise<ReplayListing[]> {
   const lobby = await listSealer(lobbyName);
-  const raw = (await db.get<Record<string, { m?: unknown; ts?: unknown }>>(`replayList/${lobby.topic}`)) ?? {};
+  const raw = (await db.get<Record<string, unknown>>(`replayList/${lobby.topic}`)) ?? {};
   const out = await Promise.all(
     Object.entries(raw).map(async ([topic, v]): Promise<ReplayListing | null> => {
-      if (typeof v?.m !== 'string' || typeof v.ts !== 'number') return null;
-      const listing = (await unseal(lobby, fromB64(v.m))) as Omit<ReplayListing, 'ts'> | null;
-      if (!listing) return null;
-      if (now - v.ts > (listing.over ? REPLAY_KEEP_MS : UNFINISHED_KEEP_MS)) {
+      const entry = await openSealed<Omit<ReplayListing, 'ts'>>(lobby, v);
+      if (!entry) return null;
+      const listing = entry.value;
+      if (now - entry.ts > (listing.over ? REPLAY_KEEP_MS : UNFINISHED_KEEP_MS)) {
         netLog('replay: tidying away an old one');
         void db.remove(`replays/${topic}`).then(() => db.remove(`replayList/${lobby.topic}/${topic}`)).catch(() => {});
         return null;
       }
-      return { ...listing, ts: v.ts };
+      return { ...listing, ts: entry.ts };
     }),
   );
   return out
@@ -145,12 +145,11 @@ export async function loadReplays(db: Rtdb, lobbyName: string, now = Date.now())
 /** A match's replay: its shots in order, and how it ended. */
 export async function loadReplay(db: Rtdb, listing: ReplayListing): Promise<Replay> {
   const sealer: Sealer = await replaySealer(listing.id);
-  const raw = (await db.get<Record<string, { m?: unknown; ts?: unknown }>>(`replays/${sealer.topic}`)) ?? {};
+  const raw = (await db.get<Record<string, unknown>>(`replays/${sealer.topic}`)) ?? {};
   const entries = await Promise.all(
     Object.entries(raw).map(async ([key, v]) => {
-      if (typeof v?.m !== 'string') return null;
-      const value = await unseal(sealer, fromB64(v.m));
-      return value ? { key, ts: typeof v.ts === 'number' ? v.ts : 0, value } : null;
+      const entry = await openSealed<unknown>(sealer, v);
+      return entry ? { key, ts: entry.ts, value: entry.value } : null;
     }),
   );
   const shots: { shot: ShotRecord; ts: number }[] = [];

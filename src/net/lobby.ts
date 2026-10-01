@@ -1,7 +1,7 @@
-import { fromB64, toB64 } from './b64';
 import { netLog } from './log';
-import { SERVER_TIME, type Rtdb } from './rtdb';
-import { seal, sealerFor, unseal, type Sealer } from './seal';
+import { type Rtdb } from './rtdb';
+import { type Sealer, sealerFor } from './seal';
+import { openSealed, putSealed } from './sealed';
 
 /**
  * The Games list: every public game, on any network, for anyone to join (waiting for a second player)
@@ -53,7 +53,7 @@ export function advertise(
   const put = async () => {
     if (stopped) return;
     try {
-      await db.put(path, { m: toB64(await seal(lobby, { ...ad, ts: Date.now() })), ts: SERVER_TIME });
+      await putSealed(db, path, lobby, { ...ad, ts: Date.now() });
     } catch (e) {
       netLog(`lobby: listing failed (${e instanceof Error ? e.message : e})`);
     }
@@ -129,14 +129,13 @@ export function watchLobby(db: Rtdb, lobby: Sealer, onList: (games: Advert[]) =>
   const shown = (g: Advert) => Date.now() - g.ts < (g.open && !g.playing ? OPEN_ADVERT_MS : ADVERT_STALE_MS);
   const emit = () => onList([...games.values()].filter(shown).sort((a, b) => b.ts - a.ts));
   const take = (hostId: string, v: unknown) => {
-    const m = (v as { m?: unknown } | null)?.m;
-    if (typeof m !== 'string') {
+    if (typeof (v as { m?: unknown } | null)?.m !== 'string') {
       games.delete(hostId);
       emit();
       return;
     }
-    void unseal(lobby, fromB64(m)).then((a) => {
-      const ad = a as Advert | null;
+    void openSealed<Advert>(lobby, v).then((entry) => {
+      const ad = entry?.value;
       if (!ad || ad.hostId !== hostId) return;
       if (Date.now() - ad.ts > (ad.open && !ad.playing ? OPEN_ADVERT_MS : 0) + ADVERT_GONE_MS) {
         void db.remove(`${base}/${hostId}`).catch(() => {}); // tidy up after a host that vanished

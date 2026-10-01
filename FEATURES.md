@@ -9,7 +9,6 @@ item says otherwise; each step ships on its own with the full test suite. Live p
 flagged to the owner as they come up.
 
 1. **Phase 4: online and screens.**
-   - Sealed-store helpers (`putSealed` / `getSealed`, one encoding everywhere) and one latest-wins writer.
    - A shared base for watching and replays (`applyState`, resolved, previews).
    - `ui/dom.ts`: one set of DOM helpers for every screen.
    - `online.ts` split into screens with one dispose path (no `stopRoom` / `cancelled` juggling); session
@@ -29,6 +28,12 @@ flagged to the owner as they come up.
 ## Shipped
 
 ### Refactoring (feature freeze, Oct)
+- **Phase 4: sealed entries and one writer.** `net/sealed.ts` (`putSealed` / `openSealed` / `getSealed`) is
+  the one way to write and read a sealed `{ m, ts }` entry (records, open offers, the Games list,
+  replays), instead of the same base64 + seal + server-time lines in five places. `seal` now uses the
+  wire format everywhere (Infinity and NaN survive; it read plain JSON before, which it still reads).
+  `net/writer.ts` `LatestWriter` (newest value, one write at a time, optional retry) is what the record
+  and the spectator feed write through; it was two near-copies.
 - **Phase 3: main.ts tidied.** One `startMatch` (new game, HUD and tunes reset, game over card hidden)
   instead of four copies (hotseat, online, watching, back to the menu); the query string is read once
   (`app/params.ts`, documented); the sound toggle is `app/sound.ts`.
