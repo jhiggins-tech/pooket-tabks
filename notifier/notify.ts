@@ -19,10 +19,33 @@ if (missing.length) {
   console.error(`missing: ${missing.join(', ')}`);
   process.exit(1);
 }
-const env = process.env as Record<(typeof NEEDED)[number], string>;
+/** A value as pasted into GitHub, without stray spaces or quotes around it. */
+const env = Object.fromEntries(NEEDED.map((k) => [k, process.env[k]!.trim().replace(/^(['"])(.*)\1$/s, '$2').trim()])) as Record<(typeof NEEDED)[number], string>;
 
-initializeApp({ credential: cert(JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)), databaseURL: env.FIREBASE_DATABASE_URL });
-webpush.setVapidDetails(env.VAPID_SUBJECT, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
+/** Stop with a set-up problem, naming what's wrong but never printing the values (some are secret). */
+function setupError(what: string): never {
+  console.error(`set-up problem: ${what}`);
+  process.exit(1);
+}
+
+// The push services want a contact URL: `mailto:you@example.com` (a bare address gets the mailto:) or https://.
+const subject = /^(mailto:|https:\/\/)/.test(env.VAPID_SUBJECT) ? env.VAPID_SUBJECT : env.VAPID_SUBJECT.includes('@') ? `mailto:${env.VAPID_SUBJECT}` : setupError('VAPID_SUBJECT should be mailto:you@example.com (or an https:// URL)');
+let account: object;
+try {
+  account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as object;
+} catch {
+  setupError("FIREBASE_SERVICE_ACCOUNT isn't JSON (paste the whole downloaded file)");
+}
+try {
+  initializeApp({ credential: cert(account), databaseURL: env.FIREBASE_DATABASE_URL });
+} catch {
+  setupError('FIREBASE_SERVICE_ACCOUNT or FIREBASE_DATABASE_URL was refused by firebase-admin');
+}
+try {
+  webpush.setVapidDetails(subject, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
+} catch {
+  setupError("the VAPID keys weren't accepted (both from the same `generate-vapid-keys` run, pasted whole)");
+}
 const db = getDatabase();
 
 const children = <T>(snap: { forEach: (fn: (c: { key: string | null; val: () => unknown }) => boolean | void) => boolean }): [string, T][] => {

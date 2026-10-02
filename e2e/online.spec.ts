@@ -208,10 +208,9 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await expect(fan.locator('.pad.right')).toBeHidden(); // no controls
   expect(await summary(fan)).toEqual(await summary(host));
   // Everyone sees who's watching: the players get a toast, and a 👁 count with the names behind it.
-  for (const p of [host, guest]) {
-    await expect(p.locator('#toast')).toHaveText('👁 Kim just started watching', { timeout: 10_000 });
-    await expect(p.locator('#watchers')).toHaveText('👁 1');
-  }
+  // (Both at once: the toast only stays up a few seconds.)
+  await Promise.all([host, guest].map((p) => expect(p.locator('#toast')).toHaveText('👁 Kim just started watching', { timeout: 10_000 })));
+  for (const p of [host, guest]) await expect(p.locator('#watchers')).toHaveText('👁 1');
   await expect(fan.locator('#watchers')).toHaveText('👁 1', { timeout: 10_000 });
   await expect(fan.locator('#toast')).toBeHidden(); // not for yourself
   await host.screenshot({ path: 'test-results/watched.png' });
