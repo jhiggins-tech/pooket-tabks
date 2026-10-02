@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 29,
+    title: 'Notifications',
+    items: [
+      'Tap 🔔 on the first screen to get notified when it’s your turn in an online match, or someone starts your game.',
+      'On iPhone: add Pooket Tabks to your Home Screen (Share → Add to Home Screen) and open it from there first.',
+    ],
+  },
+  {
     version: 28,
     title: 'Watch it again',
     items: [

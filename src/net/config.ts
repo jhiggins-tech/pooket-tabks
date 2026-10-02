@@ -9,4 +9,4 @@ export const FIREBASE_DATABASE_URL = 'https://pooket-tanks-default-rtdb.asia-sou
  * The public half of the VAPID key pair push notifications are signed with (safe to publish; the private
  * half is a GitHub secret only the sender sees: README, "Push notifications"). Empty = notifications off.
  */
-export const VAPID_PUBLIC_KEY = '';
+export const VAPID_PUBLIC_KEY = 'BOSpIBJgO1BW1B0WMSxI-6fGqcTwA-IT6YGRQyRRtMDZo2NDLPN_-V2--GxHilfWm7_SMKfPjFU-t6Zo5Ziu7nA';

@@ -153,8 +153,8 @@ Shipped).
   (`notifier/`, every 5 minutes) sends a Web Push (VAPID, no paid Firebase plan). Tapping one opens that
   match. Each phone says which device it is in each room (`devices/`, sealed); entries in the `outbox` are
   addressed to that device only, carry no text (`push/templates.ts`, shared by both ways) and the room's
-  topic, never its code. On iPhone it needs the Home Screen app. **Waiting on the owner's one-time
-  setup** (README, "Push notifications"); the 🔔 stays hidden until the VAPID key is in `config.ts`.
+  topic, never its code. On iPhone it needs the Home Screen app. Owner's one-time setup: README, "Push
+  notifications".
 - **Watch replay instead of Rematch** (owner, 1 Oct): the game over card offers **▶ Watch replay** (the
   match just played, hotseat or online, public or private: each phone records the match it plays, in
   memory, as the same pre-shot snapshots a public replay keeps; `app/tape.ts`) and **New game** (hotseat:

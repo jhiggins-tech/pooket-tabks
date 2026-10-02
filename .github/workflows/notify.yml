@@ -1,6 +1,7 @@
 # Push notifications: every 5 minutes, drain the outbox in the Firebase Realtime Database into Web Push
-# (notifier/). Does nothing until the owner has set it up (README, "Push notifications"): the job only
-# runs once the VAPID_PUBLIC_KEY variable exists. Run it by hand from the Actions tab to test.
+# (notifier/). Does nothing (a quick green run) until the owner has set it up (README, "Push
+# notifications"): it needs the FIREBASE_SERVICE_ACCOUNT and VAPID_PRIVATE_KEY secrets. The other three
+# values can be secrets or variables. Run it by hand from the Actions tab to test.
 name: Send push notifications
 
 on:
@@ -17,24 +18,32 @@ concurrency:
 
 jobs:
   notify:
-    if: vars.VAPID_PUBLIC_KEY != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      READY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' && secrets.VAPID_PRIVATE_KEY != '' }}
     defaults:
       run:
         working-directory: notifier
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - if: env.READY != 'true'
+        working-directory: .
+        run: echo "Push notifications are not set up yet (see the README), so there is nothing to do."
+      - if: env.READY == 'true'
+        uses: actions/checkout@v7
+      - if: env.READY == 'true'
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: notifier/package-lock.json
-      - run: npm ci
-      - run: node notify.ts
+      - if: env.READY == 'true'
+        run: npm ci
+      - if: env.READY == 'true'
+        run: node notify.ts
         env:
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
-          VAPID_SUBJECT: ${{ vars.VAPID_SUBJECT }}
-          FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL }}
+          VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY || secrets.VAPID_PUBLIC_KEY }}
+          VAPID_SUBJECT: ${{ vars.VAPID_SUBJECT || secrets.VAPID_SUBJECT }}
+          FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL || secrets.FIREBASE_DATABASE_URL }}

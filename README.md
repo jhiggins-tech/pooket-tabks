@@ -83,9 +83,11 @@ minutes, as Web Push (VAPID; no Firebase Cloud Messaging, no paid plan), and cle
    |---|---|---|
    | `VAPID_PRIVATE_KEY` | Secret | the private key from step 1 |
    | `FIREBASE_SERVICE_ACCOUNT` | Secret | the whole JSON file from step 2 |
-   | `VAPID_PUBLIC_KEY` | Variable | the public key from step 1 (the workflow only runs once this is set) |
-   | `VAPID_SUBJECT` | Variable | `mailto:` an address the push services can write to |
-   | `FIREBASE_DATABASE_URL` | Variable | the database URL in `src/net/config.ts` |
+   | `VAPID_PUBLIC_KEY` | Secret or variable | the public key from step 1 |
+   | `VAPID_SUBJECT` | Secret or variable | `mailto:` an address the push services can write to |
+   | `FIREBASE_DATABASE_URL` | Secret or variable | the database URL in `src/net/config.ts` |
+
+   The workflow does nothing (a quick green run) until both secrets are there.
 4. The repo stays **public** (a 5-minute schedule would use up a private repo's free Actions minutes).
 5. **Database rules**: publish `firebase/database.rules.json` (Firebase console → Realtime Database →
    Rules): it has `outbox`, `pushSubscriptions` and each room's `devices`.
