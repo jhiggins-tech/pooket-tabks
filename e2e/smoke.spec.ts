@@ -514,26 +514,47 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777');
+  await page.goto('./?seed=777&debug');
   await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('torikloud');
   await page.locator('#start').tap();
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Debate, 5 left');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Twins, 1 left');
+  type Tori = { x: number; angle: number; power: number; twinSpot: number | null; twin: { x: number; angle: number; power: number } | null };
+  type Dbg = { __pooket: { state: { players: Tori[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
+  const tori = () => page.evaluate(() => (window as unknown as Dbg).__pooket.state.players[0]!);
 
-  // Twins: no aiming; the chip grows a second health bar.
+  // Twins: a ghost at a suggested spot; tap the ground to put the twin somewhere else, then FIRE.
   await weapons.nth(2).tap();
-  await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
+  await expect(page.locator('#hint')).toHaveText('Tap the ground to place your twin, then FIRE');
+  const start = await tori();
+  const target = start.x + 160;
+  const at = await page.evaluate((x) => (window as unknown as Dbg).__pooket.renderer.worldToScreen(x, 300), target);
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(async () => (await tori()).twinSpot, { timeout: 5_000 }).toBeCloseTo(target, -1);
+  await page.screenshot({ path: 'test-results/twin-placing.png' });
   await page.locator('#fire').tap();
   await expect(page.locator('#players .chip').first().locator('.hp')).toHaveCount(2);
+  expect((await tori()).twin!.x).toBeCloseTo(target, -1);
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
 
-  // kie passes (fires straight up), then torikloud's twins both argue.
+  // kie passes (fires straight up), then torikloud aims each tank on its own and both argue.
   for (let i = 0; i < 45; i++) await page.getByRole('button', { name: 'Rotate barrel clockwise' }).tap();
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
   await weapons.nth(0).tap();
+  const aimSwitch = page.locator('#aim-switch');
+  await expect(aimSwitch).toHaveText('🎯 Main tank');
+  await aimSwitch.tap();
+  await expect(aimSwitch).toHaveText('🎯 Twin');
+  const before = await tori();
+  for (let i = 0; i < 20; i++) await page.getByRole('button', { name: 'Rotate barrel anticlockwise' }).tap();
+  const after = await tori();
+  expect(after.twin!.angle).toBe((before.twin!.angle + 20) % 360);
+  expect(after.angle).toBe(before.angle); // the main tank's aim is its own
+  await expect(page.locator('#angle')).toHaveText(new RegExp(`${after.twin!.angle > 90 ? 180 - after.twin!.angle : after.twin!.angle}`));
+  await page.screenshot({ path: 'test-results/twin-aiming.png' });
   await page.locator('#fire').tap();
   await page.waitForTimeout(700);
   await page.screenshot({ path: 'test-results/debate-twins.png' });

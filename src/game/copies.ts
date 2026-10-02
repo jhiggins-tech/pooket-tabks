@@ -1,7 +1,7 @@
 import { randRange } from '../core/rng';
-import { weaponOf } from '../weapons/registry';
+import { getWeapon, kindOf, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
-import { TANK_BODY_HEIGHT } from './constants';
+import { TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { ring, sound } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Hologram, Player, Twin } from './state';
@@ -22,9 +22,60 @@ export const DECOY_PICK_TIME = 6;
 
 const HOLOGRAM_MIN_SPACING = 70;
 
-/** The player's twin as a stand-in shooter: same aim and power, the twin's position. */
+/** The player's twin as a stand-in shooter: the twin's position, and its own aim and power. */
 export function twinGun(p: Player): Player {
-  return { ...p, x: p.twin!.x, y: p.twin!.y };
+  const t = p.twin!;
+  return { ...p, x: t.x, y: t.y, angle: t.angle, power: t.power };
+}
+
+/** A tank's width. The twin can't go within 2 of an enemy tank (or a hologram), nor on top of any tank. */
+const TANK_WIDTH = TANK_HALF_WIDTH * 2;
+const TWIN_ENEMY_GAP = TANK_WIDTH * 2;
+
+/** Whether the twin may appear at x: on the map, not on a tank, not right beside an enemy's. */
+export function twinSpotOk(state: GameState, p: Player, x: number): boolean {
+  if (x < TANK_WIDTH || x > state.terrain.width - TANK_WIDTH) return false;
+  for (const q of state.players) {
+    if (!q.alive) continue;
+    const gap = q === p ? TANK_WIDTH : TWIN_ENEMY_GAP;
+    if (Math.abs(q.x - x) < gap || (q.twin && Math.abs(q.twin.x - x) < gap)) return false;
+  }
+  return !state.holograms.some((h) => Math.abs(h.x - x) < (h.ownerId === p.id ? TANK_WIDTH : TWIN_ENEMY_GAP));
+}
+
+/**
+ * Where to suggest the twin (no randomness: both phones agree, and just looking doesn't change the
+ * match): a few tank-widths from the player's tank, away from the nearest enemy if there's room.
+ */
+export function suggestTwinSpot(state: GameState, p: Player): number {
+  const enemy = state.players.filter((q) => q !== p && q.alive).reduce<Player | null>((a, q) => (!a || Math.abs(q.x - p.x) < Math.abs(a.x - p.x) ? q : a), null);
+  const away = enemy && enemy.x > p.x ? -1 : 1;
+  for (let d = TANK_WIDTH * 4; d < state.terrain.width; d += 4) {
+    for (const dir of [away, -away]) {
+      const x = Math.round(p.x + dir * d);
+      if (twinSpotOk(state, p, x)) return x;
+    }
+  }
+  return Math.round(p.x);
+}
+
+/** Twins is selected and there's no twin yet: where the twin would appear (the ghost), else null. */
+export function pendingTwinSpot(state: GameState): number | null {
+  if (state.phase !== 'aiming') return null;
+  const p = currentPlayer(state);
+  const id = p.loadout[p.selectedTier];
+  if (p.twin || !id || kindOf(getWeapon(id)) !== 'twin' || (p.ammo[p.selectedTier] ?? 0) <= 0) return null;
+  return p.twinSpot !== null && twinSpotOk(state, p, p.twinSpot) ? p.twinSpot : suggestTwinSpot(state, p);
+}
+
+/** Tapped the ground with Twins selected: the twin will appear there (if it's allowed). */
+export function placeTwin(state: GameState, x: number): boolean {
+  if (pendingTwinSpot(state) === null) return false;
+  const p = currentPlayer(state);
+  const at = Math.round(x);
+  if (!twinSpotOk(state, p, at)) return false;
+  p.twinSpot = at;
+  return true;
 }
 
 /** A random spot on the ground, well clear of every tank and hologram (if one can be found). */
@@ -38,12 +89,16 @@ function clearSpot(state: GameState): number {
   return Math.round(x);
 }
 
-/** Twins: a second tank appears somewhere clear, and the player's HP is split between the two. */
+/**
+ * Twins: a second tank appears where the player put it (or the suggested spot), and the player's HP is
+ * split between the two. It starts with the main tank's aim.
+ */
 export function spawnTwin(state: GameState, p: Player): void {
   if (p.twin || p.hp < 2) return;
   const { terrain } = state;
-  const x = clearSpot(state);
-  const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), burn: null, soak: 0, soakColour: '#ffffff', toxin: 0, toxinRate: 0, age: 0 };
+  const x = p.twinSpot !== null && twinSpotOk(state, p, p.twinSpot) ? p.twinSpot : suggestTwinSpot(state, p);
+  p.twinSpot = null;
+  const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), burn: null, soak: 0, soakColour: '#ffffff', toxin: 0, toxinRate: 0, age: 0, angle: p.angle, power: p.power };
   p.hp -= twin.hp;
   p.twin = twin;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, p.colour);

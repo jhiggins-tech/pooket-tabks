@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 34,
+    title: 'Twins, your way',
+    items: [
+      'torikloud: choose where your twin appears. With Twins selected, tap the ground to move the ghost, then FIRE.',
+      'The twin now aims on its own. Drag from a tank to aim it, or switch with 🎯 (above the angle).',
+    ],
+  },
+  {
     version: 33,
     title: 'Sneak peek',
     items: ['A first look at some of the moves the coming-soon characters will bring: see their pages in ⓘ (work in progress, so they may change).'],

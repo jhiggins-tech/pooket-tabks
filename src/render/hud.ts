@@ -1,7 +1,7 @@
 import { FUEL_PER_MATCH } from '../game/constants';
 import { isBonus, weaponOf } from '../weapons/registry';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, weaponForTier } from '../game/game';
+import { aimedTank, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, pendingTwinSpot, weaponForTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { GameState, Player } from '../game/state';
@@ -15,6 +15,7 @@ export class Hud {
   private readonly playersEl = byId('players');
   private readonly angleEl = byId('angle');
   private readonly powerEl = byId('power');
+  private readonly aimSwitch = byId('aim-switch');
   private readonly bannerEl = byId('turn-banner');
   private readonly fireEl = byId<HTMLButtonElement>('fire');
   private readonly weaponsEl = byId('weapons');
@@ -37,7 +38,7 @@ export class Hud {
     const picking = decoyPickLeft(state);
     // Online: when it isn't this phone's turn, the controls step aside and it just watches.
     const remote = !!this.online && (state.current !== this.online.localSeat || this.online.syncing);
-    this.updateReadouts(state, p);
+    this.updateReadouts(state, p, remote);
     this.updateStatus(state, p, picking, remote);
     this.updateChips(state, p);
     this.updateWeapons(state, p);
@@ -46,12 +47,18 @@ export class Hud {
   }
 
   /** Angle, power and fuel: they move while you aim and drive, so they're just text and a width. */
-  private updateReadouts(state: GameState, p: Player): void {
-    const key = `${p.angle}|${p.power}|${Math.round(p.fuel)}|${p.characterId}|${state.phase}`;
+  private updateReadouts(state: GameState, p: Player, remote: boolean): void {
+    // torikloud with a twin: the readouts are for whichever tank is being aimed, and the switch picks which.
+    const aim = aimedTank(p);
+    const twin = !!p.twin && state.phase === 'aiming' && !remote && !isAimless(state);
+    const key = `${aim.angle}|${aim.power}|${Math.round(p.fuel)}|${p.characterId}|${state.phase}|${twin}|${p.aimTwin}`;
     if (key === this.keys.readouts) return;
     this.keys.readouts = key;
-    this.angleEl.textContent = angleLabel(p.angle);
-    this.powerEl.textContent = `${p.power}`;
+    this.angleEl.textContent = angleLabel(aim.angle);
+    this.powerEl.textContent = `${aim.power}`;
+    this.aimSwitch.hidden = !twin;
+    this.aimSwitch.textContent = p.aimTwin && p.twin ? '🎯 Twin' : '🎯 Main tank';
+    this.aimSwitch.setAttribute('aria-pressed', String(p.aimTwin && !!p.twin));
     this.fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
     this.fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
     const empty = p.fuel <= 0.5;
@@ -74,6 +81,7 @@ export class Hud {
       p.selectedTier,
       p.ammo[p.selectedTier],
       p.loadout[p.selectedTier],
+      !!p.twin,
       remote,
       this.online?.syncing,
     ].join('|');
@@ -99,8 +107,12 @@ export class Hud {
       ? `ten-2 charging… ${countdown}`
       : isBonus(weaponForTier(p, p.selectedTier))
       ? 'Bonus move: FIRE it, then take your turn'
+      : pendingTwinSpot(state) !== null
+      ? 'Tap the ground to place your twin, then FIRE'
       : aimless
       ? 'No aiming needed. Just FIRE'
+      : p.twin
+      ? 'Drag from a tank to aim it · 🎯 switches tank'
       : decoys > 0
         ? state.swapTargetId !== null
           ? 'Swapping to that decoy after you fire'

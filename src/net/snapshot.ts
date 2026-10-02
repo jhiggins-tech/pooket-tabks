@@ -29,12 +29,19 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   // Rules 9: cosmetic effects stay out of snapshots (they're under `fx`), and ids have their own counter.
   for (const k of ['explosions', 'floaters', 'splashes', 'shimmers', 'ghosts', 'holoBlasts', 'apparitions']) delete snap[k];
   snap.nextId ??= snap.fxSeq;
-  for (const p of (snap.players as { twin?: Record<string, unknown> | null }[] | undefined) ?? []) {
+  for (const p of (snap.players as { twin?: Record<string, unknown> | null; angle?: number; power?: number; aimTwin?: boolean; twinSpot?: number | null }[] | undefined) ?? []) {
     // Rules 8: a twin drains toxin like any tank.
     if (p.twin) {
       p.twin.toxin ??= 0;
       p.twin.toxinRate ??= 0;
     }
+    // Rules 11: a twin has its own aim (it had the main tank's), and the player can place it and aim it.
+    if (p.twin) {
+      p.twin.angle ??= p.angle;
+      p.twin.power ??= p.power;
+    }
+    p.aimTwin ??= false;
+    p.twinSpot ??= null;
   }
   return snap;
 }

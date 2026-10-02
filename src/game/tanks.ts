@@ -280,7 +280,7 @@ export function hurt(state: GameState, p: Player, tank: TankBody, amount: number
     return false;
   }
   state.fx.explosions.push({ x: tank.x, y: tank.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
-  if (tank === p) Object.assign(p, tankBody(p.twin!)); // the twin carries on as the player's tank
+  if (tank === p) Object.assign(p, tankBody(p.twin!), { angle: p.twin!.angle, power: p.twin!.power }); // the twin carries on as the player's tank, aim and all
   p.twin = null;
   return false;
 }

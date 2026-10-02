@@ -22,6 +22,25 @@ describe('following a match', () => {
     expect(p.angle).toBe(70);
   });
 
+  it("torikloud's twin: its own aim, which tank is aimed, and where a twin's being placed all go with the preview", () => {
+    const tori = [
+      { name: 'T', characterId: 'torikloud', colour: '#a78bfa' },
+      { name: 'B', characterId: 'tones', colour: '#00f' },
+    ];
+    const g = testGame({ seed: 5, players: tori });
+    const other = testGame({ seed: 5, players: tori });
+    const p = g.players[g.current]!;
+    p.twinSpot = 333;
+    applyPreview(other, previewOf(g));
+    expect(other.players[g.current]!.twinSpot).toBe(333);
+    p.twin = { x: 450, y: 400, hp: 50, burn: null, soak: 0, soakColour: '#fff', toxin: 0, toxinRate: 0, age: 0, angle: 120, power: 30 };
+    other.players[g.current]!.twin = { ...p.twin, angle: 45, power: 60 };
+    p.aimTwin = true;
+    applyPreview(other, previewOf(g));
+    expect(other.players[g.current]!.twin).toMatchObject({ angle: 120, power: 30 });
+    expect(other.players[g.current]!.aimTwin).toBe(true);
+  });
+
   it("a shot is resolved once the next turn is up; putState snaps back to a snapshot and its terrain", () => {
     const g = testGame({ seed: 5, players });
     const snap = takeSnapshot(g);

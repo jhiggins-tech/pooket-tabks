@@ -51,7 +51,7 @@ export function fireRounds(state: GameState, p: Player, weapon: Projectiles, ori
     const c = tankCentre(gun);
     spawnFloater(state, c.x, c.y - 18, `“${word}”`, wordColour);
   }
-  state.bursts.push({ playerId: p.id, weaponId: weapon.id, origin, angle: p.angle, power: p.power, fired: 0, elapsed: 0, word, wordColour });
+  state.bursts.push({ playerId: p.id, weaponId: weapon.id, origin, angle: gun.angle, power: gun.power, fired: 0, elapsed: 0, word, wordColour });
 }
 
 /** Straight line from the barrel until it meets ground, a tank or the edge of the map. */

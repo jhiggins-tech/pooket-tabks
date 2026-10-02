@@ -12,6 +12,10 @@ export interface ControlHandlers {
   fire(): void;
   /** FIRE pressed while picking a decoy after casting: done choosing. */
   done(): void;
+  /** An aiming drag starts here (screen CSS px): aim whichever tank it starts near (torikloud's twin). */
+  aimFrom(clientX: number, clientY: number): void;
+  /** The Main / Twin switch: aim the other tank. */
+  switchAim(): void;
 }
 
 const DRAG_DEADZONE_PX = 10;
@@ -57,6 +61,7 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
     if (!(h.canAim() || h.canTap()) || drag) return;
     drag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     canvas.setPointerCapture(e.pointerId);
+    if (h.canAim()) h.aimFrom(e.clientX, e.clientY);
   });
 
   canvas.addEventListener('pointermove', (e) => {
@@ -110,6 +115,10 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
   document.getElementById('weapons')?.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-tier]');
     if (btn && !btn.disabled && h.canAim()) h.selectTier(Number(btn.dataset.tier));
+  });
+
+  document.getElementById('aim-switch')?.addEventListener('click', () => {
+    if (h.canAim()) h.switchAim();
   });
 
   document.getElementById('fire')?.addEventListener('click', () => {

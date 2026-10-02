@@ -1602,3 +1602,21 @@ body[data-online='true'] #net-menu {
   font-size: 13px;
   opacity: 0.75;
 }
+
+/* ---------- torikloud's twin: which tank you're aiming ---------- */
+#aim-switch {
+  align-self: flex-start;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  border-color: var(--player-colour);
+}
+#aim-switch[aria-pressed='true'] {
+  background: var(--player-colour);
+  color: #10142a;
+}
+#aim-switch[hidden] {
+  display: none;
+}

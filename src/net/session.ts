@@ -33,7 +33,21 @@ export type NetMsg =
   /** `v` is the wire version and `rules` the rules version (version.ts): they must match exactly. */
   | { k: 'hello'; v: number; rules: number; pick: Pick }
   | { k: 'start'; seed: number; players: PlayerConfig[]; rules: number; terrain: string; replay?: string }
-  | { k: 'preview'; turn: number; x: number; y: number; fuel: number; angle: number; power: number; tier: number; hop: Hop | null }
+  | {
+      k: 'preview';
+      turn: number;
+      x: number;
+      y: number;
+      fuel: number;
+      angle: number;
+      power: number;
+      tier: number;
+      hop: Hop | null;
+      /** torikloud: the twin's own aim (if there's a twin), which tank is being aimed, and where a twin being placed will go. */
+      twin?: { angle: number; power: number } | null;
+      aimTwin?: boolean;
+      twinSpot?: number | null;
+    }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
   /** A phone that dropped out is back (on a new connection) and needs catching up. */

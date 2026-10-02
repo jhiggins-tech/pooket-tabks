@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
-import { currentPlayer, explode, fire, isAimless, selectTier, setAim, step, targetAt } from '../src/game/game';
+import { aimTwin, currentPlayer, explode, fire, isAimless, pendingTwinSpot, placeTwin, selectTier, setAim, step, targetAt } from '../src/game/game';
+import { TANK_HALF_WIDTH } from '../src/game/constants';
 import { drainToxin } from '../src/game/gunk';
 import { doseTarget } from '../src/game/tanks';
 import { applySnapshot, takeSnapshot, upgradeSnapshot } from '../src/net/snapshot';
@@ -104,7 +105,75 @@ describe('Twins', () => {
     expect(tori.twin!.y).toBe(g.terrain.surfaceY(tori.twin!.x));
   });
 
-  it('the twin fires the same weapon with the same aim and power, arguing from social work', () => {
+  it('the twin goes where torikloud puts it: a suggested spot (no dice rolled), or a tapped one if allowed', () => {
+    const g = game(); // torikloud at 200, kie at 800
+    const tori = g.players[0]!;
+    expect(pendingTwinSpot(g)).toBeNull(); // not with Twins selected
+    selectTier(g, 2);
+    const rng = g.rng.state;
+    const suggested = pendingTwinSpot(g)!;
+    expect(g.rng.state).toBe(rng); // just looking doesn't touch the match's randomness
+    expect(Math.abs(suggested - tori.x)).toBeGreaterThanOrEqual(TANK_HALF_WIDTH * 8);
+    expect(suggested).toBeLessThan(tori.x); // away from kie, there's room
+    // Not right beside an enemy, nor on a tank, nor off the edge.
+    expect(placeTwin(g, 800 - TANK_HALF_WIDTH * 3)).toBe(false);
+    expect(placeTwin(g, tori.x + 5)).toBe(false);
+    expect(placeTwin(g, 2)).toBe(false);
+    expect(pendingTwinSpot(g)).toBe(suggested);
+    // Anywhere else is fine, even in front of kie.
+    expect(placeTwin(g, 600)).toBe(true);
+    expect(pendingTwinSpot(g)).toBe(600);
+    fire(g);
+    expect(tori.twin!.x).toBe(600);
+    expect(tori.twinSpot).toBeNull();
+    expect(pendingTwinSpot(g)).toBeNull();
+  });
+
+  it('the twin aims on its own: it starts with the main tank’s aim, then each tank keeps its own', () => {
+    const g = game();
+    const tori = g.players[0]!;
+    setAim(g, 70, 55);
+    withTwin(g);
+    expect(tori.twin).toMatchObject({ angle: 70, power: 55 });
+    aimTwin(g, true);
+    setAim(g, 120, 30);
+    expect(tori.twin).toMatchObject({ angle: 120, power: 30 });
+    expect([tori.angle, tori.power]).toEqual([70, 55]);
+    aimTwin(g, false);
+    setAim(g, 40, 80);
+    expect([tori.angle, tori.power]).toEqual([40, 80]);
+    expect(tori.twin).toMatchObject({ angle: 120, power: 30 });
+    // Each fires along its own aim (Debate letters, ±1° of jitter).
+    selectTier(g, 0);
+    fire(g);
+    // Each letter's heading as it leaves the barrel.
+    const fired = new Map<Projectile, number>();
+    const heading = (p: Projectile) => (Math.atan2(-p.vy, p.vx) * 180) / Math.PI;
+    whileFlying(g, () => g.projectiles.forEach((p) => !fired.has(p) && fired.set(p, heading(p))));
+    const from = (colour: string) => [...fired].filter(([p]) => p.glyphColour === colour).map(([, h]) => h);
+    const twinHeadings = from(debate.words!.twinColour);
+    const mainHeadings = from(debate.words!.mainColour);
+    expect(twinHeadings.length).toBeGreaterThan(0);
+    expect(mainHeadings.length).toBeGreaterThan(0);
+    for (const h of twinHeadings) expect(Math.abs(h - 120)).toBeLessThan(5);
+    for (const h of mainHeadings) expect(Math.abs(h - 40)).toBeLessThan(5);
+  });
+
+  it('a twin that takes over from a destroyed main tank keeps its own aim', () => {
+    const g = game();
+    withTwin(g);
+    const tori = g.players[0]!;
+    aimTwin(g, true);
+    setAim(g, 150, 20);
+    tori.hp = 5;
+    explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
+    expect(tori.twin).toBeNull();
+    expect([tori.x, tori.angle, tori.power]).toEqual([450, 150, 20]);
+    setAim(g, 100, 50); // aiming the (only) tank again
+    expect([tori.angle, tori.power]).toEqual([100, 50]);
+  });
+
+  it('the twin fires the same weapon, arguing from social work', () => {
     const g = game();
     withTwin(g);
     const letters = fireDebate(g);
@@ -285,6 +354,21 @@ describe("torikloud's health, and statuses on the twin", () => {
     explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
     expect(tori.twin).toBeNull();
     expect(tori).toMatchObject({ x: 450, soak: 1, toxin: 2, toxinRate: 7, burn: null });
+  });
+
+  it('a stored match from before twins aimed on their own carries on (the twin takes the main tank’s aim)', () => {
+    const g = versusKcaj();
+    const tori = g.players[0]!;
+    const snap = takeSnapshot(g);
+    const p0 = (snap.players as Record<string, unknown>[])[0]!;
+    const twin = p0.twin as Record<string, unknown>;
+    delete twin.angle;
+    delete twin.power;
+    delete p0.aimTwin;
+    delete p0.twinSpot;
+    applySnapshot(g, upgradeSnapshot(snap));
+    expect(tori.twin).toMatchObject({ angle: tori.angle, power: tori.power });
+    expect([tori.aimTwin, tori.twinSpot]).toEqual([false, null]);
   });
 
   it('a stored match from before twins had toxin carries on (its snapshot is filled in)', () => {

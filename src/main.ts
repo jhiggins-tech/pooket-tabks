@@ -5,7 +5,7 @@
  */
 import './style.css';
 import { randomSeed } from './core/rng';
-import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
+import { FIXED_DT, TANK_BODY_HEIGHT, WORLD_H, WORLD_W } from './game/constants';
 import { assignColours, getCharacter } from './characters/roster';
 import {
   adjustAim,
@@ -16,6 +16,9 @@ import {
   finishDecoyPick,
   fire,
   hologramAt,
+  aimTwin,
+  pendingTwinSpot,
+  placeTwin,
   selectTier,
   setAim,
   step,
@@ -263,15 +266,28 @@ bindControls(canvas, {
   adjust: (da, dp) => adjustAim(state, da, dp),
   selectTier: (t) => selectTier(state, t),
   setDrive: (dir) => (driveDir = dir),
-  canTap: () => canPickDecoy(state) && localCanAct(),
+  canTap: () => (canPickDecoy(state) || pendingTwinSpot(state) !== null) && localCanAct(),
   tap: (x, y) => {
     const w = renderer.screenToWorld(x, y);
+    // Placing torikloud's twin: wherever the ground was tapped (if it's allowed there).
+    if (pendingTwinSpot(state) !== null) return void placeTwin(state, w.x);
     // Generous finger-sized radius (~30 CSS px).
     const holo = hologramAt(state, w.x, w.y, 30 / renderer.cssScale);
     if (holo) toggleSwapTarget(state, holo.id);
   },
   fire: () => (net ? net.fire() : fireHere()),
   done: () => finishDecoyPick(state),
+  aimFrom: (x, y) => {
+    // torikloud with a twin: a drag that starts near one of the tanks aims that one.
+    const p = currentPlayer(state);
+    if (!p.twin) return;
+    const w = renderer.screenToWorld(x, y);
+    const near = 60 / renderer.cssScale;
+    const dMain = Math.hypot(w.x - p.x, w.y - (p.y - TANK_BODY_HEIGHT));
+    const dTwin = Math.hypot(w.x - p.twin.x, w.y - (p.twin.y - TANK_BODY_HEIGHT));
+    if (Math.min(dMain, dTwin) < near) aimTwin(state, dTwin < dMain);
+  },
+  switchAim: () => aimTwin(state, !currentPlayer(state).aimTwin),
 });
 
 const onResize = () => renderer.resize();

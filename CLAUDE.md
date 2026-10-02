@@ -63,7 +63,10 @@ what it's for; weapons are documented where they're defined.
   `applyHit()`** (damage, the weapon's effect flags, friendly fire, refund-on-miss), then
   `damageTarget()` → `hurt()` (floating numbers, a twin taking over). Outgoing damage × the shooter's
   `offence()` (halved while cooked) at every source; incoming × the victim's `vulnerable()` (tattoos).
-  Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`).
+  Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`). torikloud's twin (`copies.ts`)
+  is placed by the player (`Player.twinSpot`, `pendingTwinSpot` / `placeTwin`) and has its own aim
+  (`Twin.angle` / `power`; `twinGun` fires with it; `Player.aimTwin` and `aimedTank` say which one
+  `setAim` moves).
 - **Statuses** (`game/statuses.ts`, a table in its header): `afflict()` puts them on from a hit's weapon flags
   (`dot` → burn on the tank hit, `debuff` → cooked, `tattoo`, `pin` → pinned, on the player), `turnEnding`
   / `turnStarting` run their course from `endTurn`, and `offence` / `vulnerable` / `canMove` are what

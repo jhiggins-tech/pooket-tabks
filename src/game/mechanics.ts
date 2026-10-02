@@ -46,7 +46,7 @@ export const FREE_ACTIONS: Record<Exclude<WeaponKind, ShotKind>, FreeActionFn> =
 
 /** How each kind of shot goes off (each given a weapon of its kind: see `fireShot`). */
 export const FIRE: { [K in ShotKind]: FireFn<K> } = {
-  // A twin fires the same weapon with the same aim and power from its own spot.
+  // A twin fires the same weapon from its own spot, with its own aim and power.
   ballistic: (state, p, weapon) => {
     fireRounds(state, p, weapon, 'main');
     if (p.twin) fireRounds(state, p, weapon, 'twin');

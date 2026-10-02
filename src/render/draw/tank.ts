@@ -1,5 +1,5 @@
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
-import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, tankCentre } from '../../game/game';
+import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, pendingTwinSpot, tankCentre } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
@@ -10,9 +10,9 @@ import type { Draw } from './context';
  * Draws player p's tank, or (with `at`) a copy of it at another spot: their twin (with its own burn), or
  * a hologram (looking just like the real tank, statuses and all).
  */
-export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: number; y: number; burn?: Burn | null }): void {
+export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: number; y: number; burn?: Burn | null; angle?: number }): void {
   const { ctx } = d;
-  const p: Player = at ? { ...owner, x: at.x, y: at.y, burn: at.burn === undefined ? owner.burn : at.burn } : owner;
+  const p: Player = at ? { ...owner, x: at.x, y: at.y, burn: at.burn === undefined ? owner.burn : at.burn, angle: at.angle ?? owner.angle } : owner;
   const c = tankCentre(p);
   const isCurrent = !at && state.players[state.current] === owner && state.phase !== 'gameover';
 
@@ -124,7 +124,7 @@ export function drawGlitchedTank(
   d: Draw,
   owner: Player,
   state: GameState,
-  at: { x: number; y: number; burn?: Burn | null } | undefined,
+  at: { x: number; y: number; burn?: Burn | null; angle?: number } | undefined,
   glitch: number,
   build: number,
   alpha: number,
@@ -252,13 +252,13 @@ export function drawSwapMarker(d: Draw, at: { x: number; y: number }): void {
   ctx.restore();
 }
 
-export function drawAimGuide(d: Draw, p: Player): void {
+export function drawAimGuide(d: Draw, p: Player, faint = false): void {
   const { ctx } = d;
   const m = muzzle(p);
   const a = (p.angle * Math.PI) / 180;
   const len = 20 + p.power * 1.2;
   ctx.save();
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.strokeStyle = faint ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.75)';
   ctx.lineWidth = 2;
   ctx.setLineDash([4, 6]);
   ctx.beginPath();
@@ -291,7 +291,31 @@ export function drawTanks(d: Draw, state: GameState): void {
   }
 }
 
-/** The aim guide, while the current player is aiming something that aims. */
+/**
+ * The aim guide, while the current player is aiming something that aims: with a twin, one from each tank
+ * (the one being aimed bright, the other faint). And while placing a twin, a ghost of it where it'll go.
+ */
 export function drawAim(d: Draw, state: GameState): void {
-  if (state.phase === 'aiming' && !isAimless(state)) drawAimGuide(d, currentPlayer(state));
+  const p = currentPlayer(state);
+  const spot = pendingTwinSpot(state);
+  if (spot !== null) drawTwinGhost(d, state, p, spot);
+  if (state.phase !== 'aiming' || isAimless(state)) return;
+  if (p.twin) drawAimGuide(d, { ...p, x: p.twin.x, y: p.twin.y, angle: p.twin.angle, power: p.twin.power }, !p.aimTwin);
+  drawAimGuide(d, p, !!p.twin && p.aimTwin);
+}
+
+/** Where the twin will appear: a see-through tank and a dashed ring, pulsing. */
+function drawTwinGhost(d: Draw, state: GameState, p: Player, x: number): void {
+  const { ctx } = d;
+  const y = state.terrain.surfaceY(x);
+  const pulse = 0.5 + 0.5 * Math.sin(d.time * 4);
+  drawGlitchedTank(d, p, state, { x, y, burn: null }, 0.15, 1, 0.55 + 0.2 * pulse);
+  ctx.save();
+  ctx.strokeStyle = withAlpha(p.colour, 0.55 + 0.3 * pulse);
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.arc(x, y - TANK_BODY_HEIGHT, TANK_HALF_WIDTH + 8, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
 }

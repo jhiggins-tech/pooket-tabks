@@ -24,7 +24,7 @@ import { clamp, normalizeAngle } from './util';
  * (aiming → flying → settling → aiming | gameover). Pure logic, no DOM. The public API is re-exported
  * here, so the rest of the game imports from './game'.
  */
-export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, canPickDecoy, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, toggleSwapTarget } from './copies';
+export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, canPickDecoy, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
 export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, drive } from './movement';
@@ -101,6 +101,8 @@ export function createGame(cfg: GameConfig): GameState {
       pinned: null,
       hop: null,
       twin: null,
+      aimTwin: false,
+      twinSpot: null,
       fuel: FUEL_PER_MATCH,
       toxin: 0,
       toxinRate: 0,
@@ -162,16 +164,28 @@ export function isAimless(state: GameState): boolean {
   return ignoresAim(weaponForTier(p, p.selectedTier));
 }
 
+/** The tank the current player is aiming: the twin (with its own aim) if they've picked it, else the main tank. */
+export function aimedTank(p: Player): { angle: number; power: number } {
+  return p.aimTwin && p.twin ? p.twin : p;
+}
+
 export function setAim(state: GameState, angle: number, power: number): void {
   if (state.phase !== 'aiming' || isAimless(state)) return;
-  const p = currentPlayer(state);
-  p.angle = normalizeAngle(Math.round(angle));
-  p.power = clamp(Math.round(power), 0, 100);
+  const tank = aimedTank(currentPlayer(state));
+  tank.angle = normalizeAngle(Math.round(angle));
+  tank.power = clamp(Math.round(power), 0, 100);
 }
 
 export function adjustAim(state: GameState, dAngle: number, dPower: number): void {
+  const tank = aimedTank(currentPlayer(state));
+  setAim(state, tank.angle + dAngle, tank.power + dPower);
+}
+
+/** Aim the twin (true) or the main tank from now on (the twin only while there is one). */
+export function aimTwin(state: GameState, twin: boolean): void {
+  if (state.phase !== 'aiming') return;
   const p = currentPlayer(state);
-  setAim(state, p.angle + dAngle, p.power + dPower);
+  p.aimTwin = twin && !!p.twin;
 }
 
 export function hasAmmo(p: Player): boolean {

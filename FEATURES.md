@@ -4,18 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **torikloud's Twins: choose where the twin goes, and aim it on its own** (owner, 2 Oct; design agreed).
-   - Placement: with Twins selected, a ghost tank sits at a suggested clear spot; tap the ground to move
-     it, FIRE puts the twin there. Not within 2 tank-widths of an enemy, nor on another tank; anywhere
-     else. The spot is part of the shot (same on the other phone and for watchers).
-   - Aiming: the twin keeps its own angle and power; both tanks fire on every shot, each with its own
-     aim (Debate, Sonic Boom; aimless weapons unchanged). A new twin starts with the main tank's aim.
-     Starting the slingshot drag near a tank aims that one; a Main / Twin switch by the readouts picks
-     which one ↺ ↻ − + adjust. Online: the twin's aim streams live too.
-   - Gameplay change: bump `RULES`; a fill-in for stored twins in `upgradeSnapshot`.
-2. **Rename tones to "tones2"** (owner, 2 Oct). The name players see (pickers, info screen, chips, what's
+1. **Rename tones to "tones2"** (owner, 2 Oct). The name players see (pickers, info screen, chips, what's
    new); the id stays `tones`, so saved picks, matches in progress and replays carry on.
-3. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
+2. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
    is stronger than intended. When the stream is fired at an enemy within 4 tank-widths, a splashback
    animation plays: the liquid rebounds onto tones2's own tank and knocks the aim off, so the stream loses
    pressure fast, down to zero. Settled (owner): the rebound doesn't hurt, it only kills the pressure.
@@ -125,6 +116,13 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **torikloud's Twins: placed and aimed on their own** (owner, 2 Oct; rules 11). With Twins selected a ghost
+  tank shows where the twin will appear (a suggested spot, worked out without dice); tap the ground to move
+  it (not within 2 tank-widths of an enemy, not on a tank), then FIRE. The twin keeps its own angle and
+  power (it starts with the main tank's) and fires every shot along it: a drag that starts near a tank aims
+  that one, and the 🎯 Main tank / Twin switch picks which one ↺ ↻ − + adjust. Both aim guides show (the
+  one being aimed bright). Online, the twin's aim and the ghost stream live; stored matches fill the twin's
+  aim in from the main tank's. A twin that takes over from a destroyed main tank keeps its own aim.
 - **Marathon runner can be hit** (owner, 2 Oct; rules 10). Enemy shells, pills and walkers now collide with
   ciarra's runner and go off on her, like hitting a tank: a shot that crosses her path while she runs a
   leg gets her (they used to pass straight through, and she's usually on the move while shots fly, as

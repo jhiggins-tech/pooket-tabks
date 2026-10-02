@@ -47,7 +47,7 @@ export const twins = {
   name: 'Twins',
   shortName: 'Twins',
   info:
-    'No aiming. A second tank appears and torikloud’s HP is split between the two. The twin copies every shot with the same aim and power. He’s out only when both are gone.',
+    'Tap the ground to choose where a second tank appears (anywhere but right beside an enemy), then FIRE: torikloud’s HP is split between the two. The twin fires every shot too, with its own aim: drag from a tank to aim it, or switch with 🎯. He’s out only when both are gone.',
   kind: 'twin',
   colour: '#a78bfa',
 } satisfies WeaponDef;

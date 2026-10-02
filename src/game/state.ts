@@ -62,8 +62,12 @@ export interface Player extends TankBody {
   pinned: { active: boolean } | null;
   /** A frog hop in progress (ciarra's movement). */
   hop: Hop | null;
-  /** A second tank (torikloud's Twins): its own position and health bar, mirroring this player's shots. */
+  /** A second tank (torikloud's Twins): its own position, health bar and aim; it fires every shot too. */
   twin: Twin | null;
+  /** Aiming the twin (its own angle and power) rather than the main tank, while there is one. */
+  aimTwin: boolean;
+  /** Where the twin will appear (x), as placed by tapping while Twins is selected (null: the suggested spot). */
+  twinSpot: number | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
   /** Women in Scam in play: until the end of the next enemy turn; `loot` is the weapon of the first enemy hit on this tank. */
@@ -127,6 +131,9 @@ export interface Runner {
 export interface Twin extends TankBody {
   /** Seconds since it appeared (cosmetic phase-in). */
   age: number;
+  /** Its own aim: degrees as Player.angle, and 0–100. */
+  angle: number;
+  power: number;
 }
 
 export interface Projectile {
