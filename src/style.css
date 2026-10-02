@@ -50,6 +50,12 @@ button:active {
 button:disabled {
   opacity: 0.4;
 }
+/* A dropdown's list: its own colours (on Windows the open list ignores color-scheme and shows white,
+   while still taking our white text from the select). */
+select option {
+  color: var(--text);
+  background-color: #1b2440;
+}
 
 /* ---------- HUD ---------- */
 #hud {

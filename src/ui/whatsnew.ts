@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 30,
+    title: 'Fix',
+    items: ['Fixed: on a computer, the tank dropdowns opened as white text on white.'],
+  },
+  {
     version: 29,
     title: 'Notifications',
     items: [
