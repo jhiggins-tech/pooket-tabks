@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 37,
+    title: 'Bigger splashback',
+    items: ['tones2’s ten-1 now splashes back from three times as far: from any enemy within 12 tank-widths (was 4).'],
+  },
+  {
     version: 36,
     title: 'Splashback',
     items: ['tones2’s ten-1 at point-blank range splashes back now: once the jet has done 5 damage to an enemy within 4 tank-widths, it rebounds onto tones2 (no damage), knocking the aim off and killing the pressure. Further off it works as before.'],

@@ -276,9 +276,9 @@ describe('ten-1 splashback', () => {
     return { g, st, streamTime, splashAt, damage: MAX_HP - g.players[1]!.hp, tones: MAX_HP - g.players[0]!.hp, floaters };
   };
 
-  it('point-blank (within 4 tank-widths): after 5 damage it splashes back, and the pressure dies away fast', () => {
-    for (const seed of [1, 2, 3]) {
-      const r = play(SPLASHBACK_RANGE - 30, 0, 75, seed);
+  it('up close (within 12 tank-widths): after 5 damage it splashes back, and the pressure dies away fast', () => {
+    for (const [dist, angle, power, seed] of [[60, 0, 75, 1], [60, 0, 75, 2], [150, 10, 75, 3], [SPLASHBACK_RANGE - 20, 10, 85, 1]] as const) {
+      const r = play(dist, angle, power, seed);
       expect(r.st.close).toEqual({ playerId: 1, twin: false });
       expect(r.splashAt).not.toBeNull();
       expect(r.floaters.has('SPLASHBACK!')).toBe(true);
@@ -294,11 +294,13 @@ describe('ten-1 splashback', () => {
   });
 
   it("further away it doesn't splash back: the full jet, as before", () => {
-    const r = play(400, 10, 95);
-    expect(r.st.close).toBeNull();
-    expect(r.splashAt).toBeNull();
-    expect(r.floaters.has('SPLASHBACK!')).toBe(false);
-    expect(r.damage).toBeGreaterThan(30);
+    for (const [dist, angle, power] of [[SPLASHBACK_RANGE + 20, 10, 85], [400, 10, 95]] as const) {
+      const r = play(dist, angle, power);
+      expect(r.st.close).toBeNull();
+      expect(r.splashAt).toBeNull();
+      expect(r.floaters.has('SPLASHBACK!')).toBe(false);
+      expect(r.damage).toBeGreaterThan(30);
+    }
   });
 
   it('close, but aimed away: nothing to splash back off, so the jet runs its course', () => {

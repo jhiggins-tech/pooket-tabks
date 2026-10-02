@@ -15,8 +15,8 @@ import { hash, hexToRgb, tint } from './util';
  * pressure dies away to nothing over SPLASHBACK_DECAY.
  */
 
-/** How close (tank centres) an enemy has to be for the jet to splash back: 4 tank-widths. */
-export const SPLASHBACK_RANGE = TANK_HALF_WIDTH * 2 * 4;
+/** How close (tank centres) an enemy has to be for the jet to splash back: 12 tank-widths. */
+export const SPLASHBACK_RANGE = TANK_HALF_WIDTH * 2 * 12;
 /** Damage to that close enemy (more than this) that sets off the splashback. */
 export const SPLASHBACK_DAMAGE = 5;
 /** Seconds the pressure takes to die away after a splashback. */

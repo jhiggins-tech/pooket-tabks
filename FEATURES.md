@@ -109,6 +109,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **ten-1 splashback reaches further** (owner play test, 2 Oct; rules 13): the range is tripled, from 4 to
+  12 tank-widths (`SPLASHBACK_RANGE`, 264px between tank centres). Past that ten-1 is unchanged.
 - **ten-1 splashback** (owner, 2 Oct; rules 12). Point-blank, every drop of tones2's ten-1 landed, which
   was stronger than intended. Now, if the enemy nearest tones2 when firing (main tank or twin) is within 4
   tank-widths and the stream does more than 5 damage to them in total, it splashes back: "SPLASHBACK!",
