@@ -28,7 +28,7 @@ export const ten2 = {
   name: 'ten-2',
   shortName: 'ten-2',
   info:
-    'tones shakes for 10 seconds, then jetpacks off along your aim (power = thrust) to a new spot. The exhaust is a huge blast of toxic mud that piles up and poisons enemies it lands on.',
+    'tones2 shakes for 10 seconds, then jetpacks off along your aim (power = thrust) to a new spot. The exhaust is a huge blast of toxic mud that piles up and poisons enemies it lands on.',
   kind: 'jetpack',
   jetpack: {
     chargeTime: 10,
@@ -76,7 +76,7 @@ export const ten3 = {
 export const tones = kit(
   {
     id: 'tones',
-    name: 'tones',
+    name: 'tones2', // (renamed from tones; the id stays, for saved picks and matches)
     blurb: 'ten-1 water jet, ten-2 mud jetpack and the ten-3 spew.',
     colours: ['#ff5a5f', '#ff8c42', '#ff7eb6'],
   },

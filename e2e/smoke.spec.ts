@@ -22,11 +22,11 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator(':scope > option')).toHaveText(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
   await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(6);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
-  await expect(p1Name).toHaveValue('tones');
+  await expect(p1Name).toHaveValue('tones2');
   await expect(p2Name).toHaveValue('kie');
 
   // Picking a character pre-fills its name; a typed name sticks.
@@ -274,7 +274,7 @@ test("kie's Steal roulette", async ({ page }) => {
   // The roulette spins over tones' weapons, one lit at a time; nothing else can be done meanwhile.
   const heist = page.locator('#heist');
   await expect(heist).toBeVisible();
-  await expect(page.locator('.heist-title')).toHaveText('kie is stealing from tones…');
+  await expect(page.locator('.heist-title')).toHaveText('kie is stealing from tones2…');
   await expect(page.locator('.heist-card .wname')).toHaveText(['ten-1', 'ten-2', 'ten-3']);
   await expect(page.locator('.heist-card.lit')).toHaveCount(1);
   await expect(page.locator('#fire')).toBeDisabled();
@@ -632,7 +632,7 @@ test('info screen explains every character and weapon', async ({ page }) => {
   await page.waitForTimeout(400);
   expect(await shots()).toBe(frozen);
   await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the six, and six coming soon
-  for (const [name, weapon] of [['tones', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
+  for (const [name, weapon] of [['tones2', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
   }
@@ -807,7 +807,7 @@ test("what's new shows once per version, and can be reopened from setup", async 
 
 test('who goes first is random, picked from the seed', async ({ page }) => {
   // Seed 12345 picks player 2, seed 12347 player 1.
-  for (const [seed, starts] of [[12345, 'kie'], [12347, 'tones']] as const) {
+  for (const [seed, starts] of [[12345, 'kie'], [12347, 'tones2']] as const) {
     await page.goto(`./?seed=${seed}&first=random`);
     await page.locator('#open-hotseat').tap();
     await page.locator('#start').tap();

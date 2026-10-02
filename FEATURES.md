@@ -4,9 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Rename tones to "tones2"** (owner, 2 Oct). The name players see (pickers, info screen, chips, what's
-   new); the id stays `tones`, so saved picks, matches in progress and replays carry on.
-2. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
+1. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
    is stronger than intended. When the stream is fired at an enemy within 4 tank-widths, a splashback
    animation plays: the liquid rebounds onto tones2's own tank and knocks the aim off, so the stream loses
    pressure fast, down to zero. Settled (owner): the rebound doesn't hurt, it only kills the pressure.
@@ -163,6 +161,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **tones is now tones2** (owner, 2 Oct): the name players see everywhere; the id stays `tones`, so saved
+  picks, matches in progress and replays carry on. A hotseat seat saved under the old name follows the
+  character (`OLD_NAMES`, ui/seats.ts).
 - **Coming soon characters** (owner, 2 Oct): garyoldmancorp, shotdownboyz, kiwicore, odsey, lankcity and
   doctorfox are in the character pickers (hotseat and Choose your tank, under "Coming soon") and have an
   info tab each, with a Coming soon banner. They can be looked at, not played: Start and Join wait for
@@ -305,7 +306,7 @@ between visits.
 
 | Character | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|---|
-| **tones** | ten-1: yellow water jet that builds in spurts, trickle damage; a complete miss refunds the round | ten-2: shakes for 10s, then jetpacks away on a huge, wide blast of toxic mud | ten-3: short-range chunky spew, intense damage over one turn; coats the ground in toxic sludge that burns enemies for the rest of the turn |
+| **tones2** (id `tones`) | ten-1: yellow water jet that builds in spurts, trickle damage; a complete miss refunds the round | ten-2: shakes for 10s, then jetpacks away on a huge, wide blast of toxic mud | ten-3: short-range chunky spew, intense damage over one turn; coats the ground in toxic sludge that burns enemies for the rest of the turn |
 | **kie** | Weasel Pop: 3 tumbling weasels that scurry right up under the enemy and pop for full damage (or as close as they can get in range), to Pop Goes the Weasel | Trollogram: 2 decoys per use (3 uses, they add up), secret swap (even on the turn it's cast: tap one, then DONE); a hit one blows up (20px blast, 20 damage, hurts any tank, kie's too, and can set off the next) | Steal: a slot-machine roulette spins over the enemy's weapons and lands on one at random; kie takes a round of it (they lose it), it replaces Steal and he can fire it the same turn |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). He starts with 150 health (everyone else 100) |

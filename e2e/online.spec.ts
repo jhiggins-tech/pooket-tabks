@@ -198,7 +198,7 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await fan.locator('#open-browser').tap();
   const game = rows(fan, 'live');
   await expect(game).toContainText('Ann vs', { timeout: 10_000 });
-  await expect(game).toContainText('tones vs');
+  await expect(game).toContainText('tones2 vs');
   await expect(game).toContainText('Live');
   await expect(rows(fan, 'open')).toHaveCount(0);
   await fan.screenshot({ path: 'test-results/games-list.png' });
@@ -284,7 +284,7 @@ test('past matches: a finished public match can be watched again, start to finis
   const past = rows(fan, 'replay');
   await expect(past).toHaveCount(1, { timeout: 10_000 });
   await expect(past).toContainText('Ann vs Bo');
-  await expect(past).toContainText('tones vs kcaj');
+  await expect(past).toContainText('tones2 vs kcaj');
   await expect(past).toContainText('Bo resigned');
   await fan.screenshot({ path: 'test-results/past-matches.png' });
 

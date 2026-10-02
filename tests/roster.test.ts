@@ -6,7 +6,7 @@ import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
   it('has the six selectable characters', () => {
-    expect(ROSTER.map((c) => c.name)).toEqual(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
+    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
   });
 
   it('torikloud, larinovsky and ciarra have their own kits', () => {

@@ -2,16 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { changeCharacter, defaultSeats, parseSeats, PLAYER_COUNT, resolveNames } from '../src/ui/seats';
 
 describe('setup seats', () => {
-  it('defaults to two players, tones vs kie, with names pre-filled', () => {
+  it('defaults to two players, tones2 vs kie, with names pre-filled', () => {
     expect(PLAYER_COUNT).toBe(2);
     expect(defaultSeats()).toEqual([
-      { name: 'tones', characterId: 'tones' },
+      { name: 'tones2', characterId: 'tones' },
       { name: 'kie', characterId: 'kie' },
     ]);
   });
 
   it('name follows the character until the player types their own', () => {
-    expect(changeCharacter({ name: 'tones', characterId: 'tones' }, 'kcaj')).toEqual({
+    expect(changeCharacter({ name: 'tones2', characterId: 'tones' }, 'kcaj')).toEqual({
       name: 'kcaj',
       characterId: 'kcaj',
     });
@@ -40,5 +40,14 @@ describe('setup seats', () => {
     expect(parseSeats(null)).toEqual(defaultSeats());
     expect(parseSeats([{ name: 'x', characterId: 'rookie' }, saved[1]])).toEqual(defaultSeats());
     expect(parseSeats([...saved, saved[0]])).toEqual(defaultSeats()); // wrong player count
+  });
+
+  it('a seat saved under a character’s old name (tones, now tones2) follows the character', () => {
+    const seats = parseSeats([
+      { name: 'tones', characterId: 'tones' },
+      { name: 'tones', characterId: 'kie' }, // someone who typed "tones" for kie keeps it
+    ]);
+    expect(seats.map((s) => s.name)).toEqual(['tones2', 'tones']);
+    expect(changeCharacter(seats[0]!, 'kcaj').name).toBe('kcaj');
   });
 });

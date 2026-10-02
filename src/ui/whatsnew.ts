@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 35,
+    title: 'tones2',
+    items: ['tones is now called tones2. Same tank, same weapons.'],
+  },
+  {
     version: 34,
     title: 'Twins, your way',
     items: [

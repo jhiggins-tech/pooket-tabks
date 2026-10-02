@@ -38,10 +38,16 @@ export function resolveNames(seats: readonly Seat[]): string[] {
   });
 }
 
+/** Characters' old names, so a seat saved under one still follows its character. */
+const OLD_NAMES: Record<string, string> = { tones: 'tones' };
+
 /** Validate seats restored from storage; fall back to defaults if anything is off. */
 export function parseSeats(raw: unknown): Seat[] {
   if (!Array.isArray(raw) || raw.length !== PLAYER_COUNT) return defaultSeats();
   const ok = raw.every((s) => typeof s?.name === 'string' && isCharacterId(s?.characterId));
   if (!ok) return defaultSeats();
-  return raw.map((s: Seat) => ({ name: s.name.slice(0, NAME_MAX), characterId: s.characterId }));
+  return raw.map((s: Seat) => {
+    const renamed = OLD_NAMES[s.characterId] === s.name.trim() ? getCharacter(s.characterId).name : s.name;
+    return { name: renamed.slice(0, NAME_MAX), characterId: s.characterId };
+  });
 }
