@@ -237,6 +237,13 @@ export interface Stream {
   /** Shapes this stream's uneven surges (from the gameplay RNG, so replays match). */
   seed: number;
   colour: string;
+  /** Splashback: the enemy tank close enough to splash back (the nearest, if within reach when fired). */
+  close: { playerId: number; twin: boolean } | null;
+  /** Damage the stream has done to that tank so far. */
+  dealt: number;
+  /** When it splashed back (seconds into the stream), and the pressure then: it dies away from there. */
+  splashAt: number | null;
+  splashFrom: number;
 }
 
 export interface Droplet {
@@ -360,6 +367,8 @@ export interface Splash {
   age: number;
   life: number;
   colour: string;
+  /** Radius (px; default 1.4): a splashback's drops are big, and stay solid until they land. */
+  size?: number;
 }
 
 /** Floating damage number drifting up and away from a tank. */
@@ -410,6 +419,7 @@ export type SfxCue =
   | 'refund'
   | 'scammed'
   | 'lock-on'
+  | 'splashback'
   | 'gameover';
 
 export interface Sfx {

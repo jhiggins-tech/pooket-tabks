@@ -43,6 +43,13 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
     p.aimTwin ??= false;
     p.twinSpot ??= null;
   }
+  // Rules 12: ten-1 splashes back at close range (a stream in flight from before carries on without).
+  for (const st of (snap.streams as Record<string, unknown>[] | undefined) ?? []) {
+    st.close ??= null;
+    st.dealt ??= 0;
+    st.splashAt ??= null;
+    st.splashFrom ??= 0;
+  }
   return snap;
 }
 

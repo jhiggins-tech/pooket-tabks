@@ -1,14 +1,51 @@
 import { randRange } from '../core/rng';
 import { weaponOf } from '../weapons/registry';
 import type { StreamSpec, WeaponDef } from '../weapons/types';
-import { GRAVITY, MAX_SPEED } from './constants';
-import { spawnSplash } from './fx';
+import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { sound, spawnFloater, spawnSplash } from './fx';
 import type { Stepper } from './mechanics';
 import type { Droplet, GameState, Player, Stream } from './state';
-import { muzzle, noteHit, offence, soakTarget, targetAt, targetOwner } from './tanks';
+import { muzzle, noteHit, offence, soakTarget, targetAt, targetOwner, type Target } from './tanks';
 import { hash, hexToRgb, tint } from './util';
 
-/** tones' ten-1: the water jet, its pressure profile and droplets. */
+/**
+ * tones2's ten-1: the water jet, its pressure profile and droplets. And the splashback: fired at an enemy
+ * tank within SPLASHBACK_RANGE (the nearest, when firing), once the jet has done SPLASHBACK_DAMAGE to it
+ * the water rebounds onto tones2's own tank (looks only, no damage), knocking the aim off, and the
+ * pressure dies away to nothing over SPLASHBACK_DECAY.
+ */
+
+/** How close (tank centres) an enemy has to be for the jet to splash back: 4 tank-widths. */
+export const SPLASHBACK_RANGE = TANK_HALF_WIDTH * 2 * 4;
+/** Damage to that close enemy (more than this) that sets off the splashback. */
+export const SPLASHBACK_DAMAGE = 5;
+/** Seconds the pressure takes to die away after a splashback. */
+export const SPLASHBACK_DECAY = 0.45;
+/** How far (degrees) the splashback knocks the aim, upwards, by the time the pressure's gone. */
+const SPLASHBACK_KNOCK = 35;
+
+/** The enemy tank nearest p, if it's within splashback range. */
+function closeEnemy(state: GameState, p: Player): Stream['close'] {
+  let best: Stream['close'] = null;
+  let bestD = SPLASHBACK_RANGE;
+  for (const q of state.players) {
+    if (q === p || !q.alive) continue;
+    for (const [tank, twin] of [[q, false], [q.twin, true]] as const) {
+      if (!tank) continue;
+      const d = Math.hypot(tank.x - p.x, tank.y - p.y);
+      if (d < bestD) {
+        bestD = d;
+        best = { playerId: q.id, twin };
+      }
+    }
+  }
+  return best;
+}
+
+function isClose(st: Stream, t: Target): boolean {
+  const c = st.close;
+  return !!c && t.kind === 'tank' && t.player.id === c.playerId && (t.tank !== t.player) === c.twin;
+}
 
 export function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
   const m = muzzle(p);
@@ -24,7 +61,45 @@ export function fireStream(state: GameState, p: Player, weapon: WeaponDef): void
     emitCarry: 0,
     seed: Math.floor(state.rng() * 1e6),
     colour: weapon.colour ?? '#3fb6ff',
+    close: closeEnemy(state, p),
+    dealt: 0,
+    splashAt: null,
+    splashFrom: 0,
   });
+}
+
+/** How far through dying away a splashed-back stream is (0–1), or null if it hasn't splashed back. */
+function splashed(st: Stream): number | null {
+  return st.splashAt === null ? null : Math.min(1, (st.elapsed - st.splashAt) / SPLASHBACK_DECAY);
+}
+
+/** The water bounces back off the close enemy onto tones2: a burst of spray arcing home, and the aim knocked. */
+function splashBack(state: GameState, st: Stream, pressure: number, x: number, y: number): void {
+  st.splashAt = st.elapsed;
+  st.splashFrom = pressure;
+  const owner = state.players[st.ownerId];
+  if (!owner) return;
+  const tx = owner.x;
+  const ty = owner.y - TANK_BODY_HEIGHT;
+  // Cosmetic: arcs that land on tones2's tank (ballistic: flight time T, same gravity as the splashes).
+  for (let i = 0; i < 36; i++) {
+    const h = hash(state.fxSeq++ * 1.37);
+    const T = 0.45 + hash(h * 53) * 0.3;
+    const aimX = tx + (hash(h * 11) - 0.5) * 18;
+    const aimY = ty + (hash(h * 29) - 0.5) * 8;
+    state.fx.splashes.push({
+      x: x + (hash(h * 17) - 0.5) * 6,
+      y: y - 2,
+      vx: (aimX - x) / T,
+      vy: (aimY - y) / T - 0.5 * GRAVITY * T,
+      age: 0,
+      life: T + 0.15,
+      colour: st.colour,
+      size: 2.2 + hash(h * 41) * 1.6,
+    });
+  }
+  spawnFloater(state, tx, ty - 22, 'SPLASHBACK!', st.colour);
+  sound(state, 'splashback', st.weaponId);
 }
 
 /** Total time a stream runs for. */
@@ -81,7 +156,10 @@ function spurts(u: number, seed: number): number {
 export function stepStream(state: GameState, st: Stream, dt: number): boolean {
   const spec = weaponOf(st.weaponId, 'stream').stream;
   st.elapsed += dt;
-  const pressure = streamPressure(spec, st.elapsed, st.seed);
+  // After a splashback the pressure dies away from where it was, and the aim's knocked upwards.
+  const back = splashed(st);
+  const pressure = back === null ? streamPressure(spec, st.elapsed, st.seed) : st.splashFrom * (1 - back);
+  const knock = back === null ? 0 : back * SPLASHBACK_KNOCK * (st.angle > 90 && st.angle < 270 ? -1 : 1);
   // Flow scales with pressure: a sparse dribble at first, a solid jet at full.
   st.emitCarry += spec.dropsPerSecond * (0.2 + 0.8 * pressure) * dt;
   while (st.emitCarry >= 1) {
@@ -89,9 +167,9 @@ export function stepStream(state: GameState, st: Stream, dt: number): boolean {
     // A clean line at full pressure (just enough jitter that it isn't a laser: more and the drawn ribbon
     // zigzags), but a weak flow sprays, so the dribble that would otherwise all land on a close target
     // scatters around it.
-    const loose = (1 - pressure) ** 1.5;
+    const loose = Math.max((1 - pressure) ** 1.5, back ?? 0);
     const scatter = (spread: number) => ((randRange(state.rng, -1, 1) + randRange(state.rng, -1, 1)) / 2) * spread;
-    const a = ((st.angle + 0.12 * scatter(1) + scatter((spec.spray ?? 0) * loose)) * Math.PI) / 180;
+    const a = ((st.angle + knock + 0.12 * scatter(1) + scatter((spec.spray ?? 0) * loose)) * Math.PI) / 180;
     const speed = st.fullSpeed * pressure * (1 + 0.002 * scatter(1) + scatter((spec.speedSpread ?? 0) * loose));
     state.droplets.push({
       streamId: st.id,
@@ -105,7 +183,7 @@ export function stepStream(state: GameState, st: Stream, dt: number): boolean {
       colour: st.colour,
     });
   }
-  return st.elapsed >= streamDuration(spec);
+  return back === 1 || st.elapsed >= streamDuration(spec);
 }
 
 /** Moves one droplet. Returns true when it has landed, soaked a tank or left the map. */
@@ -124,8 +202,13 @@ export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     if (target) noteHit(state, target, d.ownerId);
     if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
       // A weak dribble stings much less than the full-pressure jet.
-      const drop = weapon.stream.damagePerDrop * (0.1 + 0.9 * d.pressure ** 2);
-      soakTarget(target, drop * offence(state, d.ownerId), tint(d.colour, 0.35));
+      const drop = weapon.stream.damagePerDrop * (0.1 + 0.9 * d.pressure ** 2) * offence(state, d.ownerId);
+      soakTarget(target, drop, tint(d.colour, 0.35));
+      // Too close: once it's done enough to the close enemy, it splashes back.
+      const st = state.streams.find((s) => s.id === d.streamId);
+      if (st && st.splashAt === null && isClose(st, target) && (st.dealt += drop) > SPLASHBACK_DAMAGE) {
+        splashBack(state, st, streamPressure(weapon.stream, st.elapsed, st.seed), x, y);
+      }
       spawnSplash(state, x, y, d, 3);
       return true;
     }

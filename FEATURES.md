@@ -4,12 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
-   is stronger than intended. When the stream is fired at an enemy within 4 tank-widths, a splashback
-   animation plays: the liquid rebounds onto tones2's own tank and knocks the aim off, so the stream loses
-   pressure fast, down to zero. Settled (owner): the rebound doesn't hurt, it only kills the pressure.
-   It's triggered by the enemy nearest tones2 when firing being within 4 tank-widths and taking more than
-   5 damage in total from the stream. A gameplay change: bump `RULES`.
+(Empty: everything queued has shipped.)
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -114,6 +109,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **ten-1 splashback** (owner, 2 Oct; rules 12). Point-blank, every drop of tones2's ten-1 landed, which
+  was stronger than intended. Now, if the enemy nearest tones2 when firing (main tank or twin) is within 4
+  tank-widths and the stream does more than 5 damage to them in total, it splashes back: "SPLASHBACK!",
+  big drops arc back onto tones2's own tank (harmless), the jet is knocked off its aim and the pressure
+  dies away to nothing in under half a second. So a point-blank jet does roughly 5–15 rather than 30+;
+  further off it's unchanged. Stored matches fill in the stream's new fields (`upgradeSnapshot`).
 - **torikloud's Twins: placed and aimed on their own** (owner, 2 Oct; rules 11). With Twins selected a ghost
   tank shows where the twin will appear (a suggested spot, worked out without dice); tap the ground to move
   it (not within 2 tank-widths of an enemy, not on a tank), then FIRE. The twin keeps its own angle and

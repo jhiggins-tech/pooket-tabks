@@ -6,6 +6,8 @@ import { createGame, currentPlayer, fire, muzzle, step, streamDuration, streamPr
 import type { GameState } from '../src/game/state';
 import { ten1 } from '../src/characters/kits';
 import { run, testGame, untilAiming } from './support/game';
+import { SPLASHBACK_DAMAGE, SPLASHBACK_DECAY, SPLASHBACK_RANGE } from '../src/game/stream';
+import { applySnapshot, takeSnapshot, upgradeSnapshot } from '../src/net/snapshot';
 
 const spec = ten1.stream!;
 const players = [
@@ -248,5 +250,72 @@ describe('ten-1 spread', () => {
     const far = [1, 2, 3].map((s) => shot(400, 10, 95, s));
     for (const d of close) expect(d).toBeLessThan(72); // was ~90: nearly a one-shot
     for (const d of far) expect(d).toBeGreaterThan(38);
+  });
+});
+
+describe('ten-1 splashback', () => {
+  /** tones2 at x = 200 and kie `dist` px to the right on flat ground, firing; plays the turn out. */
+  const play = (dist: number, angle: number, power: number, seed = 1) => {
+    const g = createGame({ seed, players });
+    const w = g.terrain.width;
+    g.terrain = Terrain.fromHeights(new Float32Array(w).fill(400), w, g.terrain.height, createRng(1));
+    g.players[0]!.x = 200;
+    g.players[1]!.x = 200 + dist;
+    for (const p of g.players) p.y = 400;
+    Object.assign(g.players[0]!, { angle, power });
+    fire(g);
+    const st = g.streams[0]!;
+    let streamTime = 0;
+    let splashAt: number | null = null;
+    const floaters = new Set<string>();
+    untilAiming(g, (s) => {
+      if (s.streams.includes(st)) streamTime = st.elapsed;
+      splashAt ??= st.splashAt;
+      for (const f of s.fx.floaters) floaters.add(f.text);
+    });
+    return { g, st, streamTime, splashAt, damage: MAX_HP - g.players[1]!.hp, tones: MAX_HP - g.players[0]!.hp, floaters };
+  };
+
+  it('point-blank (within 4 tank-widths): after 5 damage it splashes back, and the pressure dies away fast', () => {
+    for (const seed of [1, 2, 3]) {
+      const r = play(SPLASHBACK_RANGE - 30, 0, 75, seed);
+      expect(r.st.close).toEqual({ playerId: 1, twin: false });
+      expect(r.splashAt).not.toBeNull();
+      expect(r.floaters.has('SPLASHBACK!')).toBe(true);
+      expect(r.g.sfx.some((e) => e.cue === 'splashback')).toBe(true);
+      // The jet stops early: within the decay of the splashback, long before its full run.
+      expect(r.streamTime).toBeLessThanOrEqual(r.splashAt! + SPLASHBACK_DECAY + FIXED_DT);
+      expect(r.streamTime).toBeLessThan(streamDuration(spec));
+      // A little over the 5 (drops already in the air still land), nowhere near the old ~70.
+      expect(r.damage).toBeGreaterThan(SPLASHBACK_DAMAGE);
+      expect(r.damage).toBeLessThan(16);
+      expect(r.tones).toBe(0); // the rebound doesn't hurt
+    }
+  });
+
+  it("further away it doesn't splash back: the full jet, as before", () => {
+    const r = play(400, 10, 95);
+    expect(r.st.close).toBeNull();
+    expect(r.splashAt).toBeNull();
+    expect(r.floaters.has('SPLASHBACK!')).toBe(false);
+    expect(r.damage).toBeGreaterThan(30);
+  });
+
+  it('close, but aimed away: nothing to splash back off, so the jet runs its course', () => {
+    const r = play(SPLASHBACK_RANGE - 30, 180, 60);
+    expect(r.st.close).not.toBeNull();
+    expect(r.splashAt).toBeNull();
+    expect(r.streamTime).toBeGreaterThan(streamDuration(spec) - 0.1);
+  });
+
+  it('a stored match with a stream in flight from before splashbacks carries on', () => {
+    const g = flatGame();
+    fire(g);
+    const snap = takeSnapshot(g);
+    const st = (snap.streams as Record<string, unknown>[])[0]!;
+    for (const k of ['close', 'dealt', 'splashAt', 'splashFrom']) delete st[k];
+    applySnapshot(g, upgradeSnapshot(snap));
+    expect(g.streams[0]).toMatchObject({ close: null, dealt: 0, splashAt: null, splashFrom: 0 });
+    run(g, 0.5);
   });
 });

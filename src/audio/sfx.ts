@@ -198,6 +198,11 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ at: 0.3, dur: 0.6, from: midi(77), duty: 0.25, vibrato: [6, 8], vol: 0.15 });
     s.tone({ at: 0.3, dur: 0.6, from: midi(81), duty: 0.125, vol: 0.1 });
   },
+  // Splashback: a wet slap, then the water gurgling back.
+  splashback: (s) => {
+    s.noise({ dur: 0.12, rate: 0.9, to: 0.3, vol: 0.18 });
+    s.tone({ at: 0.08, dur: 0.35, from: 520, to: 140, duty: 0.25, vibrato: [18, 30], vol: 0.12 });
+  },
   // Sad trombone: wah wah wah waaaah.
   dnf: (s) => {
     [67, 66, 65].forEach((n, i) => s.tone({ at: i * 0.32, dur: 0.28, from: midi(n), to: midi(n) * 0.97, duty: 0.5, vol: 0.14 }));

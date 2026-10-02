@@ -4,13 +4,14 @@ import { kit } from '../kit';
 /**
  * tones' tier 1: a pressurised water jet. Builds from a dribble to the full aimed arc over 2s,
  * holds briefly, then eases off. Water doesn't dig; it trickles damage onto whatever it soaks.
+ * Point-blank it splashes back (game/stream.ts): harmless, but it knocks the aim off and kills the pressure.
  */
 export const ten1 = {
   id: 'ten-1',
   name: 'ten-1',
   shortName: 'ten-1',
   info:
-    'A yellow water jet. The pressure builds in spurts over 2s, holds at full for a moment, then sputters out. While it’s weak it sprays all over and barely stings; the full-pressure jet is a clean line that does the real damage. Trickles damage onto anything it soaks; doesn’t dig. Miss completely and you get the round back.',
+    'A yellow water jet. The pressure builds in spurts over 2s, holds at full for a moment, then sputters out. While it’s weak it sprays all over and barely stings; the full-pressure jet is a clean line that does the real damage. Trickles damage onto anything it soaks; doesn’t dig. Miss completely and you get the round back. Point-blank (the nearest enemy within 4 tank-widths when you fire), once the jet has done 5 damage to them it splashes back onto you: it doesn’t hurt, but it knocks your aim off and the pressure dies away.',
   kind: 'stream',
   stream: { rampUp: 2, hold: 0.7, rampDown: 1.2, dropsPerSecond: 110, damagePerDrop: 0.35, spray: 40, speedSpread: 0.35 },
   refundOnMiss: true,

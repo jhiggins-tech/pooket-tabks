@@ -74,10 +74,12 @@ export function drawLiquid(d: Draw, state: GameState): void {
 
   // Spray
   for (const sp of state.fx.splashes) {
-    ctx.globalAlpha = 1 - sp.age / sp.life;
+    const fade = 1 - sp.age / sp.life;
+    // A splashback's big drops stay solid until they're nearly home.
+    ctx.globalAlpha = sp.size ? Math.min(1, fade * 4) : fade;
     ctx.fillStyle = tint(sp.colour, 0.45);
     ctx.beginPath();
-    ctx.arc(sp.x, sp.y, 1.4, 0, Math.PI * 2);
+    ctx.arc(sp.x, sp.y, sp.size ?? 1.4, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
