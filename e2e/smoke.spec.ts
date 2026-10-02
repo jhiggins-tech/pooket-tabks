@@ -649,6 +649,14 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
     await expect(page.locator('.coming-soon .coming-soon-banner')).toHaveText('Coming soon');
   }
   await page.screenshot({ path: 'test-results/coming-soon-info.png' });
+  // Teased moves, marked work in progress.
+  await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
+  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['torpedo pass', 'throwdown']);
+  await expect(page.locator('.coming-soon-cards .info-tags')).toHaveText(['Tier 1', 'Tier 2']);
+  await expect(page.locator('.coming-soon-wip')).toContainText('subject to change');
+  await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
+  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['kamp karl', 'the crinkler', 'stop the violence']);
+  await page.screenshot({ path: 'test-results/coming-soon-teasers.png' });
   expect(errors).toEqual([]);
 });
 

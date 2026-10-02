@@ -120,12 +120,26 @@ function basics(): HTMLElement[] {
   return [cols];
 }
 
-/** An upcoming character's page (info screen, Choose your tank): its name and a Coming soon banner. */
+/**
+ * An upcoming character's page (info screen, Choose your tank): its name, a Coming soon banner, and a
+ * card for each move teased so far (work in progress).
+ */
 export function comingSoon(u: Upcoming): HTMLElement[] {
   const panel = el('div', 'coming-soon');
   panel.style.setProperty('--c', u.colour);
   panel.append(el('h2', undefined, u.name), el('span', 'coming-soon-banner', 'Coming soon'), el('p', undefined, 'On the way: their weapons are still being built. Pick someone else to play for now.'));
-  return [panel];
+  if (!u.teasers?.length) return [panel];
+  const cards = el('div', 'info-cards coming-soon-cards');
+  cards.style.setProperty('--c', u.colour);
+  for (const t of u.teasers) {
+    const card = el('article', 'info-card');
+    const tags = el('div', 'info-tags');
+    tags.append(el('span', undefined, t.slot));
+    card.append(tags, el('h3', undefined, t.name), el('p', undefined, 'Details coming soon.'));
+    cards.append(card);
+  }
+  const wip = el('p', 'coming-soon-wip', '🚧 Work in progress: these moves (names and all) are subject to change.');
+  return [panel, cards, wip];
 }
 
 /**

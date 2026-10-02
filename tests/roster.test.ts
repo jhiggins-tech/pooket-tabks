@@ -25,6 +25,15 @@ describe('roster', () => {
       expect(upcoming(u.id)).toBe(u);
     }
     expect(upcoming('tones')).toBeUndefined();
+    // Teased moves (work in progress), by slot.
+    expect(upcoming('kiwicore')!.teasers).toEqual([
+      { slot: 'Tier 1', name: 'torpedo pass' },
+      { slot: 'Tier 2', name: 'throwdown' },
+    ]);
+    expect(upcoming('garyoldmancorp')!.teasers!.map((t) => t.slot)).toEqual(['Tier 2', 'Tier 3', 'Bonus action']);
+    expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
+    expect(upcoming('shotdownboyz')!.teasers!.map((t) => t.name)).toEqual(['summon digger', 'neurodiverge', 'tank build']);
+    expect(upcoming('odsey')!.teasers).toBeUndefined();
   });
 
   it('uses 5 / 3 / 1 rounds for tiers 1-3, and 1 for a bonus move', () => {

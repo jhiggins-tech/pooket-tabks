@@ -1594,3 +1594,11 @@ body[data-online='true'] #net-menu {
 .info-tab.soon[aria-selected='true'] {
   opacity: 1;
 }
+.coming-soon-cards .info-card {
+  border-style: dashed;
+}
+.coming-soon-wip {
+  margin: 4px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}

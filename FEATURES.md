@@ -4,16 +4,23 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **torikloud's Twins: choose where the twin goes, and aim it on its own** (owner, 2 Oct). The player
-   picks where the second tank spawns (instead of where it's put now), and ideally the twin has its own
-   aiming controls (angle and power, independent of the main tank's).
+1. **torikloud's Twins: choose where the twin goes, and aim it on its own** (owner, 2 Oct; design agreed).
+   - Placement: with Twins selected, a ghost tank sits at a suggested clear spot; tap the ground to move
+     it, FIRE puts the twin there. Not within 2 tank-widths of an enemy, nor on another tank; anywhere
+     else. The spot is part of the shot (same on the other phone and for watchers).
+   - Aiming: the twin keeps its own angle and power; both tanks fire on every shot, each with its own
+     aim (Debate, Sonic Boom; aimless weapons unchanged). A new twin starts with the main tank's aim.
+     Starting the slingshot drag near a tank aims that one; a Main / Twin switch by the readouts picks
+     which one ↺ ↻ − + adjust. Online: the twin's aim streams live too.
+   - Gameplay change: bump `RULES`; a fill-in for stored twins in `upgradeSnapshot`.
 2. **Rename tones to "tones2"** (owner, 2 Oct). The name players see (pickers, info screen, chips, what's
    new); the id stays `tones`, so saved picks, matches in progress and replays carry on.
 3. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
    is stronger than intended. When the stream is fired at an enemy within 4 tank-widths, a splashback
    animation plays: the liquid rebounds onto tones2's own tank and knocks the aim off, so the stream loses
-   pressure fast, down to zero. To settle: does the rebound hurt tones2, and is "close" measured from the
-   nearest enemy when firing, or wherever the stream is hitting? A gameplay change: bump `RULES`.
+   pressure fast, down to zero. Settled (owner): the rebound doesn't hurt, it only kills the pressure.
+   It's triggered by the enemy nearest tones2 when firing being within 4 tank-widths and taking more than
+   5 damage in total from the stream. A gameplay change: bump `RULES`.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -162,6 +169,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
   doctorfox are in the character pickers (hotseat and Choose your tank, under "Coming soon") and have an
   info tab each, with a Coming soon banner. They can be looked at, not played: Start and Join wait for
   someone playable. `characters/upcoming.ts`, deliberately outside ROSTER (nothing else can pick one).
+  Their pages tease moves (owner, 2 Oct; marked work in progress, subject to change): kiwicore (tier 1
+  torpedo pass, tier 2 throwdown), garyoldmancorp (tier 2 kamp karl, tier 3 the crinkler, bonus action
+  stop the violence), lankcity (tier 2 HARD disk drive, movement lizard walk), shotdownboyz (tier 2 summon
+  digger, tier 3 neurodiverge, passive tank build).
 - **Push notifications** (owner, 1 Oct; from the owner's handover doc). Turn them on with 🔔 on the landing
   screen; then "🎯 Your turn!" when the other player has played and you're away, and "🎮 Someone joined
   your game" when someone starts your open game. Two ways in, one alert: an open page shows it at once

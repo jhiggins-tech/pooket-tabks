@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 33,
+    title: 'Sneak peek',
+    items: ['A first look at some of the moves the coming-soon characters will bring: see their pages in ⓘ (work in progress, so they may change).'],
+  },
+  {
     version: 32,
     title: 'Catch the runner',
     items: ['ciarra’s Marathon runner can be shot now: an enemy shot that crosses her path goes off on her (they used to fly straight through), so she can be stopped mid-run.'],
