@@ -4,8 +4,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-Nothing queued: the refactoring pass (from the code assessment, 1 Oct) is done (see **Refactoring** under
-Shipped).
+1. **ciarra's Marathon runner can be hit** (owner, 2 Oct: option A). Shells, pills and walkers collide with
+   a runner and go off on it, like hitting a tank, so a shot that crosses its path while it runs gets it
+   (now shots pass through it, and it's moving while they fly: a leg starts with every shot). Still a
+   one-hit DNF. A gameplay change: bump `RULES`.
+2. **Rename tones to "tones2"** (owner, 2 Oct). The name players see (pickers, info screen, chips, what's
+   new); the id stays `tones`, so saved picks, matches in progress and replays carry on.
+3. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
+   is stronger than intended. When the stream is fired at an enemy within 4 tank-widths, a splashback
+   animation plays: the liquid rebounds onto tones2's own tank and knocks the aim off, so the stream loses
+   pressure fast, down to zero. To settle: does the rebound hurt tones2, and is "close" measured from the
+   nearest enemy when firing, or wherever the stream is hitting? A gameplay change: bump `RULES`.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -146,6 +155,10 @@ Shipped).
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Coming soon characters** (owner, 2 Oct): garyoldmancorp, shotdownboyz, kiwicore, odsey, lankcity and
+  doctorfox are in the character pickers (hotseat and Choose your tank, under "Coming soon") and have an
+  info tab each, with a Coming soon banner. They can be looked at, not played: Start and Join wait for
+  someone playable. `characters/upcoming.ts`, deliberately outside ROSTER (nothing else can pick one).
 - **Push notifications** (owner, 1 Oct; from the owner's handover doc). Turn them on with 🔔 on the landing
   screen; then "🎯 Your turn!" when the other player has played and you're away, and "🎮 Someone joined
   your game" when someone starts your open game. Two ways in, one alert: an open page shows it at once

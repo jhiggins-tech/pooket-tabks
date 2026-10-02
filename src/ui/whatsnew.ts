@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 31,
+    title: 'Coming soon',
+    items: ['Six new characters are on the way: garyoldmancorp, shotdownboyz, kiwicore, odsey, lankcity and doctorfox. Have a look in the character picker and the ⓘ info screen.'],
+  },
+  {
     version: 30,
     title: 'Fix',
     items: ['Fixed: on a computer, the tank dropdowns opened as white text on white.'],

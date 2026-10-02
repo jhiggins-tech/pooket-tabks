@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AMMO_PER_TIER, assignColours, getCharacter, loadoutSummary, ROSTER } from '../src/characters/roster';
 import { getWeapon } from '../src/weapons/registry';
+import { isCharacterId } from '../src/characters/roster';
+import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
   it('has the six selectable characters', () => {
@@ -13,6 +15,16 @@ describe('roster', () => {
     expect(getCharacter('ciarra').movement).toBe('hop');
     expect(getCharacter('larinovsky').loadout).toEqual(['pill-pusher', 'the-rizzler', 'take-a-nap', 'women-in-scam']);
     expect(loadoutSummary(getCharacter('larinovsky'))).toBe('Pill Pusher ×5 · the Rizzler ×3 · Take a Nap ×1 · Women in Scam ×1');
+  });
+
+  it('upcoming characters are shown but never playable (not in the roster, nor a valid pick anywhere)', () => {
+    expect(UPCOMING.map((u) => u.name)).toEqual(['garyoldmancorp', 'shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']);
+    for (const u of UPCOMING) {
+      expect(isCharacterId(u.id)).toBe(false);
+      expect(() => getCharacter(u.id)).toThrow();
+      expect(upcoming(u.id)).toBe(u);
+    }
+    expect(upcoming('tones')).toBeUndefined();
   });
 
   it('uses 5 / 3 / 1 rounds for tiers 1-3, and 1 for a bonus move', () => {

@@ -33,7 +33,7 @@ what it's for; weapons are documented where they're defined.
 |---|---|
 | `src/core/` | seeded RNG (`Rng.state` is serialisable), `Terrain` (per-pixel solid mask + RGBA with dirty rects), terrain generation |
 | `src/characters/kits/<name>.ts` | a character **and** their three weapons (`kit()`); `kits/index.ts` lists them in setup order |
-| `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1), colour assignment |
+| `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1), colour assignment; `upcoming.ts`: Coming soon characters (shown, never playable; a new one's ready: give it a kit and take it off this list) |
 | `src/weapons/` | `kinds.ts` (`KINDS`: every kind of weapon, aimed or not, shot / free / bonus), `types.ts` (`WeaponDef`: what every weapon has, plus its kind's spec, as a union by kind; `SpriteId`), `registry.ts` (`getWeapon`, `weaponOf(id, kind)` for a kind's spec, `ignoresAim`, `isBonus`, `blastOf`, the plain `shell`) |
 | `src/game/` | the match, pure and DOM-free (below) |
 | `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order) and `draw/<mechanic>.ts` (mirrors `src/game/`); `hud.ts` (DOM HUD); `sprites.ts` |

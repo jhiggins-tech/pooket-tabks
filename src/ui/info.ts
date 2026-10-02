@@ -1,4 +1,5 @@
 import { AMMO_PER_TIER, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
+import { upcoming, UPCOMING, type Upcoming } from '../characters/upcoming';
 import { getWeapon, ignoresAim, isBonus } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from '../game/constants';
@@ -87,8 +88,14 @@ export class InfoScreen {
       });
       return b;
     };
-    this.tabs.replaceChildren(tab(BASICS, 'How to play'), ...ROSTER.map((c) => tab(c.id, c.name, this.colourOf(c.id))));
-    this.body.replaceChildren(...(this.tab === BASICS ? basics() : characterDetails(getCharacter(this.tab), this.colourOf(this.tab))));
+    const soonTabs = UPCOMING.map((u) => {
+      const t = tab(u.id, u.name, u.colour);
+      t.classList.add('soon');
+      return t;
+    });
+    this.tabs.replaceChildren(tab(BASICS, 'How to play'), ...ROSTER.map((c) => tab(c.id, c.name, this.colourOf(c.id))), ...soonTabs);
+    const soon = upcoming(this.tab);
+    this.body.replaceChildren(...(this.tab === BASICS ? basics() : soon ? comingSoon(soon) : characterDetails(getCharacter(this.tab), this.colourOf(this.tab))));
     this.body.scrollTop = 0;
   }
 }
@@ -111,6 +118,26 @@ function basics(): HTMLElement[] {
   const cols = el('div', 'info-cols');
   cols.append(list('Controls', CONTROLS, 'controls'), list('Status effects', STATUSES, 'statuses'));
   return [cols];
+}
+
+/** An upcoming character's page (info screen, Choose your tank): its name and a Coming soon banner. */
+export function comingSoon(u: Upcoming): HTMLElement[] {
+  const panel = el('div', 'coming-soon');
+  panel.style.setProperty('--c', u.colour);
+  panel.append(el('h2', undefined, u.name), el('span', 'coming-soon-banner', 'Coming soon'), el('p', undefined, 'On the way: their weapons are still being built. Pick someone else to play for now.'));
+  return [panel];
+}
+
+/**
+ * A character picker's options: everyone playable, then (in a "Coming soon" group) the upcoming ones,
+ * which can be picked to look at but not played.
+ */
+export function addCharacterOptions(select: HTMLSelectElement, selected: string): void {
+  for (const c of ROSTER) select.add(new Option(c.name, c.id, false, c.id === selected));
+  const group = el('optgroup');
+  group.label = 'Coming soon';
+  for (const u of UPCOMING) group.append(new Option(`${u.name} (soon)`, u.id, false, u.id === selected));
+  select.append(group);
 }
 
 /** A character's page: name, blurb, how it moves, and a card per weapon (also the tank picker's). */

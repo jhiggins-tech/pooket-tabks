@@ -22,7 +22,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator('option')).toHaveText(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
+  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(6);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
   await expect(p1Name).toHaveValue('tones');
@@ -609,7 +610,7 @@ test('info screen explains every character and weapon', async ({ page }) => {
   expect(frozen).not.toBe('[]');
   await page.waitForTimeout(400);
   expect(await shots()).toBe(frozen);
-  await expect(page.getByRole('tab')).toHaveCount(7);
+  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the six, and six coming soon
   for (const [name, weapon] of [['tones', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
@@ -619,6 +620,35 @@ test('info screen explains every character and weapon', async ({ page }) => {
   await page.locator('#info-close').tap();
   await expect(info).toBeHidden();
   await expect.poll(shots).not.toBe(frozen); // and carries on once it's closed
+  expect(errors).toEqual([]);
+});
+
+test('upcoming characters: in the pickers and the info screen with a Coming soon banner, not playable', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?debug');
+  await page.locator('#open-hotseat').tap();
+  const p2 = page.getByLabel('Player 2 character');
+  const before = await p2.inputValue();
+  await p2.selectOption('doctorfox');
+  const card = page.locator('.seat-card').nth(1);
+  await expect(card.locator('.coming-soon-banner')).toHaveText('Coming soon');
+  await expect(page.locator('#start')).toBeDisabled();
+  await page.screenshot({ path: 'test-results/coming-soon-hotseat.png' });
+  // Back to someone playable: as before, and Start works again.
+  await p2.selectOption(before);
+  await expect(card.locator('.coming-soon-banner')).toHaveCount(0);
+  await expect(page.locator('#start')).toBeEnabled();
+  await expect(page.locator('#start')).toHaveText('Start battle');
+
+  // The info screen: a tab each, with the banner.
+  await page.locator('#hotseat-info').tap();
+  for (const name of ['garyoldmancorp', 'shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']) {
+    await page.getByRole('tab', { name, exact: true }).tap();
+    await expect(page.locator('.coming-soon h2')).toHaveText(name);
+    await expect(page.locator('.coming-soon .coming-soon-banner')).toHaveText('Coming soon');
+  }
+  await page.screenshot({ path: 'test-results/coming-soon-info.png' });
   expect(errors).toEqual([]);
 });
 

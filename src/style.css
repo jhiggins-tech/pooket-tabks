@@ -1548,3 +1548,49 @@ body[data-online='true'] #net-menu {
 .notify-note[hidden] {
   display: none;
 }
+
+/* ---------- Coming soon (upcoming characters: pickers and the info screen) ---------- */
+.coming-soon-banner {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--c, #f3f5ff);
+  color: #10142a;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+.seat-card .coming-soon-banner {
+  align-self: center;
+  margin: 6px 0 4px;
+}
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  border: 2px dashed var(--c);
+  background: rgba(12, 16, 32, 0.6);
+  text-align: left;
+}
+.coming-soon h2 {
+  margin: 0;
+  font-size: 28px;
+  color: var(--c);
+}
+.coming-soon p {
+  margin: 0;
+  opacity: 0.8;
+}
+.info-tab.soon {
+  border-style: dashed;
+  opacity: 0.75;
+}
+.info-tab.soon[aria-selected='true'] {
+  opacity: 1;
+}

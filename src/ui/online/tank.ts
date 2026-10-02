@@ -1,7 +1,8 @@
-import { getCharacter, ROSTER } from '../../characters/roster';
+import { getCharacter } from '../../characters/roster';
+import { upcoming } from '../../characters/upcoming';
 import { netLog } from '../../net/log';
 import { el, button, screenTop } from '../dom';
-import { characterDetails } from '../info';
+import { addCharacterOptions, characterDetails, comingSoon } from '../info';
 
 /**
  * Choose your tank (hosting, or joining someone's game): a character, what it does, then go. `show` puts
@@ -10,23 +11,25 @@ import { characterDetails } from '../info';
 export function chooseTank(opts: { note: string; action: string; id: string; show: (els: HTMLElement[]) => void; go: (id: string) => void; back: () => void }): void {
   let id = opts.id;
   const render = () => {
-    const c = getCharacter(id);
+    const soon = upcoming(id);
     const sel = el('select', 'tank-select');
     sel.setAttribute('aria-label', 'Your tank');
-    for (const r of ROSTER) sel.add(new Option(r.name, r.id, false, r.id === id));
+    addCharacterOptions(sel, id);
     sel.addEventListener('change', () => {
       id = sel.value;
       render();
     });
-    const ok = button(`${opts.action} with ${c.name}`, () => {
+    const ok = button(soon ? 'Coming soon' : `${opts.action} with ${getCharacter(id).name}`, () => {
+      if (upcoming(id)) return;
       netLog(`ui: ${opts.action} with ${id}`);
       opts.go(id);
     }, 'big');
     ok.id = 'tank-go';
+    ok.disabled = !!soon;
     const bar = el('div', 'tank-bar');
     bar.append(el('span', 'online-label', 'Your tank:'), sel, ok);
     const details = el('div', 'tank-details');
-    details.append(...characterDetails(c, c.colours[0]!));
+    details.append(...(soon ? comingSoon(soon) : characterDetails(getCharacter(id), getCharacter(id).colours[0]!)));
     opts.show([screenTop('Choose your tank', opts.note, opts.back), bar, details]);
   };
   render();
