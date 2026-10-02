@@ -1,6 +1,6 @@
 import { blastOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
-import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
+import { BARREL_LENGTH, RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
@@ -67,6 +67,20 @@ export function targetAt(state: GameState, x: number, y: number): Target | undef
   for (const player of state.players) if (player.alive && player.twin && overHull(x, y, player.twin)) return { kind: 'tank', player, tank: player.twin };
   for (const holo of state.holograms) if (state.players[holo.ownerId]?.alive && overHull(x, y, holo)) return { kind: 'hologram', holo };
   return undefined;
+}
+
+/**
+ * Is (x, y) on a Marathon runner that isn't `ownerId`'s (a shot goes off on an enemy's runner, as on a
+ * tank; its own owner's shots pass it as it sets off from their tank). Hot path, like targetAt.
+ */
+export function runnerAt(state: GameState, x: number, y: number, ownerId: number): boolean {
+  for (const rn of state.runners) {
+    if (rn.out || rn.ownerId === ownerId) continue;
+    const dx = x - rn.x;
+    const dy = y - (rn.y - RUNNER_BODY);
+    if (dx * dx + dy * dy <= RUNNER_HIT_RADIUS * RUNNER_HIT_RADIUS) return true;
+  }
+  return false;
 }
 
 /** Is (x, y) within hit range of a hull resting at `at`? */
@@ -234,7 +248,7 @@ export function explode(
   }
   // Any blast knocks out a marathon runner caught in it ("did not finish").
   for (const rn of state.runners) {
-    if (rn.out || Math.hypot(rn.x - x, rn.y - 6 - y) >= r + 6) continue;
+    if (rn.out || Math.hypot(rn.x - x, rn.y - RUNNER_BODY - y) >= r + RUNNER_HIT_RADIUS) continue;
     rn.out = true;
     spawnFloater(state, rn.x, rn.y - 20, 'DNF', '#f472b6');
     sound(state, 'dnf');

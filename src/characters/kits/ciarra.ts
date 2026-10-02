@@ -39,7 +39,7 @@ export const marathon = {
   name: 'Marathon',
   shortName: 'Marathon',
   info:
-    'No aiming. A runner sets off towards the nearest enemy and runs a leg every time anyone fires, over any hill. A leg is 150px, about a seventh of the stage’s width, so a far-off enemy is several shots away. At the finish: a 50 damage blast. A blast near the runner means a DNF.',
+    'No aiming. A runner sets off towards the nearest enemy and runs a leg every time anyone fires, over any hill. A leg is 150px, about a seventh of the stage’s width, so a far-off enemy is several shots away. At the finish: a 50 damage blast. An enemy shot that crosses her goes off on her, and any blast near her means a DNF.',
   kind: 'runner',
   runner: { speed: 85, leg: 150, damage: 50, radius: 30 },
   colour: '#f472b6',

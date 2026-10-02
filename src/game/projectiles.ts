@@ -8,7 +8,7 @@ import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import type { Burst, GameState, Player, Projectile } from './state';
-import { applyHit, explode, forEachTargetPos, muzzle, scaled, tankCentre, type Target, targetAt } from './tanks';
+import { applyHit, explode, forEachTargetPos, muzzle, runnerAt, scaled, tankCentre, targetAt, type Target } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
 
 /** Weapons that fire projectiles. */
@@ -129,7 +129,7 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
     const t = i / steps;
     const x = pr.x + (nx - pr.x) * t;
     const y = pr.y + (ny - pr.y) * t;
-    if (targetAt(state, x, y)) {
+    if (targetAt(state, x, y) || runnerAt(state, x, y, pr.ownerId)) {
       explode(state, x, y, weapon, pr.ownerId);
       return true;
     }

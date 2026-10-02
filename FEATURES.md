@@ -4,10 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **ciarra's Marathon runner can be hit** (owner, 2 Oct: option A). Shells, pills and walkers collide with
-   a runner and go off on it, like hitting a tank, so a shot that crosses its path while it runs gets it
-   (now shots pass through it, and it's moving while they fly: a leg starts with every shot). Still a
-   one-hit DNF. A gameplay change: bump `RULES`.
+1. **torikloud's Twins: choose where the twin goes, and aim it on its own** (owner, 2 Oct). The player
+   picks where the second tank spawns (instead of where it's put now), and ideally the twin has its own
+   aiming controls (angle and power, independent of the main tank's).
 2. **Rename tones to "tones2"** (owner, 2 Oct). The name players see (pickers, info screen, chips, what's
    new); the id stays `tones`, so saved picks, matches in progress and replays carry on.
 3. **ten-1 splashback** (owner, 2 Oct; Balance). At close range every drop of tones2's ten-1 lands, which
@@ -119,6 +118,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **Marathon runner can be hit** (owner, 2 Oct; rules 10). Enemy shells, pills and walkers now collide with
+  ciarra's runner and go off on her, like hitting a tank: a shot that crosses her path while she runs a
+  leg gets her (they used to pass straight through, and she's usually on the move while shots fly, as
+  every shot sets her off). Still a one-hit DNF; ciarra's own shots pass her. `runnerAt` (tanks.ts).
 - **torikloud starts with 150 health** (two tanks are two targets, so the twins tended to take more
   damage): everyone else still has 100; Twins splits it 75 / 75. Per character (`maxHp`), shown on the
   info screen (Health · 150) and filling the health bars; Take a Nap heals to the character's full.

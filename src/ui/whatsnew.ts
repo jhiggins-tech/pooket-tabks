@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 32,
+    title: 'Catch the runner',
+    items: ['ciarra’s Marathon runner can be shot now: an enemy shot that crosses her path goes off on her (they used to fly straight through), so she can be stopped mid-run.'],
+  },
+  {
     version: 31,
     title: 'Coming soon',
     items: ['Six new characters are on the way: garyoldmancorp, shotdownboyz, kiwicore, odsey, lankcity and doctorfox. Have a look in the character picker and the ⓘ info screen.'],

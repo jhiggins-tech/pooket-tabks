@@ -10,6 +10,9 @@ export const MAX_SPEED = 720; // px/s at 100% power (just over one screen of ran
 export const TANK_HALF_WIDTH = 11;
 export const TANK_BODY_HEIGHT = 8;
 export const TANK_HIT_RADIUS = 11;
+/** A Marathon runner's body, for shots: a circle this high above its feet, this big (she's ~14px tall). */
+export const RUNNER_BODY = 7;
+export const RUNNER_HIT_RADIUS = 7;
 export const BARREL_LENGTH = 18;
 
 /** A tank's starting (and full) health, unless its character says otherwise (`CharacterDef.maxHp`). */

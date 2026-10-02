@@ -149,6 +149,51 @@ describe('Marathon', () => {
     expect(MAX_HP - kie.hp).toBe(marathon.runner!.damage);
   });
 
+  /** ciarra's runner out on its first leg, then running another (as when kie fires). */
+  function running(): GameState {
+    const g = game();
+    selectTier(g, 2);
+    fire(g);
+    whileFlying(g);
+    g.runners[0]!.legLeft = marathon.runner!.leg;
+    g.phase = 'flying';
+    return g;
+  }
+  const shot = (g: GameState, ownerId: number, weaponId: string, x: number, y: number, vx: number, walk = 0) =>
+    g.projectiles.push({ x, y, vx, vy: 0, weaponId, ownerId, trail: [], bounces: 0, age: 0, walkDir: walk, walkTime: 0, variant: 0 });
+
+  it("an enemy shot that crosses the runner mid-leg goes off on her: DNF", () => {
+    const g = running();
+    const r = g.runners[0]!;
+    shot(g, 1, shell.id, r.x + 60, r.y - 7, -400); // straight at her, at body height
+    for (let t = 0; t < 1 && g.projectiles.length; t += FIXED_DT) step(g, FIXED_DT);
+    expect(g.projectiles).toHaveLength(0);
+    expect(r.out).toBe(true);
+    expect(g.fx.floaters.some((f) => f.text === 'DNF')).toBe(true);
+    // It went off on her, in mid-air at her body (not on the ground somewhere past her).
+    const boom = g.fx.explosions[0]!;
+    expect(Math.abs(boom.x - r.x)).toBeLessThanOrEqual(8);
+    expect(boom.y).toBeLessThan(r.y - 2);
+  });
+
+  it("ciarra's own shots pass her by", () => {
+    const g = running();
+    const r = g.runners[0]!;
+    shot(g, 0, shell.id, r.x - 30, r.y - 7, 600);
+    for (let t = 0; t < 1 && g.projectiles[0] && g.projectiles[0].x < r.x + 20; t += FIXED_DT) step(g, FIXED_DT);
+    expect(g.projectiles[0]!.x).toBeGreaterThan(r.x + 20);
+    expect(r.out).toBe(false);
+  });
+
+  it('a weasel that walks into her pops on her', () => {
+    const g = running();
+    const r = g.runners[0]!;
+    r.legLeft = 0; // standing still this time
+    shot(g, 1, 'weasel-pop', r.x + 25, r.y, 0, -1);
+    for (let t = 0; t < 3 && !r.out; t += FIXED_DT) step(g, FIXED_DT);
+    expect(r.out).toBe(true);
+  });
+
   it('a blast that catches the runner knocks it out', () => {
     const g = game();
     selectTier(g, 2);

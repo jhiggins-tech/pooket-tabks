@@ -3,7 +3,7 @@ import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound } from './fx';
 import type { GameState, Projectile } from './state';
-import { explode, forEachTargetPos, nearestEnemyX } from './tanks';
+import { explode, forEachTargetPos, nearestEnemyX, runnerAt } from './tanks';
 
 /** Walkers (kie's Weasel Pop): land, scurry towards the nearest enemy, pop. */
 
@@ -83,6 +83,11 @@ export function stepWalker(state: GameState, pr: Projectile, weapon: WeaponOf<'b
     }
     pr.x = nx;
     pr.y = ny;
+    // Ran into an enemy's Marathon runner: pop on her.
+    if (runnerAt(state, pr.x, pr.y - WALKER_BODY, pr.ownerId)) {
+      explode(state, pr.x, pr.y - WALKER_BODY, weapon, pr.ownerId);
+      return true;
+    }
     // Right under an enemy: the best spot there is. Pop.
     if (nearestEnemyDist(state, pr) <= walk.fuse) {
       explode(state, pr.x, pr.y - WALKER_BODY, weapon, pr.ownerId);
