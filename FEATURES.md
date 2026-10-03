@@ -9,8 +9,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
    active device per seat, the last to rejoin wins; streams on `users/` need the token refreshed on expiry),
    (3) push addressed to the account (the outbox's `to` the uid, `pushSubscriptions` carrying it), so every
    signed-in phone hears. Still settled: sign-in is optional, store only the uid, no iOS Home Screen spike.
-   Step 1 play-tested on real phones (owner, 3 Oct): works. Owner, when convenient: restrict the API key
-   (referrer `https://jhiggins-tech.github.io/*`; allow Identity Toolkit API and Token Service API).
+   Step 1 play-tested on real phones (owner, 3 Oct): works. The API key is restricted (3 Oct; see README).
 2. **Stats viewer** (owner, 3 Oct; after the sign-in steps: verification needs matches to record who was
    signed in). Aggregated stats from online matches (public and private; not hotseat), counted from the
    release that adds them (nothing is recorded today; no backfill).

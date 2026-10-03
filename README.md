@@ -78,6 +78,10 @@ Settings → Authorized domains); Google Cloud console → Credentials → that 
 origins `https://jhiggins-tech.github.io` (and `http://localhost:5173` for dev); OAuth consent screen
 External, **In production** (basic scopes need no review). `FIREBASE_API_KEY` is the project's Web API key
 and `GOOGLE_CLIENT_ID` that client. Then publish `firebase/database.rules.json` (it has `users`).
+The API key ("Browser key (auto created by Firebase)", Credentials) is restricted to the referrers
+`https://jhiggins-tech.github.io/*` and `http://localhost:5173/*` and to the Identity Toolkit API and Token
+Service API (the database doesn't use it). A new place the game is served from needs adding there, or sign-in
+is refused there ("Requests from referer … are blocked").
 Tests use a stand-in for Google and Firebase Auth inside `tests/support/rtdb.ts` (`?debug&db=…&fakegoogle=NAME`).
 
 ## Push notifications
