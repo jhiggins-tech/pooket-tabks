@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 38,
+    title: 'Sign in with Google',
+    items: ['Optional: sign in with Google on the first screen and your name, last tank and settings follow you to your other phones. Playing without signing in works just as before.'],
+  },
+  {
     version: 37,
     title: 'Bigger splashback',
     items: ['tones2’s ten-1 now splashes back from three times as far: from any enemy within 12 tank-widths (was 4).'],

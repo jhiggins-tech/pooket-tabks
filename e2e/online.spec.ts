@@ -687,3 +687,49 @@ test("notifications: the host's away; the guest's turn ends, and the host's open
   expect(errors).toEqual([]);
   await close();
 });
+
+test('sign in with Google (optional): your name follows you to another phone, and signing out leaves the game as it was', async ({ browser }) => {
+  const { host: a, guest: b, q, errors, close } = await phones(browser, 'signin');
+  const url = `./?${q}&fakegoogle=ann`;
+  const profile = () => (db.tree().users as Record<string, { profile?: { name?: string } }> | undefined)?.['uid-ann']?.profile?.name;
+
+  // Phone A has a name and a tank, and isn't signed in: it plays as ever, with a sign-in button on offer.
+  await a.goto(url);
+  await setName(a, 'Annie');
+  await expect(a.locator('#sign-in')).toBeVisible();
+  expect(profile()).toBeUndefined();
+  await a.locator('#sign-in').tap();
+  await expect(a.locator('#account')).toContainText('Signed in');
+  await expect.poll(profile).toBe('Annie'); // sent up: the account had no profile yet
+  await a.screenshot({ path: 'test-results/signed-in.png' });
+
+  // Phone B has another name; signing in as the same account brings Annie down.
+  await b.goto(url);
+  await setName(b, 'Phone B');
+  await b.locator('#sign-in').tap();
+  await expect(b.locator('#you-name')).toHaveText('Annie');
+  expect(profile()).toBe('Annie');
+
+  // A change on B goes up; A has it the next time it opens.
+  await setName(b, 'Bea');
+  await expect.poll(profile, { timeout: 10_000 }).toBe('Bea');
+  await a.reload();
+  await expect(a.locator('#you-name')).toHaveText('Bea');
+  await expect(a.locator('#account')).toContainText('Signed in'); // still signed in after a reload
+
+  // Signing out keeps the name on the phone and puts the button back.
+  await a.getByRole('button', { name: 'Sign out' }).tap();
+  await expect(a.locator('#sign-in')).toBeVisible();
+  await expect(a.locator('#you-name')).toHaveText('Bea');
+  expect(await a.evaluate(() => localStorage.getItem('pooket.auth'))).toBeNull();
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('no sign-in button where there is nothing to sign in to (a test database without the stand-in)', async ({ browser }) => {
+  const { host, q, close } = await phones(browser, 'signin-off');
+  await host.goto(`./?${q}`);
+  await expect(host.locator('#setup')).toBeVisible();
+  await expect(host.locator('#account')).toBeHidden();
+  await close();
+});

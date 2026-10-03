@@ -39,7 +39,7 @@ what it's for; weapons are documented where they're defined.
 | `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order) and `draw/<mechanic>.ts` (mirrors `src/game/`); `hud.ts` (DOM HUD); `sprites.ts` |
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
-| `src/net/` | online play (below) |
+| `src/net/` | online play (below); `auth.ts` + `account.ts` the optional Google sign-in and the profile that follows the player (below) |
 | `src/push/` + `notifier/` + `public/sw.js` | push notifications (below) |
 | `src/ui/` | `dom.ts` (typed `el`, `byId`, `button`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (`OnlineScreen`: hosting, joining, rejoining, watching, the lobby and match menu; each way in is an attempt, `online/scope.ts`, ended by the next one) and `online/` (its screens: the Game browser, the host screen, Choose your tank, shared widgets) |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle; `tape.ts`: the match being played, recorded for ▶ Watch replay); `?debug` exposes `window.__pooket` |
@@ -103,6 +103,16 @@ what it's for; weapons are documented where they're defined.
   logs" button; `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test
   its own Games list).
 
+- **Sign in with Google** (optional; `net/auth.ts`, `net/account.ts`, `ui/signin.ts`, `app/localprofile.ts`): no
+  Firebase SDK. Google's button gives an ID token, `Auth.signInWithGoogle` swaps it over Firebase's REST for
+  a Firebase token (kept in localStorage with the uid, refreshed by `Auth.token()`), and `Rtdb` (built with a
+  token source) sends `?auth=` on `users/…` paths **only** (an expired token is refused even where rules are
+  open). `Account` syncs `users/<uid>/profile` (name, character, sound, Game browser ticks) through a
+  `LocalProfile`: first sign-in on a phone takes the account's, after that the newer wins, unsent local
+  changes win. Anything saved on the phone that should follow the player emits `profileChanges` (`ui/profile.ts`).
+  Tests use `?debug&db=URL&fakegoogle=NAME` (a stand-in for Google and Firebase Auth in `tests/support/rtdb.ts`,
+  which also enforces "a person's own data is theirs"); no sign-in button on a test database without it.
+  Seats and push by account are the next steps (FEATURES queue).
 - **Push notifications**: `net/push.ts` (each phone's `clientId`; `announceDevice` in each room it's
   in; `notifySeat` adds an `outbox` entry for the other seat's device, from `OnlineScreen`: your turn
   when they're away, someone joined), `push/templates.ts` (the words: shared with the sender, plain

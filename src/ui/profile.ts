@@ -1,4 +1,5 @@
 import { isCharacterId } from '../characters/roster';
+import { Emitter } from '../core/emitter';
 import { NAME_MAX } from './seats';
 import { el } from './dom';
 
@@ -9,6 +10,9 @@ import { el } from './dom';
  */
 
 export const USERNAME_KEY = 'pooket.username';
+
+/** `saved`: something that follows a signed-in player (name, character, sound, Game browser ticks) was saved here. */
+export const profileChanges = new Emitter<{ saved: [] }>();
 
 /** Tidy a typed name: no control characters, single spaces, trimmed, at most NAME_MAX long. '' if nothing's left. */
 export function cleanName(raw: string): string {
@@ -29,6 +33,7 @@ export function saveUsername(raw: string): string | null {
   if (!name) return null;
   try {
     localStorage.setItem(USERNAME_KEY, name);
+    profileChanges.emit('saved');
   } catch {
     /* private mode etc.: it lasts this visit */
   }
@@ -50,6 +55,7 @@ export function loadCharacter(): string | null {
 export function saveCharacter(id: string): void {
   try {
     localStorage.setItem(CHARACTER_KEY, id);
+    profileChanges.emit('saved');
   } catch {
     /* it'll just be picked again */
   }

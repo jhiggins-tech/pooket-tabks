@@ -18,6 +18,8 @@ export interface Params {
   lostMs: number | null;
   /** `?debug&vapid=KEY`: a VAPID key, so tests see the notifications button. */
   vapid: string | null;
+  /** `?debug&db=URL&fakegoogle=NAME`: sign in as NAME against the test database's stand-in for Google and Firebase Auth. */
+  fakeGoogle: string | null;
   /** Show the what's-new popup (`?whatsnew`) and the first-visit name prompt (`?askname`) in a test anyway. */
   whatsNew: boolean;
   askName: boolean;
@@ -36,6 +38,7 @@ export function readParams(search: string, automated: boolean): Params {
     lobby: (debug && q.get('lobby')) || null,
     lostMs: debug && q.has('lost') ? Number(q.get('lost')) : null,
     vapid: (debug && q.get('vapid')) || null,
+    fakeGoogle: (debug && q.get('db') && q.get('fakegoogle')) || null,
     whatsNew: !automated || q.has('whatsnew'),
     askName: !automated || q.has('askname'),
   };

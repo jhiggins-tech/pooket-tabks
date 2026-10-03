@@ -110,6 +110,23 @@
         "$other": { ".validate": false }
       }
     },
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "profile": {
+          ".validate": "newData.hasChild('ts')",
+          "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 32" },
+          "character": { ".validate": "newData.isString() && newData.val().length <= 32" },
+          "sound": { ".validate": "newData.val() === 'on' || newData.val() === 'off'" },
+          "listPublicly": { ".validate": "newData.val() === 'yes' || newData.val() === 'no'" },
+          "showPast": { ".validate": "newData.val() === 'yes' || newData.val() === 'no'" },
+          "ts": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
+        },
+        "$other": { ".validate": false }
+      }
+    },
     "lobby": {
       "$lan": {
         ".read": true,

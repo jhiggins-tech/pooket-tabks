@@ -3,6 +3,10 @@ import { netLog } from './log';
 /**
  * A tiny client for the Firebase Realtime Database REST API (no SDK): read/write JSON at a path, and
  * stream changes with Server-Sent Events. Works the same in browsers and Node (tests).
+ *
+ * Signed-in data (`users/<uid>/…`, see net/account.ts) is the one part that needs a token: those calls
+ * carry the Firebase ID token from `token` as `?auth=` (and are refused, as 401, when there isn't one).
+ * Every other path goes without it, on purpose: an expired token is turned away even where the rules are open.
  */
 
 export class RtdbError extends Error {
@@ -30,7 +34,10 @@ export const SERVER_TIME = { '.sv': 'timestamp' } as const;
 export class Rtdb {
   readonly base: string;
 
-  constructor(url: string) {
+  constructor(
+    url: string,
+    private readonly token?: () => Promise<string | null>,
+  ) {
     this.base = url.replace(/\/+$/, '');
   }
 
@@ -39,7 +46,13 @@ export class Rtdb {
   }
 
   private async call(method: string, path: string, body?: unknown): Promise<unknown> {
-    const res = await fetch(this.url(path), {
+    let query = '';
+    if (/^\/*users\//.test(path)) {
+      const t = await this.token?.();
+      if (!t) throw new RtdbError(401, 'Permission denied');
+      query = `?auth=${encodeURIComponent(t)}`;
+    }
+    const res = await fetch(this.url(path, query), {
       method,
       signal: AbortSignal.timeout(10_000),
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },

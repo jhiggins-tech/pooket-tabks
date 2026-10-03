@@ -4,38 +4,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Sign in with Google (optional)** (owner, 3 Oct). Persistent players across devices through Firebase
-   Auth, without the Firebase SDK (no runtime dependencies): Google's sign-in button gives an ID token,
-   exchanged over Firebase's REST sign-in for a Firebase token that goes on database calls as `?auth=`
-   (refreshed before it expires; streams reconnect on expiry). Settled (owner): sign-in is optional
-   (hotseat, guests and invite links work as now); sync the profile (name, character, settings), the
-   match seats (so a turn-by-turn match carries on from another device; one active device per seat, the
-   last to rejoin wins) and push (the outbox addressed to the account, so every signed-in device hears).
-   Store only the Firebase uid, never the Google email or name. Rules: a new `users/$uid` subtree,
-   readable and writable only by that uid (owner re-publishes). Steps, each shippable: (1) sign-in +
-   profile sync, (2) seats, (3) push. Tests use a fake token provider. Not spiking the iOS Home Screen
-   app (owner: few iOS users on notifications).
-
-   **Blocked on the owner's set-up** (Google's consoles move things around: names below may differ a little):
-   - [ ] Firebase console → project `pooket-tanks` → Authentication → Get started → Sign-in method →
-     enable **Google**. Set the public-facing name ("Pooket Tabks") and a support email you're happy to
-     show on the consent screen. This creates a Web client ID ("Web client (auto created by Google Service)").
-   - [ ] Authentication → Settings → Authorized domains: add `jhiggins-tech.github.io`.
-   - [ ] Google Cloud console (the same project) → APIs & Services → Credentials → that Web client →
-     **Authorised JavaScript origins**: add `https://jhiggins-tech.github.io` (no path, no trailing slash)
-     and `http://localhost:5173` (for `npm run dev`). Don't create a client secret: not needed.
-   - [ ] OAuth consent screen (Google Auth Platform → Branding / Audience): app name "Pooket Tabks", user
-     type **External**, and publishing status **In production**. Left in "Testing", only listed test
-     users can sign in and their sessions lapse after 7 days. The basic scopes (openid, email, profile)
-     need no Google review. If it asks for a homepage, use the Pages URL; if it asks for a privacy
-     policy link, say so and Claude writes a short page (we keep only the uid and the synced game data).
-   - [ ] Send Claude two values (both public, safe to paste; never a client secret, service account or
-     private key): the **Web API key** (Project settings → General) and the **Web client ID**
-     (`…apps.googleusercontent.com`, Credentials, or Authentication → Sign-in method → Google).
-   - [ ] Leave the API key's restrictions alone until sign-in works (a wrong restriction breaks it);
-     Claude says what to allow (Identity Toolkit API, Token Service API, the Pages referrer) at the end.
-   - [ ] Later, when shipped: re-publish `firebase/database.rules.json` (as before), and play-test
-     sign-in on two real phones (e2e can only fake it).
+1. **Sign in with Google (optional): seats and push** (owner, 3 Oct). Step 1 shipped (below). Next: (2) match
+   seats follow the account (`users/<uid>/games`: a turn-by-turn match carries on from another phone; one
+   active device per seat, the last to rejoin wins; streams on `users/` need the token refreshed on expiry),
+   (3) push addressed to the account (the outbox's `to` the uid, `pushSubscriptions` carrying it), so every
+   signed-in phone hears. Still settled: sign-in is optional, store only the uid, no iOS Home Screen spike.
+   Owner, once step 1 is out: play-test sign-in on two real phones (the Google button itself, and the
+   in-app browsers invite links open in, can't be tested here); when it works, restrict the API key
+   (referrer `https://jhiggins-tech.github.io/*`; allow Identity Toolkit API and Token Service API).
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -195,6 +171,15 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Sign in with Google, step 1: your profile follows you** (owner, 3 Oct; no rules change to the game). An
+  optional "🔑 Sign in with Google" on the landing screen (Google's script is loaded only when it's
+  tapped). Signed in, your name, last online character, sound and the Game browser's ticks live in your
+  account (`users/<uid>/profile`) and follow you to other phones: a phone's first sign-in takes the
+  account's (or sends its own if the account has none), after that the newer wins, and changes made while
+  signed out or offline go up next time. Signing out keeps everything on the phone. No SDK: Google ID token
+  → Firebase REST sign-in → `?auth=` on `users/` calls only; only the uid is kept, never the Google email
+  or name. New rules for `users/$uid` (owner re-publishes). `net/auth.ts`, `net/account.ts`,
+  `ui/signin.ts`, `app/localprofile.ts`; tests with a fake Google / Auth in the Firebase stand-in.
 - **tones is now tones2** (owner, 2 Oct): the name players see everywhere; the id stays `tones`, so saved
   picks, matches in progress and replays carry on. A hotseat seat saved under the old name follows the
   character (`OLD_NAMES`, ui/seats.ts).

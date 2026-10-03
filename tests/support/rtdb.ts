@@ -2,7 +2,9 @@
  * A stand-in for the Firebase Realtime Database REST API, for tests: JSON tree at `/<path>.json`
  * (GET/PUT/POST/PATCH/DELETE), Server-Sent Events streaming with `put` events, push keys, server
  * timestamps, CORS, and the seat rules from `firebase/database.rules.json` that matter (first host /
- * first guest wins).
+ * first guest wins). Also a stand-in for Google sign-in and Firebase Auth (see `tokenLifetime`):
+ * "Google" credentials are `fake:NAME` (account uid `uid-NAME`), and `users/<uid>/…` needs that account's
+ * token as `?auth=`, as the rules say.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 
@@ -12,6 +14,12 @@ export interface FakeRtdb {
   requests: { method: string; path: string }[];
   /** Answer every write this much later (a slow network). */
   latency: number;
+  /** How long a token from the sign-in stand-in lasts (seconds; default an hour). */
+  tokenLifetime: number;
+  /** Accounts whose refresh token is dead (refreshing signs them out). */
+  revoked: Set<string>;
+  /** How many tokens it has handed out (sign-ins and refreshes). */
+  tokens: number;
   close(): Promise<void>;
 }
 
@@ -22,7 +30,18 @@ export async function startRtdb(): Promise<FakeRtdb> {
   const listeners = new Set<{ segs: string[]; res: ServerResponse; where?: { child: string; value: Json } }>();
   const requests: FakeRtdb['requests'] = [];
   let pushN = 0;
-  const fake = { latency: 0 } as FakeRtdb;
+  const fake = { latency: 0, tokenLifetime: 3600, revoked: new Set<string>(), tokens: 0 } as FakeRtdb;
+  const issued = new Map<string, { uid: string; expires: number }>();
+  const issue = (uid: string) => {
+    const token = `tok:${uid}:${fake.tokens++}`;
+    issued.set(token, { uid, expires: Date.now() + fake.tokenLifetime * 1000 });
+    return token;
+  };
+  /** Whether this token is a live one for this account. */
+  const signedInAs = (token: string | null, uid: string | undefined) => {
+    const t = token ? issued.get(token) : undefined;
+    return !!t && t.uid === uid && t.expires > Date.now();
+  };
 
   const segsOf = (path: string) => path.split('/').filter(Boolean);
   const getAt = (segs: string[]): Json => {
@@ -117,9 +136,24 @@ export async function startRtdb(): Promise<FakeRtdb> {
     cors(res);
     if (req.method === 'OPTIONS') return void res.writeHead(204).end();
     const url = new URL(req.url!, 'http://x');
+    if (req.method === 'POST' && url.pathname === '/identitytoolkit/signInWithIdp') {
+      const body = (await readBody(req)) as { postBody?: string } | null;
+      const credential = new URLSearchParams(body?.postBody ?? '').get('id_token') ?? '';
+      if (!credential.startsWith('fake:')) return reply(res, 400, { error: { message: 'INVALID_IDP_RESPONSE' } });
+      const uid = `uid-${credential.slice(5)}`;
+      return reply(res, 200, { localId: uid, idToken: issue(uid), refreshToken: `ref:${uid}`, expiresIn: String(fake.tokenLifetime) });
+    }
+    if (req.method === 'POST' && url.pathname === '/securetoken/token') {
+      const form = new URLSearchParams(await new Promise<string>((resolve) => { let s = ''; req.on('data', (c) => (s += c)); req.on('end', () => resolve(s)); }));
+      const uid = (form.get('refresh_token') ?? '').replace(/^ref:/, '');
+      if (!uid || fake.revoked.has(uid)) return reply(res, 400, { error: { message: 'TOKEN_EXPIRED' } });
+      return reply(res, 200, { id_token: issue(uid), refresh_token: `ref:${uid}`, expires_in: String(fake.tokenLifetime), user_id: uid });
+    }
     if (!url.pathname.endsWith('.json')) return reply(res, 404, { error: 'not found' });
     const segs = segsOf(decodeURIComponent(url.pathname.slice(0, -5)));
     requests.push({ method: req.method!, path: segs.join('/') });
+    // The rules: a person's own data is theirs alone.
+    if (segs[0] === 'users' && !signedInAs(url.searchParams.get('auth'), segs[1])) return reply(res, 401, { error: 'Permission denied' });
     if (req.method === 'GET' && req.headers.accept?.includes('text/event-stream')) {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' });
       const orderBy = url.searchParams.get('orderBy');

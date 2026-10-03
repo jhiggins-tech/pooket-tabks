@@ -64,6 +64,22 @@ npm run build      # typecheck + production build into dist/
 `dist/` to GitHub Pages on pushes to `main`. Online play needs the Firebase database in
 `src/net/config.ts` (see `firebase/README.md`).
 
+## Sign in with Google (optional)
+The landing screen's "🔑 Sign in with Google" gives a player an account that follows them between phones.
+No Firebase SDK: Google's own button (loaded only when someone taps to sign in) hands back an ID token,
+Firebase's REST sign-in (`src/net/auth.ts`) swaps it for a Firebase token, and the database sees it as
+`?auth=` on `users/<uid>/…` calls only. We keep the uid (never the Google email or name). What follows the
+player today (`src/net/account.ts`, `users/<uid>/profile`): their name, last online character, sound and the
+Game browser ticks. The account's wins on a phone's first sign-in; after that the newer one does.
+
+One-time setup (done once, by the owner; the keys are public, so they're committed in `src/net/config.ts`):
+Firebase console → Authentication → Sign-in method → enable Google (and add `jhiggins-tech.github.io` under
+Settings → Authorized domains); Google Cloud console → Credentials → that Web client → authorised JavaScript
+origins `https://jhiggins-tech.github.io` (and `http://localhost:5173` for dev); OAuth consent screen
+External, **In production** (basic scopes need no review). `FIREBASE_API_KEY` is the project's Web API key
+and `GOOGLE_CLIENT_ID` that client. Then publish `firebase/database.rules.json` (it has `users`).
+Tests use a stand-in for Google and Firebase Auth inside `tests/support/rtdb.ts` (`?debug&db=…&fakegoogle=NAME`).
+
 ## Push notifications
 Phones that turn notifications on (the 🔔 on the landing screen) hear "your turn" when the other player
 has played and they're away, and "someone joined your game" when someone starts their open game. When

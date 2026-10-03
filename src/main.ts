@@ -34,7 +34,11 @@ import { takePlayRef, takeRoomCode } from './net/links';
 import { netLog, netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
 import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
-import { FIREBASE_DATABASE_URL, VAPID_PUBLIC_KEY } from './net/config';
+import { FIREBASE_API_KEY, FIREBASE_DATABASE_URL, GOOGLE_CLIENT_ID, VAPID_PUBLIC_KEY } from './net/config';
+import { Account } from './net/account';
+import { Auth } from './net/auth';
+import { localProfile } from './app/localprofile';
+import { SignInPanel } from './ui/signin';
 import { wantsPush } from './net/push';
 import { sealerFor } from './net/seal';
 import { PushClient } from './push/client';
@@ -46,7 +50,7 @@ import { WhatsNew } from './ui/whatsnew';
 import { matchesOf } from './net/matches';
 import { OnlineScreen } from './ui/online';
 import { Rtdb } from './net/rtdb';
-import { loadCharacter, loadUsername, NamePrompt } from './ui/profile';
+import { loadCharacter, loadUsername, NamePrompt, profileChanges } from './ui/profile';
 import { Landing } from './ui/landing';
 import { SetupScreen } from './ui/setup';
 import { readParams } from './app/params';
@@ -104,7 +108,7 @@ let state: GameState = createGame({ seed: nextSeed, players: setup.players(), fi
 // Kitschy 8-bit sound effects, synthesised live.
 const chip = new Chip();
 const sfx = new SfxPlayer(chip, () => chip.now);
-setupSoundToggle(chip, document.getElementById('sound-toggle')!);
+const soundToggle = setupSoundToggle(chip, document.getElementById('sound-toggle')!);
 
 // Characters in this match show in their match colours; the rest in their signature colour.
 const info = new InfoScreen(
@@ -211,6 +215,22 @@ function showLanding(): void {
   stopCounts = online.watchCounts((waiting, live) => landing.setCounts(waiting, live));
 }
 // ---- Notifications ("your turn", "someone joined your game"): push/, net/push.ts, public/sw.js. ----
+// ---- Optional sign in with Google: net/auth.ts, net/account.ts (the profile follows the player), ui/signin.ts. ----
+const fakeAuth = params.fakeGoogle !== null && params.db ? params.db : null;
+const auth = new Auth({
+  apiKey: FIREBASE_API_KEY,
+  ...(fakeAuth ? { signInUrl: `${fakeAuth}/identitytoolkit/signInWithIdp`, refreshUrl: `${fakeAuth}/securetoken/token` } : {}),
+});
+// (A test database has no real accounts: only the fake one, `?fakegoogle`.)
+if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIENT_ID))) {
+  const account = new Account(auth, new Rtdb(online.dbUrl, () => auth.token()), localProfile, () => {
+    setUsername(yourName());
+    soundToggle.reload();
+  });
+  profileChanges.on('saved', () => account.changed());
+  new SignInPanel(document.getElementById('account')!, auth, { clientId: GOOGLE_CLIENT_ID, fakeGoogle: params.fakeGoogle, onSignedIn: () => void account.sync() });
+  void account.sync();
+}
 const pushDb = online.dbUrl ? new Rtdb(online.dbUrl) : null;
 const push = new PushClient(pushDb, params.vapid ?? VAPID_PUBLIC_KEY);
 void push.start();

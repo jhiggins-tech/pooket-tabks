@@ -581,6 +581,34 @@ button.big {
 .overlay [hidden] {
   display: none;
 }
+/* Optional sign in with Google (landing) */
+.account {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.account[hidden] {
+  display: none;
+}
+.account-note {
+  opacity: 0.85;
+}
+.account-error {
+  color: #ff9d8a;
+  opacity: 1;
+}
+.account button.account-btn {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+.google-slot {
+  min-height: 44px;
+}
 
 /* ---------- Steal roulette ---------- */
 #heist {
