@@ -130,7 +130,11 @@ what it's for; weapons are documented where they're defined.
   `notifier/stats.ts` (hourly, `.github/workflows/stats.yml`) runs `src/stats/aggregate.ts` into
   `stats/summary` (no uids: `playerKey` hashes them); `ui/stats.ts` shows it. A match is verified when both
   seats vouched for the same summary from two accounts. A new weapon kind that never does damage itself
-  goes in tally.ts's `HARMLESS`.
+  goes in tally.ts's `HARMLESS`. **Ranks**: `stats/ranks.ts` (`RANKS`, Elo; the hourly sender rates verified
+  matches into `stats/summary`'s `ratings`, by player key), `ui/ranks.ts` (`Ratings`: anyone's rank by key,
+  and this phone's own rating moved at the end of a rated match until the totals catch up; `noteSeen` so a
+  rank-up is celebrated once), `ui/insignia.ts`, `ui/rankup.ts`; a signed-in pick / `PlayerConfig` carries
+  the player's `key`.
 - **Push notifications**: `net/push.ts` (each phone's `clientId`; `announceDevice` in each room it's
   in; `notifySeat` adds an `outbox` entry for the other seat's device, from `OnlineScreen`: your turn
   when they're away, someone joined), `push/templates.ts` (the words: shared with the sender, plain
@@ -176,6 +180,10 @@ value in `createGame`; its weapon flag on `WeaponDef` (the effects group); in `g
 table row, `afflict` (put on), `turnEnding` / `turnStarting` (its course) and what it does (a reader like
 `canMove`, used where it matters); a fill-in in `upgradeSnapshot` (stored matches); its look in
 `render/draw/tank.ts` and badge in `render/hud.ts`; a sound cue; tests in `tests/statuses.test.ts`.
+
+**Add a rank** (e.g. a meme one): a row in `RANKS` (`src/stats/ranks.ts`) where it goes, with the lowest
+rating it covers, a new `id`, colours, a shape, a sparkle level and jingle notes. Nothing else: ratings are
+stored as numbers, the insignia and jingle come from the row. A new shape needs its path in `ui/insignia.ts`.
 
 **Add a sound cue** for a game event: the cue name in `SfxCue` (`game/state.ts`), `sound(state, cue)` where
 it happens (game logic only queues cues), and its recipe in `CUE_SOUNDS` (`audio/sfx.ts`). Keep it kitschy.

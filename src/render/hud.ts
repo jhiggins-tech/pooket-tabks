@@ -4,6 +4,8 @@ import { AMMO_PER_TIER } from '../characters/roster';
 import { aimedTank, canSuckYolk, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, pendingTwinSpot, weaponForTier, YOLK_SUCKER, yolkTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
+import type { Rank } from '../stats/ranks';
+import { insignia } from '../ui/insignia';
 import type { GameState, Player } from '../game/state';
 
 /**
@@ -12,6 +14,14 @@ import type { GameState, Player } from '../game/state';
  * what they show changes (chips are kept and patched, so the health bars animate), the rest per turn.
  */
 export class Hud {
+  /** The players' ranks in this match (null: not ranked, or not signed in). */
+  setRanks(ranks: (Rank | null)[]): void {
+    if (ranks.map((r) => r?.id ?? '').join() === this.ranks.map((r) => r?.id ?? '').join()) return;
+    this.ranks = ranks;
+    this.keys.chipsShape = '';
+    this.keys.turn = '';
+  }
+
   private readonly playersEl = byId('players');
   private readonly angleEl = byId('angle');
   private readonly powerEl = byId('power');
@@ -24,6 +34,8 @@ export class Hud {
   private readonly fuelLabel = document.querySelector<HTMLElement>('.fuel small')!;
   private readonly driveEl = document.querySelector<HTMLElement>('.drive')!;
   private readonly gameOverEl = byId('gameover');
+  /** Each player's rank in the match on screen (verified players only; ui/ranks.ts), by player id. */
+  private ranks: (Rank | null)[] = [];
   private readonly winnerEl = byId('winner');
   private readonly heistEl = byId('heist');
   /** The last key each part was drawn for. */
@@ -129,7 +141,7 @@ export class Hud {
 
   /** A chip per player: name, status badges, and one health bar (two once Twins has split it). */
   private updateChips(state: GameState, current: Player): void {
-    const shape = state.players.map((pl) => `${pl.name}|${pl.colour}|${pl.twin ? 2 : 1}`).join('/');
+    const shape = state.players.map((pl, i) => `${pl.name}|${pl.colour}|${pl.twin ? 2 : 1}|${this.ranks[i]?.id ?? ''}`).join('/');
     if (shape !== this.keys.chipsShape) {
       this.keys.chipsShape = shape;
       this.keys.chips = '';
@@ -140,6 +152,8 @@ export class Hud {
         const name = document.createElement('span');
         name.className = 'name';
         name.textContent = pl.name;
+        const rank = this.ranks[state.players.indexOf(pl)];
+        if (rank) name.append(insignia(rank));
         const badges = document.createElement('span');
         name.append(badges);
         const bar = document.createElement('span');
@@ -236,6 +250,8 @@ export class Hud {
     this.gameOverEl.hidden = state.phase !== 'gameover';
     if (state.phase === 'gameover') {
       this.winnerEl.textContent = state.winner ? `${state.winner.name} wins!` : 'Draw!';
+      const winnerRank = state.winner ? this.ranks[state.winner.id] : null;
+      if (winnerRank) this.winnerEl.prepend(insignia(winnerRank, 'md'));
       const loser = state.players.find((q) => q !== state.winner);
       if (state.endReason && loser) {
         const why = document.createElement('small');

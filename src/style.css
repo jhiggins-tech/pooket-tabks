@@ -1764,3 +1764,190 @@ body[data-online='true'] #net-menu {
 #aim-switch[hidden] {
   display: none;
 }
+
+/* ---------- Rank insignia (ui/insignia.ts) and the rank-up moment (ui/rankup.ts) ---------- */
+.insignia {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-left: 5px;
+  vertical-align: -3px;
+}
+.insignia svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.insignia-md {
+  width: 22px;
+  height: 22px;
+  vertical-align: -5px;
+}
+.insignia-lg {
+  width: 120px;
+  height: 120px;
+  margin: 0;
+}
+/* Sparkle 1+: a shimmer. */
+.insignia.sparkle-1 svg,
+.insignia.sparkle-2 svg,
+.insignia.sparkle-3 svg {
+  animation: insignia-shimmer 2.6s ease-in-out infinite;
+}
+/* Sparkle 2+: twinkles at the corners. */
+.insignia.sparkle-2::before,
+.insignia.sparkle-2::after,
+.insignia.sparkle-3::before,
+.insignia.sparkle-3::after {
+  content: '✦';
+  position: absolute;
+  font-size: 0.55em;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 0 3px var(--rank-light);
+  pointer-events: none;
+  animation: insignia-twinkle 1.8s ease-in-out infinite;
+}
+.insignia-sm::before,
+.insignia-sm::after {
+  font-size: 8px;
+}
+.insignia-md::before,
+.insignia-md::after {
+  font-size: 10px;
+}
+.insignia-lg::before,
+.insignia-lg::after {
+  font-size: 34px;
+}
+.insignia.sparkle-2::before,
+.insignia.sparkle-3::before {
+  top: -25%;
+  right: -25%;
+}
+.insignia.sparkle-2::after,
+.insignia.sparkle-3::after {
+  bottom: -15%;
+  left: -25%;
+  animation-delay: 0.9s;
+}
+/* Sparkle 3: and a glow. */
+.insignia.sparkle-3 svg {
+  animation:
+    insignia-shimmer 2.6s ease-in-out infinite,
+    insignia-glow 1.6s ease-in-out infinite;
+}
+@keyframes insignia-shimmer {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35) saturate(1.2); }
+}
+@keyframes insignia-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); }
+  45% { opacity: 1; transform: scale(1) rotate(45deg); }
+  70% { opacity: 0; transform: scale(0.5) rotate(90deg); }
+}
+@keyframes insignia-glow {
+  0%, 100% { filter: drop-shadow(0 0 1px var(--rank-light)); }
+  50% { filter: drop-shadow(0 0 5px var(--rank-light)) brightness(1.25); }
+}
+.you .insignia {
+  margin-left: 6px;
+}
+#winner .insignia {
+  margin: 0 8px 0 0;
+}
+
+#rankup {
+  z-index: 30;
+  background: radial-gradient(circle at 50% 40%, rgba(40, 30, 80, 0.92), rgba(8, 10, 24, 0.96));
+}
+.rankup-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+.rankup-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 150px;
+}
+.rankup-stage > .insignia {
+  grid-area: 1 / 1;
+}
+.rankup-burst {
+  grid-area: 1 / 1;
+  position: relative;
+  width: 0;
+  height: 0;
+}
+.rankup-burst span {
+  position: absolute;
+  left: -8px;
+  top: -10px;
+  font-size: 18px;
+  color: var(--rank-light);
+  text-shadow: 0 0 6px var(--rank-dark);
+  opacity: 0;
+}
+#rankup.play .rankup-stage > .insignia {
+  animation: rankup-in 0.9s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+#rankup.play .rankup-burst span {
+  animation: rankup-spark 1.4s ease-out var(--d, 0s) 2 both;
+}
+.rankup-title {
+  margin: 4px 0 0;
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+.rankup-name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+}
+.rankup-note {
+  margin: 0 0 6px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+#rankup.play .rankup-title,
+#rankup.play .rankup-name {
+  animation: rankup-text 0.6s ease-out 0.4s both;
+}
+@keyframes rankup-in {
+  0% { transform: scale(0) rotate(-200deg); opacity: 0; }
+  70% { transform: scale(1.15) rotate(8deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes rankup-spark {
+  0% { opacity: 0; transform: rotate(var(--a)) translateY(0) scale(0.4); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a)) translateY(-95px) scale(1.2); }
+}
+@keyframes rankup-text {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .insignia svg,
+  .insignia::before,
+  .insignia::after,
+  #rankup.play .rankup-stage > .insignia,
+  #rankup.play .rankup-burst span,
+  #rankup.play .rankup-title,
+  #rankup.play .rankup-name {
+    animation: none !important;
+  }
+  .insignia::before,
+  .insignia::after {
+    opacity: 0.8;
+  }
+}

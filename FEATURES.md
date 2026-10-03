@@ -164,6 +164,19 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Ranks** (owner, 3 Oct). Competitive ranks for verified players (signed in, in matches both vouched for),
+  on win/loss only: an Elo rating (`src/stats/ranks.ts`: start 1000, K 32; an upset moves more) worked out
+  by the hourly stats over verified matches in the order they were played, into `stats/summary`'s `ratings`.
+  Ranks are bands of rating in `RANKS`: Bronze, Silver (from 950; everyone starts here), Gold 1050, Platinum
+  1150, Diamond 1250, Master 1350, Grandmaster 1450, Champion 1550. **Adding a rank** (meme ones): insert a
+  row with its threshold, a new id, colours, a shape (shield / hex / star / crown), a sparkle level (0–3)
+  and jingle notes; nothing stored changes. Insignia (`ui/insignia.ts`, SVG; higher ranks shimmer, twinkle
+  and glow, still for reduced motion) by verified players' names: the in-game chips and winner line, the
+  lobby, the landing screen and the stats (Players and You, with rating and best). A signed-in player's pick
+  carries their stats key so the other phone can show their rank. At the end of a match both players were
+  signed in for, each phone moves its own rating at once (`ui/ranks.ts`, until the next totals) and a
+  rank-up gets the celebration (`ui/rankup.ts`: the insignia bursts in with sparkles, and the rank's jingle,
+  `audio/sfx.ts` `rankJingle`); a rank-up that turns up in the totals later is celebrated on the menu, once.
 - **📊 Stats** (owner, 3 Oct; rules 15). Online matches (public and private, not hotseat) added up, from this
   release on. Each match keeps a tally per player as it's played (`game/tally.ts`: shots that can do damage,
   hits on an enemy tank or decoy, damage dealt by weapon and taken, self-damage, kills; a burn credits whoever

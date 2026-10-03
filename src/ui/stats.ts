@@ -3,6 +3,9 @@ import { netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { CharacterRow, Counts, PlayerRow, StatsSummary, StatsView } from '../stats/aggregate';
 import { findWeapon } from '../weapons/registry';
+import type { Rank } from '../stats/ranks';
+import { insignia } from './insignia';
+import type { Ratings } from './ranks';
 import { el } from './dom';
 
 /**
@@ -25,6 +28,8 @@ const TABS: [Tab, string][] = [
 ];
 
 export interface StatsOptions {
+  /** The ratings (ui/ranks.ts): the totals loaded here go to it too, and ranks come from it. */
+  ratings?: Ratings;
   dbUrl: string | null;
   /** This phone's player in the stats: their account's key (signed in) or their name's, and whether signed in. */
   you: () => Promise<{ key: string; name: string; signedIn: boolean }>;
@@ -91,6 +96,7 @@ export class StatsScreen {
       const [raw, me] = await Promise.all([new Rtdb(this.opts.dbUrl).get<{ m?: unknown }>('stats/summary'), this.opts.you()]);
       this.me = me;
       this.stats = typeof raw?.m === 'string' ? (JSON.parse(raw.m) as StatsSummary) : null;
+      if (this.stats) this.opts.ratings?.take(this.stats);
       this.status = 'ready';
     } catch (e) {
       netLog(`stats: couldn't load (${e instanceof Error ? e.message : e})`);
@@ -125,7 +131,8 @@ export class StatsScreen {
     if (!view || view.matches === 0) {
       return [el('p', 'stats-note', verified ? 'No verified matches yet: a match counts once both players were signed in with Google when it ended.' : 'No finished online matches yet. Stats are added up every hour.'), this.footer(view)];
     }
-    const parts = this.tab === 'players' ? players(view) : this.tab === 'characters' ? characters(view) : this.tab === 'weapons' ? weapons(view) : this.you(view);
+    const rankOf = (key: string) => this.opts.ratings?.rank(key) ?? null;
+    const parts = this.tab === 'players' ? players(view, rankOf) : this.tab === 'characters' ? characters(view) : this.tab === 'weapons' ? weapons(view) : this.you(view);
     return [...parts, this.footer(view)];
   }
 
@@ -139,7 +146,13 @@ export class StatsScreen {
     const card = el('div', 'stats-you');
     const h = el('h2', undefined, row.name);
     if (row.verified) h.append(el('span', 'stats-tick', '✓'));
+    const rank = this.opts.ratings?.rank(row.key);
+    const standing = this.opts.ratings?.standing(row.key);
+    const rating = this.opts.ratings?.rating(row.key) ?? null;
+    if (rank) h.append(insignia(rank, 'md'));
     const facts: [string, string][] = [
+      ['Rank', rank ? `${rank.name}${rating !== null ? ` · ${Math.round(rating)}` : ''}` : row.verified ? 'Unranked: play a verified match' : 'Sign in to be ranked'],
+      ...(standing ? ([['Best rating', String(Math.round(standing.peak))]] as [string, string][]) : []),
       ['Played', String(row.matches)],
       ['Won', `${row.wins} (${pct(row.wins, row.matches)})`],
       ['Lost', String(row.losses)],
@@ -173,7 +186,7 @@ export class StatsScreen {
   }
 }
 
-function players(view: StatsView): HTMLElement[] {
+function players(view: StatsView, rankOf: (key: string) => Rank | null): HTMLElement[] {
   const ranked = view.players.filter((p) => p.matches >= MIN_MATCHES).sort((a, b) => b.wins / b.matches - a.wins / a.matches || b.wins - a.wins || b.matches - a.matches);
   const rest = view.players.length - ranked.length;
   if (!ranked.length) return [el('p', 'stats-note', `Nobody's played ${MIN_MATCHES} matches yet: players are ranked once they have.`)];
@@ -181,6 +194,8 @@ function players(view: StatsView): HTMLElement[] {
   ranked.forEach((p, i) => {
     const name = el('td', 'stats-name', p.name);
     name.append(el('span', p.verified ? 'stats-tick' : 'stats-unverified', p.verified ? '✓' : 'unverified'));
+    const rank = p.verified ? rankOf(p.key) : null;
+    if (rank) name.append(insignia(rank));
     const fav = favourite(p);
     row(t, [String(i + 1), name, String(p.matches), `${p.wins}–${p.losses}–${p.draws}`, pct(p.wins, p.matches), pct(p.hits, p.shots), perShot(p), String(p.kills), fav ? charCell(fav) : '—']);
   });

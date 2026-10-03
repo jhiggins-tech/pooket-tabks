@@ -23,6 +23,8 @@ import { listPublicly } from './online/prefs';
 import { Scope } from './online/scope';
 import { chooseTank } from './online/tank';
 import { endOfGame, reportMatch } from '../net/results';
+import type { Rank } from '../stats/ranks';
+import { insignia } from './insignia';
 import { buttons, cancelButton, heading, linkButton, logsButton, message, status, text } from './online/widgets';
 
 export interface OnlineOptions {
@@ -36,6 +38,13 @@ export interface OnlineOptions {
   relay?: { pingMs?: number; lostMs?: number };
   /** Bring this phone's matches up to date from a signed-in player's account (before listing them). */
   syncSeats?: () => Promise<void>;
+  /** A player's rank by their stats key (ui/ranks.ts), for the lobby. */
+  rankOf?: (key: string | undefined) => Rank | null;
+  /**
+   * A rated match has ended here (both players signed in): this phone's player against `opponent` (their
+   * key), and how it went for them (1 won, 0.5 drew, 0 lost).
+   */
+  ranked?: (opponent: string, score: 1 | 0.5 | 0) => void;
 }
 
 /**
@@ -537,7 +546,10 @@ export class OnlineScreen {
     const them = s.remotePick;
     const line = (label: string, p: Pick | null) => {
       const r = el('div', 'online-seat');
-      r.append(el('b', undefined, label), el('span', undefined, p ? `${p.name} (${getCharacter(p.characterId).name})` : '…'));
+      const who = el('span', undefined, p ? `${p.name} (${getCharacter(p.characterId).name})` : '…');
+      const rank = this.opts.rankOf?.(p?.key);
+      if (rank) who.append(insignia(rank));
+      r.append(el('b', undefined, label), who);
       return r;
     };
     const start = button('Start battle', () => this.onHostStart(s), 'big');
@@ -718,6 +730,12 @@ export class OnlineScreen {
     if (this.resultsFiled === key) return;
     this.resultsFiled = key;
     void reportMatch(this.room.db, this.room.sealer.topic, s.localSeat, s.matchSetup, endOfGame(s.game));
+    // Both players signed in: a rated match (net rank changes and a rank-up are worked out at once).
+    const [mine, theirs] = s.localSeat === 0 ? s.matchSetup.players : [...s.matchSetup.players].reverse();
+    if (mine?.key && theirs?.key && mine.key !== theirs.key && mine.key === this.pick().key) {
+      const w = s.game.winner?.id ?? null;
+      this.opts.ranked?.(theirs.key, w === null ? 0.5 : w === s.localSeat ? 1 : 0);
+    }
   }
 
   /** Nudge: send them the game's link (the phone's share sheet, or copied). */

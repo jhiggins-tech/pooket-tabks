@@ -58,8 +58,10 @@ import { readParams } from './app/params';
 import { setupSoundToggle } from './app/sound';
 import { MatchTape } from './app/tape';
 import { useResultsAccount } from './net/results';
-import { nameKey, playerKey } from './stats/summary';
+import { nameKey, PLAYER_KEY, playerKey } from './stats/summary';
 import { StatsScreen } from './ui/stats';
+import { Ratings } from './ui/ranks';
+import { RankUp } from './ui/rankup';
 import { GameOverButtons } from './ui/gameover';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -135,6 +137,8 @@ const gameOver = new GameOverButtons();
  */
 function startMatch(seed: number, chosen: PlayerConfig[], played = false): GameState {
   state = createGame({ seed, players: chosen, first });
+  matchPlayers = chosen;
+  hud.setRanks(chosen.map((p) => ratings.rank(p.key)));
   if (played) tape.start(seed, chosen);
   else tape.clear();
   hud.reset();
@@ -153,13 +157,33 @@ function newGame(): void {
 let net: NetSession | null = null;
 /** A signed-in player's matches from their account (set up with sign-in, below). */
 let seatSync: SeatSync | null = null;
+// ---- Ranks (verified players): ratings from the hourly stats, insignia, rank-ups (ui/ranks.ts, ui/rankup.ts). ----
+const ratings = new Ratings(params.db || FIREBASE_DATABASE_URL || null, () => myStatsKey);
+const rankUp = new RankUp();
+/** Who's playing the match on screen (for their insignia). */
+let matchPlayers: PlayerConfig[] = [];
+/** This phone's player's rank, if it's gone up since they last saw it: celebrate (once). */
+function celebrateRankUp(): void {
+  const seen = ratings.noteSeen();
+  if (!seen?.up) return;
+  rankUp.show(seen.rank, seen.first, ratings.rating(myStatsKey));
+  sfx.jingle(seen.rank);
+}
+/** Signed in: this player's stats key (their rank goes by it; set with sign-in, below). */
+let myStatsKey: string | null = null;
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online.
-  pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId }),
+  pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId, ...(myStatsKey ? { key: myStatsKey } : {}) }),
   dbUrl: params.db || FIREBASE_DATABASE_URL || null,
   lobby: params.lobby || PUBLIC_LOBBY,
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
   syncSeats: () => seatSync?.sync() ?? Promise.resolve(),
+  rankOf: (key) => ratings.rank(key),
+  // A rated match just ended here: the rating moves now, and a rank-up is celebrated over the game over card.
+  ranked: (opponent, score) => {
+    ratings.played(opponent, score);
+    setTimeout(celebrateRankUp, 1800);
+  },
 });
 /** An online match (or one being watched) starts: off the menus and into it. */
 function startOnline(seed: number, chosen: PlayerConfig[], played = false): GameState {
@@ -195,7 +219,7 @@ document.getElementById('net-menu')!.addEventListener('click', () => online.matc
 online.onHostStart = (s) => {
   const picks = s.isHost ? [s.localPick!, s.remotePick!] : [s.remotePick!, s.localPick!];
   const colours = assignColours(picks.map((p) => p.characterId));
-  s.start(randomSeed(), picks.map((p, i) => ({ name: p.name, characterId: p.characterId, colour: colours[i]! })));
+  s.start(randomSeed(), picks.map((p, i) => ({ name: p.name, characterId: p.characterId, colour: colours[i]!, ...(p.key && PLAYER_KEY.test(p.key) ? { key: p.key } : {}) })));
 };
 online.onClosed = () => {
   net = null;
@@ -292,6 +316,19 @@ function followAccount(): void {
 }
 followAccount();
 auth.onChange(followAccount);
+/** Signed in: this player's stats key (from their account), and so their rank. */
+async function refreshStatsKey(): Promise<void> {
+  myStatsKey = auth.uid ? await playerKey(auth.uid) : null;
+  landing.setRank(ratings.rank(myStatsKey));
+  if (landing.isOpen && !online.session) celebrateRankUp();
+}
+auth.onChange(() => void refreshStatsKey());
+ratings.onChange(() => {
+  landing.setRank(ratings.rank(myStatsKey));
+  hud.setRanks(matchPlayers.map((p) => ratings.rank(p.key)));
+  if (landing.isOpen && !online.session) celebrateRankUp();
+});
+void refreshStatsKey().then(() => ratings.load());
 navigator.serviceWorker?.addEventListener('message', (e: MessageEvent<{ type?: string; url?: string }>) => {
   const ref = e.data?.type === 'open' && e.data.url ? takePlayRef(e.data.url) : null;
   if (ref) void openMatch(ref);
@@ -308,6 +345,7 @@ const whatsNew = new WhatsNew();
 // 📊 Stats: online matches added up (ui/stats.ts); "you" is your account when signed in, else your name.
 const stats = new StatsScreen({
   dbUrl: online.dbUrl,
+  ratings,
   you: async () => (auth.uid ? { key: await playerKey(auth.uid), name: yourName(), signedIn: true } : { key: nameKey(yourName()), name: yourName(), signedIn: false }),
 });
 document.getElementById('setup-stats')!.addEventListener('click', () => stats.open());

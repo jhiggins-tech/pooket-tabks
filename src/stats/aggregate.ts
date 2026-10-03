@@ -1,3 +1,4 @@
+import { newRating, playRated, type Rating } from './ranks.ts';
 import { digest, nameKey, parseSummary, playerKey, type MatchSummary } from './summary.ts';
 
 /**
@@ -9,6 +10,8 @@ import { digest, nameKey, parseSummary, playerKey, type MatchSummary } from './s
  *
  * Players: someone who vouched for their seat is counted under their account (shown with their current
  * name, and marked verified); anyone else under their name, marked unverified.
+ *
+ * Ratings (stats/ranks.ts): Elo over the verified matches, in the order they were filed, by player key.
  */
 
 export interface Counts {
@@ -53,11 +56,13 @@ export interface StatsSummary {
   updatedAt: number;
   all: StatsView;
   verified: StatsView;
+  /** Verified players' ratings, by player key (stats/ranks.ts). */
+  ratings: Record<string, Rating>;
 }
 
 export interface StatsInput {
-  /** match id → seat ('0' / '1') → { m: summary JSON }. */
-  matches: Record<string, Record<string, { m?: unknown } | null> | null>;
+  /** match id → seat ('0' / '1') → { m: summary JSON, ts: when it was filed }. */
+  matches: Record<string, Record<string, { m?: unknown; ts?: unknown } | null> | null>;
   /** uid → match id → { seat, digest }. */
   results: Record<string, Record<string, { seat?: unknown; digest?: unknown } | null> | null>;
   /** uid → their current name (from their profile). */
@@ -79,6 +84,8 @@ export async function aggregate(input: StatsInput, now = Date.now()): Promise<St
   }
   const all = new Tally();
   const verified = new Tally();
+  /** Verified matches, for the ratings: when, who (seat 0, seat 1) and who won. */
+  const rated: { ts: number; id: string; keys: [string, string]; winner: number | null }[] = [];
   for (const [id, filed] of Object.entries(input.matches ?? {})) {
     const summaries = Object.values(filed ?? {})
       .map((f) => parseSummary(f?.m))
@@ -103,9 +110,23 @@ export async function aggregate(input: StatsInput, now = Date.now()): Promise<St
       }),
     );
     all.add(summary, keys);
-    if (agreed >= 0) verified.add(summary, keys);
+    if (agreed >= 0) {
+      verified.add(summary, keys);
+      const times = Object.values(filed ?? {}).map((f) => (typeof f?.ts === 'number' ? f.ts : Infinity));
+      rated.push({ ts: Math.min(...times), id, keys: [keys[0]!.key, keys[1]!.key], winner: summary.winner });
+    }
   }
-  return { v: 1, updatedAt: now, all: all.view(), verified: verified.view() };
+  const ratings: Record<string, Rating> = {};
+  rated.sort((a, b) => a.ts - b.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  for (const m of rated) {
+    const [a, b] = m.keys.map((k) => (ratings[k] ??= newRating()));
+    playRated(a!, b!, m.winner === null ? 0.5 : m.winner === 0 ? 1 : 0);
+  }
+  for (const r of Object.values(ratings)) {
+    r.rating = Math.round(r.rating * 10) / 10;
+    r.peak = Math.round(r.peak * 10) / 10;
+  }
+  return { v: 1, updatedAt: now, all: all.view(), verified: verified.view(), ratings };
 }
 
 /** One view's running totals. */

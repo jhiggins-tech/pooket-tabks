@@ -89,6 +89,9 @@ export async function playerKey(uid: string): Promise<string> {
   return `a:${[...bytes.subarray(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
 }
 
+/** What a player key looks like (a signed-in player's: `playerKey`). */
+export const PLAYER_KEY = /^a:[0-9a-f]{16}$/;
+
 /** A player who wasn't signed in: grouped by name. */
 export function nameKey(name: string): string {
   return `n:${name.trim().replace(/\s+/g, ' ').toLowerCase()}`;

@@ -10,6 +10,8 @@ export interface PlayerConfig {
   name: string;
   colour: string;
   characterId: string;
+  /** Online, signed in with Google: their stats key, for their rank (ui/ranks.ts). Never read by the game. */
+  key?: string;
 }
 
 /**

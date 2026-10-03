@@ -4,11 +4,14 @@
  * Weapons & how to play and What's new.
  */
 
+import type { Rank } from '../stats/ranks';
 import { byId } from './dom';
+import { insignia } from './insignia';
 
 export class Landing {
   private readonly root = byId('setup');
   private readonly name = byId('you-name');
+  private readonly rank = byId('you-rank');
   private readonly dot = byId('turns-dot');
   private readonly counts = byId('browser-counts');
 
@@ -32,6 +35,13 @@ export class Landing {
 
   setName(name: string): void {
     this.name.textContent = name;
+  }
+
+  /** Signed in and ranked: their insignia by the name. */
+  setRank(rank: Rank | null): void {
+    if ((this.rank.dataset.rank ?? '') === (rank?.id ?? '')) return;
+    this.rank.dataset.rank = rank?.id ?? '';
+    this.rank.replaceChildren(...(rank ? [insignia(rank, 'md')] : []));
   }
 
   /** Online matches where it's this phone's turn. */

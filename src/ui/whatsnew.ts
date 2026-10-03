@@ -15,6 +15,15 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 43,
+    title: 'Ranks',
+    items: [
+      'Competitive ranks for players signed in with Google: Bronze, Silver, Gold, Platinum, Diamond, Master, Grandmaster and Champion. Everyone starts in Silver.',
+      'Win or lose is all that counts: beating a higher-ranked player gets you more, losing to a lower-ranked one costs you more. Only matches both players were signed in for count.',
+      'Your insignia shows by your name in matches, the lobby, the menu and the stats (the top ranks sparkle), and ranking up gets a fanfare at the end of the match.',
+    ],
+  },
+  {
     version: 42,
     title: '📊 Stats',
     items: [

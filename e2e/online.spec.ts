@@ -1,7 +1,7 @@
 import { devices, expect, test, type Browser, type Page } from '@playwright/test';
 import { startRtdb, type FakeRtdb } from '../tests/support/rtdb';
 import { aggregate } from '../src/stats/aggregate';
-import { digest, type MatchSummary } from '../src/stats/summary';
+import { digest, playerKey, type MatchSummary } from '../src/stats/summary';
 
 type Dbg = {
   __pooket: {
@@ -905,6 +905,69 @@ test('📊 Stats: players, characters, weapons and you; Verified only shows the 
   await expect(body.locator('.stats-footer')).toContainText('2 matches');
   await page.locator('#stats-close').tap();
   await expect(page.locator('#stats')).toBeHidden();
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('ranks: insignia by verified players’ names in the lobby, the match and the menu; beating a higher rank ranks you up, with a celebration', async ({ browser }) => {
+  test.setTimeout(150_000);
+  // Gina is high Silver; Hal is Gold.
+  const gina = await playerKey('uid-gina');
+  const hal = await playerKey('uid-hal');
+  const rating = (r: number) => ({ rating: r, matches: 5, wins: 3, losses: 2, draws: 0, peak: r });
+  const totals = { v: 1, updatedAt: Date.now() - 60_000, all: { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} }, verified: { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} }, ratings: { [gina]: rating(1045), [hal]: rating(1100) } };
+  await fetch(`${db.url}/stats/summary.json`, { method: 'PUT', body: JSON.stringify({ m: JSON.stringify(totals), ts: Date.now() }) });
+
+  const { host: a, guest: b, q, errors, close } = await phones(browser, 'ranks');
+  await a.goto(`./?${q}&fakegoogle=gina`);
+  await setName(a, 'Gina');
+  await a.locator('#sign-in').tap();
+  await expect(a.locator('#you-rank .insignia')).toHaveClass(/rank-silver/);
+  await b.goto(`./?${q}&fakegoogle=hal`);
+  await setName(b, 'Hal');
+  await b.locator('#sign-in').tap();
+  await expect(b.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);
+
+  // Gina hosts, Hal joins: each sees both insignia in the lobby and by the names in the match.
+  await a.locator('#open-browser').tap();
+  await a.locator('#online-host').tap();
+  await pickTank(a);
+  const code = (await a.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await b.goto(`./?${q}&fakegoogle=hal&via=link#room=${code}`);
+  await b.locator('#online-accept').tap();
+  await pickTank(b);
+  await expect(a.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
+  for (const p of [a, b]) await expect(p.locator('#online .online-seat .insignia')).toHaveCount(2, { timeout: 10_000 });
+  await a.screenshot({ path: 'test-results/ranks-lobby.png' });
+  await a.locator('#online-start').tap();
+  for (const p of [a, b]) {
+    await expect(p.locator('#online')).toBeHidden({ timeout: 15_000 });
+    await expect(p.locator('#players .chip .insignia')).toHaveCount(2);
+  }
+  await a.screenshot({ path: 'test-results/ranks-hud.png' });
+
+  // Hal resigns: Gina (Silver) has beaten a Gold player, and that's enough for Gold.
+  await b.locator('#net-menu').tap();
+  await b.locator('#menu-resign').tap();
+  await b.locator('#menu-resign').tap();
+  await expect(a.locator('#rankup')).toBeVisible({ timeout: 20_000 });
+  await expect(a.locator('#rankup')).toContainText('RANK UP!');
+  await expect(a.locator('#rankup .rankup-name')).toHaveText('Gold');
+  await a.waitForTimeout(900);
+  await a.screenshot({ path: 'test-results/rank-up.png' });
+  await expect(a.locator('#winner .insignia')).toHaveCount(1);
+  await a.locator('#rankup-ok').tap();
+  await expect(a.locator('#rankup')).toBeHidden();
+  // Hal lost to a lower rank: down a little, still Gold, and nothing to celebrate.
+  await b.waitForTimeout(2500);
+  await expect(b.locator('#rankup')).toBeHidden();
+  // Back at the menu, Gina's insignia is Gold now (until the hourly totals say otherwise), and it isn't celebrated twice.
+  await a.locator('#gameover-leave').tap();
+  await expect(a.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);
+  await a.reload();
+  await expect(a.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);
+  await a.waitForTimeout(1500);
+  await expect(a.locator('#rankup')).toBeHidden();
   expect(errors).toEqual([]);
   await close();
 });

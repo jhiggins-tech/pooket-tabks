@@ -27,6 +27,8 @@ export type Outdated = 'us' | 'them';
 export interface Pick {
   name: string;
   characterId: string;
+  /** Signed in with Google: their stats key (stats/summary.ts `playerKey`), so the other phone can show their rank. */
+  key?: string;
 }
 
 export type NetMsg =

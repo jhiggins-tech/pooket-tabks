@@ -1,6 +1,7 @@
 import type { Sfx, SfxCue } from '../game/state';
 import { findWeapon, isProjectileWeapon, weaponOf } from '../weapons/registry';
 import { midi, type Synth } from './chip';
+import type { Rank } from '../stats/ranks';
 import { TunePlayer } from './tunes';
 
 /**
@@ -14,6 +15,23 @@ function arp(s: Synth, notes: number[], step: number, o: { at?: number; dur?: nu
   notes.forEach((n, i) =>
     s.tone({ at: (o.at ?? 0) + i * step, dur: o.dur ?? step * 0.9, from: midi(n), duty: o.duty ?? 0.25, vol: o.vol ?? 0.14, wave: o.wave }),
   );
+}
+
+/**
+ * A rank-up jingle (stats/ranks.ts): the rank's notes as a quick fanfare, the last one held; ranks that
+ * sparkle more get a twinkle on top (and the top ones a shimmer of noise). Any rank's notes work, so a new
+ * rank needs no sound of its own.
+ */
+export function rankJingle(s: Synth, rank: Pick<Rank, 'jingle' | 'sparkle'>): void {
+  const step = 0.1;
+  const notes = rank.jingle;
+  const last = notes[notes.length - 1] ?? 72;
+  const at = (notes.length - 1) * step;
+  arp(s, notes.slice(0, -1), step, { duty: 0.25, vol: 0.13 });
+  s.tone({ at, dur: 0.75, from: midi(last), duty: 0.5, vibrato: [6, 10], vol: 0.14 });
+  s.tone({ at, dur: 0.75, from: midi(last - 12), duty: 0.125, vol: 0.07 });
+  if (rank.sparkle >= 2) arp(s, [last + 12, last + 16, last + 19, last + 24], 0.05, { at: at + 0.25, duty: 0.125, vol: 0.06 });
+  if (rank.sparkle >= 3) s.noise({ at, dur: 0.6, rate: 0.95, to: 0.6, vol: 0.05 });
 }
 
 /** Classic "pew": a stepped downward sweep. */
@@ -289,6 +307,12 @@ export class SfxPlayer {
     private readonly clock: () => number,
   ) {
     this.tunes = new TunePlayer(synth);
+  }
+
+  /** A rank-up's jingle (not a game event: it plays when the celebration shows). */
+  jingle(rank: Pick<Rank, 'jingle' | 'sparkle'>): void {
+    rankJingle(this.synth, rank);
+    this.played++;
   }
 
   play(e: Sfx): void {
