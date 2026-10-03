@@ -877,6 +877,7 @@ test('📊 Stats: players, characters, weapons and you; Verified only shows the 
   await page.locator('#setup-stats').tap();
   const body = page.locator('#stats .stats-body');
   const rowsOf = () => body.locator('tbody tr');
+  await page.locator('#stats .info-tab[data-tab="players"]').tap(); // (it opens on the leaderboard)
   // Players: Eve (her account) 3–0. Fay is counted under her account in the two matches she vouched for
   // and by name in the other, so neither of her rows has the 3 matches it takes to be ranked yet.
   await expect(rowsOf()).toHaveCount(1);
@@ -968,6 +969,47 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await expect(a.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);
   await a.waitForTimeout(1500);
   await expect(a.locator('#rankup')).toBeHidden();
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('🏆 Leaderboard: verified players by rating, with medals, insignia and you highlighted; your insignia opens it', async ({ browser }) => {
+  const people = ['ada', 'ben', 'cy', 'ivy', 'jo'];
+  const ratingOf: Record<string, number> = { ada: 1580, ben: 1310, cy: 1180, ivy: 1090, jo: 960 };
+  const keys = Object.fromEntries(await Promise.all(people.map(async (p) => [p, await playerKey(`uid-${p}`)] as const)));
+  const row = (p: string) => ({ key: keys[p]!, name: p[0]!.toUpperCase() + p.slice(1), verified: true, matches: 6, wins: 3, losses: 3, draws: 0, shots: 0, hits: 0, dealt: 0, taken: 0, kills: 0, characters: { kie: 6 } });
+  const view = { matches: 15, turns: 90, endings: {}, players: people.map(row), characters: {}, weapons: {} };
+  const totals = {
+    v: 1,
+    updatedAt: Date.now() - 60_000,
+    all: view,
+    verified: view,
+    ratings: Object.fromEntries(people.map((p) => [keys[p]!, { rating: ratingOf[p]!, matches: 6, wins: 3, losses: 3, draws: 0, peak: ratingOf[p]! }])),
+  };
+  await fetch(`${db.url}/stats/summary.json`, { method: 'PUT', body: JSON.stringify({ m: JSON.stringify(totals), ts: Date.now() }) });
+
+  const { host: page, q, errors, close } = await phones(browser, 'leaderboard');
+  await page.goto(`./?${q}&fakegoogle=ivy`);
+  await setName(page, 'Ivy');
+  await page.locator('#sign-in').tap();
+  await expect(page.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);
+  await page.locator('#you-rank').click();
+  await expect(page.locator('#stats .info-tab[data-tab="leaderboard"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#stats-verified')).toBeHidden(); // verified players only, anyway
+  const rows = page.locator('#stats .stats-body tbody tr');
+  await expect(rows).toHaveCount(5);
+  await expect(rows.nth(0)).toContainText('🥇');
+  await expect(rows.nth(0)).toContainText('Champion');
+  await expect(rows.nth(0)).toContainText('Ada');
+  await expect(rows.nth(1)).toContainText('Diamond');
+  await expect(rows.nth(3)).toContainText('Ivy');
+  await expect(rows.nth(3)).toHaveClass(/stats-me/);
+  await expect(rows.nth(4)).toContainText('Jo');
+  await expect(rows.locator('.insignia')).toHaveCount(5);
+  await page.screenshot({ path: 'test-results/leaderboard.png' });
+  // The other tabs bring the Verified only toggle back.
+  await page.locator('#stats .info-tab[data-tab="players"]').tap();
+  await expect(page.locator('#stats-verified')).toBeVisible();
   expect(errors).toEqual([]);
   await close();
 });

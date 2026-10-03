@@ -349,6 +349,8 @@ const stats = new StatsScreen({
   you: async () => (auth.uid ? { key: await playerKey(auth.uid), name: yourName(), signedIn: true } : { key: nameKey(yourName()), name: yourName(), signedIn: false }),
 });
 document.getElementById('setup-stats')!.addEventListener('click', () => stats.open());
+// Your insignia on the first screen: where you stand on the leaderboard.
+document.getElementById('you-rank')!.addEventListener('click', () => stats.open('leaderboard'));
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
 function welcome(): void {
   if (openedRoom) online.invite(openedRoom);

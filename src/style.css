@@ -1951,3 +1951,26 @@ body[data-online='true'] #net-menu {
     opacity: 0.8;
   }
 }
+
+/* The leaderboard (ui/stats.ts) */
+.stats-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.stats-rank .insignia {
+  margin: 0;
+}
+.stats-table tr.stats-podium td:first-child {
+  font-size: 18px;
+}
+.stats-table tr.stats-me td {
+  background: rgba(255, 207, 51, 0.12);
+}
+.stats-table tr.stats-me td:first-child {
+  box-shadow: inset 3px 0 0 #ffcf33;
+}
+#you-rank:not(:empty) {
+  cursor: pointer;
+}

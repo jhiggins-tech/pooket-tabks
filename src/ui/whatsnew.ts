@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 44,
+    title: '🏆 Leaderboard',
+    items: ['A leaderboard of ranked players, best rating first, with medals for the top three and your own place highlighted. It’s the first tab of 📊 Stats, or tap your insignia on the first screen.'],
+  },
+  {
     version: 43,
     title: 'Ranks',
     items: [

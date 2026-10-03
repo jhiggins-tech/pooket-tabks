@@ -42,6 +42,7 @@ export class Landing {
     if ((this.rank.dataset.rank ?? '') === (rank?.id ?? '')) return;
     this.rank.dataset.rank = rank?.id ?? '';
     this.rank.replaceChildren(...(rank ? [insignia(rank, 'md')] : []));
+    this.rank.title = rank ? `${rank.name}: see the leaderboard` : '';
   }
 
   /** Online matches where it's this phone's turn. */

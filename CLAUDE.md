@@ -128,7 +128,8 @@ what it's for; weapons are documented where they're defined.
   `net/results.ts` files a finished match's summary (`stats/matches/<id>/<seat>`) and, signed in, vouches
   for it (`users/<uid>/results/<id>`: the summary's SHA-256), from `OnlineScreen` and from `matchesOf`;
   `notifier/stats.ts` (hourly, `.github/workflows/stats.yml`) runs `src/stats/aggregate.ts` into
-  `stats/summary` (no uids: `playerKey` hashes them); `ui/stats.ts` shows it. A match is verified when both
+  `stats/summary` (no uids: `playerKey` hashes them); `ui/stats.ts` shows it (the 🏆 Leaderboard tab first:
+  `ratings` by rating). A match is verified when both
   seats vouched for the same summary from two accounts. A new weapon kind that never does damage itself
   goes in tally.ts's `HARMLESS`. **Ranks**: `stats/ranks.ts` (`RANKS`, Elo; the hourly sender rates verified
   matches into `stats/summary`'s `ratings`, by player key), `ui/ranks.ts` (`Ratings`: anyone's rank by key,

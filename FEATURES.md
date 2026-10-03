@@ -164,6 +164,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **🏆 Leaderboard** (owner, 3 Oct). The first tab of 📊 Stats (it opens there; so does tapping your insignia on
+  the landing screen): verified players with a rated match, by rating (`stats/summary`'s `ratings`, names from
+  the stats rows), with their insignia and rank, rating and rated W–L–D; 🥇🥈🥉 for the top three, your row
+  highlighted, and pinned below if you're outside the top 50 (`LEADERBOARD_SIZE`). No Verified only toggle
+  there: it's verified players anyway. `ui/stats.ts`.
 - **Ranks** (owner, 3 Oct). Competitive ranks for verified players (signed in, in matches both vouched for),
   on win/loss only: an Elo rating (`src/stats/ranks.ts`: start 1000, K 32; an upset moves more) worked out
   by the hourly stats over verified matches in the order they were played, into `stats/summary`'s `ratings`.

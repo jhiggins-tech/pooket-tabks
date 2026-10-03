@@ -3,15 +3,15 @@ import { netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { CharacterRow, Counts, PlayerRow, StatsSummary, StatsView } from '../stats/aggregate';
 import { findWeapon } from '../weapons/registry';
-import type { Rank } from '../stats/ranks';
+import { rankOf, type Rank } from '../stats/ranks';
 import { insignia } from './insignia';
 import type { Ratings } from './ranks';
 import { el } from './dom';
 
 /**
  * The stats viewer (📊 Stats on the landing screen): online matches added up (src/stats/aggregate.ts,
- * refreshed hourly by notifier/stats.ts into `stats/summary`). Players (ranked once they've played a few),
- * Characters, Weapons and You; **Verified only** shows just the matches both players vouched for while
+ * refreshed hourly by notifier/stats.ts into `stats/summary`). The Leaderboard (verified players by rating:
+ * stats/ranks.ts), Players (ranked once they've played a few), Characters, Weapons and You; **Verified only** shows just the matches both players vouched for while
  * signed in with Google. Players who weren't signed in are grouped by name and marked unverified.
  */
 
@@ -19,8 +19,13 @@ import { el } from './dom';
 export const MIN_MATCHES = 3;
 const VERIFIED_KEY = 'pooket.statsVerified';
 
-type Tab = 'players' | 'characters' | 'weapons' | 'you';
+/** The leaderboard shows this many places (and you, pinned below, if you're further down). */
+export const LEADERBOARD_SIZE = 50;
+
+export type StatsTab = 'leaderboard' | 'players' | 'characters' | 'weapons' | 'you';
+type Tab = StatsTab;
 const TABS: [Tab, string][] = [
+  ['leaderboard', '🏆 Leaderboard'],
   ['players', 'Players'],
   ['characters', 'Characters'],
   ['weapons', 'Weapons'],
@@ -40,7 +45,8 @@ export class StatsScreen {
   private readonly tabs = el('div', 'info-tabs');
   private readonly body = el('div', 'info-body stats-body');
   private readonly verifiedBox = el('input');
-  private tab: Tab = 'players';
+  private tab: Tab = 'leaderboard';
+  private readonly verifiedLabel = el('label', 'stats-verified');
   private stats: StatsSummary | null = null;
   private status: 'loading' | 'error' | 'ready' = 'loading';
   private me: { key: string; name: string; signedIn: boolean } | null = null;
@@ -58,7 +64,7 @@ export class StatsScreen {
       remember(this.verifiedBox.checked);
       this.render();
     });
-    const label = el('label', 'stats-verified');
+    const label = this.verifiedLabel;
     label.append(this.verifiedBox, 'Verified only');
     label.title = 'Only matches both players vouched for while signed in with Google';
     const close = el('button', 'info-close');
@@ -76,7 +82,9 @@ export class StatsScreen {
     return !this.root.hidden;
   }
 
-  open(): void {
+  /** Open on a tab (the leaderboard unless asked). */
+  open(tab: Tab = 'leaderboard'): void {
+    this.tab = tab;
     this.root.hidden = false;
     this.status = 'loading';
     this.render();
@@ -119,6 +127,8 @@ export class StatsScreen {
         return b;
       }),
     );
+    // (The leaderboard is verified players only anyway.)
+    this.verifiedLabel.hidden = this.tab === 'leaderboard';
     this.body.replaceChildren(...this.content());
     this.body.scrollTop = 0;
   }
@@ -126,6 +136,7 @@ export class StatsScreen {
   private content(): HTMLElement[] {
     if (this.status === 'loading') return [el('p', 'stats-note', 'Loading the stats…')];
     if (this.status === 'error') return [el('p', 'stats-note', "Couldn't load the stats. Check this phone is online, then open them again.")];
+    if (this.tab === 'leaderboard') return this.leaderboard();
     const verified = this.verifiedBox.checked;
     const view = this.stats?.[verified ? 'verified' : 'all'];
     if (!view || view.matches === 0) {
@@ -134,6 +145,36 @@ export class StatsScreen {
     const rankOf = (key: string) => this.opts.ratings?.rank(key) ?? null;
     const parts = this.tab === 'players' ? players(view, rankOf) : this.tab === 'characters' ? characters(view) : this.tab === 'weapons' ? weapons(view) : this.you(view);
     return [...parts, this.footer(view)];
+  }
+
+  /** Verified players by rating, best first, with this phone's player highlighted (pinned below if further down). */
+  private leaderboard(): HTMLElement[] {
+    const s = this.stats;
+    const names = new Map((s?.all.players ?? []).map((p) => [p.key, p.name]));
+    const ladder = Object.entries(s?.ratings ?? {})
+      .filter(([, r]) => r.matches > 0)
+      .sort((a, b) => b[1].rating - a[1].rating || b[1].wins - a[1].wins || (names.get(a[0]) ?? '').localeCompare(names.get(b[0]) ?? ''));
+    const note = el('p', 'stats-note', 'Players signed in with Google, rated on wins and losses in matches both players were signed in for. Beat someone ranked above you for more. Updated every hour.');
+    if (!ladder.length) return [el('p', 'stats-note', 'Nobody’s ranked yet: play an online match with both players signed in with Google to get on the board.'), note, this.footer(undefined)];
+    const mine = this.me?.signedIn ? this.me.key : null;
+    const t = table(['#', 'Rank', 'Player', 'Rating', 'W–L–D']);
+    const add = ([key, r]: (typeof ladder)[number], place: number) => {
+      const rank = rankOf(r.rating);
+      const medal = ['🥇', '🥈', '🥉'][place - 1];
+      const rankCell = el('span', 'stats-rank');
+      rankCell.append(insignia(rank), el('span', undefined, rank.name));
+      row(t, [medal ?? String(place), rankCell, el('td', 'stats-name', names.get(key) ?? 'Player'), String(Math.round(r.rating)), `${r.wins}–${r.losses}–${r.draws}`]);
+      const tr = t.tBodies[0]!.lastElementChild as HTMLElement;
+      tr.classList.toggle('stats-me', key === mine);
+      if (place <= 3) tr.classList.add('stats-podium');
+    };
+    ladder.slice(0, LEADERBOARD_SIZE).forEach((e, i) => add(e, i + 1));
+    const myPlace = mine ? ladder.findIndex(([k]) => k === mine) : -1;
+    if (myPlace >= LEADERBOARD_SIZE) add(ladder[myPlace]!, myPlace + 1);
+    const parts: HTMLElement[] = [wrap(t)];
+    if (mine && myPlace < 0) parts.push(el('p', 'stats-note', 'You’re not on the board yet: finish an online match where both of you are signed in.'));
+    else if (!this.me?.signedIn) parts.push(el('p', 'stats-note', 'Sign in with Google (on the first screen) to get a rank.'));
+    return [...parts, note, this.footer(undefined)];
   }
 
   private you(view: StatsView): HTMLElement[] {
