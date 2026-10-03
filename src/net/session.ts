@@ -376,6 +376,17 @@ export class NetSession {
     (this.transport.detach ?? this.transport.close).call(this.transport);
   }
 
+  /**
+   * This player has opened the match on another phone, which has taken the seat (rooms.ts `watchSeat`):
+   * stop here without a word (the other phone is the one playing now), leaving the room as it is.
+   */
+  standDown(): void {
+    if (this.lost) return;
+    netLog('session: standing aside for this player’s other phone');
+    this.end('away');
+    (this.transport.detach ?? this.transport.close).call(this.transport);
+  }
+
   /** The match ended between shots (resigned, out of time): record how it stands. */
   private settled(): void {
     const s = this.state!;

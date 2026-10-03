@@ -3,7 +3,7 @@ import { roomLink } from '../net/links';
 import { netLog } from '../net/log';
 import { Listing, lobbySealer, watchLobby } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
-import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost } from '../net/rooms';
+import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost, watchSeat } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
@@ -33,6 +33,8 @@ export interface OnlineOptions {
   lobby: string;
   /** Relay timings (tests shorten them). */
   relay?: { pingMs?: number; lostMs?: number };
+  /** Bring this phone's matches up to date from a signed-in player's account (before listing them). */
+  syncSeats?: () => Promise<void>;
 }
 
 /**
@@ -75,6 +77,8 @@ export class OnlineScreen {
   /** Who's watching (the 👁 chip and "just started watching"). */
   private readonly audience = new Audience();
   private seatTimer: ReturnType<typeof setInterval> | null = null;
+  /** Stands this phone aside if the player opens the match on another phone (rooms.ts `watchSeat`). */
+  private seatWatch: { close: () => void } | null = null;
   /** The seat of the match this phone is in, and its room. */
   private seat: Omit<Seat, 'ts'> | null = null;
   private room: RoomRef | null = null;
@@ -258,7 +262,9 @@ export class OnlineScreen {
     if (typed) return this.joinCode(db, typed);
 
     this.show([heading('Game browser'), status('Looking for games…')]);
-    const [lobby, up] = await Promise.all([lobbySealer(this.opts.lobby), db.reachable()]);
+    // (A signed-in player's matches from their other phones first; not waiting long for them.)
+    const synced = this.opts.syncSeats ? Promise.race([this.opts.syncSeats(), new Promise((r) => setTimeout(r, 4000))]) : null;
+    const [lobby, up] = await Promise.all([lobbySealer(this.opts.lobby), db.reachable(), synced]);
     if (!scope.alive) return;
     if (!up) return this.fail(new Error("Couldn't reach the game server. Is this phone online?"), () => void this.join());
     const browser = gameBrowser(db, lobby, this.opts.lobby, scope, {
@@ -637,6 +643,11 @@ export class OnlineScreen {
       this.room = { db: peer.db, path: peer.roomPath, sealer: peer.sealer };
       this.audience.follow(this.room);
       announceDevice(this.room, seat.role, seat.id);
+      // This player opening the match on another phone: that one plays, this one stands aside.
+      const taken = watchSeat(peer.db, peer.roomPath, seat.role, seat.id, () => {
+        if (this.session === s) this.elsewhere(s);
+      });
+      this.seatWatch = taken;
     }
     s.on('lobby', () => this.lobby());
     s.on('lost', () => this.lost());
@@ -732,8 +743,32 @@ export class OnlineScreen {
     this.listing?.update({ over });
   }
 
+  /**
+   * The match has been opened on this player's other phone, which has taken the seat: stop here quietly,
+   * and offer to take it back (which makes that one stand aside in turn).
+   */
+  private elsewhere(s: NetSession): void {
+    const seat = this.seat;
+    if (!seat) return;
+    netLog('ui: this match was opened on another phone');
+    s.standDown();
+    updateSeat(seat.code, { left: true }); // (no rejoining straight away on a reload here)
+    this.endSeat();
+    this.cleanup();
+    this.session = null;
+    const back = button('Play here instead', () => {
+      const mine = findSeat(seat.code);
+      if (mine) void this.rejoin(mine);
+      else this.close();
+    }, 'big');
+    back.id = 'online-play-here';
+    this.show([heading('Playing on another phone'), text(`You've opened this match (${seat.code}) on another phone, so it carries on there.`), back, cancelButton(() => this.close(), 'Back')]);
+  }
+
   /** Done with this phone's seat for now (what to remember about it is up to the caller). */
   private endSeat(): void {
+    this.seatWatch?.close();
+    this.seatWatch = null;
     if (this.seatTimer) clearInterval(this.seatTimer);
     this.seatTimer = null;
     this.seat = null;

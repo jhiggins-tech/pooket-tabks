@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 39,
+    title: 'Your games, on any phone',
+    items: [
+      'Signed in with Google, your online matches follow you too: start one on one phone and carry it on from another (they’re under your games in the Game browser).',
+      'Open a match on a second phone and that one plays; the first steps aside, with "Play here instead" to take it back.',
+    ],
+  },
+  {
     version: 38,
     title: 'Sign in with Google',
     items: ['Optional: sign in with Google on the first screen and your name, last tank and settings follow you to your other phones. Playing without signing in works just as before.'],

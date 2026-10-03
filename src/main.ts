@@ -33,7 +33,8 @@ import { SfxPlayer } from './audio/sfx';
 import { takePlayRef, takeRoomCode } from './net/links';
 import { netLog, netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
-import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
+import { AUTO_REJOIN_MS, latestSeat, loadSeats, seatChanges } from './net/seat';
+import { SeatSync } from './net/seatsync';
 import { FIREBASE_API_KEY, FIREBASE_DATABASE_URL, GOOGLE_CLIENT_ID, VAPID_PUBLIC_KEY } from './net/config';
 import { Account } from './net/account';
 import { Auth } from './net/auth';
@@ -147,12 +148,15 @@ function newGame(): void {
 
 // ---- Online: two phones, one each, through a Firebase room. Null in a local (hotseat) game. ----
 let net: NetSession | null = null;
+/** A signed-in player's matches from their account (set up with sign-in, below). */
+let seatSync: SeatSync | null = null;
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online.
   pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId }),
   dbUrl: params.db || FIREBASE_DATABASE_URL || null,
   lobby: params.lobby || PUBLIC_LOBBY,
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
+  syncSeats: () => seatSync?.sync() ?? Promise.resolve(),
 });
 /** An online match (or one being watched) starts: off the menus and into it. */
 function startOnline(seed: number, chosen: PlayerConfig[], played = false): GameState {
@@ -201,21 +205,27 @@ online.onClosed = () => {
  * Game browser), and how many public games are open or live (while it's showing).
  */
 let turnsCheck = 0;
+/** The dot on the Game browser: how many of this phone's matches are waiting for your turn. */
+function updateTurnsWaiting(): void {
+  if (!online.dbUrl) return;
+  const check = ++turnsCheck;
+  void matchesOf(new Rtdb(online.dbUrl)).then((games) => {
+    if (check === turnsCheck) landing.setTurnsWaiting(games.filter((g) => g.status === 'your-turn').length);
+  });
+}
 function showLanding(): void {
   setup.hide();
   landing.show();
   landing.setName(yourName());
   const url = online.dbUrl;
   if (!url) return;
-  const check = ++turnsCheck;
-  void matchesOf(new Rtdb(url)).then((games) => {
-    if (check === turnsCheck) landing.setTurnsWaiting(games.filter((g) => g.status === 'your-turn').length);
-  });
+  updateTurnsWaiting();
   stopCounts();
   stopCounts = online.watchCounts((waiting, live) => landing.setCounts(waiting, live));
 }
 // ---- Notifications ("your turn", "someone joined your game"): push/, net/push.ts, public/sw.js. ----
-// ---- Optional sign in with Google: net/auth.ts, net/account.ts (the profile follows the player), ui/signin.ts. ----
+// ---- Optional sign in with Google: net/auth.ts, net/account.ts (the profile follows the player),
+// net/seatsync.ts (and so do their matches), ui/signin.ts. ----
 const fakeAuth = params.fakeGoogle !== null && params.db ? params.db : null;
 const auth = new Auth({
   apiKey: FIREBASE_API_KEY,
@@ -223,13 +233,27 @@ const auth = new Auth({
 });
 // (A test database has no real accounts: only the fake one, `?fakegoogle`.)
 if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIENT_ID))) {
-  const account = new Account(auth, new Rtdb(online.dbUrl, () => auth.token()), localProfile, () => {
+  const userDb = new Rtdb(online.dbUrl, () => auth.token());
+  const account = new Account(auth, userDb, localProfile, () => {
     setUsername(yourName());
     soundToggle.reload();
   });
+  const seats = new SeatSync(auth, userDb, () => {
+    if (landing.isOpen) updateTurnsWaiting();
+  });
+  seatSync = seats;
   profileChanges.on('saved', () => account.changed());
-  new SignInPanel(document.getElementById('account')!, auth, { clientId: GOOGLE_CLIENT_ID, fakeGoogle: params.fakeGoogle, onSignedIn: () => void account.sync() });
+  seatChanges.on('changed', (code) => seats.changed(code));
+  new SignInPanel(document.getElementById('account')!, auth, {
+    clientId: GOOGLE_CLIENT_ID,
+    fakeGoogle: params.fakeGoogle,
+    onSignedIn: () => {
+      void account.sync();
+      void seats.sync();
+    },
+  });
   void account.sync();
+  void seats.sync();
 }
 const pushDb = online.dbUrl ? new Rtdb(online.dbUrl) : null;
 const push = new PushClient(pushDb, params.vapid ?? VAPID_PUBLIC_KEY);

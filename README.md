@@ -69,8 +69,10 @@ The landing screen's "🔑 Sign in with Google" gives a player an account that f
 No Firebase SDK: Google's own button (loaded only when someone taps to sign in) hands back an ID token,
 Firebase's REST sign-in (`src/net/auth.ts`) swaps it for a Firebase token, and the database sees it as
 `?auth=` on `users/<uid>/…` calls only. We keep the uid (never the Google email or name). What follows the
-player today (`src/net/account.ts`, `users/<uid>/profile`): their name, last online character, sound and the
-Game browser ticks. The account's wins on a phone's first sign-in; after that the newer one does.
+player (`src/net/account.ts`, `users/<uid>/profile`): their name, last online character, sound and the
+Game browser ticks (the account's wins on a phone's first sign-in; after that the newer one does), and their
+online matches (`src/net/seatsync.ts`, `users/<uid>/games`): a match carries on from any of their phones, and
+the phone that opens it last plays while the other stands aside.
 
 One-time setup (done once, by the owner; the keys are public, so they're committed in `src/net/config.ts`):
 Firebase console → Authentication → Sign-in method → enable Google (and add `jhiggins-tech.github.io` under

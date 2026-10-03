@@ -1,7 +1,13 @@
+import { Emitter } from '../core/emitter';
+
 /**
  * This phone's seats in online matches (room code, host or guest, and the id each seat was claimed with),
  * remembered so it can go back to them: after a reload, the app being killed or a lost signal, and for
  * matches played turn by turn (listed first in the Game browser). Newest first.
+ *
+ * A signed-in player's seats also follow them to their other phones (net/seatsync.ts): each seat says when
+ * it last changed (`at`), a forgotten one leaves a note (`forgotten`) so it doesn't come back from the
+ * account, and `seatChanges` says when either happens. `left` and `seen` are about this phone only.
  */
 
 export interface Seat {
@@ -16,9 +22,16 @@ export interface Seat {
   left?: boolean;
   /** The last turn this phone has seen played out (so their newer shot gets replayed). */
   seen?: number;
+  /** When what follows the player about it (role, id, listed) last changed (ms; older seats: `ts`). */
+  at?: number;
 }
 
+/** `changed`: a seat was saved, changed or forgotten here (its code), so a signed-in player's account hears. */
+export const seatChanges = new Emitter<{ changed: [code: string] }>();
+
 export const GAMES_KEY = 'pooket.games';
+/** Seats forgotten here lately: code → when (ms), kept as long as a seat would be. */
+export const FORGOTTEN_KEY = 'pooket.games.forgotten';
 /** Where an older version kept its one seat (taken over into the list). */
 const LEGACY_SEAT_KEY = 'pooket.seat';
 /** Rejoin straight away after a reload if the match was going this recently (and not left on purpose). */
@@ -75,14 +88,20 @@ export function latestSeat(s: Store | null = store(), now = Date.now()): Seat | 
 export function saveSeat(seat: Omit<Seat, 'ts'>, s: Store | null = store(), now = Date.now()): void {
   const seats = loadSeats(s, now);
   const old = seats.find((x) => x.code === seat.code);
-  write([{ ...old, ...seat, left: false, ts: now }, ...seats.filter((x) => x !== old)], s);
+  write([{ ...old, ...seat, left: false, ts: now, at: now }, ...seats.filter((x) => x !== old)], s);
+  unforget(seat.code, s, now);
+  seatChanges.emit('changed', seat.code);
 }
 
 /** Change a remembered seat (without it counting as played). */
 export function updateSeat(code: string, changes: Partial<Omit<Seat, 'code'>>, s: Store | null = store(), now = Date.now()): void {
   const seats = loadSeats(s, now);
-  if (!seats.some((x) => x.code === code)) return;
-  write(seats.map((x) => (x.code === code ? { ...x, ...changes } : x)), s);
+  const old = seats.find((x) => x.code === code);
+  if (!old) return;
+  // Only what follows the player counts as a change for the account (not `ts`, `left` or `seen`).
+  const shared = (['role', 'id', 'listed'] as const).some((k) => k in changes && changes[k] !== old[k]);
+  write(seats.map((x) => (x === old ? { ...x, ...changes, ...(shared ? { at: now } : {}) } : x)), s);
+  if (shared) seatChanges.emit('changed', code);
 }
 
 /** Still playing: keep the seat fresh. */
@@ -92,4 +111,57 @@ export function touchSeat(code: string, s: Store | null = store(), now = Date.no
 
 export function forgetSeat(code: string, s: Store | null = store(), now = Date.now()): void {
   write(loadSeats(s, now).filter((x) => x.code !== code), s);
+  writeForgotten({ ...loadForgotten(s, now), [code]: now }, s);
+  seatChanges.emit('changed', code);
+}
+
+/** Seats forgotten here lately (code → when), so a signed-in player's other phones forget them too. */
+export function loadForgotten(s: Store | null = store(), now = Date.now()): Record<string, number> {
+  try {
+    const v = JSON.parse(s?.getItem(FORGOTTEN_KEY) ?? '{}') as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(v && typeof v === 'object' ? v : {}).filter((e): e is [string, number] => typeof e[1] === 'number' && now - e[1] <= SEAT_EXPIRY_MS));
+  } catch {
+    return {};
+  }
+}
+
+function writeForgotten(map: Record<string, number>, s: Store | null): void {
+  try {
+    s?.setItem(FORGOTTEN_KEY, JSON.stringify(map));
+  } catch {
+    /* the account may bring it back: harmless, the Game browser tidies it again */
+  }
+}
+
+function unforget(code: string, s: Store | null, now: number): void {
+  const map = loadForgotten(s, now);
+  if (!(code in map)) return;
+  delete map[code];
+  writeForgotten(map, s);
+}
+
+/**
+ * What the account says (net/seatsync.ts), taken in quietly (no `seatChanges`): seats played on another
+ * phone (newer than ours, or new here) and seats forgotten there (more lately than ours changed). This
+ * phone's own `left` and `seen` stay as they are.
+ */
+export function takeSeats(theirs: { seats: Seat[]; forgotten: Record<string, number> }, s: Store | null = store(), now = Date.now()): void {
+  let seats = loadSeats(s, now);
+  const forgotten = loadForgotten(s, now);
+  for (const t of theirs.seats) {
+    if ((forgotten[t.code] ?? -1) >= (t.at ?? t.ts)) continue;
+    const mine = seats.find((x) => x.code === t.code);
+    if (mine && (mine.at ?? mine.ts) >= (t.at ?? t.ts)) continue;
+    const merged: Seat = { code: t.code, role: t.role, id: t.id, listed: t.listed, ts: Math.max(t.ts, mine?.ts ?? 0), at: t.at ?? t.ts, left: mine?.left, seen: mine?.seen };
+    seats = [merged, ...seats.filter((x) => x !== mine)];
+    delete forgotten[t.code];
+  }
+  for (const [code, when] of Object.entries(theirs.forgotten)) {
+    const mine = seats.find((x) => x.code === code);
+    if (mine && (mine.at ?? mine.ts) > when) continue;
+    seats = seats.filter((x) => x !== mine);
+    forgotten[code] = Math.max(when, forgotten[code] ?? 0);
+  }
+  write(seats.sort((a, b) => b.ts - a.ts), s);
+  writeForgotten(forgotten, s);
 }

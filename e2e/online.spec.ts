@@ -733,3 +733,58 @@ test('no sign-in button where there is nothing to sign in to (a test database wi
   await expect(host.locator('#account')).toBeHidden();
   await close();
 });
+
+test('signed in, your matches follow you: carry one on from another phone, which plays while the first stands aside', async ({ browser }) => {
+  test.setTimeout(150_000);
+  const { host: a, guest: c, q: base, errors, close } = await phones(browser, 'seats-follow');
+  const q = `${base}&lost=1500`;
+  const bCtx = await browser.newContext(devices['Pixel 7 landscape']);
+  const b = await bCtx.newPage();
+  b.on('pageerror', (e) => errors.push(e.message));
+
+  // (An account of this test's own.) Ann, signed in on phone A, hosts; C (not signed in) joins; one turn each way.
+  await a.goto(`./?${q}&fakegoogle=cara`);
+  await setName(a, 'Ann');
+  await a.locator('#sign-in').tap();
+  await expect(a.locator('#account')).toContainText('Signed in');
+  await a.locator('#open-browser').tap();
+  await a.locator('#online-host').tap();
+  await pickTank(a);
+  const code = (await a.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await c.goto(`./?${q}#room=${code}`);
+  await c.locator('#online-accept').tap();
+  await pickTank(c);
+  await playFromLobby(a, c); // C's turn now
+  await expect.poll(() => (db.tree().users as Record<string, { games?: Record<string, unknown> }>)['uid-cara']?.games?.[code]).toBeTruthy();
+
+  // Ann picks up phone B and signs in: the match is in her games there, and she carries on with it.
+  await b.goto(`./?${q}&fakegoogle=cara`);
+  await b.locator('#sign-in').tap();
+  await expect(b.locator('#you-name')).toHaveText('Ann');
+  await b.locator('#open-browser').tap();
+  await expect(rows(b, 'mine')).toHaveCount(1);
+  await expect(rows(b, 'mine')).toContainText('their turn', { ignoreCase: true });
+  await rows(b, 'mine').getByRole('button', { name: 'Open' }).tap();
+  await expect(b.locator('#online')).toBeHidden({ timeout: 20_000 });
+  // Phone A stands aside (no word to C: Ann's still here, on B).
+  await expect(a.locator('#online')).toContainText('Playing on another phone', { timeout: 15_000 });
+  await a.screenshot({ path: 'test-results/playing-elsewhere.png' });
+  expect(await canAct(a)).toBe(false);
+  // C plays; B sees it and takes Ann's turn.
+  await expect.poll(() => canAct(c), { timeout: 20_000 }).toBe(true);
+  await c.locator('#fire').tap();
+  await expect.poll(() => canAct(b), { timeout: 40_000 }).toBe(true);
+  expect(await summary(b)).toEqual(await summary(c));
+  await b.locator('#fire').tap();
+  await expect.poll(() => canAct(c), { timeout: 40_000 }).toBe(true);
+  expect(await summary(c)).toEqual(await summary(b));
+
+  // Back to phone A: "Play here instead" takes the seat back, and B stands aside in turn.
+  await a.locator('#online-play-here').tap();
+  await expect(b.locator('#online')).toContainText('Playing on another phone', { timeout: 20_000 });
+  await expect(a.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect.poll(async () => (await summary(a)).turn, { timeout: 40_000 }).toBe((await summary(c)).turn);
+  expect(errors).toEqual([]);
+  await bCtx.close();
+  await close();
+});

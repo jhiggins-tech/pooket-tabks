@@ -235,7 +235,7 @@ describe('remembered seats (My games)', () => {
     const s = mem();
     expect(latestSeat(s)).toBeNull();
     saveSeat({ code: 'FROG', role: 'guest', id: 'abc' }, s, 1000);
-    expect(latestSeat(s, 1000 + AUTO_REJOIN_MS)).toEqual({ code: 'FROG', role: 'guest', id: 'abc', left: false, ts: 1000 });
+    expect(latestSeat(s, 1000 + AUTO_REJOIN_MS)).toEqual({ code: 'FROG', role: 'guest', id: 'abc', left: false, ts: 1000, at: 1000 });
     saveSeat({ code: 'TOAD', role: 'host', id: 'def' }, s, 2000);
     expect(loadSeats(s, 2000).map((x) => x.code)).toEqual(['TOAD', 'FROG']);
     touchSeat('FROG', s, 5000);

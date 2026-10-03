@@ -124,6 +124,18 @@
           "ts": { ".validate": "newData.val() === now" },
           "$other": { ".validate": false }
         },
+        "games": {
+          "$code": {
+            ".validate": "$code.matches(/^[A-Z]{4}$/) && newData.hasChildren(['at', 'ts']) && (newData.child('gone').val() === true || newData.hasChildren(['role', 'id']))",
+            "role": { ".validate": "newData.val() === 'host' || newData.val() === 'guest'" },
+            "id": { ".validate": "newData.isString() && newData.val().length <= 32" },
+            "listed": { ".validate": "newData.isBoolean()" },
+            "gone": { ".validate": "newData.val() === true" },
+            "at": { ".validate": "newData.isNumber()" },
+            "ts": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          }
+        },
         "$other": { ".validate": false }
       }
     },

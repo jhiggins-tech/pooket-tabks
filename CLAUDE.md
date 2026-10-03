@@ -112,7 +112,11 @@ what it's for; weapons are documented where they're defined.
   changes win. Anything saved on the phone that should follow the player emits `profileChanges` (`ui/profile.ts`).
   Tests use `?debug&db=URL&fakegoogle=NAME` (a stand-in for Google and Firebase Auth in `tests/support/rtdb.ts`,
   which also enforces "a person's own data is theirs"); no sign-in button on a test database without it.
-  Seats and push by account are the next steps (FEATURES queue).
+  A signed-in player's match seats follow them too (`net/seatsync.ts`, `users/<uid>/games/<code>`): seat.ts
+  stamps each seat's change time (`at`), keeps notes of forgotten ones and emits `seatChanges`; `takeSeats`
+  merges the account's in (newer wins; `left` / `seen` stay per phone). **One phone per seat**: seat claims
+  carry the device (`dev`, `clientId`), host check-ins patch only `ts`, and `watchSeat` makes a phone whose
+  seat another device took (same id) stand aside quietly (`NetSession.standDown`). Push by account is next.
 - **Push notifications**: `net/push.ts` (each phone's `clientId`; `announceDevice` in each room it's
   in; `notifySeat` adds an `outbox` entry for the other seat's device, from `OnlineScreen`: your turn
   when they're away, someone joined), `push/templates.ts` (the words: shared with the sender, plain
