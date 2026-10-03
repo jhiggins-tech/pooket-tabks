@@ -1,7 +1,7 @@
 import { FUEL_PER_MATCH } from '../game/constants';
 import { isBonus, weaponOf } from '../weapons/registry';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { aimedTank, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, pendingTwinSpot, weaponForTier } from '../game/game';
+import { aimedTank, canSuckYolk, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, pendingTwinSpot, weaponForTier, YOLK_SUCKER, yolkTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { GameState, Player } from '../game/state';
@@ -82,6 +82,8 @@ export class Hud {
       p.ammo[p.selectedTier],
       p.loadout[p.selectedTier],
       !!p.twin,
+      p.hp,
+      p.twin?.hp,
       remote,
       this.online?.syncing,
     ].join('|');
@@ -105,7 +107,7 @@ export class Hud {
       ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
       ? `ten-2 charging… ${countdown}`
-      : isBonus(weaponForTier(p, p.selectedTier))
+      : isBonus(weaponForTier(p, p.selectedTier)) || p.selectedTier === yolkTier(p)
       ? 'Bonus move: FIRE it, then take your turn'
       : pendingTwinSpot(state) !== null
       ? 'Tap the ground to place your twin, then FIRE'
@@ -121,7 +123,8 @@ export class Hud {
     // Just after casting Trollogram, FIRE becomes DONE: finished picking a decoy to swap into.
     const done = picking !== null && !remote;
     this.fireEl.textContent = done ? 'DONE' : 'FIRE';
-    this.fireEl.disabled = !done && (state.phase !== 'aiming' || (p.ammo[p.selectedTier] ?? 0) <= 0);
+    const yolk = p.selectedTier === yolkTier(p);
+    this.fireEl.disabled = !done && (state.phase !== 'aiming' || (yolk ? !canSuckYolk(p) : (p.ammo[p.selectedTier] ?? 0) <= 0));
   }
 
   /** A chip per player: name, status badges, and one health bar (two once Twins has split it). */
@@ -177,7 +180,8 @@ export class Hud {
 
   /** The weapon buttons: rebuilt only when the loadout, rounds, selection or phase change. */
   private updateWeapons(state: GameState, p: Player): void {
-    const key = `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}`;
+    const yolk = yolkTier(p);
+    const key = `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}|${yolk}|${canSuckYolk(p)}`;
     if (key === this.keys.weapons) return;
     this.keys.weapons = key;
     this.weaponsEl.replaceChildren(
@@ -188,11 +192,25 @@ export class Hud {
         btn.className = 'weapon';
         btn.dataset.tier = String(tier);
         btn.classList.toggle('selected', tier === p.selectedTier);
-        btn.disabled = left <= 0 || state.phase !== 'aiming';
-        btn.setAttribute('aria-label', `${w.name}, ${left} left`);
         btn.setAttribute('aria-pressed', String(tier === p.selectedTier));
         const name = document.createElement('span');
         name.className = 'wname';
+        if (tier === yolk) {
+          // torikloud's spent Twins: Yolk Sucker, a bonus move as often as there's health to even out.
+          const ok = canSuckYolk(p);
+          btn.classList.add('yolk');
+          btn.disabled = !ok || state.phase !== 'aiming';
+          btn.setAttribute('aria-label', `${YOLK_SUCKER.name}, bonus move${ok ? '' : ': health already even'}`);
+          name.textContent = YOLK_SUCKER.name;
+          name.classList.add('long');
+          const note = document.createElement('span');
+          note.className = 'pips bonus';
+          note.textContent = ok ? 'bonus' : 'even';
+          btn.append(name, note);
+          return btn;
+        }
+        btn.disabled = left <= 0 || state.phase !== 'aiming';
+        btn.setAttribute('aria-label', `${w.name}, ${left} left`);
         name.textContent = w.shortName;
         name.classList.toggle('long', w.shortName.length > 8);
         name.classList.toggle('longer', w.shortName.length > 11);

@@ -28,14 +28,6 @@ The running features list and work queue. Newest shipped items first; the **Queu
      matches), Characters, Weapons, You; a **Verified only** toggle filters it all.
    - New database paths need rules (owner re-publishes).
 
-2. **torikloud: Yolk Sucker** (owner, 3 Oct). Once Twins has been fired, its button (tier 3) becomes
-   **Yolk Sucker**: a bonus action (doesn't use the turn, like larinovsky's bonus move) that pools the two
-   tanks' health and shares it out equally (as Twins splits it: the twin gets half rounded down, the main
-   tank the rest). Multi-use, any turn while both tanks stand; greyed out when their health already matches
-   (equal, or one apart when the pool is odd) and once either tank is gone. A gameplay change: bump `RULES`;
-   info text, a sound, a what's-new release, tests. Open (assumed until the owner says otherwise): statuses
-   (burns, tattoos) stay on the tank they're on; usable before or after driving and firing.
-
 ### Backlog (ideas, not yet scheduled)
 
 - Hide the Trollogram "flat pad" tell: decoys spawn on natural slopes while the real tank starts on a
@@ -194,6 +186,15 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **torikloud's Yolk Sucker** (owner, 3 Oct; rules 14). Once Twins has been fired, its button (tier 3)
+  becomes **Yolk Sucker**: a bonus move (the turn carries on) that pools the two tanks' health and shares
+  it out as Twins does (the twin half rounded down, the main tank the rest). As often as you like, any turn
+  while both tanks stand, while aiming (before or after driving; firing ends the turn as ever); greyed out
+  ("EVEN") when their health is equal or one apart, and gone with either tank. Statuses stay on the tank
+  they're on; no rounds are spent (so Steal can't take it, and running out of ammo works as before). A
+  stream of yolk arcs from the fuller tank to the emptier one, with what each gave or got and a slurp.
+  Online it goes like any bonus move (`fire`, replayed from the same state). `game/copies.ts`
+  (`yolkTier`, `canSuckYolk`, `suckYolk`).
 - **Sign in with Google, step 3: your turn on every phone** (owner, 3 Oct). A signed-in player's device
   record in each match carries their uid, so notifications for them go to the account (`to: u:<uid>`)
   instead of one device, even when the phone they last played on has notifications off. Each signed-in
@@ -369,6 +370,6 @@ between visits.
 | **tones2** (id `tones`) | ten-1: yellow water jet that builds in spurts, trickle damage; a complete miss refunds the round | ten-2: shakes for 10s, then jetpacks away on a huge, wide blast of toxic mud | ten-3: short-range chunky spew, intense damage over one turn; coats the ground in toxic sludge that burns enemies for the rest of the turn |
 | **kie** | Weasel Pop: 3 tumbling weasels that scurry right up under the enemy and pop for full damage (or as close as they can get in range), to Pop Goes the Weasel | Trollogram: 2 decoys per use (3 uses, they add up), secret swap (even on the turn it's cast: tap one, then DONE); a hit one blows up (20px blast, 20 damage, hurts any tank, kie's too, and can set off the next) | Steal: a slot-machine roulette spins over the enemy's weapons and lands on one at random; kie takes a round of it (they lose it), it replaces Steal and he can fire it the same turn |
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
-| **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). He starts with 150 health (everyone else 100) |
+| **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

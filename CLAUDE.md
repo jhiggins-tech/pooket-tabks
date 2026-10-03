@@ -66,7 +66,9 @@ what it's for; weapons are documented where they're defined.
   Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`). torikloud's twin (`copies.ts`)
   is placed by the player (`Player.twinSpot`, `pendingTwinSpot` / `placeTwin`) and has its own aim
   (`Twin.angle` / `power`; `twinGun` fires with it; `Player.aimTwin` and `aimedTank` say which one
-  `setAim` moves).
+  `setAim` moves). Once Twins is spent, its slot is Yolk Sucker while the twin stands (`yolkTier`,
+  `canSuckYolk`, `suckYolk` in copies.ts): `selectTier` and `fire` treat that slot as a bonus move that
+  evens out the twins' health; no rounds, so it's invisible to Steal, `hasAmmo` and refunds.
 - **Statuses** (`game/statuses.ts`, a table in its header): `afflict()` puts them on from a hit's weapon flags
   (`dot` → burn on the tank hit, `debuff` → cooked, `tattoo`, `pin` → pinned, on the player), `turnEnding`
   / `turnStarting` run their course from `endTurn`, and `offence` / `vulnerable` / `canMove` are what

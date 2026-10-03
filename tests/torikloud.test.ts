@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
-import { aimTwin, currentPlayer, explode, fire, isAimless, pendingTwinSpot, placeTwin, selectTier, setAim, step, targetAt } from '../src/game/game';
+import { aimTwin, canSuckYolk, currentPlayer, explode, fire, isAimless, pendingTwinSpot, placeTwin, selectTier, setAim, step, targetAt, yolkTier } from '../src/game/game';
 import { TANK_HALF_WIDTH } from '../src/game/constants';
 import { drainToxin } from '../src/game/gunk';
 import { doseTarget } from '../src/game/tanks';
@@ -379,5 +379,109 @@ describe("torikloud's health, and statuses on the twin", () => {
     delete twin.toxinRate;
     applySnapshot(g, upgradeSnapshot(snap));
     expect(g.players[0]!.twin).toMatchObject({ toxin: 0, toxinRate: 0 });
+  });
+});
+
+describe('Yolk Sucker (the spent Twins slot)', () => {
+  it('is only there once Twins has been fired, while the twin stands', () => {
+    const g = game();
+    const tori = g.players[0]!;
+    expect(yolkTier(tori)).toBe(-1); // Twins still loaded
+    withTwin(g);
+    expect(yolkTier(tori)).toBe(2);
+    expect(g.players[1]!.loadout.length && yolkTier(g.players[1]!)).toBe(-1); // nobody else
+    tori.twin = null; // (the twin destroyed)
+    expect(yolkTier(tori)).toBe(-1);
+    expect(selectTier(g, 2)).toBe(false);
+  });
+
+  it('greyed out while the health is even (or one apart): nothing to select, nothing to fire', () => {
+    const g = game();
+    withTwin(g);
+    const tori = g.players[0]!;
+    expect(tori.hp).toBe(tori.twin!.hp); // 75 / 75 from the split
+    expect(canSuckYolk(tori)).toBe(false);
+    expect(selectTier(g, 2)).toBe(false);
+    tori.hp = 48;
+    tori.twin!.hp = 47;
+    expect(canSuckYolk(tori)).toBe(false);
+    tori.selectedTier = 2; // even if it were somehow selected
+    expect(fire(g)).toBe(false);
+    expect(tori.hp + tori.twin!.hp).toBe(95);
+  });
+
+  it('pools the health and shares it out like Twins, as a bonus move: same turn, aim and fire after', () => {
+    const g = game();
+    withTwin(g);
+    const tori = g.players[0]!;
+    tori.hp = 70;
+    tori.twin!.hp = 25;
+    const { turn, current } = g;
+    const ammo = [...tori.ammo];
+    expect(selectTier(g, 2)).toBe(true);
+    expect(isAimless(g)).toBe(true);
+    expect(fire(g)).toBe(true);
+    expect([tori.hp, tori.twin!.hp]).toEqual([48, 47]); // odd pool: the twin gets the half rounded down
+    expect(g.phase).toBe('aiming');
+    expect([g.turn, g.current]).toEqual([turn, current]);
+    expect(tori.ammo).toEqual(ammo); // no rounds spent
+    expect(tori.selectedTier).toBe(0); // back on a weapon with rounds
+    expect(g.sfx.some((e) => e.cue === 'yolk')).toBe(true);
+    expect(g.fx.floaters.map((f) => f.text)).toEqual(expect.arrayContaining(['-22', '+22', 'YOLK SUCKED 🥚']));
+    expect(g.fx.splashes.length).toBeGreaterThan(0);
+    // Even now: greyed out until the health drifts apart again.
+    expect(canSuckYolk(tori)).toBe(false);
+    // The turn goes on as usual.
+    fireDebate(g);
+    untilNextTurn(g);
+    expect(g.turn).toBe(turn + 1);
+  });
+
+  it('works the other way round too, and again on a later turn', () => {
+    const g = game();
+    withTwin(g);
+    const tori = g.players[0]!;
+    tori.hp = 10;
+    tori.twin!.hp = 60;
+    selectTier(g, 2);
+    fire(g);
+    expect([tori.hp, tori.twin!.hp]).toEqual([35, 35]);
+    fireDebate(g);
+    untilNextTurn(g);
+    passTurn(g); // kie
+    expect(currentPlayer(g)).toBe(tori);
+    tori.twin!.hp = 20;
+    expect(selectTier(g, 2)).toBe(true);
+    fire(g);
+    expect([tori.hp, tori.twin!.hp]).toEqual([28, 27]);
+  });
+
+  it('leaves statuses on the tank they’re on', () => {
+    const g = game();
+    withTwin(g);
+    const tori = g.players[0]!;
+    tori.twin!.burn = { damagePerTurn: 4, turnsLeft: 2, colour: '#ff6a00', ownerId: 1 } as never;
+    tori.hp = 60;
+    tori.twin!.hp = 20;
+    selectTier(g, 2);
+    fire(g);
+    expect(tori.twin!.burn).toBeTruthy();
+    expect(tori.burn ?? null).toBeNull();
+  });
+
+  it('online, the other phone replays it from the same state and agrees', () => {
+    const a = game();
+    withTwin(a);
+    const tori = a.players[0]!;
+    tori.hp = 64;
+    tori.twin!.hp = 11;
+    selectTier(a, 2);
+    const before = takeSnapshot(a);
+    expect(fire(a)).toBe(true);
+    const b = game();
+    applySnapshot(b, upgradeSnapshot(JSON.parse(JSON.stringify(before))));
+    expect(fire(b)).toBe(true);
+    expect([b.players[0]!.hp, b.players[0]!.twin!.hp]).toEqual([tori.hp, tori.twin!.hp]);
+    expect(b.players[0]!.selectedTier).toBe(tori.selectedTier);
   });
 });

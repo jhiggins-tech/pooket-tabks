@@ -420,6 +420,7 @@ export type SfxCue =
   | 'scammed'
   | 'lock-on'
   | 'splashback'
+  | 'yolk'
   | 'gameover';
 
 export interface Sfx {

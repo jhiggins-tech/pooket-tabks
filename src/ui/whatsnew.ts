@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 41,
+    title: 'Yolk Sucker',
+    items: ['torikloud: once Twins is fired, its button becomes Yolk Sucker, a bonus move (it doesn’t use your turn) that shares the two tanks’ health out evenly. Use it as often as you like while they’re uneven.'],
+  },
+  {
     version: 40,
     title: 'Your turn, on every phone',
     items: ['Signed in with Google, "your turn" and "someone joined your game" now reach every phone you’re signed in on (the ones with 🔔 notifications on, and any with the game open), not just the one you last played on.'],

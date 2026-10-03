@@ -1,15 +1,17 @@
 import { randRange } from '../core/rng';
 import { getWeapon, kindOf, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
-import { TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
-import { ring, sound } from './fx';
+import { GRAVITY, SETTLE_TIME, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { ring, sound, spawnFloater } from './fx';
+import { reselect } from './loadout';
 import type { Stepper } from './mechanics';
 import type { GameState, Hologram, Player, Twin } from './state';
 import { currentPlayer, explode, tankBodies } from './tanks';
+import { hash } from './util';
 
 /**
  * Copies of a tank: kie's Trollogram holograms (decoys, the secret swap, and blowing up when hit) and
- * torikloud's twin, plus their phase effects.
+ * torikloud's twin (and Yolk Sucker, which evens out the twins' health), plus their phase effects.
  */
 
 const HOLOGRAM_COLOUR = '#7cf7d4';
@@ -103,6 +105,58 @@ export function spawnTwin(state: GameState, p: Player): void {
   p.twin = twin;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, p.colour);
   ring(state, twin.x, twin.y - TANK_BODY_HEIGHT, p.colour);
+}
+
+/**
+ * Yolk Sucker: once Twins has been fired, its slot (spent, while the twin stands) is a bonus move instead.
+ * Any turn, as often as it's worth it, it pools the two tanks' health and shares it out as Twins does (the
+ * twin half rounded down, the main tank the rest). Nothing to share when the two are already even (or one
+ * apart, with an odd pool). It doesn't use the turn. Burns and the like stay on the tank they're on.
+ * Online it goes like any bonus move: through `fire` (the other phone replays it from the same state).
+ */
+export const YOLK_SUCKER = { name: 'Yolk Sucker', colour: '#ffcf33' } as const;
+
+/** The slot that's Yolk Sucker for `p` (a spent Twins, while the twin stands), or -1. */
+export function yolkTier(p: Player): number {
+  if (!p.twin || !p.alive) return -1;
+  return p.loadout.findIndex((id, tier) => kindOf(getWeapon(id)) === 'twin' && (p.ammo[tier] ?? 0) <= 0);
+}
+
+/** Whether Yolk Sucker would change anything: the twins' health is more than one apart. */
+export function canSuckYolk(p: Player): boolean {
+  return yolkTier(p) >= 0 && Math.abs(p.hp - p.twin!.hp) > 1;
+}
+
+/** Even out the twins' health (see YOLK_SUCKER). Returns false if there's nothing to even out. */
+export function suckYolk(state: GameState, p: Player): boolean {
+  if (!canSuckYolk(p)) return false;
+  const twin = p.twin!;
+  const pool = p.hp + twin.hp;
+  const [fromMain, before] = [p.hp > twin.hp, { main: p.hp, twin: twin.hp }];
+  twin.hp = Math.floor(pool / 2);
+  p.hp = pool - twin.hp;
+  // Cosmetic: a stream of yolk from the fuller tank to the emptier one, and what each gave or got.
+  const [from, to] = fromMain ? [p, twin] : [twin, p];
+  const sx = from.x;
+  const sy = from.y - TANK_BODY_HEIGHT;
+  for (let i = 0; i < 28; i++) {
+    const h = hash(state.fxSeq++ * 1.91);
+    const T = 0.5 + hash(h * 37) * 0.35;
+    const tx = to.x + (hash(h * 13) - 0.5) * 16;
+    const ty = to.y - TANK_BODY_HEIGHT + (hash(h * 7) - 0.5) * 6;
+    state.fx.splashes.push({ x: sx + (hash(h * 19) - 0.5) * 8, y: sy, vx: (tx - sx) / T, vy: (ty - sy) / T - 0.5 * GRAVITY * T, age: 0, life: T + 0.1, colour: YOLK_SUCKER.colour, size: 2 + hash(h * 23) * 1.8 });
+  }
+  const change = (now: number, was: number) => (now >= was ? `+${now - was}` : `-${was - now}`);
+  spawnFloater(state, p.x, p.y - TANK_BODY_HEIGHT - 16, change(p.hp, before.main), YOLK_SUCKER.colour);
+  spawnFloater(state, twin.x, twin.y - TANK_BODY_HEIGHT - 16, change(twin.hp, before.twin), YOLK_SUCKER.colour);
+  spawnFloater(state, to.x, to.y - TANK_BODY_HEIGHT - 34, 'YOLK SUCKED 🥚', YOLK_SUCKER.colour);
+  sound(state, 'yolk');
+  if (!reselect(p)) {
+    // Nothing left to fire (can't usually happen: a player with no rounds sits their turn out).
+    state.phase = 'settling';
+    state.settleTimer = SETTLE_TIME;
+  }
+  return true;
 }
 
 /** Replace the firer's holograms with fresh ones at random, well-spaced spots on the ground. */

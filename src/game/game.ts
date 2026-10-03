@@ -6,7 +6,7 @@ import { ignoresAim, kindOf } from '../weapons/registry';
 import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
-import { resolveHolograms, stepPhaseFx } from './copies';
+import { canSuckYolk, resolveHolograms, stepPhaseFx, suckYolk, yolkTier } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
 import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
 import { reselect, weaponForTier } from './loadout';
@@ -24,7 +24,7 @@ import { clamp, normalizeAngle } from './util';
  * (aiming → flying → settling → aiming | gameover). Pure logic, no DOM. The public API is re-exported
  * here, so the rest of the game imports from './game'.
  */
-export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, canPickDecoy, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk } from './copies';
+export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
 export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, drive } from './movement';
@@ -194,11 +194,11 @@ export function hasAmmo(p: Player): boolean {
 
 export { weaponForTier } from './loadout';
 
-/** Choose which tier the current player fires next. Returns false if it has no rounds left. */
+/** Choose which tier the current player fires next. Returns false if it has no rounds left (Yolk Sucker: nothing to even out). */
 export function selectTier(state: GameState, tier: number): boolean {
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
-  if ((p.ammo[tier] ?? 0) <= 0) return false;
+  if ((p.ammo[tier] ?? 0) <= 0 && !(tier === yolkTier(p) && canSuckYolk(p))) return false;
   p.selectedTier = tier;
   return true;
 }
@@ -208,6 +208,8 @@ export function fire(state: GameState): boolean {
   const p = currentPlayer(state);
   if (p.hop) return false; // land first
   const tier = p.selectedTier;
+  // torikloud's spent Twins slot, while the twin stands: Yolk Sucker, a bonus move (the turn carries on).
+  if (tier === yolkTier(p)) return suckYolk(state, p);
   if ((p.ammo[tier] ?? 0) <= 0) return false;
   const weapon = weaponForTier(p, tier);
   const kind = kindOf(weapon);

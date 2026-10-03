@@ -40,14 +40,15 @@ export const sonicBoom = {
 
 /**
  * torikloud's tier 3: a twin tank appears and his HP is split between them; the twin mirrors his shots.
- * (Two tanks are two targets, so torikloud starts with more health: 150.)
+ * (Two tanks are two targets, so torikloud starts with more health: 150.) Spent, the slot becomes Yolk
+ * Sucker (game/copies.ts): a bonus move that evens out the two tanks' health.
  */
 export const twins = {
   id: 'twins',
   name: 'Twins',
   shortName: 'Twins',
   info:
-    'Tap the ground to choose where a second tank appears (anywhere but right beside an enemy), then FIRE: torikloud’s HP is split between the two. The twin fires every shot too, with its own aim: drag from a tank to aim it, or switch with 🎯. He’s out only when both are gone.',
+    'Tap the ground to choose where a second tank appears (anywhere but right beside an enemy), then FIRE: torikloud’s HP is split between the two. The twin fires every shot too, with its own aim: drag from a tank to aim it, or switch with 🎯. He’s out only when both are gone. Once Twins is fired its button becomes Yolk Sucker: a bonus move (it doesn’t use the turn) that pools the two tanks’ health and shares it out evenly, as often as you like while they’re uneven.',
   kind: 'twin',
   colour: '#a78bfa',
 } satisfies WeaponDef;

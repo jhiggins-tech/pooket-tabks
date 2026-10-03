@@ -543,6 +543,32 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   for (let i = 0; i < 45; i++) await page.getByRole('button', { name: 'Rotate barrel clockwise' }).tap();
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
+
+  // Twins spent: its button is Yolk Sucker, greyed out while the two tanks' health is even.
+  type Hp = { hp: number; twin: { hp: number } | null };
+  const hp = () => page.evaluate(() => {
+    const p = (window as unknown as { __pooket: { state: { players: Hp[] } } }).__pooket.state.players[0]!;
+    return [p.hp, p.twin!.hp];
+  });
+  await expect(weapons.nth(2)).toContainText('Yolk Sucker');
+  await expect(weapons.nth(2)).toBeDisabled();
+  // The twin takes a beating (as if hit): now there's yolk to share.
+  await page.evaluate(() => {
+    const p = (window as unknown as { __pooket: { state: { players: Hp[] } } }).__pooket.state.players[0]!;
+    p.twin!.hp = 21;
+  });
+  await expect(weapons.nth(2)).toBeEnabled();
+  const pool = (await hp()).reduce((a, b) => a + b, 0);
+  await weapons.nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('Bonus move: FIRE it, then take your turn');
+  await page.locator('#fire').tap();
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: 'test-results/yolk-sucker.png' });
+  const [main, twin] = await hp();
+  expect([main, twin]).toEqual([pool - Math.floor(pool / 2), Math.floor(pool / 2)]);
+  await expect(weapons.nth(2)).toBeDisabled(); // even again
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '3'); // still torikloud's turn
+
   await weapons.nth(0).tap();
   const aimSwitch = page.locator('#aim-switch');
   await expect(aimSwitch).toHaveText('🎯 Main tank');

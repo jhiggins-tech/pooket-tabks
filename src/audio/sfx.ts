@@ -203,6 +203,12 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.12, rate: 0.9, to: 0.3, vol: 0.18 });
     s.tone({ at: 0.08, dur: 0.35, from: 520, to: 140, duty: 0.25, vibrato: [18, 30], vol: 0.12 });
   },
+  // Yolk Sucker: a long straw slurp, then a little gulp at the other end.
+  yolk: (s) => {
+    s.tone({ dur: 0.45, from: 180, to: 420, duty: 0.25, vibrato: [22, 25], vol: 0.12 });
+    s.noise({ at: 0.05, dur: 0.35, rate: 0.4, to: 0.15, vol: 0.06 });
+    s.tone({ at: 0.5, dur: 0.12, from: midi(72), to: midi(64), duty: 0.5, vol: 0.12 });
+  },
   // Sad trombone: wah wah wah waaaah.
   dnf: (s) => {
     [67, 66, 65].forEach((n, i) => s.tone({ at: i * 0.32, dur: 0.28, from: midi(n), to: midi(n) * 0.97, duty: 0.5, vol: 0.14 }));
