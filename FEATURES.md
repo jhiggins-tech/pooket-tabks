@@ -4,12 +4,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Sign in with Google (optional): seats and push** (owner, 3 Oct). Step 1 shipped (below). Next: (2) match
-   seats follow the account (`users/<uid>/games`: a turn-by-turn match carries on from another phone; one
-   active device per seat, the last to rejoin wins; streams on `users/` need the token refreshed on expiry),
-   (3) push addressed to the account (the outbox's `to` the uid, `pushSubscriptions` carrying it), so every
-   signed-in phone hears. Still settled: sign-in is optional, store only the uid, no iOS Home Screen spike.
-   Step 1 play-tested on real phones (owner, 3 Oct): works. The API key is restricted (3 Oct; see README).
+1. **Sign in with Google (optional): push to every phone** (owner, 3 Oct). Steps 1 (profile) and 2 (matches)
+   shipped (below). Step 3: push addressed to the account (the outbox's `to` the uid, `pushSubscriptions`
+   carrying it), so every signed-in phone hears "your turn". Still settled: sign-in is optional, store only
+   the uid, no iOS Home Screen spike. The API key is restricted (3 Oct; see README).
 2. **Stats viewer** (owner, 3 Oct; after the sign-in steps: verification needs matches to record who was
    signed in). Aggregated stats from online matches (public and private; not hotseat), counted from the
    release that adds them (nothing is recorded today; no backfill).
@@ -33,6 +31,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
    - **The viewer**: "📊 Stats" from the landing screen: Players (leaderboard, with a minimum number of
      matches), Characters, Weapons, You; a **Verified only** toggle filters it all.
    - New database paths need rules (owner re-publishes).
+
+3. **torikloud: Yolk Sucker** (owner, 3 Oct). Once Twins has been fired, its button (tier 3) becomes
+   **Yolk Sucker**: a bonus action (doesn't use the turn, like larinovsky's bonus move) that pools the two
+   tanks' health and shares it out equally (as Twins splits it: the twin gets half rounded down, the main
+   tank the rest). Multi-use, any turn while both tanks stand; greyed out when their health already matches
+   (equal, or one apart when the pool is odd) and once either tank is gone. A gameplay change: bump `RULES`;
+   info text, a sound, a what's-new release, tests. Open (assumed until the owner says otherwise): statuses
+   (burns, tattoos) stay on the tank they're on; usable before or after driving and firing.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -192,6 +198,16 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Sign in with Google, step 2: your matches follow you** (owner, 3 Oct; no rules change to the game). A
+  signed-in player's match seats live in their account too (`users/<uid>/games/<room code>`: role, seat id,
+  listed, when last played and changed; or a note that it was forgotten, so a finished match doesn't come
+  back). Synced on sign-in, on every load and before the Game browser lists your matches; a change goes up
+  straight away. The newer change wins; `left` and `seen` stay per phone. **One phone per seat**: each seat
+  claim says which device has it (`dev`), host check-ins only touch the time, and a phone that sees its
+  seat taken by another device under the same id stands aside without a word to the other player ("Playing
+  on another phone", with "Play here instead"); the taker waits 1.5 s first so the old phone stops reading
+  its messages. `net/seatsync.ts`, `rooms.ts` (`watchSeat`), `seat.ts` (`at`, forgotten notes,
+  `seatChanges`, `takeSeats`); new rules for `users/$uid/games` (owner re-publishes).
 - **Sign in with Google, step 1: your profile follows you** (owner, 3 Oct; no rules change to the game). An
   optional "🔑 Sign in with Google" on the landing screen (Google's script is loaded only when it's
   tapped). Signed in, your name, last online character, sound and the Game browser's ticks live in your
