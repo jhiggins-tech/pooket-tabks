@@ -22,15 +22,21 @@ export class NotifyButton {
   private readonly button = byId<HTMLButtonElement>('notify');
   private readonly note = byId('notify-note');
 
-  constructor(private readonly push: PushClient) {
+  constructor(
+    private readonly push: PushClient,
+    /** Turned on or off (a signed-in player's account keeps a list of their phones with them on). */
+    private readonly onChange: () => void = () => {},
+  ) {
     this.button.addEventListener('click', () => void this.tap());
     this.render(push.state(), false);
   }
 
   private async tap(): Promise<void> {
     const state = this.push.state();
-    if (state === 'off') return this.render(await this.push.enable(), true);
-    if (state === 'on') return this.render(await this.push.disable(), true);
+    if (state === 'off' || state === 'on') {
+      this.render(await (state === 'off' ? this.push.enable() : this.push.disable()), true);
+      return this.onChange();
+    }
     this.note.hidden = !this.note.hidden; // just the explanation
   }
 

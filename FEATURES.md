@@ -4,13 +4,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Sign in with Google (optional): push to every phone** (owner, 3 Oct). Steps 1 (profile) and 2 (matches)
-   shipped (below). Step 3: push addressed to the account (the outbox's `to` the uid, `pushSubscriptions`
-   carrying it), so every signed-in phone hears "your turn". Still settled: sign-in is optional, store only
-   the uid, no iOS Home Screen spike. The API key is restricted (3 Oct; see README).
-2. **Stats viewer** (owner, 3 Oct; after the sign-in steps: verification needs matches to record who was
-   signed in). Aggregated stats from online matches (public and private; not hotseat), counted from the
-   release that adds them (nothing is recorded today; no backfill).
+1. **Stats viewer** (owner, 3 Oct; verification builds on sign-in: matches record who was signed in).
+   Aggregated stats from online matches (public and private; not hotseat), counted from the release that
+   adds them (nothing is recorded today; no backfill).
    - **What's counted**: per-match counters in the game state, attributed where hits already go through
      (`applyHit`: shooter and weapon; burns and other statuses to whoever put them on). Not gameplay, so no
      `RULES` bump; a state fill-in in `upgradeSnapshot`. Per player: matches, wins / losses / draws, win
@@ -32,7 +28,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
      matches), Characters, Weapons, You; a **Verified only** toggle filters it all.
    - New database paths need rules (owner re-publishes).
 
-3. **torikloud: Yolk Sucker** (owner, 3 Oct). Once Twins has been fired, its button (tier 3) becomes
+2. **torikloud: Yolk Sucker** (owner, 3 Oct). Once Twins has been fired, its button (tier 3) becomes
    **Yolk Sucker**: a bonus action (doesn't use the turn, like larinovsky's bonus move) that pools the two
    tanks' health and shares it out equally (as Twins splits it: the twin gets half rounded down, the main
    tank the rest). Multi-use, any turn while both tanks stand; greyed out when their health already matches
@@ -198,6 +194,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Sign in with Google, step 3: your turn on every phone** (owner, 3 Oct). A signed-in player's device
+  record in each match carries their uid, so notifications for them go to the account (`to: u:<uid>`)
+  instead of one device, even when the phone they last played on has notifications off. Each signed-in
+  phone with 🔔 on lists itself under `users/<uid>/push/<clientId>` (on load, on signing in, on turning 🔔
+  on or off; taken off before signing out), and the sender pushes to all of them but the one the entry came
+  from; open pages follow the account's entries as well as their own. The sender drops a malformed account
+  address unread. New rules for `users/$uid/push` (owner re-publishes). With this, sign-in is complete
+  (profile, matches, notifications); the API key is restricted (README).
 - **Sign in with Google, step 2: your matches follow you** (owner, 3 Oct; no rules change to the game). A
   signed-in player's match seats live in their account too (`users/<uid>/games/<room code>`: role, seat id,
   listed, when last played and changed; or a note that it was forgotten, so a finished match doesn't come

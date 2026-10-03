@@ -116,7 +116,10 @@ what it's for; weapons are documented where they're defined.
   stamps each seat's change time (`at`), keeps notes of forgotten ones and emits `seatChanges`; `takeSeats`
   merges the account's in (newer wins; `left` / `seen` stay per phone). **One phone per seat**: seat claims
   carry the device (`dev`, `clientId`), host check-ins patch only `ts`, and `watchSeat` makes a phone whose
-  seat another device took (same id) stand aside quietly (`NetSession.standDown`). Push by account is next.
+  seat another device took (same id) stand aside quietly (`NetSession.standDown`). Notifications follow the
+  account: a signed-in device's record carries `uid` (`useAccount`), `notifySeat` then addresses the outbox
+  entry to `u:<uid>` (`accountAddress`), phones with 🔔 on list themselves under `users/<uid>/push/<clientId>`
+  (`registerPushDevice`), the sender resolves them (`Store.accountDevices`), and open pages follow both addresses.
 - **Push notifications**: `net/push.ts` (each phone's `clientId`; `announceDevice` in each room it's
   in; `notifySeat` adds an `outbox` entry for the other seat's device, from `OnlineScreen`: your turn
   when they're away, someone joined), `push/templates.ts` (the words: shared with the sender, plain

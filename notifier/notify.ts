@@ -62,6 +62,7 @@ const store: Store = {
   deleteEntry: (id) => db.ref(`outbox/${id}`).remove(),
   setAttempts: (id, attempts) => db.ref(`outbox/${id}/attempts`).set(attempts),
   deleteSubscription: (id) => db.ref(`pushSubscriptions/${id}`).remove(),
+  accountDevices: async (uid) => Object.keys(((await db.ref(`users/${uid}/push`).get()).val() as Record<string, unknown> | null) ?? {}),
 };
 
 const push = async (sub: Subscription, payload: string): Promise<number> => {

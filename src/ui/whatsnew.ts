@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 40,
+    title: 'Your turn, on every phone',
+    items: ['Signed in with Google, "your turn" and "someone joined your game" now reach every phone you’re signed in on (the ones with 🔔 notifications on, and any with the game open), not just the one you last played on.'],
+  },
+  {
     version: 39,
     title: 'Your games, on any phone',
     items: [

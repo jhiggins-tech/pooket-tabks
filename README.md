@@ -72,7 +72,9 @@ Firebase's REST sign-in (`src/net/auth.ts`) swaps it for a Firebase token, and t
 player (`src/net/account.ts`, `users/<uid>/profile`): their name, last online character, sound and the
 Game browser ticks (the account's wins on a phone's first sign-in; after that the newer one does), and their
 online matches (`src/net/seatsync.ts`, `users/<uid>/games`): a match carries on from any of their phones, and
-the phone that opens it last plays while the other stands aside.
+the phone that opens it last plays while the other stands aside. Their notifications go to the account
+(`u:<uid>` in the outbox): every phone of theirs with 🔔 on (`users/<uid>/push`) gets the push, and any with the
+game open shows it at once.
 
 One-time setup (done once, by the owner; the keys are public, so they're committed in `src/net/config.ts`):
 Firebase console → Authentication → Sign-in method → enable Google (and add `jhiggins-tech.github.io` under

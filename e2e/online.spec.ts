@@ -788,3 +788,48 @@ test('signed in, your matches follow you: carry one on from another phone, which
   await bCtx.close();
   await close();
 });
+
+test("signed in, your turn reaches every phone you're signed in on: tap it on the other phone to play there", async ({ browser }) => {
+  test.setTimeout(150_000);
+  const { host: a, guest: c, q: base, errors, close } = await phones(browser, 'push-account');
+  const q = `${base}&lost=1500`;
+  const a2Ctx = await browser.newContext(devices['Pixel 7 landscape']);
+  const a2 = await a2Ctx.newPage();
+  a2.on('pageerror', (e) => errors.push(e.message));
+
+  // Dee (signed in, notifications off on this phone) hosts on phone A; C joins; one turn each way.
+  await a.goto(`./?${q}&fakegoogle=dee`);
+  await setName(a, 'Dee');
+  await a.locator('#sign-in').tap();
+  await expect(a.locator('#account')).toContainText('Signed in');
+  await a.locator('#open-browser').tap();
+  await a.locator('#online-host').tap();
+  await pickTank(a);
+  const code = (await a.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await c.goto(`./?${q}#room=${code}`);
+  await c.locator('#online-accept').tap();
+  await pickTank(c);
+  await playFromLobby(a, c); // C's turn now
+  await a.locator('#net-menu').tap();
+  await a.locator('#menu-leave').tap();
+  await expect(a.locator('#setup')).toBeVisible();
+
+  // Dee's other phone, signed in to the same account, is open at the menu.
+  await a2.goto(`./?${q}&fakegoogle=dee`);
+  await a2.locator('#sign-in').tap();
+  await expect(a2.locator('#you-name')).toHaveText('Dee');
+
+  // C plays: the outbox entry is for Dee's account, and both of Dee's open phones say so.
+  await expect(c.locator('#net-away')).toBeVisible({ timeout: 10_000 });
+  await c.locator('#fire').tap();
+  await expect.poll(() => Object.values((db.tree().outbox as Record<string, { to?: string }> | undefined) ?? {}).some((e) => e.to === 'u:uid-dee'), { timeout: 30_000 }).toBe(true);
+  for (const p of [a, a2]) await expect(p.locator('#toast')).toHaveText('🎯 Your turn! Your move in Pooket Tabks. Tap to play.', { timeout: 30_000 });
+  await a2.screenshot({ path: 'test-results/notified-other-phone.png' });
+  // Tapping it on the other phone goes straight into the match (it came with the account).
+  await a2.locator('#toast').tap();
+  await expect(a2.locator('#online')).toBeHidden({ timeout: 20_000 });
+  await expect.poll(() => canAct(a2), { timeout: 40_000 }).toBe(true);
+  expect(errors).toEqual([]);
+  await a2Ctx.close();
+  await close();
+});

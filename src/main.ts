@@ -40,7 +40,7 @@ import { Account } from './net/account';
 import { Auth } from './net/auth';
 import { localProfile } from './app/localprofile';
 import { SignInPanel } from './ui/signin';
-import { wantsPush } from './net/push';
+import { accountAddress, registerPushDevice, useAccount, wantsPush } from './net/push';
 import { sealerFor } from './net/seal';
 import { PushClient } from './push/client';
 import { notifyWhileOpen } from './push/foreground';
@@ -224,16 +224,21 @@ function showLanding(): void {
   stopCounts = online.watchCounts((waiting, live) => landing.setCounts(waiting, live));
 }
 // ---- Notifications ("your turn", "someone joined your game"): push/, net/push.ts, public/sw.js. ----
+const pushDb = online.dbUrl ? new Rtdb(online.dbUrl) : null;
+const push = new PushClient(pushDb, params.vapid ?? VAPID_PUBLIC_KEY);
+
 // ---- Optional sign in with Google: net/auth.ts, net/account.ts (the profile follows the player),
-// net/seatsync.ts (and so do their matches), ui/signin.ts. ----
+// net/seatsync.ts (and so do their matches), ui/signin.ts; notifications for the account (net/push.ts). ----
 const fakeAuth = params.fakeGoogle !== null && params.db ? params.db : null;
 const auth = new Auth({
   apiKey: FIREBASE_API_KEY,
   ...(fakeAuth ? { signInUrl: `${fakeAuth}/identitytoolkit/signInWithIdp`, refreshUrl: `${fakeAuth}/securetoken/token` } : {}),
 });
 // (A test database has no real accounts: only the fake one, `?fakegoogle`.)
+/** The database as the signed-in player (null: no sign-in here). */
+let userDb: Rtdb | null = null;
 if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIENT_ID))) {
-  const userDb = new Rtdb(online.dbUrl, () => auth.token());
+  userDb = new Rtdb(online.dbUrl, () => auth.token());
   const account = new Account(auth, userDb, localProfile, () => {
     setUsername(yourName());
     soundToggle.reload();
@@ -244,21 +249,26 @@ if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIEN
   seatSync = seats;
   profileChanges.on('saved', () => account.changed());
   seatChanges.on('changed', (code) => seats.changed(code));
+  useAccount(() => auth.uid);
   new SignInPanel(document.getElementById('account')!, auth, {
     clientId: GOOGLE_CLIENT_ID,
     fakeGoogle: params.fakeGoogle,
     onSignedIn: () => {
       void account.sync();
       void seats.sync();
+      void listPhone();
     },
+    beforeSignOut: () => listPhone(false),
   });
   void account.sync();
   void seats.sync();
 }
-const pushDb = online.dbUrl ? new Rtdb(online.dbUrl) : null;
-const push = new PushClient(pushDb, params.vapid ?? VAPID_PUBLIC_KEY);
-void push.start();
-new NotifyButton(push);
+/** List this phone under the signed-in account as one with notifications on (or take it off). */
+function listPhone(on = push.state() === 'on'): Promise<void> {
+  return userDb && auth.uid ? registerPushDevice(userDb, auth.uid, on) : Promise.resolve();
+}
+void push.start().then(() => listPhone());
+new NotifyButton(push, () => void listPhone());
 /** A notification was tapped: into that match (one of this phone's), else the Game browser. */
 async function openMatch(ref: string): Promise<void> {
   netLog('ui: opened from a notification');
@@ -268,7 +278,16 @@ async function openMatch(ref: string): Promise<void> {
   }
   void online.join();
 }
-if (pushDb && wantsPush()) notifyWhileOpen(pushDb, { open: (ref) => void openMatch(ref), here: (ref) => online.roomTopic === ref });
+const alerts = { open: (ref: string) => void openMatch(ref), here: (ref: string) => online.roomTopic === ref };
+if (pushDb && wantsPush()) notifyWhileOpen(pushDb, alerts);
+// Signed in: what's for the account too (from either match seat, on any of the player's phones).
+let accountAlerts: { stop: () => void } | null = null;
+function followAccount(): void {
+  accountAlerts?.stop();
+  accountAlerts = pushDb && userDb && auth.uid ? notifyWhileOpen(pushDb, alerts, accountAddress(auth.uid)) : null;
+}
+followAccount();
+auth.onChange(followAccount);
 navigator.serviceWorker?.addEventListener('message', (e: MessageEvent<{ type?: string; url?: string }>) => {
   const ref = e.data?.type === 'open' && e.data.url ? takePlayRef(e.data.url) : null;
   if (ref) void openMatch(ref);

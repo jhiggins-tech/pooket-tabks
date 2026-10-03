@@ -4,8 +4,9 @@ import { drain, MAX_ATTEMPTS, STALE_MS, type OutboxEntry, type Store, type Subsc
 const REF = '0123456789abcdef01234567';
 const NOW = 1_800_000_000_000;
 
-function fakeStore(outbox: Record<string, OutboxEntry>, subs: Record<string, Subscription>) {
-  const store: Store & { outboxNow: typeof outbox; subsNow: typeof subs } = {
+function fakeStore(outbox: Record<string, OutboxEntry>, subs: Record<string, Subscription>, accounts: Record<string, string[]> = {}) {
+  const store: Store & { outboxNow: typeof outbox; subsNow: typeof subs; lookups: string[] } = {
+    lookups: [],
     outboxNow: outbox,
     subsNow: subs,
     outbox: async (limit) => Object.entries(outbox).sort((a, b) => Number(a[1].createdAt) - Number(b[1].createdAt)).slice(0, limit),
@@ -13,6 +14,7 @@ function fakeStore(outbox: Record<string, OutboxEntry>, subs: Record<string, Sub
     deleteEntry: async (id) => void delete outbox[id],
     setAttempts: async (id, n) => void (outbox[id]!.attempts = n),
     deleteSubscription: async (id) => void delete subs[id],
+    accountDevices: async (uid) => (store.lookups.push(uid), accounts[uid] ?? []),
   };
   return store;
 }
@@ -21,6 +23,28 @@ const entry = (o: Partial<OutboxEntry> = {}): OutboxEntry => ({ type: 'your-turn
 const quiet = { now: NOW, log: () => {}, sleep: async () => {} };
 
 describe('the push sender (notifier/drain.ts)', () => {
+  it("an entry for a signed-in player's account goes to every phone of theirs with notifications on (not the one it came from)", async () => {
+    const store = fakeStore(
+      { e1: entry({ to: 'u:ann-uid', originClientId: 'ann-phone-2' }), e2: entry({ to: 'u:ann-uid', ref: 'fedcba9876543210fedcba98' }), e3: entry({ to: 'u:nobody' }) },
+      { a1: sub('ann-phone-1'), a2: sub('ann-phone-2'), b1: sub('bob'), x: sub('ann-uid') },
+      { 'ann-uid': ['ann-phone-1', 'ann-phone-2'] },
+    );
+    const sent: string[] = [];
+    const summary = await drain(store, async (s) => (sent.push(s.endpoint), 201), quiet);
+    expect(sent).toEqual(['https://push.example/ann-phone-1/1', 'https://push.example/ann-phone-1/1', 'https://push.example/ann-phone-2/1']);
+    expect(store.lookups.sort()).toEqual(['ann-uid', 'nobody']); // each account looked up once a run
+    expect(store.outboxNow).toEqual({}); // (an account with no phones listed: nothing to send, done with)
+    expect(summary).toMatchObject({ entries: 3, sent: 3 });
+  });
+
+  it("drops an account entry that isn't a proper account address, without looking anything up", async () => {
+    const store = fakeStore({ bad: entry({ to: 'u:../../outbox' }), bad2: entry({ to: 'u:' }) }, { s: sub('bob') });
+    const summary = await drain(store, async () => 201, quiet);
+    expect(store.lookups).toEqual([]);
+    expect(store.outboxNow).toEqual({});
+    expect(summary).toMatchObject({ unknown: 2, sent: 0 });
+  });
+
   it("pushes each entry to its device's subscriptions only, as the shared template says, then clears it", async () => {
     const store = fakeStore({ e1: entry() }, { s1: sub('bob', 1), s2: sub('bob', 2), s3: sub('ann'), s4: sub('cat') });
     const sent: { endpoint: string; payload: Record<string, unknown> }[] = [];

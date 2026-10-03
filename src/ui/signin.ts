@@ -49,6 +49,8 @@ export interface SignInOptions {
   fakeGoogle: string | null;
   /** Someone just signed in (sync their profile). */
   onSignedIn: () => void;
+  /** About to sign out: anything that needs the account's token one last time (not waited on for long). */
+  beforeSignOut?: () => Promise<void>;
 }
 
 export class SignInPanel {
@@ -74,7 +76,7 @@ export class SignInPanel {
     this.root.replaceChildren();
     this.root.hidden = false;
     if (this.auth.signedIn) {
-      this.root.append(el('span', 'account-note', '✓ Signed in: your name and settings follow you'), button('Sign out', () => this.auth.signOut(), 'account-btn'));
+      this.root.append(el('span', 'account-note', '✓ Signed in: your name, games and notifications follow you'), button('Sign out', () => void this.signOut(), 'account-btn'));
       return;
     }
     if (this.message) this.root.append(el('span', 'account-note account-error', this.message));
@@ -88,6 +90,11 @@ export class SignInPanel {
     b.id = 'sign-in';
     b.title = 'Optional: keep your name and settings on every phone';
     this.root.append(b);
+  }
+
+  private async signOut(): Promise<void> {
+    await Promise.race([this.opts.beforeSignOut?.(), new Promise((r) => setTimeout(r, 3000))]);
+    this.auth.signOut();
   }
 
   private async start(): Promise<void> {

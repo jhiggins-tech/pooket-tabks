@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { announceDevice, clientId, followOutbox, notifySeat, wantsPush, type OutboxEntry } from '../src/net/push';
+import { Auth } from '../src/net/auth';
+import { accountAddress, announceDevice, clientId, followOutbox, notifySeat, registerPushDevice, useAccount, wantsPush, type OutboxEntry } from '../src/net/push';
 import { Rtdb } from '../src/net/rtdb';
 import { sealerFor } from '../src/net/seal';
 import type { RoomRef } from '../src/net/watchers';
@@ -29,6 +30,7 @@ beforeEach(async () => {
   await room.db.put(`${room.path}/guest`, { id: 'guest-seat', ts: Date.now() });
 });
 afterEach(async () => {
+  useAccount(() => null);
   await server.close();
 });
 const outbox = () => Object.values((server.tree().outbox as Record<string, Record<string, unknown>> | undefined) ?? {});
@@ -80,5 +82,47 @@ describe('notifications, the database side', () => {
     await new Promise((r) => setTimeout(r, 200));
     expect(got).toEqual([{ id: expect.any(String), type: 'joined', ref: room.sealer.topic }]);
     f.stop();
+  });
+
+  it("a signed-in player's device says whose it is, and their notifications go to the account (even with this phone's off)", async () => {
+    be('bob-phone', false);
+    useAccount(() => 'bob-uid');
+    announceDevice(room, 'guest', 'guest-seat');
+    await until(() => JSON.stringify(server.tree()).includes('devices'));
+    useAccount(() => null);
+    be('ann-phone', false);
+    await notifySeat(room, 'guest', 'your-turn');
+    await until(() => outbox().length === 1);
+    expect(outbox()[0]).toMatchObject({ to: accountAddress('bob-uid'), originClientId: 'ann-phone' });
+    expect(outbox()[0]!.to).toBe('u:bob-uid');
+  });
+
+  it("an open page signed in follows the account's entries too", async () => {
+    be('bob-phone', true);
+    const got: string[] = [];
+    const mine = followOutbox(room.db, (e) => got.push(`phone:${e.type}`));
+    const account = followOutbox(room.db, (e) => got.push(`account:${e.type}`), accountAddress('bob-uid'));
+    await new Promise((r) => setTimeout(r, 200));
+    await room.db.post('outbox', { type: 'joined', ref: room.sealer.topic, to: 'u:someone-else', originClientId: 'x', createdAt: 1 });
+    await room.db.post('outbox', { type: 'your-turn', ref: room.sealer.topic, to: 'u:bob-uid', originClientId: 'x', createdAt: 2 });
+    await room.db.post('outbox', { type: 'joined', ref: room.sealer.topic, to: 'bob-phone', originClientId: 'x', createdAt: 3 });
+    await until(() => got.length === 2);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(got.sort()).toEqual(['account:your-turn', 'phone:joined']);
+    mine.stop();
+    account.stop();
+  });
+
+  it("lists this phone under the account while notifications are on (only with the account's token), and takes it off", async () => {
+    be('0123abcd-phone', true);
+    const auth = new Auth({ apiKey: 'k', signInUrl: `${server.url}/identitytoolkit/signInWithIdp`, refreshUrl: `${server.url}/securetoken/token`, storage: null });
+    const uid = await auth.signInWithGoogle('fake:bob');
+    const listed = () => (server.tree().users as Record<string, { push?: Record<string, unknown> }> | undefined)?.[uid]?.push;
+    await registerPushDevice(new Rtdb(server.url, () => auth.token()), uid, true);
+    expect(Object.keys(listed() ?? {})).toEqual(['0123abcd-phone']);
+    await registerPushDevice(new Rtdb(server.url), uid, false); // no token: refused (and only logged)
+    expect(Object.keys(listed() ?? {})).toEqual(['0123abcd-phone']);
+    await registerPushDevice(new Rtdb(server.url, () => auth.token()), uid, false);
+    expect(listed()).toBeUndefined();
   });
 });

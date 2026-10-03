@@ -1,6 +1,7 @@
 /**
- * Drains the outbox once: each entry becomes a Web Push to the subscriptions of the device it's for, then
- * goes. The database and the push service come in through `Store` and `Pusher` (notify.ts wires up
+ * Drains the outbox once: each entry becomes a Web Push to the subscriptions of the device it's for (or,
+ * addressed to a signed-in player's account, `u:<uid>`, of every phone they've signed in to with
+ * notifications on: `users/<uid>/push`), then goes. The database and the push service come in through `Store` and `Pusher` (notify.ts wires up
  * firebase-admin and web-push; the tests use fakes). Run by Node as is (plain TypeScript, `.ts` imports).
  *
  * Logs are public (the repo is): counts, types and the first 8 characters of a subscription's id only,
@@ -30,7 +31,12 @@ export interface Store {
   deleteEntry(id: string): Promise<void>;
   setAttempts(id: string, attempts: number): Promise<void>;
   deleteSubscription(id: string): Promise<void>;
+  /** The devices (clientIds) a signed-in player has notifications on for. */
+  accountDevices(uid: string): Promise<string[]>;
 }
+
+/** An entry for an account rather than one device: `u:` and the account's uid. */
+const ACCOUNT = /^u:([A-Za-z0-9_-]{1,128})$/;
 
 /** Send one push: the push service's status code (a network error throws). */
 export type Pusher = (sub: Subscription, payload: string) => Promise<number>;
@@ -67,6 +73,14 @@ export async function drain(store: Store, push: Pusher, opts: { now?: number; lo
   }
   const subs = await store.subscriptions();
   const pruned = new Set<string>();
+  const accounts = new Map<string, Promise<string[]>>();
+  /** Which devices an entry is for: the one it names, or an account's (looked up once a run). */
+  const devicesFor = async (to: string): Promise<Set<string>> => {
+    const uid = ACCOUNT.exec(to)?.[1];
+    if (!uid) return new Set([to]);
+    if (!accounts.has(uid)) accounts.set(uid, store.accountDevices(uid));
+    return new Set(await accounts.get(uid)!);
+  };
 
   /** Send to one subscription: a 429 or 5xx (or no answer) gets one more go after a moment. */
   const sendTo = async (subId: string, sub: Subscription, payload: string): Promise<Outcome> => {
@@ -104,14 +118,15 @@ export async function drain(store: Store, push: Pusher, opts: { now?: number; lo
       continue;
     }
     const shown = render(e.type, e.ref);
-    if (!shown || typeof e.to !== 'string') {
+    if (!shown || typeof e.to !== 'string' || (e.to.startsWith('u:') && !ACCOUNT.test(e.to))) {
       summary.unknown++;
       log(`unknown entry (${typeof e.type === 'string' ? e.type.slice(0, 20) : typeof e.type}): dropped`);
       await store.deleteEntry(id);
       continue;
     }
     const payload = JSON.stringify({ eventId: id, title: shown.title, body: shown.body, url: shown.url, tag: `evt-${id}` });
-    const targets = subs.filter(([subId, s]) => s.clientId === e.to && s.clientId !== e.originClientId && !pruned.has(subId));
+    const devices = await devicesFor(e.to);
+    const targets = subs.filter(([subId, s]) => devices.has(s.clientId) && s.clientId !== e.originClientId && !pruned.has(subId));
     const outcomes: Outcome[] = [];
     for (let i = 0; i < targets.length; i += PARALLEL) {
       outcomes.push(...(await Promise.all(targets.slice(i, i + PARALLEL).map(([subId, s]) => sendTo(subId, s, payload)))));

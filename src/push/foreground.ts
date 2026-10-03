@@ -9,7 +9,7 @@ import { render } from './templates';
  * later, and isn't alerted again: the `seen` store and the shared tag). On screen: a toast to tap; in
  * the background: a system notification, if allowed. `here(ref)`: already in that match, so say nothing.
  */
-export function notifyWhileOpen(db: Rtdb, on: { open: (ref: string) => void; here: (ref: string) => boolean }): { stop: () => void } {
+export function notifyWhileOpen(db: Rtdb, on: { open: (ref: string) => void; here: (ref: string) => boolean }, to?: string): { stop: () => void } {
   return followOutbox(db, (e) => {
     const r = render(e.type, e.ref);
     if (!r || on.here(e.ref)) return;
@@ -21,5 +21,5 @@ export function notifyWhileOpen(db: Rtdb, on: { open: (ref: string) => void; her
       const reg = await navigator.serviceWorker?.ready;
       await reg?.showNotification(r.title, { body: r.body, tag: `evt-${e.id}`, icon: './icon.svg', badge: './icon.svg', data: { url: r.url, eventId: e.id } });
     })();
-  });
+  }, to);
 }
