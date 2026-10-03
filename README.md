@@ -88,6 +88,13 @@ Service API (the database doesn't use it). A new place the game is served from n
 is refused there ("Requests from referer … are blocked").
 Tests use a stand-in for Google and Firebase Auth inside `tests/support/rtdb.ts` (`?debug&db=…&fakegoogle=NAME`).
 
+## Stats
+📊 Stats on the landing screen adds up finished online matches: each phone files what it saw when a match
+ends, signed-in players vouch for it in their own account, and `.github/workflows/stats.yml` (hourly;
+`notifier/stats.ts`) adds everything up into `stats/summary`, which the phones read. It uses the same
+`FIREBASE_SERVICE_ACCOUNT` and `FIREBASE_DATABASE_URL` as the push sender below (nothing more to set up), and
+does nothing until they're there. Run it from the Actions tab ("Add up the stats") to refresh at once.
+
 ## Push notifications
 Phones that turn notifications on (the 🔔 on the landing screen) hear "your turn" when the other player
 has played and they're away, and "someone joined your game" when someone starts their open game. When

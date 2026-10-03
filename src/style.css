@@ -582,8 +582,10 @@ button.big {
 }
 .setup-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
 }
 .setup-actions button:not(.big) {
   height: 44px;
@@ -1003,6 +1005,109 @@ body[data-phase='gameover'] .top-mid {
 .info-tab[aria-selected='true'] {
   background: var(--c, #f3f5ff);
   color: #10142a;
+}
+/* The stats viewer (ui/stats.ts): the info screen's layout, with tables. */
+#stats {
+  z-index: 15;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 8px;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  text-align: left;
+  background: rgba(10, 14, 30, 0.96);
+}
+.stats-verified {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stats-verified input {
+  width: 18px;
+  height: 18px;
+}
+.stats-scroll {
+  overflow-x: auto;
+  touch-action: pan-x pan-y;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stats-table th {
+  position: sticky;
+  top: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  opacity: 0.7;
+  background: rgba(10, 14, 30, 0.96);
+}
+.stats-table td {
+  padding: 7px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.stats-name {
+  font-weight: 800;
+}
+.stats-tick {
+  margin-left: 6px;
+  color: #5fd38d;
+}
+.stats-unverified,
+.stats-owner {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.55;
+}
+.stats-unverified {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stats-char {
+  font-weight: 800;
+  color: var(--c, var(--text));
+}
+.stats-note,
+.stats-footer {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.stats-footer {
+  opacity: 0.55;
+}
+.stats-you h2 {
+  margin: 4px 0 8px;
+}
+.stats-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.stats-facts dt {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.stats-facts dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
 }
 .info-close {
   flex: none;

@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 42,
+    title: '📊 Stats',
+    items: [
+      'New on the first screen: 📊 Stats. Online matches added up: a players table (win rate, accuracy, damage, kills), every character and weapon, and your own numbers.',
+      'Verified only shows just the matches both players were signed in with Google for. Matches count from now on, and the stats are updated every hour.',
+    ],
+  },
+  {
     version: 41,
     title: 'Yolk Sucker',
     items: ['torikloud: once Twins is fired, its button becomes Yolk Sucker, a bonus move (it doesn’t use your turn) that shares the two tanks’ health out evenly. Use it as often as you like while they’re uneven.'],

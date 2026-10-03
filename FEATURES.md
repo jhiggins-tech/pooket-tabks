@@ -4,29 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-1. **Stats viewer** (owner, 3 Oct; verification builds on sign-in: matches record who was signed in).
-   Aggregated stats from online matches (public and private; not hotseat), counted from the release that
-   adds them (nothing is recorded today; no backfill).
-   - **What's counted**: per-match counters in the game state, attributed where hits already go through
-     (`applyHit`: shooter and weapon; burns and other statuses to whoever put them on). Not gameplay, so no
-     `RULES` bump; a state fill-in in `upgradeSnapshot`. Per player: matches, wins / losses / draws, win
-     rate, shots fired, accuracy, damage dealt and taken, average damage per shot, kills, favourite
-     character. Per character and per weapon: pick rate, win rate, average damage, accuracy (balance data).
-     Overall: match length, how matches end (destroyed, out of ammo, forfeit, resigned). Accuracy: a shot
-     "hits" if it damaged an enemy or a decoy; weapons that never deal damage (moves, heals, bonus moves)
-     are left out of it.
-   - **Verified** (Google signed-in players): at the end of a match each signed-in player's phone writes
-     the result into its own `users/<uid>/…` (only that account can). A match is verified only when
-     **every** player in it was signed in and their copies of the result agree (so nobody can fake a win
-     over someone else). Matches record each seat's uid (sign-in step 2).
-   - **Players**: verified players by account (shown with their current name); everyone else grouped by
-     name and marked "unverified". No opt-out from the leaderboard.
-   - **Adding it up**: a scheduled GitHub Action (with the notifications sender, or beside it; firebase-admin)
-     reads the match summaries, checks verification and writes one small totals document the phones read.
-     Phones never download every match.
-   - **The viewer**: "📊 Stats" from the landing screen: Players (leaderboard, with a minimum number of
-     matches), Characters, Weapons, You; a **Verified only** toggle filters it all.
-   - New database paths need rules (owner re-publishes).
+(Empty: everything queued has shipped.)
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -186,6 +164,18 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **📊 Stats** (owner, 3 Oct; rules 15). Online matches (public and private, not hotseat) added up, from this
+  release on. Each match keeps a tally per player as it's played (`game/tally.ts`: shots that can do damage,
+  hits on an enemy tank or decoy, damage dealt by weapon and taken, self-damage, kills; a burn credits whoever
+  lit it). When a match ends, each phone files its summary (`stats/matches/<id>/<seat>`, readable only by the
+  stats sender) and a signed-in player's phone vouches for it in their own account (`users/<uid>/results/<id>`:
+  seat and the summary's SHA-256); also from My games, for matches never reopened. A GitHub Action
+  (`.github/workflows/stats.yml`, hourly; `notifier/stats.ts`, `src/stats/aggregate.ts`) adds it all up into
+  `stats/summary`, with no accounts in it (players by a hash of their account, or by name). **Verified**: both
+  seats vouched for the same summary from two accounts (a player's second account would pass: a known limit).
+  The viewer (📊 Stats on the landing screen, `ui/stats.ts`): Players (ranked from 3 matches; ✓ signed in,
+  else "unverified" and grouped by name), Characters, Weapons, You, and a Verified only toggle. New rules for
+  `stats/` and `users/$uid/results` (owner re-publishes).
 - **torikloud's Yolk Sucker** (owner, 3 Oct; rules 14). Once Twins has been fired, its button (tier 3)
   becomes **Yolk Sucker**: a bonus move (the turn carries on) that pools the two tanks' health and shares
   it out as Twins does (the twin half rounded down, the main tank the rest). As often as you like, any turn

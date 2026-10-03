@@ -41,6 +41,7 @@ what it's for; weapons are documented where they're defined.
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`), chiptunes (`tunes.ts`) |
 | `src/net/` | online play (below); `auth.ts` + `account.ts` the optional Google sign-in and the profile that follows the player (below) |
 | `src/push/` + `notifier/` + `public/sw.js` | push notifications (below) |
+| `src/stats/` + `notifier/stats.ts` | the stats: `summary.ts` (a finished match's summary, its fingerprint) and `aggregate.ts` (adding up), plain TypeScript shared with the hourly sender; the viewer is `ui/stats.ts` (below) |
 | `src/ui/` | `dom.ts` (typed `el`, `byId`, `button`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), info (ⓘ), what's new, `online.ts` (`OnlineScreen`: hosting, joining, rejoining, watching, the lobby and match menu; each way in is an attempt, `online/scope.ts`, ended by the next one) and `online/` (its screens: the Game browser, the host screen, Choose your tank, shared widgets) |
 | `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle; `tape.ts`: the match being played, recorded for ▶ Watch replay); `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `tests/support/game.ts` (match builders), `tests/support/rtdb.ts` (local Firebase stand-in), `tests/support/wait.ts` (`flush`, `until`, `settled`) |
@@ -122,6 +123,14 @@ what it's for; weapons are documented where they're defined.
   account: a signed-in device's record carries `uid` (`useAccount`), `notifySeat` then addresses the outbox
   entry to `u:<uid>` (`accountAddress`), phones with 🔔 on list themselves under `users/<uid>/push/<clientId>`
   (`registerPushDevice`), the sender resolves them (`Store.accountDevices`), and open pages follow both addresses.
+- **Stats** (📊 on the landing screen): `game/tally.ts` keeps each player's shots, hits, damage (by weapon)
+  and kills in the match state (never read by the simulation; credit goes through `hurt`, burns carry `by`);
+  `net/results.ts` files a finished match's summary (`stats/matches/<id>/<seat>`) and, signed in, vouches
+  for it (`users/<uid>/results/<id>`: the summary's SHA-256), from `OnlineScreen` and from `matchesOf`;
+  `notifier/stats.ts` (hourly, `.github/workflows/stats.yml`) runs `src/stats/aggregate.ts` into
+  `stats/summary` (no uids: `playerKey` hashes them); `ui/stats.ts` shows it. A match is verified when both
+  seats vouched for the same summary from two accounts. A new weapon kind that never does damage itself
+  goes in tally.ts's `HARMLESS`.
 - **Push notifications**: `net/push.ts` (each phone's `clientId`; `announceDevice` in each room it's
   in; `notifySeat` adds an `outbox` entry for the other seat's device, from `OnlineScreen`: your turn
   when they're away, someone joined), `push/templates.ts` (the words: shared with the sender, plain

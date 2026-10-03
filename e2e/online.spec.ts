@@ -1,5 +1,7 @@
 import { devices, expect, test, type Browser, type Page } from '@playwright/test';
 import { startRtdb, type FakeRtdb } from '../tests/support/rtdb';
+import { aggregate } from '../src/stats/aggregate';
+import { digest, type MatchSummary } from '../src/stats/summary';
 
 type Dbg = {
   __pooket: {
@@ -563,6 +565,14 @@ test('turn by turn: take your turn and go back to the menu; the other player fin
   await expect(host.locator('#gameover')).toBeVisible({ timeout: 20_000 });
   await expect(host.locator('#winner')).toContainText('resigned');
   await expect(host.locator('#watch-replay')).toBeHidden(); // nothing played on this phone since it came back
+  // Both phones filed the match's results for the stats, and saw the same thing.
+  await expect
+    .poll(() =>
+      Object.values((db.tree().stats as { matches?: Record<string, Record<string, { m: string }>> } | undefined)?.matches ?? {}).some(
+        (seats) => seats['0'] && seats['1'] && seats['0'].m === seats['1'].m && seats['0'].m.includes('"name":"Ann"') && seats['0'].m.includes('"endReason":"resigned"'),
+      ),
+    )
+    .toBe(true);
   // Seen how it ended: leaving forgets it.
   await host.locator('#gameover-leave').tap();
   await expect(host.locator('#setup')).toBeVisible();
@@ -831,5 +841,70 @@ test("signed in, your turn reaches every phone you're signed in on: tap it on th
   await expect.poll(() => canAct(a2), { timeout: 40_000 }).toBe(true);
   expect(errors).toEqual([]);
   await a2Ctx.close();
+  await close();
+});
+
+test('📊 Stats: players, characters, weapons and you; Verified only shows the matches both players vouched for', async ({ browser }) => {
+  // Three matches Eve (signed in) won against Fay: two Fay vouched for too, one she didn't (not signed in).
+  const summary = (n: number): MatchSummary => ({
+    v: 1,
+    id: `${'cd'.repeat(12)}-${n}`,
+    rules: 15,
+    turns: 8,
+    endReason: null,
+    winner: 0,
+    players: [
+      { name: 'Eve', characterId: 'tones', tally: { shots: { 'ten-1': 4 }, hits: { 'ten-1': 3 }, dealt: { 'ten-1': 100 }, taken: 40, self: 0, kills: 1 } },
+      { name: 'Fay', characterId: 'kie', tally: { shots: { 'weasel-pop': 5 }, hits: { 'weasel-pop': 2 }, dealt: { 'weasel-pop': 40 }, taken: 100, self: 0, kills: 0 } },
+    ],
+  });
+  const ms = [1, 2, 3].map(summary);
+  const stats = await aggregate({
+    matches: Object.fromEntries(ms.map((m) => [m.id, { '0': { m: JSON.stringify(m) }, '1': { m: JSON.stringify(m) } }])),
+    results: {
+      'uid-eve': Object.fromEntries(await Promise.all(ms.map(async (m) => [m.id, { seat: 0, digest: await digest(m) }]))),
+      'uid-fay': Object.fromEntries(await Promise.all(ms.slice(0, 2).map(async (m) => [m.id, { seat: 1, digest: await digest(m) }]))),
+    },
+    names: { 'uid-eve': 'Eve', 'uid-fay': 'Fay' },
+  });
+  await fetch(`${db.url}/stats/summary.json`, { method: 'PUT', body: JSON.stringify({ m: JSON.stringify(stats), ts: Date.now() }) });
+
+  const { host: page, q, errors, close } = await phones(browser, 'stats');
+  await page.goto(`./?${q}&fakegoogle=eve`);
+  await setName(page, 'Eve');
+  await page.locator('#sign-in').tap();
+  await expect(page.locator('#account')).toContainText('Signed in');
+  await page.locator('#setup-stats').tap();
+  const body = page.locator('#stats .stats-body');
+  const rowsOf = () => body.locator('tbody tr');
+  // Players: Eve (her account) 3–0. Fay is counted under her account in the two matches she vouched for
+  // and by name in the other, so neither of her rows has the 3 matches it takes to be ranked yet.
+  await expect(rowsOf()).toHaveCount(1);
+  await expect(rowsOf().first()).toContainText('Eve');
+  await expect(rowsOf().first()).toContainText('3–0–0');
+  await expect(rowsOf().first()).toContainText('✓');
+  await expect(body).toContainText('2 more with fewer than 3 matches');
+  await page.screenshot({ path: 'test-results/stats-players.png' });
+  // Characters and weapons.
+  await page.locator('#stats .info-tab[data-tab="characters"]').tap();
+  await expect(rowsOf()).toHaveCount(2);
+  await expect(rowsOf().first()).toContainText('tones2');
+  await expect(rowsOf().first()).toContainText('100%');
+  await page.locator('#stats .info-tab[data-tab="weapons"]').tap();
+  await expect(rowsOf().first()).toContainText('Weasel Pop');
+  await expect(rowsOf().nth(1)).toContainText('ten-1');
+  await expect(rowsOf().nth(1)).toContainText('75%');
+  // You: Eve's own numbers.
+  await page.locator('#stats .info-tab[data-tab="you"]').tap();
+  await expect(body.locator('.stats-you h2')).toContainText('Eve');
+  await expect(body.locator('.stats-facts')).toContainText('Played3');
+  await page.screenshot({ path: 'test-results/stats-you.png' });
+  // Verified only: the two matches Fay vouched for.
+  await page.locator('#stats-verified').check();
+  await expect(body.locator('.stats-facts')).toContainText('Played2');
+  await expect(body.locator('.stats-footer')).toContainText('2 matches');
+  await page.locator('#stats-close').tap();
+  await expect(page.locator('#stats')).toBeHidden();
+  expect(errors).toEqual([]);
   await close();
 });

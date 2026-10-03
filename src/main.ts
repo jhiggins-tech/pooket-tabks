@@ -58,6 +58,8 @@ import { readParams } from './app/params';
 import { setupSoundToggle } from './app/sound';
 import { MatchTape } from './app/tape';
 import { useResultsAccount } from './net/results';
+import { nameKey, playerKey } from './stats/summary';
+import { StatsScreen } from './ui/stats';
 import { GameOverButtons } from './ui/gameover';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -303,6 +305,12 @@ const droppedSeat = latestSeat();
 const autoRejoin = !openedRoom && !openedPlay && !!droppedSeat && !droppedSeat.left && Date.now() - droppedSeat.ts < AUTO_REJOIN_MS;
 showLanding();
 const whatsNew = new WhatsNew();
+// 📊 Stats: online matches added up (ui/stats.ts); "you" is your account when signed in, else your name.
+const stats = new StatsScreen({
+  dbUrl: online.dbUrl,
+  you: async () => (auth.uid ? { key: await playerKey(auth.uid), name: yourName(), signedIn: true } : { key: nameKey(yourName()), name: yourName(), signedIn: false }),
+});
+document.getElementById('setup-stats')!.addEventListener('click', () => stats.open());
 document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
 function welcome(): void {
   if (openedRoom) online.invite(openedRoom);
