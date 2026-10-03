@@ -50,6 +50,17 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
     st.splashAt ??= null;
     st.splashFrom ??= 0;
   }
+  // Rules 15: the stats' tallies (a match from before starts them at nothing), and who lit a burn.
+  const players = (snap.players as { burn?: Record<string, unknown> | null; twin?: { burn?: Record<string, unknown> | null } | null }[] | undefined) ?? [];
+  snap.tally ??= players.map(() => ({ shots: {}, hits: {}, dealt: {}, taken: 0, self: 0, kills: 0 }));
+  snap.tallyShot ??= null;
+  for (const p of players) {
+    for (const b of [p.burn, p.twin?.burn]) {
+      if (!b) continue;
+      b.by ??= -1;
+      b.weaponId ??= '';
+    }
+  }
   return snap;
 }
 

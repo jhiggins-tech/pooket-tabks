@@ -140,6 +140,11 @@ export class NetSession {
   private readonly events = new Emitter<SessionEvents>();
   private phase: SessionPhase = { k: 'lobby' };
   private setup: MatchSetup = { seed: 0, players: [], rules: RULES };
+
+  /** The match's setup (seed, players, the rules it started on). */
+  get matchSetup(): MatchSetup {
+    return this.setup;
+  }
   /** The turn a shot was fired in (and whose it was) until its result is synced. */
   private shot: { turn: number; owner: number } | null = null;
   private pendingSync: Extract<NetMsg, { k: 'sync' }> | null = null;

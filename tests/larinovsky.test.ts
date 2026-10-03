@@ -241,7 +241,7 @@ describe('Women in Scam', () => {
     const g = armed();
     const lari = g.players[0]!;
     // kie's shot hits kie; and a burn ticking as larinovsky's turn comes up isn't an attack.
-    lari.burn = { damagePerTurn: 5, turnsLeft: 1, colour: '#f00' };
+    lari.burn = { damagePerTurn: 5, turnsLeft: 1, colour: '#f00', by: -1, weaponId: '' };
     selectTier(g, 0);
     fire(g);
     g.projectiles = [];

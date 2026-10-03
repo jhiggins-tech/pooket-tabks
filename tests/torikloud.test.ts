@@ -309,8 +309,8 @@ describe("torikloud's health, and statuses on the twin", () => {
   it("a burning twin that takes over from a destroyed main tank keeps burning; the main tank's burn goes with it", () => {
     const g = versusKcaj();
     const tori = g.players[0]!;
-    tori.burn = { damagePerTurn: 4, turnsLeft: 2, colour: '#f00' };
-    tori.twin!.burn = { damagePerTurn: 9, turnsLeft: 3, colour: '#0f0' };
+    tori.burn = { damagePerTurn: 4, turnsLeft: 2, colour: '#f00', by: -1, weaponId: '' };
+    tori.twin!.burn = { damagePerTurn: 9, turnsLeft: 3, colour: '#0f0', by: -1, weaponId: '' };
     tori.hp = 5;
     explode(g, tori.x, tori.y - TANK_BODY_HEIGHT, shell, 1);
     expect(tori.twin).toBeNull();

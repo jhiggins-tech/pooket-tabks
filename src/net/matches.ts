@@ -1,5 +1,6 @@
 import { characterName } from '../characters/roster';
 import { gameStatus, loadRoomRecord, opponentName, type GameStatus } from './record';
+import { endOfSnapshot, reportMatch } from './results';
 import type { Rtdb } from './rtdb';
 import { sealerFor } from './seal';
 import { forgetSeat, loadSeats, type Seat } from './seat';
@@ -32,9 +33,14 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
           return { seat, status: 'lobby', opponent: '…', detail: 'your match' };
         }
         const seatNo = seat.role === 'host' ? 0 : 1;
+        const status = gameStatus(stored, seatNo);
+        // Finished: file this phone's results for the stats (once), even if it's never opened again.
+        if (status === 'won' || status === 'lost' || status === 'draw') {
+          void sealerFor('room', seat.code).then((s) => reportMatch(db, s.topic, seatNo, stored.rec.setup, endOfSnapshot(stored.rec.snap)));
+        }
         const [me, them] = seatNo === 0 ? stored.rec.setup.players : [...stored.rec.setup.players].reverse();
         const detail = me && them ? `${characterName(me.characterId)} vs ${characterName(them.characterId)} · your match` : 'your match';
-        return { seat, status: gameStatus(stored, seatNo), opponent: opponentName(stored, seatNo), detail };
+        return { seat, status, opponent: opponentName(stored, seatNo), detail };
       } catch {
         return null; // can't tell right now: leave it be
       }

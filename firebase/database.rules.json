@@ -131,6 +131,15 @@
             "$other": { ".validate": false }
           }
         },
+        "results": {
+          "$match": {
+            ".validate": "$match.matches(/^[0-9a-f]{24}-[0-9a-z]{1,16}$/) && newData.hasChildren(['seat', 'digest', 'ts']) && (newData.child('seat').val() === 0 || newData.child('seat').val() === 1) && newData.child('digest').isString() && newData.child('digest').val().matches(/^[0-9a-f]{64}$/) && newData.child('ts').val() === now",
+            "seat": { ".validate": true },
+            "digest": { ".validate": true },
+            "ts": { ".validate": true },
+            "$other": { ".validate": false }
+          }
+        },
         "games": {
           "$code": {
             ".validate": "$code.matches(/^[A-Z]{4}$/) && newData.hasChildren(['at', 'ts']) && (newData.child('gone').val() === true || newData.hasChildren(['role', 'id']))",
@@ -144,6 +153,22 @@
           }
         },
         "$other": { ".validate": false }
+      }
+    },
+    "stats": {
+      "matches": {
+        "$match": {
+          "$seat": {
+            ".write": "!data.exists()",
+            ".validate": "$match.matches(/^[0-9a-f]{24}-[0-9a-z]{1,16}$/) && ($seat === '0' || $seat === '1') && newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 16000 && newData.child('ts').val() === now",
+            "m": { ".validate": true },
+            "ts": { ".validate": true },
+            "$other": { ".validate": false }
+          }
+        }
+      },
+      "summary": {
+        ".read": true
       }
     },
     "lobby": {

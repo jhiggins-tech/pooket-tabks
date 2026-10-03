@@ -1,0 +1,46 @@
+# Stats: every hour, add up the finished online matches and write the totals phones read (notifier/stats.ts,
+# src/stats/aggregate.ts). Does nothing (a quick green run) until the FIREBASE_SERVICE_ACCOUNT secret is
+# set (README, "Push notifications": the same values the push sender uses). Run it by hand from the
+# Actions tab to refresh the stats now.
+name: Add up the stats
+
+on:
+  schedule:
+    - cron: '17 * * * *' # hourly, off the hour's :00 (UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stats
+  cancel-in-progress: false
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      READY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    defaults:
+      run:
+        working-directory: notifier
+    steps:
+      - if: env.READY != 'true'
+        working-directory: .
+        run: echo "The stats sender is not set up yet (see the README), so there is nothing to do."
+      - if: env.READY == 'true'
+        uses: actions/checkout@v7
+      - if: env.READY == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: notifier/package-lock.json
+      - if: env.READY == 'true'
+        run: npm ci
+      - if: env.READY == 'true'
+        run: node stats.ts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL || secrets.FIREBASE_DATABASE_URL }}

@@ -6,6 +6,7 @@ import type { Stepper } from './mechanics';
 import { settleTanks } from './movement';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
+import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
 import { afflict, scaled, vulnerable } from './statuses';
 
 /**
@@ -194,7 +195,7 @@ export function doseTarget(t: Target, amount: number, rate: number, colour: stri
 export function applyHit(state: GameState, t: Target, weapon: WeaponDef, shooterId: number, amount: number, colour?: string): boolean {
   if (weapon.friendlyFire === false && targetOwner(t) === shooterId) return !gone(t);
   noteHit(state, t, shooterId);
-  const standing = damageTarget(state, t, amount, colour);
+  const standing = damageTarget(state, t, amount, colour, { by: shooterId, weaponId: weapon.id });
   if (t.kind === 'tank') afflict(state, t.player, t.tank, weapon, shooterId, standing);
   return standing;
 }
@@ -202,6 +203,7 @@ export function applyHit(state: GameState, t: Target, weapon: WeaponDef, shooter
 /** A shot has touched an enemy (or their decoy): its refund-on-miss round isn't coming back. */
 export function noteHit(state: GameState, t: Target, shooterId: number): void {
   if (state.refund?.playerId === shooterId && targetOwner(t) !== shooterId) state.refund.hit = true;
+  tallyHit(state, targetOwner(t), shooterId);
 }
 
 /**
@@ -209,8 +211,8 @@ export function noteHit(state: GameState, t: Target, shooterId: number): void {
  * they blow up (copies.ts). Returns whether the target is still there afterwards, as itself (not
  * destroyed, nor a main tank whose twin has taken over).
  */
-export function damageTarget(state: GameState, t: Target, amount: number, colour = '#ffffff'): boolean {
-  if (t.kind === 'tank') return amount <= 0 ? !gone(t) : hurt(state, t.player, t.tank, amount, colour);
+export function damageTarget(state: GameState, t: Target, amount: number, colour = '#ffffff', source?: DamageSource): boolean {
+  if (t.kind === 'tank') return amount <= 0 ? !gone(t) : hurt(state, t.player, t.tank, amount, colour, source);
   if (amount <= 0) return true;
   // A decoy of a tattooed tank shows the same boosted number, so it gives nothing away.
   const shown = vulnerable(state.players[t.holo.ownerId]!, amount);
@@ -266,12 +268,15 @@ export function damagePlayer(state: GameState, p: Player, amount: number, colour
  * floating number. A destroyed twin is gone; a destroyed main tank hands over to the twin, if there is
  * one; otherwise the player is out. Returns whether the tank is still there, as itself.
  */
-export function hurt(state: GameState, p: Player, tank: TankBody, amount: number, colour = '#ffffff'): boolean {
+export function hurt(state: GameState, p: Player, tank: TankBody, amount: number, colour = '#ffffff', source?: DamageSource): boolean {
   if (!onField(p, tank)) return false;
   if (amount <= 0) return true;
   amount = vulnerable(p, amount);
   noteScamHit(state, p);
+  const had = tank.hp;
   tank.hp = Math.max(0, tank.hp - amount);
+  // (For the stats: put out = their main tank down with no twin to take over.)
+  tallyDamage(state, p, had - tank.hp, source ?? defaultSource(state), tank.hp <= 0 && tank === p && !p.twin);
   spawnFloater(state, tank.x, tank.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
   sound(state, 'hit', undefined, amount);
   if (tank.hp > 0) return true;
@@ -298,7 +303,7 @@ export function tickBurn(state: GameState, p: Player): void {
     if (!b) continue;
     b.turnsLeft--;
     if (b.turnsLeft <= 0) tank.burn = null;
-    hurt(state, p, tank, b.damagePerTurn, b.colour);
+    hurt(state, p, tank, b.damagePerTurn, b.colour, b.by >= 0 ? { by: b.by, weaponId: b.weaponId } : { by: -1, weaponId: '' });
   }
 }
 

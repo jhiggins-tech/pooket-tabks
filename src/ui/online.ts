@@ -22,6 +22,7 @@ import { hostScreen } from './online/hosting';
 import { listPublicly } from './online/prefs';
 import { Scope } from './online/scope';
 import { chooseTank } from './online/tank';
+import { endOfGame, reportMatch } from '../net/results';
 import { buttons, cancelButton, heading, linkButton, logsButton, message, status, text } from './online/widgets';
 
 export interface OnlineOptions {
@@ -77,6 +78,8 @@ export class OnlineScreen {
   /** Who's watching (the 👁 chip and "just started watching"). */
   private readonly audience = new Audience();
   private seatTimer: ReturnType<typeof setInterval> | null = null;
+  /** The match whose results this phone has filed (so it's done once). */
+  private resultsFiled = '';
   /** Stands this phone aside if the player opens the match on another phone (rooms.ts `watchSeat`). */
   private seatWatch: { close: () => void } | null = null;
   /** The seat of the match this phone is in, and its room. */
@@ -671,6 +674,7 @@ export class OnlineScreen {
   /** Call once a frame: keeps the "they're not here" line right as turns come and go. */
   tick(): void {
     this.tellTheirTurn();
+    this.fileResults();
     const s = this.session;
     const g = s?.game;
     const show = !!s && s.peerAway && !s.lost && !!g && g.phase === 'aiming';
@@ -704,6 +708,16 @@ export class OnlineScreen {
     if (this.turnSeen.told || g.current === s.localSeat || !s.peerAway) return;
     this.turnSeen.told = true;
     void notifySeat(this.room, s.isHost ? 'guest' : 'host', 'your-turn');
+  }
+
+  /** The match has ended here: file this phone's results for the stats (once per match; net/results.ts). */
+  private fileResults(): void {
+    const s = this.session;
+    if (!s || !this.room || s.game?.phase !== 'gameover') return;
+    const key = `${this.room.sealer.topic}:${s.matchSetup.seed}`;
+    if (this.resultsFiled === key) return;
+    this.resultsFiled = key;
+    void reportMatch(this.room.db, this.room.sealer.topic, s.localSeat, s.matchSetup, endOfGame(s.game));
   }
 
   /** Nudge: send them the game's link (the phone's share sheet, or copied). */

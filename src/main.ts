@@ -57,6 +57,7 @@ import { SetupScreen } from './ui/setup';
 import { readParams } from './app/params';
 import { setupSoundToggle } from './app/sound';
 import { MatchTape } from './app/tape';
+import { useResultsAccount } from './net/results';
 import { GameOverButtons } from './ui/gameover';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -250,6 +251,7 @@ if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIEN
   profileChanges.on('saved', () => account.changed());
   seatChanges.on('changed', (code) => seats.changed(code));
   useAccount(() => auth.uid);
+  useResultsAccount(() => (userDb && auth.uid ? { uid: auth.uid, db: userDb } : null));
   new SignInPanel(document.getElementById('account')!, auth, {
     clientId: GOOGLE_CLIENT_ID,
     fakeGoogle: params.fakeGoogle,

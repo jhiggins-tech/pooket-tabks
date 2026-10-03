@@ -16,6 +16,7 @@ import { endScams } from './scam';
 import { stepHeist } from './steal';
 import { turnEnding, turnStarting } from './statuses';
 import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
+import { newTally, tallyShot } from './tally';
 import { clamp, normalizeAngle } from './util';
 
 /**
@@ -122,6 +123,8 @@ export function createGame(cfg: GameConfig): GameState {
     tunes: [],
     refund: null,
     lastShot: null,
+    tally: cfg.players.map(() => newTally()),
+    tallyShot: null,
     projectiles: [],
     beams: [],
     holograms: [],
@@ -220,6 +223,7 @@ export function fire(state: GameState): boolean {
   // A miss gets the round back (checked when the turn ends).
   state.refund = weapon.refundOnMiss ? { playerId: p.id, tier, hit: false } : null;
   state.lastShot = { playerId: p.id, weaponId: weapon.id };
+  tallyShot(state, p, weapon);
   fireShot(state, p, weapon as WeaponOf<ShotKind>, kind);
   sound(state, 'fire', weapon.id, p.power);
   runLegs(state);
@@ -269,6 +273,7 @@ function endTurn(state: GameState): void {
   turnEnding(currentPlayer(state));
   endScams(state);
   state.lastShot = null; // burns ticking below aren't this turn's attack
+  state.tallyShot = null;
   resolveHolograms(state);
   // Hand the turn on. Each player whose turn comes up takes their burn damage first;
   // players who are dead or out of ammo are skipped.

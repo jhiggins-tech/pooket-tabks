@@ -28,7 +28,7 @@ export function afflict(state: GameState, p: Player, tank: TankBody, weapon: Wea
   if (!p.alive) return;
   if (weapon.dot && standing) {
     // A fresh hit refreshes the burn rather than stacking it.
-    tank.burn = { damagePerTurn: scaled(state, shooterId, weapon.dot.damagePerTurn), turnsLeft: weapon.dot.turns, colour: weapon.colour ?? BURN_COLOUR };
+    tank.burn = { damagePerTurn: scaled(state, shooterId, weapon.dot.damagePerTurn), turnsLeft: weapon.dot.turns, colour: weapon.colour ?? BURN_COLOUR, by: shooterId, weaponId: weapon.id };
   }
   if (weapon.debuff) {
     p.cooked = { active: false, multiplier: weapon.debuff.offenceMultiplier };

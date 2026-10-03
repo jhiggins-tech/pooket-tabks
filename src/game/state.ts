@@ -79,6 +79,24 @@ export interface Burn {
   damagePerTurn: number;
   turnsLeft: number;
   colour: string;
+  /** Who lit it, and with what (for the stats: it ticks on the victim's own turn). -1: not known. */
+  by: number;
+  weaponId: string;
+}
+
+/** One player's numbers for the stats (game/tally.ts): kept as the match goes, never read by the simulation. */
+export interface PlayerTally {
+  /** Shots fired that can do damage, by weapon id. */
+  shots: Record<string, number>;
+  /** Of those, the ones that touched an enemy tank or decoy. */
+  hits: Record<string, number>;
+  /** Damage done to enemy tanks, by weapon id ('other' when it can't be told). */
+  dealt: Record<string, number>;
+  /** Damage taken from enemies. */
+  taken: number;
+  /** Damage done to their own tanks. */
+  self: number;
+  kills: number;
 }
 
 /** One frog hop: a little parabolic leap from (x0, y0) to (x1, y1). */
@@ -481,6 +499,10 @@ export interface GameState {
   refund: { playerId: number; tier: number; hit: boolean } | null;
   /** The shot fired this turn (not a bonus move): who fired it and what with. */
   lastShot: { playerId: number; weaponId: string } | null;
+  /** Each player's numbers for the stats, by player id (game/tally.ts). */
+  tally: PlayerTally[];
+  /** The shot in play, as the stats count it (one that can do damage), and whether it's hit anything yet. */
+  tallyShot: { playerId: number; weaponId: string; hit: boolean } | null;
   projectiles: Projectile[];
   beams: Beam[];
   holograms: Hologram[];
