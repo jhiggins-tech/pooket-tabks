@@ -9,9 +9,31 @@ The running features list and work queue. Newest shipped items first; the **Queu
    active device per seat, the last to rejoin wins; streams on `users/` need the token refreshed on expiry),
    (3) push addressed to the account (the outbox's `to` the uid, `pushSubscriptions` carrying it), so every
    signed-in phone hears. Still settled: sign-in is optional, store only the uid, no iOS Home Screen spike.
-   Owner, once step 1 is out: play-test sign-in on two real phones (the Google button itself, and the
-   in-app browsers invite links open in, can't be tested here); when it works, restrict the API key
+   Step 1 play-tested on real phones (owner, 3 Oct): works. Owner, when convenient: restrict the API key
    (referrer `https://jhiggins-tech.github.io/*`; allow Identity Toolkit API and Token Service API).
+2. **Stats viewer** (owner, 3 Oct; after the sign-in steps: verification needs matches to record who was
+   signed in). Aggregated stats from online matches (public and private; not hotseat), counted from the
+   release that adds them (nothing is recorded today; no backfill).
+   - **What's counted**: per-match counters in the game state, attributed where hits already go through
+     (`applyHit`: shooter and weapon; burns and other statuses to whoever put them on). Not gameplay, so no
+     `RULES` bump; a state fill-in in `upgradeSnapshot`. Per player: matches, wins / losses / draws, win
+     rate, shots fired, accuracy, damage dealt and taken, average damage per shot, kills, favourite
+     character. Per character and per weapon: pick rate, win rate, average damage, accuracy (balance data).
+     Overall: match length, how matches end (destroyed, out of ammo, forfeit, resigned). Accuracy: a shot
+     "hits" if it damaged an enemy or a decoy; weapons that never deal damage (moves, heals, bonus moves)
+     are left out of it.
+   - **Verified** (Google signed-in players): at the end of a match each signed-in player's phone writes
+     the result into its own `users/<uid>/…` (only that account can). A match is verified only when
+     **every** player in it was signed in and their copies of the result agree (so nobody can fake a win
+     over someone else). Matches record each seat's uid (sign-in step 2).
+   - **Players**: verified players by account (shown with their current name); everyone else grouped by
+     name and marked "unverified". No opt-out from the leaderboard.
+   - **Adding it up**: a scheduled GitHub Action (with the notifications sender, or beside it; firebase-admin)
+     reads the match summaries, checks verification and writes one small totals document the phones read.
+     Phones never download every match.
+   - **The viewer**: "📊 Stats" from the landing screen: Players (leaderboard, with a minimum number of
+     matches), Characters, Weapons, You; a **Verified only** toggle filters it all.
+   - New database paths need rules (owner re-publishes).
 
 ### Backlog (ideas, not yet scheduled)
 
