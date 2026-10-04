@@ -170,6 +170,13 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Rank-up jingles, a tune each** (owner, 4 Oct). Every rank's jingle is its own short score
+  (`src/stats/ranks.ts` `jingle`, in the notation of `src/audio/score.ts`: notes, rests, chords, slides,
+  drums), not an arpeggio moved up or down. They build up the ladder: the lowest ranks are a lone tune, then
+  a bass (triangle) joins, then drums (noise), then harmony (thin pulses); sparkle adds an echo of the tune
+  (1), the twinkle over the last note (2), and a chorused lead with a shimmer (3). Lengths grow from under
+  2 s to about 6 s. `audio/sfx.ts` `rankJingle` plays any score. Tests: every part lasts as long as the tune,
+  no two tunes open with the same shape, the parts never drop up the ladder and each tier is longer.
 - **33 ranks, 25 of them hidden** (owner, 4 Oct). The ladder grows from 8 to 33. The original eight
   (Bronze … Champion, announced in What's new) are known; **the other 25 are meant to be discovered**: they
   aren't named in the changelog, the docs or the tests, and in the game one only appears when a player holds

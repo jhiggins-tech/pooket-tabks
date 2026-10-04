@@ -188,8 +188,9 @@ table row, `afflict` (put on), `turnEnding` / `turnStarting` (its course) and wh
 `render/draw/tank.ts` and badge in `render/hud.ts`; a sound cue; tests in `tests/statuses.test.ts`.
 
 **Add a rank** (e.g. a meme one): a row in `ROWS` (`src/stats/ranks.ts`) where it goes, with a new `id`,
-colours, a shape, a sparkle level (never lower than the row before) and jingle notes (and a `line` for the
-rank-up screen). Nothing else: each rank's lowest rating is worked out from its place (Silver's band holds
+colours, a shape, a sparkle level (never lower than the row before) and a jingle (a little score in the
+notation of `audio/score.ts`: its own tune, and the same parts as its neighbours, since the ladder builds
+from a lone tune to bass, drums and harmony; sparkle adds the rest) and a `line` for the rank-up screen. Nothing else: each rank's lowest rating is worked out from its place (Silver's band holds
 the starting rating, `BAND` points each), so the ranks above move up a band and nobody's rating changes;
 the insignia and jingle come from the row. A new shape also needs its name in `InsigniaShape` and its
 drawing in `ui/insignia-shapes.ts`.

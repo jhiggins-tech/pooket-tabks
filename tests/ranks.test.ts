@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { aggregate } from '../src/stats/aggregate';
 import { BAND, elo, expected, MIN_GAIN, newRating, playRated, rankIndex, rankOf, RANKS, START_RATING } from '../src/stats/ranks';
 import { SHAPES } from '../src/ui/insignia-shapes';
+import { parseDrums, parsePart, partSteps } from '../src/audio/score';
 import { digest, playerKey, type MatchSummary } from '../src/stats/summary';
 
 describe('the ranks table', () => {
@@ -11,7 +12,7 @@ describe('the ranks table', () => {
     expect(RANKS.filter((r) => ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'master', 'grandmaster', 'champion'].includes(r.id)).map((r) => r.name)).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Champion']);
     expect(new Set(RANKS.map((r) => r.id)).size).toBe(RANKS.length);
     for (const r of RANKS) {
-      expect(r.jingle.length).toBeGreaterThan(1);
+      expect(r.jingle.lead).toBeTruthy();
       expect(r.colours).toHaveLength(2);
       expect(SHAPES[r.shape]).toBeTruthy();
     }
@@ -144,17 +145,53 @@ describe('ratings in the hourly totals', () => {
 });
 
 describe('rank-up jingles', () => {
-  it('every rank has one (built from its notes), and the sparklier ranks get more flourish', async () => {
-    const { rankJingle } = await import('../src/audio/sfx');
-    const calls = (rank: (typeof RANKS)[number]) => {
-      let n = 0;
-      const synth = { tone: () => void n++, noise: () => void n++ } as unknown as Parameters<typeof rankJingle>[0];
-      rankJingle(synth, rank);
-      return n;
+  const PARTS = ['lead', 'bass', 'harmony', 'drums'] as const;
+  const parts = (r: (typeof RANKS)[number]) => PARTS.filter((p) => r.jingle[p]).length;
+
+  it('every part reads, and lasts as long as the tune', () => {
+    for (const r of RANKS) {
+      const steps = partSteps(r.jingle.lead);
+      expect(parsePart(r.jingle.lead).some((n) => n.pitches.length)).toBe(true);
+      if (r.jingle.bass) expect([r.id, partSteps(r.jingle.bass)]).toEqual([r.id, steps]);
+      if (r.jingle.harmony) expect([r.id, partSteps(r.jingle.harmony)]).toEqual([r.id, steps]);
+      if (r.jingle.drums) expect([r.id, partSteps(r.jingle.drums), parseDrums(r.jingle.drums).length > 0]).toEqual([r.id, steps, true]);
+    }
+  });
+
+  it('every tune is its own: no two start with the same shape (the same steps and rhythm in another key)', () => {
+    const shape = (r: (typeof RANKS)[number]) => {
+      const notes = parsePart(r.jingle.lead).filter((n) => n.pitches.length).slice(0, 7);
+      return notes.slice(1).map((n, i) => `${n.pitches[0]! - notes[i]!.pitches[0]!}/${notes[i]!.len}`).join(' ');
     };
-    for (const r of RANKS) expect(calls(r)).toBeGreaterThanOrEqual(r.jingle.length + 1);
-    expect(calls(RANKS.at(-1)!)).toBeGreaterThan(calls(RANKS[0]!));
+    const seen = new Map<string, string>();
+    for (const r of RANKS) {
+      expect([r.id, seen.get(shape(r))]).toEqual([r.id, undefined]);
+      seen.set(shape(r), r.id);
+    }
+  });
+
+  it('the ladder builds: parts join as ranks climb, and the jingles get longer and fuller', async () => {
+    const { rankJingle } = await import('../src/audio/sfx');
+    const play = (rank: (typeof RANKS)[number]) => {
+      let calls = 0;
+      const synth = { tone: () => void calls++, noise: () => void calls++ } as unknown as Parameters<typeof rankJingle>[0];
+      return { secs: rankJingle(synth, rank), calls };
+    };
+    for (let i = 1; i < RANKS.length; i++) expect(parts(RANKS[i]!)).toBeGreaterThanOrEqual(parts(RANKS[i - 1]!));
+    expect(parts(RANKS[0]!)).toBe(1);
+    expect(parts(RANKS.at(-1)!)).toBe(PARTS.length);
+    // Ranks with the same parts and sparkle are a tier: each tier's jingles are longer on average.
+    const tiers = new Map<string, number[]>();
+    for (const r of RANKS) tiers.set(`${parts(r)}:${r.sparkle}`, [...(tiers.get(`${parts(r)}:${r.sparkle}`) ?? []), play(r).secs]);
+    const means = [...tiers.values()].map((t) => t.reduce((a, b) => a + b) / t.length);
+    for (let i = 1; i < means.length; i++) expect(means[i]).toBeGreaterThan(means[i - 1]!);
+    expect(play(RANKS[0]!).secs).toBeLessThan(2);
+    expect(play(RANKS.at(-1)!).secs).toBeGreaterThan(5);
+    // Sparkle adds layers to the same score.
+    const r = RANKS.find((x) => parts(x) === PARTS.length)!;
+    const bySparkle = ([0, 1, 2, 3] as const).map((sparkle) => play({ ...r, sparkle }).calls);
+    for (let i = 1; i < 4; i++) expect(bySparkle[i]).toBeGreaterThan(bySparkle[i - 1]!);
     // A rank added later (a meme one) needs nothing but its row.
-    expect(calls({ ...RANKS[0]!, id: 'meme', jingle: [40, 41, 40, 41], sparkle: 3 })).toBeGreaterThan(4);
+    expect(play({ ...RANKS[0]!, id: 'meme', jingle: { bpm: 120, voice: 'thin', lead: 'c4 d4' }, sparkle: 3 }).calls).toBeGreaterThan(4);
   });
 });
