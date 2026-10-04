@@ -7,8 +7,8 @@ import { digest, playerKey, type MatchSummary } from '../src/stats/summary';
 describe('the ranks table', () => {
   it('33 ranks, lowest first, unique ids, everyone with a look and a jingle; sparkle never drops', () => {
     expect(RANKS).toHaveLength(33);
-    expect(RANKS.slice(0, 3).map((r) => r.name)).toEqual(['Pototo', 'Rubber Duck', 'Cardboard']);
-    expect(RANKS.slice(-4).map((r) => r.name)).toEqual(['Champion', 'Supernova', 'Black Hole', 'Unobtainium']);
+    expect(RANKS.map((r) => r.id).indexOf('champion')).toBe(29); // the original eight keep their order
+    expect(RANKS.filter((r) => ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'master', 'grandmaster', 'champion'].includes(r.id)).map((r) => r.name)).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Champion']);
     expect(new Set(RANKS.map((r) => r.id)).size).toBe(RANKS.length);
     for (const r of RANKS) {
       expect(r.jingle.length).toBeGreaterThan(1);
@@ -30,17 +30,17 @@ describe('the ranks table', () => {
     expect(START_RATING).toBeLessThan(silver.min + BAND);
     for (let i = 2; i < RANKS.length; i++) expect(RANKS[i]!.min - RANKS[i - 1]!.min).toBe(BAND);
     expect(rankOf(START_RATING).name).toBe('Silver');
-    expect(rankOf(-500).name).toBe('Pototo');
+    expect(rankOf(-500)).toBe(RANKS[0]);
     expect(rankOf(silver.min - 0.1).name).toBe('Bronze');
     expect(rankOf(silver.min).name).toBe('Silver');
     expect(rankOf(RANKS.find((r) => r.id === 'champion')!.min).name).toBe('Champion');
-    expect(rankOf(99999).name).toBe('Unobtainium');
+    expect(rankOf(99999)).toBe(RANKS.at(-1));
     expect(rankIndex(rankOf(START_RATING))).toBe(10);
   });
 
   it('a few thresholds, as signed off', () => {
     const min = (id: string) => RANKS.find((r) => r.id === id)!.min;
-    expect([min('bronze'), min('silver'), min('gold'), min('platinum'), min('diamond'), min('champion'), min('unobtainium')]).toEqual([880, 960, 1040, 1360, 1760, 2480, 2720]);
+    expect([min('bronze'), min('silver'), min('gold'), min('platinum'), min('diamond'), min('champion'), RANKS.at(-1)!.min]).toEqual([880, 960, 1040, 1360, 1760, 2480, 2720]);
   });
 });
 

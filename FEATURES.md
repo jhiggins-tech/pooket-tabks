@@ -170,22 +170,18 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
-- **33 ranks** (owner, 4 Oct). The ladder grows from 8 to 33, lowest first: Pototo, Rubber Duck, Cardboard,
-  Wood, Stone, Plastic, Glass, Tin, Iron, Bronze, **Silver** (everyone starts here), Gold, Cheese, Feudal,
-  Marble, Platinum, Amethyst, Emerald, Ruby, Sapphire, Diamond, Obsidian, Titanium, Mithril, Netherite,
-  Adamantium, Plasma, Master, Grandmaster, Champion, Supernova, Black Hole, Unobtainium. Each has its own
-  insignia (29 shapes now: a potato, a log, a toy brick, a tower, a periodic-table tile, a claw trio, a
-  cheese wedge…, `ui/insignia-shapes.ts`), sparkle level (never dropping up the ladder), jingle, and
-  for most a line shown on the rank-up screen. A rank's lowest rating is worked out from its place in the
-  ladder (Silver's band, 960–1039, holds the starting 1000; Gold 1040, Platinum 1360, Diamond 1760, Champion
-  2480, Unobtainium 2720), so **a new rank is one row** in `src/stats/ranks.ts` (ranks above it move up a
-  band; ratings don't change). What a phone last showed its player is remembered by rank id (an older phone's
-  place in the first eight is read as that rank), so the longer ladder doesn't fake a rank-up.
-- **🏆 Leaderboard** (owner, 3 Oct). The first tab of 📊 Stats (it opens there; so does tapping your insignia on
-  the landing screen): verified players with a rated match, by rating (`stats/summary`'s `ratings`, names from
-  the stats rows), with their insignia and rank, rating and rated W–L–D; 🥇🥈🥉 for the top three, your row
-  highlighted, and pinned below if you're outside the top 50 (`LEADERBOARD_SIZE`). No Verified only toggle
-  there: it's verified players anyway. `ui/stats.ts`.
+- **33 ranks, 25 of them hidden** (owner, 4 Oct). The ladder grows from 8 to 33. The original eight
+  (Bronze … Champion, announced in What's new) are known; **the other 25 are meant to be discovered**: they
+  aren't named in the changelog, the docs or the tests, and in the game one only appears when a player holds
+  it (insignia show a player's own rank, so nothing lists a rank nobody has earned). Each has its own
+  insignia shape (`ui/insignia-shapes.ts`), colours, sparkle level (never dropping up the ladder), jingle and
+  mostly a line for the rank-up screen. A rank's lowest rating is worked out from its place in the ladder
+  (Silver's band, 960–1039, holds the starting 1000; Gold 1040, Platinum 1360, Diamond 1760, Champion 2480,
+  the top rank 2720), so **a new rank is one row** in `src/stats/ranks.ts` (ranks above it move up a band;
+  ratings don't change). What a phone last showed its player is remembered by rank id (an older phone's
+  place in the first eight is read as that rank), so the longer ladder doesn't fake a rank-up. Note the
+  names are in the code (the repo is public): this hides them from the game and the docs, not from anyone
+  who reads `ranks.ts`.
 - **Ranks** (owner, 3 Oct). Competitive ranks for verified players (signed in, in matches both vouched for),
   on win/loss only: an Elo rating (`src/stats/ranks.ts`: start 1000, K 32; an upset moves more) worked out
   by the hourly stats over verified matches in the order they were played, into `stats/summary`'s `ratings`.

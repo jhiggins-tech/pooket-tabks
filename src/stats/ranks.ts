@@ -10,6 +10,9 @@
  * much lower player, so ranks keep coming. The loser gives up exactly what the winner gains. A draw is
  * plain Elo.
  *
+ * Most of the ranks below are meant to be discovered, so don't name them outside this file (docs, changelog,
+ * tests): a rank shows in the game only next to a player who holds it.
+ *
  * **Adding a rank** (a meme one, say): insert a row in ROWS at its place, with an `id` never used before
  * (the insignia's CSS and everything stored go by it), colours, a shape (ui/insignia-shapes.ts, a new one
  * needs its path there), a sparkle level and jingle notes (MIDI, played quickly). Nothing else: each

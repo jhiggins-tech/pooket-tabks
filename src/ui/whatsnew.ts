@@ -18,7 +18,7 @@ export const CHANGELOG: Release[] = [
     version: 45,
     title: 'More ranks, faster',
     items: [
-      'The ladder grows to 33 ranks, from Pototo up to Unobtainium: Rubber Duck, Wood, Stone, Plastic, Iron, Cheese, Feudal, Emerald, Obsidian, Titanium, Netherite, Black Hole and more, each with its own insignia and jingle.',
+      'The ladder is longer than anyone has seen. There are ranks out there that nobody knows yet: you’ll find out what they are when somebody earns one.',
       'Climbing is quicker: a win moves you at least a third of a rank, half a rank against an equal, and an upset more. The loser gives up the same. Ranks are worked out again from everyone’s matches, so yours may have changed.',
     ],
   },

@@ -12,6 +12,10 @@ three-weapon kit (larinovsky has a fourth: a bonus move); hotseat on one phone, 
   moves it to **Shipped** (and updates the character table). Balance changes get a **Balance** entry.
 - Anything players will notice gets a release in `src/ui/whatsnew.ts` (`CHANGELOG`, newest first, version
   + 1; never edit a release that has already shipped).
+- **Hidden ranks**: 25 of the 33 ranks (everything but Bronze, Silver, Gold, Platinum, Diamond, Master,
+  Grandmaster, Champion) are meant to be *discovered*: never name them (or describe their looks) in
+  `whatsnew.ts`, FEATURES.md, README, CLAUDE.md, comments outside `src/stats/ranks.ts`, tests or commit
+  messages, until the owner says otherwise. They appear in the game only when a player holds one.
 - If `firebase/database.rules.json` changes, ask the owner to re-publish it (Firebase console → Rules).
   The code assumes the latest rules; no fallbacks for old ones.
 
