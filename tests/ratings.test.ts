@@ -16,7 +16,7 @@ const totals = (ratings: Record<string, number>, updatedAt: number) => ({
 describe('ratings on this phone', () => {
   it("anyone's rank from the totals; nobody's for a player who isn't rated (or isn't signed in)", () => {
     const r = new Ratings(null, () => 'a:me');
-    r.take(totals({ 'a:you': 1260 }, 1));
+    r.take(totals({ 'a:you': 1800 }, 1));
     expect(r.rank('a:you')?.name).toBe('Diamond');
     expect(r.rank('a:nobody')).toBeNull();
     expect(r.rank(undefined)).toBeNull();
@@ -25,13 +25,13 @@ describe('ratings on this phone', () => {
   it('after a rated match, this phone’s own rating moves at once; newer totals take over again', () => {
     let me: string | null = 'a:me';
     const r = new Ratings(null, () => me);
-    r.take(totals({ 'a:me': 1040, 'a:you': 1200 }, Date.now() - 60_000));
+    r.take(totals({ 'a:me': 1000, 'a:you': 1200 }, Date.now() - 60_000));
     let heard = 0;
     r.onChange(() => heard++);
     r.played('a:you', 1); // an upset
-    const [expected] = elo(1040, 1200, 1);
+    const [expected] = elo(1000, 1200, 1);
     expect(r.rating('a:me')).toBeCloseTo(expected, 0);
-    expect(r.rank('a:me')?.name).toBe('Gold');
+    expect(r.rank('a:me')?.name).toBe('Gold'); // from Silver: a win over a higher rank is a big move
     expect(heard).toBe(1);
     // Someone else's rating isn't touched by it.
     expect(r.rating('a:you')).toBe(1200);
@@ -57,15 +57,27 @@ describe('ratings on this phone', () => {
     expect(r.noteSeen()).toMatchObject({ up: false });
     r.take(totals({ 'a:me': 1060 }, 2));
     expect(r.noteSeen()).toMatchObject({ up: true, first: false, rank: { name: 'Gold' } });
+    expect(JSON.parse(storage.get('pooket.rankSeen')!)).toEqual({ key: 'a:me', id: 'gold' }); // remembered by id
     r.take(totals({ 'a:me': 990 }, 3));
     expect(r.noteSeen()).toMatchObject({ up: false, rank: { name: 'Silver' } });
     r.take(totals({ 'a:me': 1060 }, 4));
     expect(r.noteSeen()).toMatchObject({ up: true }); // back up: worth another moment
   });
 
+  it('an older phone that remembered a place in the first eight ranks means the rank that was there, not a place in the new ladder', () => {
+    const r = new Ratings(null, () => 'a:me');
+    storage.set('pooket.rankSeen', JSON.stringify({ key: 'a:me', index: 2 })); // Gold, in the first ladder
+    r.take(totals({ 'a:me': 1060 }, 1)); // Gold now
+    expect(r.noteSeen()).toMatchObject({ up: false, rank: { name: 'Gold' } }); // not "up" because the ladder got longer
+    storage.set('pooket.rankSeen', JSON.stringify({ key: 'a:me', index: 1 })); // it was Silver
+    expect(r.noteSeen()).toMatchObject({ up: true, rank: { name: 'Gold' } });
+    storage.set('pooket.rankSeen', JSON.stringify({ key: 'a:me', index: 40 })); // nonsense: a first look
+    expect(r.noteSeen()).toMatchObject({ first: true });
+  });
+
   it('a player ranked a while on another phone isn’t told "ranked!" on this one: just noted', () => {
     const r = new Ratings(null, () => 'a:me');
-    r.take({ updatedAt: 1, ratings: { 'a:me': { rating: 1300, matches: 12, wins: 8, losses: 4, draws: 0, peak: 1310 } } });
+    r.take({ updatedAt: 1, ratings: { 'a:me': { rating: 1800, matches: 12, wins: 8, losses: 4, draws: 0, peak: 1810 } } });
     expect(r.noteSeen()).toMatchObject({ up: false, rank: { name: 'Diamond' } });
     // A first rated match played here, though (nothing in the totals yet): that's news.
     const fresh = new Ratings(null, () => 'a:fresh');

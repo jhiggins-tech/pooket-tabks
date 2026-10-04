@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 45,
+    title: 'More ranks, faster',
+    items: [
+      'The ladder grows to 33 ranks, from Pototo up to Unobtainium: Rubber Duck, Wood, Stone, Plastic, Iron, Cheese, Feudal, Emerald, Obsidian, Titanium, Netherite, Black Hole and more, each with its own insignia and jingle.',
+      'Climbing is quicker: a win moves you at least a third of a rank, half a rank against an equal, and an upset more. The loser gives up the same. Ranks are worked out again from everyone’s matches, so yours may have changed.',
+    ],
+  },
+  {
     version: 44,
     title: '🏆 Leaderboard',
     items: ['A leaderboard of ranked players, best rating first, with medals for the top three and your own place highlighted. It’s the first tab of 📊 Stats, or tap your insignia on the first screen.'],

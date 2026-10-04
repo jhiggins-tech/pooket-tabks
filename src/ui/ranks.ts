@@ -1,7 +1,7 @@
 import { netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { StatsSummary } from '../stats/aggregate';
-import { elo, rankIndex, rankOf, START_RATING, type Rank, type Rating } from '../stats/ranks';
+import { elo, rankIndex, rankOf, RANKS, START_RATING, type Rank, type Rating } from '../stats/ranks';
 
 /**
  * Verified players' ratings, as the hourly stats last added them up (`stats/summary`), and this phone's
@@ -15,6 +15,8 @@ import { elo, rankIndex, rankOf, START_RATING, type Rank, type Rating } from '..
 
 const PROVISIONAL_KEY = 'pooket.myRating';
 const SEEN_KEY = 'pooket.rankSeen';
+/** The ranks there were when this phone remembered a rank by its place (`index`), before it remembered the id. */
+const FIRST_LADDER = ['bronze', 'silver', 'gold', 'platinum', 'diamond', 'master', 'grandmaster', 'champion'];
 
 interface Provisional {
   key: string;
@@ -101,18 +103,21 @@ export class Ratings {
     const me = this.me();
     const rank = this.rank(me);
     if (!me || !rank) return null;
-    let seen: { key?: string; index?: number } = {};
+    let seen: { key?: string; id?: string; index?: number } = {};
     try {
       seen = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as typeof seen;
     } catch {
       /* first look */
     }
-    const before = seen.key === me && typeof seen.index === 'number' ? seen.index : -1;
+    // What was last shown, by id (the ladder grows: a place in it moves). An older phone remembered a place
+    // in the first eight ranks: that's the id it meant.
+    const seenId = seen.key === me ? (seen.id ?? (typeof seen.index === 'number' ? FIRST_LADDER[seen.index] : undefined)) : undefined;
+    const before = seenId ? RANKS.findIndex((r) => r.id === seenId) : -1;
     const now = rankIndex(rank);
     const official = this.standing(me);
     const newlyRanked = !official || official.matches <= 1;
     try {
-      localStorage.setItem(SEEN_KEY, JSON.stringify({ key: me, index: now }));
+      localStorage.setItem(SEEN_KEY, JSON.stringify({ key: me, id: rank.id }));
     } catch {
       /* celebrated again next time: no harm */
     }

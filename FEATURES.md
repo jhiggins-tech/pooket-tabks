@@ -109,6 +109,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **Faster ranking** (owner, 4 Oct). A rank is a band of 80 rating points (`BAND`). A win moves K = one band
+  times how surprising it was (so a win between equals is half a rank and an upset up to nearly a whole
+  one), and never less than a third of a rank (`MIN_GAIN`), even a favourite beating a much lower player; the
+  loser gives up the same. A draw is plain Elo. (Was K 32, zero floor: about five equal wins a rank.)
+  The hourly stats re-rate everyone from every verified match, so the new rule applies to all of history:
+  ratings and ranks shift once. No `RULES` bump: it isn't in the simulation. `src/stats/ranks.ts`.
 - **ten-1 splashback reaches further** (owner play test, 2 Oct; rules 13): the range is tripled, from 4 to
   12 tank-widths (`SPLASHBACK_RANGE`, 264px between tank centres). Past that ten-1 is unchanged.
 - **ten-1 splashback** (owner, 2 Oct; rules 12). Point-blank, every drop of tones2's ten-1 landed, which
@@ -164,6 +170,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **33 ranks** (owner, 4 Oct). The ladder grows from 8 to 33, lowest first: Pototo, Rubber Duck, Cardboard,
+  Wood, Stone, Plastic, Glass, Tin, Iron, Bronze, **Silver** (everyone starts here), Gold, Cheese, Feudal,
+  Marble, Platinum, Amethyst, Emerald, Ruby, Sapphire, Diamond, Obsidian, Titanium, Mithril, Netherite,
+  Adamantium, Plasma, Master, Grandmaster, Champion, Supernova, Black Hole, Unobtainium. Each has its own
+  insignia (29 shapes now: a potato, a log, a toy brick, a tower, a periodic-table tile, a claw trio, a
+  cheese wedge…, `ui/insignia-shapes.ts`), sparkle level (never dropping up the ladder), jingle, and
+  for most a line shown on the rank-up screen. A rank's lowest rating is worked out from its place in the
+  ladder (Silver's band, 960–1039, holds the starting 1000; Gold 1040, Platinum 1360, Diamond 1760, Champion
+  2480, Unobtainium 2720), so **a new rank is one row** in `src/stats/ranks.ts` (ranks above it move up a
+  band; ratings don't change). What a phone last showed its player is remembered by rank id (an older phone's
+  place in the first eight is read as that rank), so the longer ladder doesn't fake a rank-up.
 - **🏆 Leaderboard** (owner, 3 Oct). The first tab of 📊 Stats (it opens there; so does tapping your insignia on
   the landing screen): verified players with a rated match, by rating (`stats/summary`'s `ratings`, names from
   the stats rows), with their insignia and rank, rating and rated W–L–D; 🥇🥈🥉 for the top three, your row

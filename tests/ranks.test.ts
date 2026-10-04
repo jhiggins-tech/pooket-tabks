@@ -1,44 +1,79 @@
 import { describe, expect, it } from 'vitest';
 import { aggregate } from '../src/stats/aggregate';
-import { elo, expected, K, newRating, playRated, rankIndex, rankOf, RANKS, START_RATING } from '../src/stats/ranks';
+import { BAND, elo, expected, MIN_GAIN, newRating, playRated, rankIndex, rankOf, RANKS, START_RATING } from '../src/stats/ranks';
+import { SHAPES } from '../src/ui/insignia-shapes';
 import { digest, playerKey, type MatchSummary } from '../src/stats/summary';
 
 describe('the ranks table', () => {
-  it('lowest first, ids unique, every rank with a look and a jingle; Overwatch order', () => {
-    expect(RANKS.map((r) => r.name)).toEqual(['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Champion']);
-    for (let i = 1; i < RANKS.length; i++) expect(RANKS[i]!.min).toBeGreaterThan(RANKS[i - 1]!.min);
+  it('33 ranks, lowest first, unique ids, everyone with a look and a jingle; sparkle never drops', () => {
+    expect(RANKS).toHaveLength(33);
+    expect(RANKS.slice(0, 3).map((r) => r.name)).toEqual(['Pototo', 'Rubber Duck', 'Cardboard']);
+    expect(RANKS.slice(-4).map((r) => r.name)).toEqual(['Champion', 'Supernova', 'Black Hole', 'Unobtainium']);
     expect(new Set(RANKS.map((r) => r.id)).size).toBe(RANKS.length);
     for (const r of RANKS) {
       expect(r.jingle.length).toBeGreaterThan(1);
       expect(r.colours).toHaveLength(2);
+      expect(SHAPES[r.shape]).toBeTruthy();
     }
-    // Higher ranks sparkle at least as much.
-    for (let i = 1; i < RANKS.length; i++) expect(RANKS[i]!.sparkle).toBeGreaterThanOrEqual(RANKS[i - 1]!.sparkle);
+    for (let i = 1; i < RANKS.length; i++) {
+      expect(RANKS[i]!.min).toBeGreaterThan(RANKS[i - 1]!.min);
+      expect(RANKS[i]!.sparkle).toBeGreaterThanOrEqual(RANKS[i - 1]!.sparkle);
+    }
+    expect(RANKS.filter((r) => r.start)).toHaveLength(1);
   });
 
-  it('a rating is the highest rank whose threshold it reaches; everyone starts in Silver', () => {
+  it('bands are worked out from the place in the ladder, Silver’s holding the starting rating', () => {
+    expect(RANKS[0]!.min).toBe(-Infinity);
+    const silver = RANKS.find((r) => r.id === 'silver')!;
+    expect(silver.start).toBe(true);
+    expect(silver.min).toBeLessThanOrEqual(START_RATING);
+    expect(START_RATING).toBeLessThan(silver.min + BAND);
+    for (let i = 2; i < RANKS.length; i++) expect(RANKS[i]!.min - RANKS[i - 1]!.min).toBe(BAND);
     expect(rankOf(START_RATING).name).toBe('Silver');
-    expect(rankOf(-500).name).toBe('Bronze');
-    expect(rankOf(1049.9).name).toBe('Silver');
-    expect(rankOf(1050).name).toBe('Gold');
-    expect(rankOf(99999).name).toBe('Champion');
-    expect(rankIndex(rankOf(1300))).toBe(4); // Diamond
+    expect(rankOf(-500).name).toBe('Pototo');
+    expect(rankOf(silver.min - 0.1).name).toBe('Bronze');
+    expect(rankOf(silver.min).name).toBe('Silver');
+    expect(rankOf(RANKS.find((r) => r.id === 'champion')!.min).name).toBe('Champion');
+    expect(rankOf(99999).name).toBe('Unobtainium');
+    expect(rankIndex(rankOf(START_RATING))).toBe(10);
+  });
+
+  it('a few thresholds, as signed off', () => {
+    const min = (id: string) => RANKS.find((r) => r.id === id)!.min;
+    expect([min('bronze'), min('silver'), min('gold'), min('platinum'), min('diamond'), min('champion'), min('unobtainium')]).toEqual([880, 960, 1040, 1360, 1760, 2480, 2720]);
   });
 });
 
-describe('Elo', () => {
-  it('beating an equal is worth half of K; an upset is worth more; beating someone lower, less', () => {
-    expect(elo(1000, 1000, 1)[0] - 1000).toBeCloseTo(K / 2);
-    const upset = elo(1000, 1200, 1)[0] - 1000;
-    const expectedWin = elo(1200, 1000, 1)[0] - 1200;
-    expect(upset).toBeGreaterThan(K / 2);
-    expect(expectedWin).toBeLessThan(K / 2);
-    expect(upset + expectedWin).toBeCloseTo(K);
-    // And the other way round: losing to someone lower costs more.
-    expect(1200 - elo(1200, 1000, 0)[0]).toBeCloseTo(upset);
+describe('the rating rule', () => {
+  it('a win between equals is half a band; an upset is worth more; the loser gives up the same', () => {
+    expect(elo(1000, 1000, 1)[0] - 1000).toBeCloseTo(BAND / 2);
+    const upset = elo(1000, 1240, 1)[0] - 1000;
+    expect(upset).toBeGreaterThan(BAND / 2);
+    expect(upset).toBeLessThan(BAND);
+    const [a, b] = elo(1000, 1240, 1);
+    expect(a + b).toBeCloseTo(2240); // what one gains the other loses
+    expect(1240 - b).toBeCloseTo(upset);
+    // And from the loser's side: the favourite losing to the underdog is the same move.
+    const [fav, dog] = elo(1240, 1000, 0);
+    expect(dog - 1000).toBeCloseTo(upset);
+    expect(fav).toBeCloseTo(b);
   });
 
-  it('what one gains the other loses; a draw pulls them together', () => {
+  it('a win never moves less than a third of a band, even a stomp (and a stomped loser pays it too)', () => {
+    expect(MIN_GAIN).toBeCloseTo(BAND / 3);
+    for (const gap of [150, 300, 800]) {
+      const [w, l] = elo(1000 + gap, 1000, 1);
+      expect(w - (1000 + gap)).toBeCloseTo(MIN_GAIN);
+      expect(1000 - l).toBeCloseTo(MIN_GAIN);
+    }
+    // A modest favourite: Elo's own number is above the floor, so it's used.
+    const modest = elo(1050, 1000, 1)[0] - 1050;
+    expect(modest).toBeGreaterThan(MIN_GAIN);
+    // A favourite who loses pays far more than the floor: that's the upset.
+    expect(1300 - elo(1300, 1000, 0)[0]).toBeGreaterThan(BAND * 0.8);
+  });
+
+  it('a draw is plain Elo: it pulls the ratings together, and conserves points', () => {
     const [a, b] = elo(1100, 1000, 0.5);
     expect(a + b).toBeCloseTo(2100);
     expect(a).toBeLessThan(1100);
@@ -53,8 +88,15 @@ describe('Elo', () => {
     playRated(a, b, 0);
     playRated(a, b, 0.5);
     expect(a).toMatchObject({ matches: 3, wins: 1, losses: 1, draws: 1 });
-    expect(a.peak).toBeCloseTo(START_RATING + K / 2);
+    expect(a.peak).toBeCloseTo(START_RATING + BAND / 2);
     expect(b).toMatchObject({ matches: 3, wins: 1, losses: 1, draws: 1 });
+  });
+
+  it('three equal wins in a row is a rank up, then another (rank progression is meant to be quick)', () => {
+    const a = newRating();
+    const b = newRating();
+    for (let i = 0; i < 3; i++) playRated(a, { ...b, rating: START_RATING }, 1);
+    expect(rankIndex(rankOf(a.rating))).toBeGreaterThan(rankIndex(rankOf(START_RATING)));
   });
 });
 

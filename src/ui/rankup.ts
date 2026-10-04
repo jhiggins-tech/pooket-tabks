@@ -13,6 +13,7 @@ export class RankUp {
   private readonly title = el('h2', 'rankup-title');
   private readonly name = el('p', 'rankup-name');
   private readonly note = el('p', 'rankup-note');
+  private readonly line = el('p', 'rankup-line');
 
   constructor() {
     this.root.id = 'rankup';
@@ -23,7 +24,7 @@ export class RankUp {
     ok.id = 'rankup-ok';
     ok.addEventListener('click', () => this.close());
     const card = el('div', 'rankup-card');
-    card.append(this.stage, this.title, this.name, this.note, ok);
+    card.append(this.stage, this.title, this.name, this.line, this.note, ok);
     this.root.append(card);
     document.body.append(this.root);
   }
@@ -48,6 +49,8 @@ export class RankUp {
     this.title.textContent = first ? 'RANKED!' : 'RANK UP!';
     this.name.textContent = rank.name;
     this.name.style.color = rank.colours[0];
+    this.line.textContent = rank.line ?? '';
+    this.line.hidden = !rank.line;
     this.note.textContent = rating === null ? '' : `Rating ${Math.round(rating)}`;
     this.root.hidden = false;
     // Restart the entrance animation each time.

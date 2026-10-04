@@ -912,11 +912,11 @@ test('📊 Stats: players, characters, weapons and you; Verified only shows the 
 
 test('ranks: insignia by verified players’ names in the lobby, the match and the menu; beating a higher rank ranks you up, with a celebration', async ({ browser }) => {
   test.setTimeout(150_000);
-  // Gina is high Silver; Hal is Gold.
+  // Gina is Silver (the starting rank); Hal is Gold, a little above her.
   const gina = await playerKey('uid-gina');
   const hal = await playerKey('uid-hal');
   const rating = (r: number) => ({ rating: r, matches: 5, wins: 3, losses: 2, draws: 0, peak: r });
-  const totals = { v: 1, updatedAt: Date.now() - 60_000, all: { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} }, verified: { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} }, ratings: { [gina]: rating(1045), [hal]: rating(1100) } };
+  const totals = { v: 1, updatedAt: Date.now() - 60_000, all: { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} }, verified: { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} }, ratings: { [gina]: rating(1000), [hal]: rating(1060) } };
   await fetch(`${db.url}/stats/summary.json`, { method: 'PUT', body: JSON.stringify({ m: JSON.stringify(totals), ts: Date.now() }) });
 
   const { host: a, guest: b, q, errors, close } = await phones(browser, 'ranks');
@@ -947,7 +947,7 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   }
   await a.screenshot({ path: 'test-results/ranks-hud.png' });
 
-  // Hal resigns: Gina (Silver) has beaten a Gold player, and that's enough for Gold.
+  // Hal resigns: Gina (Silver) has beaten a Gold player, and an upset like that is enough for Gold.
   await b.locator('#net-menu').tap();
   await b.locator('#menu-resign').tap();
   await b.locator('#menu-resign').tap();
@@ -959,7 +959,7 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await expect(a.locator('#winner .insignia')).toHaveCount(1);
   await a.locator('#rankup-ok').tap();
   await expect(a.locator('#rankup')).toBeHidden();
-  // Hal lost to a lower rank: down a little, still Gold, and nothing to celebrate.
+  // Hal lost to a lower rank: down to Silver, and nothing to celebrate.
   await b.waitForTimeout(2500);
   await expect(b.locator('#rankup')).toBeHidden();
   // Back at the menu, Gina's insignia is Gold now (until the hourly totals say otherwise), and it isn't celebrated twice.
@@ -975,7 +975,7 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
 
 test('🏆 Leaderboard: verified players by rating, with medals, insignia and you highlighted; your insignia opens it', async ({ browser }) => {
   const people = ['ada', 'ben', 'cy', 'ivy', 'jo'];
-  const ratingOf: Record<string, number> = { ada: 1580, ben: 1310, cy: 1180, ivy: 1090, jo: 960 };
+  const ratingOf: Record<string, number> = { ada: 2500, ben: 1800, cy: 1380, ivy: 1050, jo: 960 };
   const keys = Object.fromEntries(await Promise.all(people.map(async (p) => [p, await playerKey(`uid-${p}`)] as const)));
   const row = (p: string) => ({ key: keys[p]!, name: p[0]!.toUpperCase() + p.slice(1), verified: true, matches: 6, wins: 3, losses: 3, draws: 0, shots: 0, hits: 0, dealt: 0, taken: 0, kills: 0, characters: { kie: 6 } });
   const view = { matches: 15, turns: 90, endings: {}, players: people.map(row), characters: {}, weapons: {} };
@@ -1002,6 +1002,7 @@ test('🏆 Leaderboard: verified players by rating, with medals, insignia and yo
   await expect(rows.nth(0)).toContainText('Champion');
   await expect(rows.nth(0)).toContainText('Ada');
   await expect(rows.nth(1)).toContainText('Diamond');
+  await expect(rows.nth(2)).toContainText('Platinum');
   await expect(rows.nth(3)).toContainText('Ivy');
   await expect(rows.nth(3)).toHaveClass(/stats-me/);
   await expect(rows.nth(4)).toContainText('Jo');
@@ -1012,4 +1013,42 @@ test('🏆 Leaderboard: verified players by rating, with medals, insignia and yo
   await expect(page.locator('#stats-verified')).toBeVisible();
   expect(errors).toEqual([]);
   await close();
+});
+
+test('the rank-up screen shows every rank’s insignia, name and line, and plays its jingle', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?debug');
+  type Rank = { id: string; name: string; line?: string };
+  type Dbg = { __pooket: { RANKS: Rank[]; rankUp: { show(r: Rank, first: boolean, rating: number | null): void; close(): void } } };
+  const ranks = await page.evaluate(() => (window as unknown as Dbg).__pooket.RANKS.map((r) => ({ id: r.id, name: r.name, line: r.line })));
+  expect(ranks).toHaveLength(33);
+  for (const r of ranks) {
+    await page.evaluate((id) => {
+      const d = (window as unknown as Dbg).__pooket;
+      d.rankUp.show(d.RANKS.find((x) => x.id === id)!, false, 1234);
+    }, r.id);
+    await expect(page.locator('#rankup .rankup-name')).toHaveText(r.name);
+    await expect(page.locator(`#rankup .insignia.rank-${r.id} svg path`).first()).toBeAttached();
+    if (r.line) await expect(page.locator('#rankup .rankup-line')).toHaveText(r.line);
+    else await expect(page.locator('#rankup .rankup-line')).toBeHidden();
+  }
+  await page.screenshot({ path: 'test-results/rank-up-last.png' });
+  expect(errors).toEqual([]);
+});
+
+test('every rank’s jingle is playable by the sound player (and the shapes all draw)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?debug');
+  type Rank = { id: string; shape: string };
+  type Dbg = { __pooket: { RANKS: Rank[]; sfx: { jingle(r: Rank): void; played: number } } };
+  const played = await page.evaluate(() => {
+    const d = (window as unknown as Dbg).__pooket;
+    const before = d.sfx.played;
+    for (const r of d.RANKS) d.sfx.jingle(r);
+    return d.sfx.played - before;
+  });
+  expect(played).toBe(33);
+  expect(errors).toEqual([]);
 });

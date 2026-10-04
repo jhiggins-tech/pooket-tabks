@@ -60,6 +60,7 @@ import { MatchTape } from './app/tape';
 import { useResultsAccount } from './net/results';
 import { nameKey, PLAYER_KEY, playerKey } from './stats/summary';
 import { StatsScreen } from './ui/stats';
+import { RANKS } from './stats/ranks';
 import { Ratings } from './ui/ranks';
 import { RankUp } from './ui/rankup';
 import { GameOverButtons } from './ui/gameover';
@@ -431,7 +432,7 @@ gameOver.leave.addEventListener('click', () => {
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (params.debug) {
-  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText } });
+  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText, rankUp, RANKS } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */

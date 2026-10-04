@@ -1913,6 +1913,15 @@ body[data-online='true'] #net-menu {
   font-size: 22px;
   font-weight: 900;
 }
+.rankup-line {
+  margin: 0;
+  font-size: 14px;
+  font-style: italic;
+  opacity: 0.85;
+}
+.rankup-line[hidden] {
+  display: none;
+}
 .rankup-note {
   margin: 0 0 6px;
   font-size: 13px;
