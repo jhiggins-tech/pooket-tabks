@@ -284,7 +284,7 @@ describe("torikloud's health, and statuses on the twin", () => {
     expect([tori.hp, tori.twin!.hp]).toEqual([75, 75]);
   });
 
-  it('a Hyperfixate beam into the twin sets the twin burning, and it burns as his turns come up', () => {
+  it('a Hyperfixate beam into the twin sets the twin burning, and it burns as the next turn comes up', () => {
     const g = versusKcaj();
     const [tori, kcaj] = g.players as [GameState['players'][0], GameState['players'][0]];
     const tw = tori.twin!;

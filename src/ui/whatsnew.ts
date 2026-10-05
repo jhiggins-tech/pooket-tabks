@@ -15,6 +15,11 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 47,
+    title: 'Hyperfixate burns faster',
+    items: ['kcaj’s Hyperfixate burn now ticks at the start of every turn, yours as well as theirs: still 8 damage three times, but it’s all dealt a round sooner.'],
+  },
+  {
     version: 46,
     title: '🎺 Rank-up jingles',
     items: ['Every rank has its own rank-up tune now, and they get bigger as you climb: a lone tune at the bottom, then a bass, drums and harmony join, and the sparkliest ranks add an echo, a twinkle and a shimmer. Gold, Champion and the rest each have their own.'],

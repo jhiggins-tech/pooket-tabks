@@ -77,7 +77,7 @@ what it's for; weapons are documented where they're defined.
 - **Statuses** (`game/statuses.ts`, a table in its header): `afflict()` puts them on from a hit's weapon flags
   (`dot` → burn on the tank hit, `debuff` → cooked, `tattoo`, `pin` → pinned, on the player), `turnEnding`
   / `turnStarting` run their course from `endTurn`, and `offence` / `vulnerable` / `canMove` are what
-  they do; burns tick (as damage) in `tickBurn` as their player's turn comes up. `scam` (Women in Scam)
+  they do; burns tick (as damage) in `tickBurn` at every turn change, whoever's turn it is. `scam` (Women in Scam)
   notes the first enemy hit on the player's tanks in `hurt` and pays out a round of `lastShot`'s weapon
   at the end of the next enemy turn (a new slot on the player's own `loadout` / `ammo`, which can outgrow
   the character's).

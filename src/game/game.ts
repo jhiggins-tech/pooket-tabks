@@ -275,15 +275,17 @@ function endTurn(state: GameState): void {
   state.lastShot = null; // burns ticking below aren't this turn's attack
   state.tallyShot = null;
   resolveHolograms(state);
-  // Hand the turn on. Each player whose turn comes up takes their burn damage first;
-  // players who are dead or out of ammo are skipped.
+  // Burns tick at every turn change, whoever's turn it is: everyone burning takes their damage, round the
+  // table from the next player. Then the turn goes to the next player alive with ammo.
   const n = state.players.length;
+  for (let k = 1; k <= n; k++) {
+    const p = state.players[(state.current + k) % n]!;
+    if (p.alive) tickBurn(state, p);
+  }
   let next = -1;
   for (let k = 1; k <= n; k++) {
     const idx = (state.current + k) % n;
     const p = state.players[idx]!;
-    if (!p.alive) continue;
-    tickBurn(state, p);
     if (p.alive && hasAmmo(p)) {
       next = idx;
       break;

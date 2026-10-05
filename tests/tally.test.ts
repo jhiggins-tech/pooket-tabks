@@ -18,12 +18,12 @@ function beamed(who = 'kie', hp?: number): GameState {
   selectTier(g, 1); // Hyperfixate
   setAim(g, 0, 50);
   fire(g);
-  untilNextTurn(g); // the victim's turn comes up: the burn ticks
+  untilNextTurn(g); // the next turn comes up: the burn ticks
   return g;
 }
 
 describe('the stats tally', () => {
-  it('counts the shot and the hit, and credits the damage (the burn too, though it ticks on the victim’s turn)', () => {
+  it('counts the shot and the hit, and credits the damage (the burn too, though it ticks after the shot’s turn)', () => {
     const g = beamed();
     const [kcaj, kie] = g.tally;
     expect(kcaj!.shots).toEqual({ hyperfixate: 1 });

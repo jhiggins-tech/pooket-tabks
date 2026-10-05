@@ -295,7 +295,7 @@ function tankBody(t: TankBody): TankBody {
   return { x: t.x, y: t.y, hp: t.hp, burn: t.burn, soak: t.soak, soakColour: t.soakColour, toxin: t.toxin, toxinRate: t.toxinRate };
 }
 
-/** Burns tick as their player's turn comes up: the main tank's, then the twin's. */
+/** A player's burns tick (at every turn change, endTurn): the main tank's, then the twin's. */
 export function tickBurn(state: GameState, p: Player): void {
   const tw = p.twin;
   for (const tank of tw ? [p, tw] : [p]) {

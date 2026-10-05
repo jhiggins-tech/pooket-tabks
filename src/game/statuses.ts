@@ -11,7 +11,7 @@ import type { GameState, Player, TankBody } from './state';
  *
  * | status | weapon flag | on | lasts |
  * |---|---|---|---|
- * | burn (Hyperfixate) | `dot` | the tank hit (main or twin) | `dot.turns` of its player's turns, damage as each comes up |
+ * | burn (Hyperfixate) | `dot` | the tank hit (main or twin) | the next `dot.turns` turns, anyone's, damage as each comes up |
  * | cooked (the Rizzler) | `debuff` | the player | their next turn (everything they fire × `offenceMultiplier`) |
  * | tattoo (Tattoo Gun) | `tattoo` | the player | their next `tattoo.turns` turns (takes × `multiplier` damage) |
  * | pinned (Sew) | `pin` | the player | their next turn (no driving or hopping) |

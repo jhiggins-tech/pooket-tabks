@@ -87,7 +87,7 @@ describe('Hyperfixate', () => {
     expect(angle).toBeCloseTo(20, 0);
   });
 
-  it('a direct hit deals impact damage, then burns at the start of each of the victim’s next 3 turns', () => {
+  it('a direct hit deals impact damage, then burns at the start of each of the next 3 turns, whoever’s they are', () => {
     const g = flatGame();
     const [kcaj, tones] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
     selectTier(g, 1);
@@ -105,15 +105,20 @@ describe('Hyperfixate', () => {
       g.settleTimer = 0;
       step(g, FIXED_DT);
     };
-    const hpAtTurnStart: number[] = [];
+    const turns: [string, number][] = [];
     run(g, (s) => s.phase === 'aiming');
-    for (let turn = 0; turn < 4; turn++) {
-      expect(currentPlayer(g)).toBe(tones);
-      hpAtTurnStart.push(tones.hp);
-      passTurn(); // tones
-      passTurn(); // kcaj
+    for (let turn = 0; turn < 5; turn++) {
+      turns.push([currentPlayer(g).name, tones.hp]);
+      passTurn();
     }
-    expect(hpAtTurnStart).toEqual([MAX_HP - 23, MAX_HP - 31, MAX_HP - 39, MAX_HP - 39]);
+    // Tones's turn, kcaj's, tones's: 8 at the start of each, then it's out.
+    expect(turns).toEqual([
+      ['tones', MAX_HP - 23],
+      ['kcaj', MAX_HP - 31],
+      ['tones', MAX_HP - 39],
+      ['kcaj', MAX_HP - 39],
+      ['tones', MAX_HP - 39],
+    ]);
     expect(tones.burn).toBeNull();
   });
 

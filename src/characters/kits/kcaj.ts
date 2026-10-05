@@ -14,13 +14,13 @@ export const doublePark = {
   sprite: 'ice-cream-cone',
 } satisfies WeaponDef;
 
-/** kcaj's tier 2: a straight laser from the barrel; a direct hit keeps burning for 3 turns. */
+/** kcaj's tier 2: a straight laser from the barrel; a direct hit keeps burning for the next 3 turns (anyone's). */
 export const hyperfixate = {
   id: 'hyperfixate',
   name: 'Hyperfixate',
   shortName: 'Hyperfixate',
   info:
-    'A laser straight out of the barrel: no arc, and power doesn’t matter. It stops at the first ground in its way (no shooting through hills), so you need a clear line. A direct hit does 15, then burns for 8 at the start of the victim’s next 3 turns.',
+    'A laser straight out of the barrel: no arc, and power doesn’t matter. It stops at the first ground in its way (no shooting through hills), so you need a clear line. A direct hit does 15, then burns for 8 at the start of each of the next 3 turns, theirs and yours.',
   kind: 'beam',
   blastRadius: 7,
   damage: 15,

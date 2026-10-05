@@ -109,6 +109,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **Hyperfixate burns every turn** (owner, 5 Oct; rules 16). The burn ticks at every turn change, whoever's
+  turn it is, not only as the victim's turns come up: still 3 ticks of 8, so in a two-player match it's
+  done after victim, kcaj, victim (a round sooner). `endTurn` in `game/game.ts` ticks every burning
+  player's tanks, round the table from the next player, before picking who's next.
 - **Faster ranking** (owner, 4 Oct). A rank is a band of 80 rating points (`BAND`). A win moves K = one band
   times how surprising it was (so a win between equals is half a rank and an upset up to nearly a whole
   one), and never less than a third of a rank (`MIN_GAIN`), even a favourite beating a much lower player; the
