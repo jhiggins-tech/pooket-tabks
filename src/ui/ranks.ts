@@ -2,6 +2,7 @@ import { netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { StatsSummary } from '../stats/aggregate';
 import { elo, rankIndex, rankOf, RANKS, START_RATING, type Rank, type Rating } from '../stats/ranks';
+import { parseStats, STATS_PATH } from '../stats/store';
 
 /**
  * Verified players' ratings, as the hourly stats last added them up (`stats/summary`), and this phone's
@@ -39,8 +40,8 @@ export class Ratings {
   async load(): Promise<void> {
     if (!this.dbUrl) return;
     try {
-      const raw = await new Rtdb(this.dbUrl).get<{ m?: unknown }>('stats/summary');
-      if (typeof raw?.m === 'string') this.take(JSON.parse(raw.m) as StatsSummary);
+      const stats = parseStats(await new Rtdb(this.dbUrl).get<{ m?: unknown }>(STATS_PATH));
+      if (stats) this.take(stats);
     } catch (e) {
       netLog(`ranks: couldn't load the ratings (${e instanceof Error ? e.message : e})`);
     }

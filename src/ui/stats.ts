@@ -4,6 +4,7 @@ import { Rtdb } from '../net/rtdb';
 import type { CharacterRow, Counts, PlayerRow, StatsSummary, StatsView } from '../stats/aggregate';
 import { findWeapon } from '../weapons/registry';
 import { rankOf, type Rank } from '../stats/ranks';
+import { parseStats, STATS_PATH } from '../stats/store';
 import { insignia } from './insignia';
 import type { Ratings } from './ranks';
 import { el } from './dom';
@@ -101,9 +102,9 @@ export class StatsScreen {
       return this.render();
     }
     try {
-      const [raw, me] = await Promise.all([new Rtdb(this.opts.dbUrl).get<{ m?: unknown }>('stats/summary'), this.opts.you()]);
+      const [raw, me] = await Promise.all([new Rtdb(this.opts.dbUrl).get<{ m?: unknown }>(STATS_PATH), this.opts.you()]);
       this.me = me;
-      this.stats = typeof raw?.m === 'string' ? (JSON.parse(raw.m) as StatsSummary) : null;
+      this.stats = parseStats(raw);
       if (this.stats) this.opts.ratings?.take(this.stats);
       this.status = 'ready';
     } catch (e) {

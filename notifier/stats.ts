@@ -1,13 +1,14 @@
 /**
  * The stats sender, run on a schedule by .github/workflows/stats.yml: adds up every finished online match
- * (src/stats/aggregate.ts) and writes the totals phones read (`stats/summary`), then exits. Node runs it as
- * is (`node stats.ts`: plain TypeScript).
+ * (src/stats/aggregate.ts) and writes the totals phones read (`stats/summary`: src/stats/store.ts), then
+ * exits. Node runs it as is (`node stats.ts`: plain TypeScript).
  *
  * Needs FIREBASE_SERVICE_ACCOUNT (secret) and FIREBASE_DATABASE_URL (README, "Push notifications": the same
  * two values the push sender uses). Logs counts only: never names, accounts or anything from a match.
  */
 import { getDatabase } from 'firebase-admin/database';
 import { aggregate, type StatsInput } from '../src/stats/aggregate.ts';
+import { encodeStats, STATS_PATH } from '../src/stats/store.ts';
 import { initFirebase, readEnv } from './setup.ts';
 
 initFirebase(readEnv(['FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_DATABASE_URL']));
@@ -21,7 +22,7 @@ try {
     if (typeof user?.profile?.name === 'string') input.names[uid] = user.profile.name;
   }
   const stats = await aggregate(input);
-  await db.ref('stats/summary').set({ m: JSON.stringify(stats), ts: Date.now() });
+  await db.ref(STATS_PATH).set(encodeStats(stats, Date.now()));
   console.log(`stats: ${stats.all.matches} matches (${stats.verified.matches} verified), ${stats.all.players.length} players`);
   process.exit(0);
 } catch (e) {
