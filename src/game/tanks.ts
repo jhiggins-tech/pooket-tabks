@@ -136,19 +136,6 @@ export function nearestEnemyX(state: GameState, x: number, ownerId: number): num
   return best;
 }
 
-/**
- * Whether any living tank body (main tank or twin) passes `test`, without building a list (this runs for
- * every pixel of a drive or a jetpack flight).
- */
-export function someTankBody(state: GameState, test: (x: number, y: number, owner: Player, twin: boolean) => boolean): boolean {
-  for (const p of state.players) {
-    if (!p.alive) continue;
-    if (test(p.x, p.y, p, false)) return true;
-    if (p.twin && test(p.twin.x, p.twin.y, p, true)) return true;
-  }
-  return false;
-}
-
 /** Every living tank body on the field (real tanks and twins), for collisions and spacing. */
 export function tankBodies(state: GameState): { x: number; y: number; owner: Player; twin: boolean }[] {
   const out: { x: number; y: number; owner: Player; twin: boolean }[] = [];

@@ -3,8 +3,8 @@ import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SC
 import { sound, spawnDust, spawnFloater } from './fx';
 import type { GameState, Hop, Player } from './state';
 import { canMove } from './statuses';
-import { currentPlayer, hullRest } from './bodies';
-import { hurt, someTankBody } from './tanks';
+import { currentPlayer, hullRest, otherBodyNear } from './bodies';
+import { hurt } from './tanks';
 import { clamp, hash } from './util';
 
 /**
@@ -61,9 +61,7 @@ function driveTo(state: GameState, p: Player, nx: number, dir: number): number |
   if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) return 'other';
   // Another tank (or a decoy) we'd be driving into.
   const inTheWay = (qx: number) => Math.abs(qx - nx) < TANK_HALF_WIDTH * 2 && Math.abs(qx - nx) < Math.abs(qx - p.x);
-  const blocked =
-    someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && inTheWay(qx)) || state.holograms.some((h) => inTheWay(h.x));
-  if (blocked) return 'other';
+  if (otherBodyNear(state, p, inTheWay, { holograms: true }) !== null) return 'other';
   // Compare where the hull would rest at nx with where it rests now. A wall the hull is overlapping
   // behind it (a tank that dropped into a crater against its steep side) doesn't hold it back.
   const here = p.y;
@@ -191,8 +189,7 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
     const y1 = hullRest(terrain, x1, apex - 1);
     if (y1 < apex) continue;
     const near = (qx: number) => Math.abs(qx - x1) < TANK_HALF_WIDTH * 2;
-    const bump = someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && near(qx)) || state.holograms.some((h) => near(h.x));
-    if (bump) continue;
+    if (otherBodyNear(state, p, near, { holograms: true }) !== null) continue;
     return { x0: p.x, y0: p.y, x1, y1, t: 0 };
   }
   return null;
