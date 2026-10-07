@@ -1,19 +1,13 @@
-import { devices, expect, test, type Browser, type Page } from '@playwright/test';
+import { devices, type Browser, type Page } from '@playwright/test';
 import { startRtdb, type FakeRtdb } from '../tests/support/rtdb';
 import { aggregate } from '../src/stats/aggregate';
 import { digest, playerKey, type MatchSummary } from '../src/stats/summary';
-
-type Dbg = {
-  __pooket: {
-    state: { current: number; turn: number; phase: string; players: { name: string; hp: number; x: number; y: number; ammo: number[] }[]; terrain: { solid: Uint8Array } };
-    net: { canAct(): boolean } | null;
-  };
-};
+import { expect, test, watchErrors } from './support';
 
 /** What must match on both phones: players and terrain. */
 const summary = (page: Page) =>
   page.evaluate(() => {
-    const s = (window as unknown as Dbg).__pooket.state;
+    const s = window.__pooket.state;
     return {
       turn: s.turn,
       current: s.current,
@@ -22,7 +16,7 @@ const summary = (page: Page) =>
     };
   });
 
-const canAct = (page: Page) => page.evaluate(() => (window as unknown as Dbg).__pooket.net?.canAct() ?? false);
+const canAct = (page: Page) => page.evaluate(() => window.__pooket.net?.canAct() ?? false);
 
 /** Set this phone's name (✎ Change on the landing screen). */
 async function setName(page: Page, name: string) {
@@ -77,8 +71,7 @@ async function phones(browser: Browser, lobby: string) {
   const guestCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const host = await hostCtx.newPage();
   const guest = await guestCtx.newPage();
-  const errors: string[] = [];
-  for (const p of [host, guest]) p.on('pageerror', (e) => errors.push(e.message));
+  const errors = watchErrors([host, guest]);
   return { host, guest, q, errors, close: () => Promise.all([hostCtx.close(), guestCtx.close()]) };
 }
 
@@ -194,7 +187,7 @@ test('a third phone watches a match in progress (from the Live list), view only'
   // A third phone: the match shows as in progress; tap to watch.
   const ctx = await browser.newContext(devices['Pixel 7 landscape']);
   const fan = await ctx.newPage();
-  fan.on('pageerror', (e) => errors.push(e.message));
+  watchErrors(fan, errors);
   await fan.goto(`./?${q}`);
   await setName(fan, 'Kim');
   await fan.locator('#open-browser').tap();
@@ -277,7 +270,7 @@ test('past matches: a finished public match can be watched again, start to finis
   // A third phone ticks Past matches in the Game browser: there it is.
   const ctx = await browser.newContext(devices['Pixel 7 landscape']);
   const fan = await ctx.newPage();
-  fan.on('pageerror', (e) => errors.push(e.message));
+  watchErrors(fan, errors);
   await fan.goto(`./?${q}`);
   await fan.locator('#open-browser').tap();
   await expect(fan.locator('#online-past')).not.toBeChecked();
@@ -623,8 +616,7 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await expect(guest.locator('#online')).toBeHidden({ timeout: 20_000 });
   await expect(guest.locator('#net-away')).toContainText("It's Jack's turn, and they're not here", { timeout: 10_000 });
   await guest.screenshot({ path: 'test-results/joined-open-game.png' });
-  type Chars = { __pooket: { state: { players: { characterId: string }[] } } };
-  expect(await guest.evaluate(() => (window as unknown as Chars).__pooket.state.players.map((p) => p.characterId))).toEqual(['kie', 'larinovsky']);
+  expect(await guest.evaluate(() => window.__pooket.state.players.map((p) => p.characterId))).toEqual(['kie', 'larinovsky']);
 
   // The host comes back to its turn; with both there it's live.
   await host.goto(`./?${q}`);
@@ -750,7 +742,7 @@ test('signed in, your matches follow you: carry one on from another phone, which
   const q = `${base}&lost=1500`;
   const bCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const b = await bCtx.newPage();
-  b.on('pageerror', (e) => errors.push(e.message));
+  watchErrors(b, errors);
 
   // (An account of this test's own.) Ann, signed in on phone A, hosts; C (not signed in) joins; one turn each way.
   await a.goto(`./?${q}&fakegoogle=cara`);
@@ -805,7 +797,7 @@ test("signed in, your turn reaches every phone you're signed in on: tap it on th
   const q = `${base}&lost=1500`;
   const a2Ctx = await browser.newContext(devices['Pixel 7 landscape']);
   const a2 = await a2Ctx.newPage();
-  a2.on('pageerror', (e) => errors.push(e.message));
+  watchErrors(a2, errors);
 
   // Dee (signed in, notifications off on this phone) hosts on phone A; C joins; one turn each way.
   await a.goto(`./?${q}&fakegoogle=dee`);
@@ -959,8 +951,9 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await expect(a.locator('#winner .insignia')).toHaveCount(1);
   await a.locator('#rankup-ok').tap();
   await expect(a.locator('#rankup')).toBeHidden();
-  // Hal lost to a lower rank: down to Silver, and nothing to celebrate.
-  await b.waitForTimeout(2500);
+  // Hal lost to a lower rank: down to Silver, and nothing to celebrate (once his phone has looked at his new rank).
+  const seenRank = () => b.evaluate(() => (JSON.parse(localStorage.getItem('pooket.rankSeen') ?? '{}') as { id?: string }).id);
+  await expect.poll(seenRank, { timeout: 10_000 }).toBe('silver');
   await expect(b.locator('#rankup')).toBeHidden();
   // Back at the menu, Gina's insignia is Gold now (until the hourly totals say otherwise), and it isn't celebrated twice.
   await a.locator('#gameover-leave').tap();
@@ -1016,16 +1009,12 @@ test('🏆 Leaderboard: verified players by rating, with medals, insignia and yo
 });
 
 test('the rank-up screen shows every rank’s insignia, name and line, and plays its jingle', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?debug');
-  type Rank = { id: string; name: string; line?: string };
-  type Dbg = { __pooket: { RANKS: Rank[]; rankUp: { show(r: Rank, first: boolean, rating: number | null): void; close(): void } } };
-  const ranks = await page.evaluate(() => (window as unknown as Dbg).__pooket.RANKS.map((r) => ({ id: r.id, name: r.name, line: r.line })));
+  const ranks = await page.evaluate(() => window.__pooket.RANKS.map((r) => ({ id: r.id, name: r.name, line: r.line })));
   expect(ranks).toHaveLength(33);
   for (const r of ranks) {
     await page.evaluate((id) => {
-      const d = (window as unknown as Dbg).__pooket;
+      const d = window.__pooket;
       d.rankUp.show(d.RANKS.find((x) => x.id === id)!, false, 1234);
     }, r.id);
     await expect(page.locator('#rankup .rankup-name')).toHaveText(r.name);
@@ -1034,21 +1023,15 @@ test('the rank-up screen shows every rank’s insignia, name and line, and plays
     else await expect(page.locator('#rankup .rankup-line')).toBeHidden();
   }
   await page.screenshot({ path: 'test-results/rank-up-last.png' });
-  expect(errors).toEqual([]);
 });
 
 test('every rank’s jingle is playable by the sound player (and the shapes all draw)', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?debug');
-  type Rank = { id: string; shape: string };
-  type Dbg = { __pooket: { RANKS: Rank[]; sfx: { jingle(r: Rank): void; played: number } } };
   const played = await page.evaluate(() => {
-    const d = (window as unknown as Dbg).__pooket;
+    const d = window.__pooket;
     const before = d.sfx.played;
     for (const r of d.RANKS) d.sfx.jingle(r);
     return d.sfx.played - before;
   });
   expect(played).toBe(33);
-  expect(errors).toEqual([]);
 });

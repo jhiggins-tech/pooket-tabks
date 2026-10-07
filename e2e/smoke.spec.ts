@@ -1,9 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { expect, startHotseat, test } from './support';
 
 test('sets up players and plays a turn on a landscape phone', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-
   await page.goto('./?seed=12345&debug');
   await expect(page.locator('#rotate')).toBeHidden();
 
@@ -78,14 +75,12 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await weapons.nth(0).tap();
   await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#fire').tap();
-  type Dbg = { __pooket: { state: { projectiles: { walkDir: number }[] } } };
   await page.waitForTimeout(450);
-  expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.state.projectiles.length)).toBe(3);
+  expect(await page.evaluate(() => window.__pooket.state.projectiles.length)).toBe(3);
   await page.screenshot({ path: 'test-results/weasel-flight.png' });
-  await page.waitForFunction(() => (window as unknown as Dbg).__pooket.state.projectiles.some((p) => p.walkDir !== 0), undefined, { timeout: 10_000, polling: 16 });
+  await page.waitForFunction(() => window.__pooket.state.projectiles.some((p) => p.walkDir !== 0), undefined, { timeout: 10_000, polling: 16 });
   // Pop Goes the Weasel plays while they scurry…
-  type Tunes = { __pooket: { sfx: { tunes: { isPlaying(id: string): boolean } } } };
-  const tuneOn = () => page.evaluate(() => (window as unknown as Tunes).__pooket.sfx.tunes.isPlaying('pop-goes-the-weasel'));
+  const tuneOn = () => page.evaluate(() => window.__pooket.sfx.tunes.isPlaying('pop-goes-the-weasel'));
   await expect.poll(tuneOn).toBe(true);
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/weasel-walk.png' });
@@ -108,18 +103,12 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await page.screenshot({ path: 'test-results/double-park.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
   await expect(page.locator('.chip.active .name')).toHaveText('Jack');
-  expect(errors).toEqual([]);
 });
 
 test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
   // Three turns, the last a ~13s pill storm: ~25s here, so the default 30s is too tight on a slow runner.
   test.setTimeout(60_000);
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=4242');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('kcaj');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 4242, p1: 'kcaj' });
 
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Hyperfixate, 3 left');
@@ -149,12 +138,9 @@ test("kcaj's Hyperfixate beam and Unmedicated pill storm", async ({ page }) => {
   await page.waitForTimeout(1600);
   await page.screenshot({ path: 'test-results/unmedicated.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 30_000 });
-  expect(errors).toEqual([]);
 });
 
 test("tones' ten-1 water jet", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777');
   await expect(page.getByLabel('Player 1 character')).toHaveValue('tones');
   await page.locator('#open-hotseat').tap();
@@ -173,23 +159,15 @@ test("tones' ten-1 water jet", async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-phase', 'flying');
 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 20_000 });
-  expect(errors).toEqual([]);
 });
 
 test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   test.setTimeout(60_000); // several turns, each played out (about 30 s)
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=31&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('kie');
-  await page.getByLabel('Player 2 character').selectOption('kcaj');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 31, p1: 'kie', p2: 'kcaj', query: 'debug' });
 
-  type Debug = { state: { holograms: { id: number; x: number; y: number }[]; players: { x: number; y: number }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } };
-  const holos = () => page.evaluate(() => (window as unknown as { __pooket: Debug }).__pooket.state.holograms.map((h) => ({ ...h })));
+  const holos = () => page.evaluate(() => window.__pooket.state.holograms.map((h) => ({ ...h })));
   const kiePos = () => page.evaluate(() => {
-    const p = (window as unknown as { __pooket: Debug }).__pooket.state.players[0]!;
+    const p = window.__pooket.state.players[0]!;
     return { x: p.x, y: p.y };
   });
 
@@ -209,7 +187,7 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   const fresh = await holos();
   expect(fresh).toHaveLength(2);
   const tapWorld = async (x: number, y: number) => {
-    const at = await page.evaluate(([wx, wy]) => (window as unknown as { __pooket: Debug }).__pooket.renderer.worldToScreen(wx, wy), [x, y] as const);
+    const at = await page.evaluate(([wx, wy]) => window.__pooket.renderer.worldToScreen(wx, wy), [x, y] as const);
     await page.touchscreen.tap(at.x, at.y);
   };
   await tapWorld(fresh[1]!.x, fresh[1]!.y - 8);
@@ -223,7 +201,7 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
 
   // Turn 2: kcaj fires a laser straight up, missing everything.
   await weapons.nth(1).tap();
-  const angle = () => page.evaluate(() => (window as unknown as { __pooket: { state: { players: { angle: number }[] } } }).__pooket.state.players[1]!.angle);
+  const angle = () => page.evaluate(() => window.__pooket.state.players[1]!.angle);
   const turn = (await angle()) > 90 ? 'Rotate barrel clockwise' : 'Rotate barrel anticlockwise';
   for (let i = 0; i < 90 && (await angle()) !== 90; i++) await page.getByRole('button', { name: turn }).tap();
   await expect(page.locator('#angle')).toHaveText('90° ▴');
@@ -235,7 +213,7 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   await expect(page.locator('#hint')).toHaveText('Drag to aim · tap a decoy to swap after firing');
   const [target] = await holos();
   const screen = await page.evaluate(
-    ([x, y]) => (window as unknown as { __pooket: Debug }).__pooket.renderer.worldToScreen(x, y),
+    ([x, y]) => window.__pooket.renderer.worldToScreen(x, y),
     [target!.x, target!.y - 8] as const,
   );
   await page.touchscreen.tap(screen.x, screen.y);
@@ -246,24 +224,17 @@ test("kie's Trollogram decoys and secret swap", async ({ page }) => {
   const before = await kiePos();
   await page.locator('#fire').tap();
   // Catch the end-of-turn shimmer that hides the swap.
-  await page.waitForFunction(() => (window as unknown as { __pooket: { state: { fx: { shimmers: unknown[] } } } }).__pooket.state.fx.shimmers.length > 0, undefined, { timeout: 15_000, polling: 16 });
+  await page.waitForFunction(() => window.__pooket.state.fx.shimmers.length > 0, undefined, { timeout: 15_000, polling: 16 });
   await page.waitForTimeout(250);
   await page.screenshot({ path: 'test-results/trollogram-shimmer.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 15_000 });
   const after = await kiePos();
   expect(after.x).toBe(target!.x);
   expect((await holos()).some((h) => h.x === before.x)).toBe(true);
-  expect(errors).toEqual([]);
 });
 
 test("kie's Steal roulette", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=31&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('kie');
-  await page.getByLabel('Player 2 character').selectOption('tones');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 31, p1: 'kie', p2: 'tones', query: 'debug' });
   await page.waitForTimeout(1700); // let the turn banner fade
 
   const weapons = page.locator('#weapons .weapon');
@@ -295,19 +266,13 @@ test("kie's Steal roulette", async ({ page }) => {
   // And kie fires it.
   await page.locator('#fire').tap();
   await expect(weapons.nth(2)).toBeDisabled();
-  expect(errors).toEqual([]);
 });
 
 test("tones' ten-2 jetpack", async ({ page }) => {
   test.setTimeout(60_000);
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.locator('#start').tap();
-  type Debug = { state: { players: { x: number; y: number }[] } };
+  await startHotseat(page, { seed: 777, query: 'debug' });
   const tonesPos = () => page.evaluate(() => {
-    const p = (window as unknown as { __pooket: Debug }).__pooket.state.players[0]!;
+    const p = window.__pooket.state.players[0]!;
     return { x: p.x, y: p.y };
   });
 
@@ -318,11 +283,10 @@ test("tones' ten-2 jetpack", async ({ page }) => {
   await page.locator('#fire').tap();
   await expect(page.locator('#hint')).toHaveText(/ten-2 charging… (10|9)/);
 
-  await page.waitForTimeout(8500);
-  await expect(page.locator('#hint')).toHaveText(/ten-2 charging… [12]/);
+  await expect(page.locator('#hint')).toHaveText(/ten-2 charging… [12]$/, { timeout: 10_000 });
   await page.screenshot({ path: 'test-results/ten-2-charging.png' });
   await page.waitForFunction(() => {
-    const s = (window as unknown as { __pooket: { state: { jets: { launched: boolean }[] } } }).__pooket.state;
+    const s = window.__pooket.state;
     return s.jets[0]?.launched === true;
   }, undefined, { timeout: 5_000, polling: 16 });
   await page.waitForTimeout(380);
@@ -332,15 +296,10 @@ test("tones' ten-2 jetpack", async ({ page }) => {
   const end = await tonesPos();
   expect(Math.abs(end.x - start.x)).toBeGreaterThan(40);
   await page.screenshot({ path: 'test-results/ten-2-landed.png' });
-  expect(errors).toEqual([]);
 });
 
 test("tones' ten-3 spew", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777');
-  await page.locator('#open-hotseat').tap();
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 777 });
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'ten-3, 1 left');
   await weapons.nth(2).tap();
@@ -349,12 +308,9 @@ test("tones' ten-3 spew", async ({ page }) => {
   await page.screenshot({ path: 'test-results/ten-3.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   await expect(weapons.nth(2)).toBeEnabled(); // kie's turn now, with his own tier 3
-  expect(errors).toEqual([]);
 });
 
 test("torikloud's Sonic Boom and the kookaburra in the sky", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=777');
   await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('torikloud');
@@ -374,17 +330,11 @@ test("torikloud's Sonic Boom and the kookaburra in the sky", async ({ page }) =>
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   // larinovsky's own kit.
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'the Rizzler, 3 left');
-  expect(errors).toEqual([]);
 });
 
 test('drive with fuel before firing', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.locator('#start').tap();
-  type Dbg = { __pooket: { state: { players: { x: number; fuel: number }[] } } };
-  const me = () => page.evaluate(() => ({ ...(window as unknown as Dbg).__pooket.state.players[0]! }));
+  await startHotseat(page, { seed: 777, query: 'debug' });
+  const me = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
   const start = await me();
 
   // Hold ▶ for a second.
@@ -408,16 +358,10 @@ test('drive with fuel before firing', async ({ page }) => {
   // After firing, driving does nothing.
   await page.locator('#fire').tap();
   await expect(right).toBeDisabled();
-  expect(errors).toEqual([]);
 });
 
 test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('larinovsky');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 777, p1: 'larinovsky', query: 'debug' });
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Pill Pusher, 5 left');
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'the Rizzler, 3 left');
@@ -429,11 +373,10 @@ test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) =>
   await weapons.nth(0).tap();
   await page.locator('#fire').tap();
   // A close-up of the pills in flight: four different ones.
-  type PillDbg = { __pooket: { state: { projectiles: { x: number; y: number; variant?: number }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
-  await page.waitForFunction(() => (window as unknown as PillDbg).__pooket.state.projectiles.length === 4, undefined, { timeout: 5_000, polling: 16 });
+  await page.waitForFunction(() => window.__pooket.state.projectiles.length === 4, undefined, { timeout: 5_000, polling: 16 });
   await page.waitForTimeout(260);
   const pills = await page.evaluate(() => {
-    const d = (window as unknown as PillDbg).__pooket;
+    const d = window.__pooket;
     return d.state.projectiles.map((p) => ({ ...d.renderer.worldToScreen(p.x, p.y), variant: p.variant }));
   });
   expect(new Set(pills.map((p) => p.variant))).toEqual(new Set([0, 1, 2, 3]));
@@ -446,41 +389,27 @@ test("larinovsky's Pill Pusher, the Rizzler and Take a Nap", async ({ page }) =>
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'test-results/pill-pusher.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
-  expect(errors).toEqual([]);
 });
 
 test("larinovsky's Take a Nap: cats curl up alongside, and the weapons come back restocked", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('larinovsky');
-  await page.locator('#start').tap();
-  type NapDbg = { __pooket: { state: { naps: unknown[]; players: { x: number; y: number; ammo: number[] }[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
-  await page.evaluate(() => ((window as unknown as NapDbg).__pooket.state.players[0]!.ammo = [1, 0, 1, 1]));
+  await startHotseat(page, { seed: 777, p1: 'larinovsky', query: 'debug' });
+  await page.evaluate(() => (window.__pooket.state.players[0]!.ammo = [1, 0, 1, 1]));
   await page.locator('#weapons .weapon').nth(2).tap();
   await page.locator('#fire').tap();
-  await page.waitForFunction(() => (window as unknown as NapDbg).__pooket.state.naps.length === 1);
+  await page.waitForFunction(() => window.__pooket.state.naps.length === 1);
   await page.waitForTimeout(900);
   const at = await page.evaluate(() => {
-    const d = (window as unknown as NapDbg).__pooket;
+    const d = window.__pooket;
     const p = d.state.players[0]!;
     return d.renderer.worldToScreen(p.x, p.y);
   });
   await page.screenshot({ path: 'test-results/take-a-nap-cats.png', clip: { x: at.x - 90, y: at.y - 70, width: 180, height: 100 } });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
-  expect(await page.evaluate(() => (window as unknown as NapDbg).__pooket.state.players[0]!.ammo)).toEqual([5, 3, 0, 1]);
-  expect(errors).toEqual([]);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo)).toEqual([5, 3, 0, 1]);
 });
 
 test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as a weapon", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('larinovsky');
-  await page.getByLabel('Player 2 character').selectOption('kcaj');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 777, p1: 'larinovsky', p2: 'kcaj', query: 'debug' });
   const weapons = page.locator('#weapons .weapon');
   await weapons.nth(3).tap();
   await expect(page.locator('#hint')).toHaveText('Bonus move: FIRE it, then take your turn');
@@ -490,14 +419,13 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   await expect(weapons.nth(3)).toBeDisabled();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '1');
   await expect(page.locator('#players .scam')).toHaveCount(1);
-  type ScamDbg = { __pooket: { state: { phase: string; players: { angle: number; power: number; scam: { loot: string | null } | null }[] } } };
   const upAndAway = (i: number) =>
-    page.evaluate((i) => Object.assign((window as unknown as ScamDbg).__pooket.state.players[i]!, { angle: 90, power: 5 }), i);
+    page.evaluate((i) => Object.assign(window.__pooket.state.players[i]!, { angle: 90, power: 5 }), i);
   await upAndAway(0);
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
   // kcaj's turn: say their shot hits larinovsky (the hit itself is covered by the unit tests).
-  await page.evaluate(() => ((window as unknown as ScamDbg).__pooket.state.players[0]!.scam!.loot = 'double-park'));
+  await page.evaluate(() => (window.__pooket.state.players[0]!.scam!.loot = 'double-park'));
   await upAndAway(1);
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
@@ -507,18 +435,11 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   await page.screenshot({ path: 'test-results/women-in-scam.png' });
   await weapons.nth(4).tap();
   await expect(weapons.nth(4)).toHaveAttribute('aria-pressed', 'true');
-  expect(errors).toEqual([]);
 });
 
 test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('garyoldmancorp');
-  await page.locator('#start').tap();
-  type Dbg = { __pooket: { state: { players: { x: number; hp: number; maxHp: number; fuel: number; scooterCrash: number }[]; fx: { floaters: { text: string }[] } } } };
-  const me = () => page.evaluate(() => ({ ...(window as unknown as Dbg).__pooket.state.players[0]! }));
+  await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', query: 'debug' });
+  const me = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
   const start = await me();
   const right = page.getByRole('button', { name: 'Drive right' });
   const box = (await right.boundingBox())!;
@@ -532,7 +453,7 @@ test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash"
   expect(after.fuel).toBeLessThan(start.fuel);
   // A wall right ahead: the next push is a crash.
   await page.evaluate(() => {
-    const s = (window as unknown as { __pooket: { state: { players: { x: number; y: number }[]; terrain: { width: number; height: number; addDirt: (x: number, y: number, r: number, c: number[]) => void } } } }).__pooket.state;
+    const s = window.__pooket.state;
     const p = s.players[0]!;
     for (let y = p.y; y > p.y - 60; y -= 4) s.terrain.addDirt(p.x + 22, y, 5, [120, 90, 60]);
   });
@@ -543,25 +464,15 @@ test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash"
   expect(crashed.hp).toBe(crashed.maxHp - 5);
   expect(crashed.scooterCrash).toBe(1);
   await page.screenshot({ path: 'test-results/scooter-crash.png' });
-  expect(errors).toEqual([]);
 });
 
 test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
   test.setTimeout(60_000);
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('garyoldmancorp');
-  await page.getByLabel('Player 2 character').selectOption('kcaj');
-  await page.locator('#start').tap();
-  type CoffeeDbg = {
-    __pooket: { state: { current: number; phase: string; rng: (() => number) & { state: number }; players: { angle: number; power: number; y: number; extraTurn: boolean }[] } };
-  };
+  await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
   // The spinner's two draws (whether it fails, where it stops): `v`, then the game's own RNG again.
   const rig = (v: number) =>
     page.evaluate((v) => {
-      const s = (window as unknown as CoffeeDbg).__pooket.state;
+      const s = window.__pooket.state;
       const real = s.rng;
       let left = 2;
       s.rng = Object.assign(() => (left-- > 0 ? v : real()), { state: real.state });
@@ -590,55 +501,47 @@ test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpack
   await expect(coffee.locator('.pips')).toHaveText('had one');
   await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
   // Fire a shot: kcaj's turn is skipped.
-  await page.evaluate(() => Object.assign((window as unknown as CoffeeDbg).__pooket.state.players[0]!, { angle: 90, power: 5 }));
+  await page.evaluate(() => Object.assign(window.__pooket.state.players[0]!, { angle: 90, power: 5 }));
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
-  expect(await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.current)).toBe(0);
+  expect(await page.evaluate(() => window.__pooket.state.current)).toBe(0);
   await expect(page.locator('#turn-banner')).toHaveText("garyoldmancorp's turn");
   await expect(coffee).toHaveAttribute('aria-label', 'Diced Coffee, bonus move: 20% chance of full cream');
 
   // Full cream: a little jetpack straight up, the turn is over, and Diced Coffee is spilt for good.
   await coffee.tap();
   await rig(0);
-  const ground = await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.players[0]!.y);
+  const ground = await page.evaluate(() => window.__pooket.state.players[0]!.y);
   await page.locator('#fire').tap();
   await expect(page.locator('.coffee-result')).toHaveText('Full cream… 🥛 turn over', { timeout: 5_000 });
-  await expect.poll(() => page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.players[0]!.y), { timeout: 5_000 }).toBeLessThan(ground - 40);
+  await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.y), { timeout: 5_000 }).toBeLessThan(ground - 40);
   await page.screenshot({ path: 'test-results/diced-coffee-spill.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 10_000 });
-  expect(await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.current)).toBe(1);
+  expect(await page.evaluate(() => window.__pooket.state.current)).toBe(1);
   await expect(page.locator('#turn-banner')).toHaveText("kcaj's turn");
   // Back to gary: a shot selected, the coffee greyed out.
-  await page.evaluate(() => Object.assign((window as unknown as CoffeeDbg).__pooket.state.players[1]!, { angle: 90, power: 5 }));
+  await page.evaluate(() => Object.assign(window.__pooket.state.players[1]!, { angle: 90, power: 5 }));
   await page.locator('#fire').tap();
   await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 15_000 });
   await expect(coffee).toBeDisabled();
   await expect(coffee.locator('.pips')).toHaveText('spilt');
   await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
-  expect(errors).toEqual([]);
 });
 
 test("torikloud's Twins and Debate", async ({ page }) => {
   test.setTimeout(60_000);
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('torikloud');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 777, p1: 'torikloud', query: 'debug' });
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Debate, 5 left');
   await expect(weapons.nth(2)).toHaveAttribute('aria-label', 'Twins, 1 left');
-  type Tori = { x: number; angle: number; power: number; twinSpot: number | null; twin: { x: number; angle: number; power: number } | null };
-  type Dbg = { __pooket: { state: { players: Tori[] }; renderer: { worldToScreen(x: number, y: number): { x: number; y: number } } } };
-  const tori = () => page.evaluate(() => (window as unknown as Dbg).__pooket.state.players[0]!);
+  const tori = () => page.evaluate(() => window.__pooket.state.players[0]!);
 
   // Twins: a ghost at a suggested spot; tap the ground to put the twin somewhere else, then FIRE.
   await weapons.nth(2).tap();
   await expect(page.locator('#hint')).toHaveText('Tap the ground to place your twin, then FIRE');
   const start = await tori();
   const target = start.x + 160;
-  const at = await page.evaluate((x) => (window as unknown as Dbg).__pooket.renderer.worldToScreen(x, 300), target);
+  const at = await page.evaluate((x) => window.__pooket.renderer.worldToScreen(x, 300), target);
   await page.mouse.click(at.x, at.y);
   await expect.poll(async () => (await tori()).twinSpot, { timeout: 5_000 }).toBeCloseTo(target, -1);
   await page.screenshot({ path: 'test-results/twin-placing.png' });
@@ -653,16 +556,15 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 15_000 });
 
   // Twins spent: its button is Yolk Sucker, greyed out while the two tanks' health is even.
-  type Hp = { hp: number; twin: { hp: number } | null };
   const hp = () => page.evaluate(() => {
-    const p = (window as unknown as { __pooket: { state: { players: Hp[] } } }).__pooket.state.players[0]!;
+    const p = window.__pooket.state.players[0]!;
     return [p.hp, p.twin!.hp];
   });
   await expect(weapons.nth(2)).toContainText('Yolk Sucker');
   await expect(weapons.nth(2)).toBeDisabled();
   // The twin takes a beating (as if hit): now there's yolk to share.
   await page.evaluate(() => {
-    const p = (window as unknown as { __pooket: { state: { players: Hp[] } } }).__pooket.state.players[0]!;
+    const p = window.__pooket.state.players[0]!;
     p.twin!.hp = 21;
   });
   await expect(weapons.nth(2)).toBeEnabled();
@@ -693,16 +595,10 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   await page.waitForTimeout(700);
   await page.screenshot({ path: 'test-results/debate-twins.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 20_000 });
-  expect(errors).toEqual([]);
 });
 
 test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('./?seed=777&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('ciarra');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 777, p1: 'ciarra', query: 'debug' });
   const weapons = page.locator('#weapons .weapon');
   await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Tattoo Gun, 5 left');
   await expect(weapons.nth(1)).toHaveAttribute('aria-label', 'Sew, 3 left');
@@ -710,8 +606,7 @@ test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
   await expect(page.locator('.fuel small')).toHaveText('HOPS');
 
   // Hold ▶: she hops along.
-  type Dbg = { __pooket: { state: { players: { x: number }[] } } };
-  const x0 = await page.evaluate(() => (window as unknown as Dbg).__pooket.state.players[0]!.x);
+  const x0 = await page.evaluate(() => window.__pooket.state.players[0]!.x);
   const right = page.getByRole('button', { name: 'Drive right' });
   const box = (await right.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -720,8 +615,8 @@ test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
   await page.screenshot({ path: 'test-results/frog-hop.png' });
   await page.waitForTimeout(600);
   await page.mouse.up();
-  await page.waitForTimeout(400);
-  expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.state.players[0]!.x)).toBeGreaterThan(x0 + 20);
+  await page.waitForFunction(() => window.__pooket.state.players[0]!.hop === null, undefined, { timeout: 5_000 }); // landed
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.x)).toBeGreaterThan(x0 + 20);
 
   // Sew.
   await weapons.nth(1).tap();
@@ -729,12 +624,9 @@ test("ciarra's frog hops, Tattoo Gun, Sew and Marathon", async ({ page }) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: 'test-results/sew.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
-  expect(errors).toEqual([]);
 });
 
 test('info screen explains every character and weapon', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?seed=4242&debug');
   await page.locator('#open-hotseat').tap();
   await page.getByLabel('Player 1 character').selectOption('ciarra');
@@ -759,8 +651,7 @@ test('info screen explains every character and weapon', async ({ page }) => {
   await page.locator('#info-open').tap();
   await expect(page.locator('.info-character h2')).toHaveText('ciarra');
   await page.screenshot({ path: 'test-results/info-ciarra.png' });
-  type Dbg = { __pooket: { state: { projectiles: { x: number; y: number }[] } } };
-  const shots = () => page.evaluate(() => JSON.stringify((window as unknown as Dbg).__pooket.state.projectiles.map((p) => [p.x, p.y])));
+  const shots = () => page.evaluate(() => JSON.stringify(window.__pooket.state.projectiles.map((p) => [p.x, p.y])));
   const frozen = await shots();
   expect(frozen).not.toBe('[]');
   await page.waitForTimeout(400);
@@ -775,12 +666,9 @@ test('info screen explains every character and weapon', async ({ page }) => {
   await page.locator('#info-close').tap();
   await expect(info).toBeHidden();
   await expect.poll(shots).not.toBe(frozen); // and carries on once it's closed
-  expect(errors).toEqual([]);
 });
 
 test('upcoming characters: in the pickers and the info screen with a Coming soon banner, not playable', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('./?debug');
   await page.locator('#open-hotseat').tap();
   const p2 = page.getByLabel('Player 2 character');
@@ -817,38 +705,30 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Mortar', 'Beta Bomb', 'Diced Coffee']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
-  expect(errors).toEqual([]);
 });
 
 test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  type Dbg = { __pooket: { sfx: { played: number }; chip: { ready: boolean } } };
-  await page.goto('./?seed=77&debug');
-  await page.locator('#open-hotseat').tap();
-  await page.getByLabel('Player 1 character').selectOption('kcaj');
-  await page.locator('#start').tap();
+  await startHotseat(page, { seed: 77, p1: 'kcaj', query: 'debug' });
   const toggle = page.locator('#sound-toggle');
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   // The first tap unlocked audio.
-  await expect.poll(() => page.evaluate(() => (window as unknown as Dbg).__pooket.chip.ready)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__pooket.chip.ready)).toBe(true);
 
   // kcaj's Unmedicated: the jingle, a pill storm of pops and the damage oofs, all without errors.
   await page.locator('#weapons .weapon').nth(2).tap();
   await page.locator('#fire').tap();
-  await expect.poll(() => page.evaluate(() => (window as unknown as Dbg).__pooket.sfx.played), { timeout: 10_000 }).toBeGreaterThan(3);
+  await expect.poll(() => page.evaluate(() => window.__pooket.sfx.played), { timeout: 10_000 }).toBeGreaterThan(3);
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 20_000 });
 
   // Mute, and it stays muted next visit.
   await toggle.tap();
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).toHaveText('🔇');
-  expect(await page.evaluate(() => (window as unknown as Dbg).__pooket.chip.ready)).toBe(false);
+  expect(await page.evaluate(() => window.__pooket.chip.ready)).toBe(false);
   await page.reload();
   await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
   await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'false');
-  expect(errors).toEqual([]);
 });
 
 test('remembers the last setup', async ({ page }) => {
@@ -947,9 +827,7 @@ test("what's new shows once per version, and can be reopened from setup", async 
 test('who goes first is random, picked from the seed', async ({ page }) => {
   // Seed 12345 picks player 2, seed 12347 player 1.
   for (const [seed, starts] of [[12345, 'kie'], [12347, 'tones2']] as const) {
-    await page.goto(`./?seed=${seed}&first=random`);
-    await page.locator('#open-hotseat').tap();
-    await page.locator('#start').tap();
+    await startHotseat(page, { seed, query: 'first=random' });
     await expect(page.locator('.chip.active .name')).toHaveText(starts);
   }
 });
