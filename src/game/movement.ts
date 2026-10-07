@@ -1,5 +1,5 @@
 import { getCharacter } from '../characters/roster';
-import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust, spawnFloater } from './fx';
 import type { GameState, Hop, Player } from './state';
 import { canMove } from './statuses';
@@ -120,19 +120,6 @@ function shortClimb(state: GameState, x: number, dir: number, here: number): boo
   }
   return true;
 }
-
-/**
- * How far one frog hop goes, how high it jumps (well over the DRIVE_SCRAMBLE a driving tank manages), and
- * how long it takes.
- */
-export const HOP_DISTANCE = 44;
-
-export const HOP_HEIGHT = 64;
-
-export const HOP_TIME = 0.5;
-
-/** Fuel per px hopped: frogs go twice as far as a tank on the same fuel. */
-export const HOP_FUEL = 0.5;
 
 /**
  * Hop movement: while ◀ / ▶ is held the tank makes big frog leaps, each spending HOP_FUEL per px. A hop

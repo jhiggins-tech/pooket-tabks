@@ -5,6 +5,11 @@ import { KITS } from './kits';
 /** Rounds per tier at the start of a match: tier 1, tier 2, tier 3 (and a bonus move, for those who have one). */
 export const AMMO_PER_TIER = [5, 3, 1, 1] as const;
 
+/** A full stock of tier `tier` (a match's start, Take a Nap's restock). Every kit has 3 or 4 tiers (roster tests). */
+export function fullAmmo(tier: number): number {
+  return AMMO_PER_TIER[tier] ?? 1;
+}
+
 export type { CharacterDef, Loadout } from './kit';
 
 /** The selectable characters, in setup-screen order (each defined with their weapons in ./kits/). */

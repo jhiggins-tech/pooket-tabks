@@ -1,4 +1,4 @@
-import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
+import { fullAmmo, getCharacter } from '../characters/roster';
 import { createRng, randRange } from '../core/rng';
 import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
@@ -31,7 +31,8 @@ export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, 
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
-export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, drive } from './movement';
+export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, WALKER_BODY } from './constants';
+export { drive } from './movement';
 export { traceBeam, volleyOffsets } from './projectiles';
 export { stitchPoint } from './sew';
 export { PHASE_FOCUS, PHASE_RANGE, boomPhaseArcs, boomRadii } from './sonic';
@@ -40,7 +41,6 @@ export { streamDuration, streamPressure } from './stream';
 export type { Target } from './tanks';
 export { currentPlayer, damagePlayer, explode, muzzle, offence, tankCentre, targetAt, targetPos } from './tanks';
 export { normalizeAngle } from './util';
-export { WALKER_BODY } from './walkers';
 
 export interface GameConfig {
   seed: number;
@@ -93,7 +93,7 @@ export function createGame(cfg: GameConfig): GameState {
       alive: true,
       characterId: character.id,
       loadout: [...character.loadout],
-      ammo: character.loadout.map((_, tier) => AMMO_PER_TIER[tier] ?? 1),
+      ammo: character.loadout.map((_, tier) => fullAmmo(tier)),
       selectedTier: 0,
       cooked: null,
       tattoo: null,

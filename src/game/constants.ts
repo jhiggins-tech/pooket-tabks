@@ -13,6 +13,8 @@ export const TANK_HIT_RADIUS = 11;
 /** A Marathon runner's body, for shots: a circle this high above its feet, this big (she's ~14px tall). */
 export const RUNNER_BODY = 7;
 export const RUNNER_HIT_RADIUS = 7;
+/** How high a walker's body (kie's Weasel Pop) sits above its feet, for hit-testing and drawing. */
+export const WALKER_BODY = 7;
 export const BARREL_LENGTH = 18;
 
 /** A tank's starting (and full) health, unless its character says otherwise (`CharacterDef.maxHp`). */
@@ -28,6 +30,15 @@ export const SCOOTER_SPEED = DRIVE_SPEED * 4;
 export const SCOOTER_FUEL = 1 / 3;
 /** What a scooter crash costs its rider (never the last of their health). */
 export const SCOOTER_CRASH = 5;
+/**
+ * ciarra's frog hops: how far one hop goes, how high it jumps (well over the DRIVE_SCRAMBLE a driving tank
+ * manages), and how long it takes.
+ */
+export const HOP_DISTANCE = 44;
+export const HOP_HEIGHT = 64;
+export const HOP_TIME = 0.5;
+/** Fuel per px hopped: frogs go twice as far as a tank on the same fuel. */
+export const HOP_FUEL = 0.5;
 /** Highest lip or bump a driving tank rolls over in one go. */
 export const DRIVE_CLIMB = 7;
 /**

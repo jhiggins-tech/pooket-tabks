@@ -1,4 +1,4 @@
-import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
+import { fullAmmo, getCharacter } from '../characters/roster';
 import { getWeapon, isBonus, weaponOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { sound, spawnFloater } from './fx';
@@ -41,7 +41,7 @@ function restock(p: Player, napId: string): boolean {
   const loadout = getCharacter(p.characterId).loadout;
   let changed = false;
   loadout.forEach((id, tier) => {
-    const full = AMMO_PER_TIER[tier] ?? 0;
+    const full = fullAmmo(tier);
     if (id === napId || isBonus(getWeapon(id)) || (p.ammo[tier] ?? 0) >= full) return;
     p.ammo[tier] = full;
     changed = true;
