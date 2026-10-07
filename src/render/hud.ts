@@ -8,6 +8,7 @@ import type { Rank } from '../stats/ranks';
 import { byId, el, query } from '../ui/dom';
 import type { GameOverCard } from '../ui/gameover';
 import { insignia } from '../ui/insignia';
+import { badgeKey, badgesOf } from '../ui/status-looks';
 import type { GameState, Player } from '../game/state';
 
 /**
@@ -193,7 +194,7 @@ export class Hud {
       const bk = badgeKey(pl);
       if (bk !== chip.badgeKey) {
         chip.badgeKey = bk;
-        chip.badges.replaceChildren(...badgesOf(pl));
+        chip.badges.replaceChildren(...badgeSpans(pl));
       }
     });
   }
@@ -366,45 +367,14 @@ export function angleLabel(angle: number): string {
   return `◂ ${fmt(180 - a)}`;
 }
 
-/**
- * The badges by a player's name, one per status they have (game/statuses.ts), in this order: what shows,
- * its tooltip, and its class (style.css).
- */
-const BADGES: { cls: string; of: (pl: Player) => { text: string; title: string; colour?: string }[] }[] = [
-  { cls: 'tattoo', of: (pl) => (pl.tattoo ? [{ text: ' ✒', title: 'Tattooed: takes extra damage' }] : []) },
-  { cls: 'scam', of: (pl) => (pl.scam ? [{ text: ' 💅', title: 'Women in Scam: an enemy hit this turn earns a round of it' }] : []) },
-  { cls: 'pinned', of: (pl) => (pl.pinned ? [{ text: ' 📌', title: 'Pinned: can’t move next turn' }] : []) },
-  { cls: 'again', of: (pl) => (pl.extraTurn ? [{ text: ' ☕', title: 'Diced Coffee: goes again after this turn' }] : []) },
-  {
-    cls: 'cooked',
-    of: (pl) => (pl.cooked ? [{ text: ' 🍳', title: pl.cooked.active ? 'Cooked: half damage this turn' : 'Cooked: half damage next turn' }] : []),
-  },
-  {
-    // One mark per burning tank (the main tank, the twin, or both).
-    cls: 'burn',
-    of: (pl) =>
-      [pl.burn, pl.twin?.burn].flatMap((b) =>
-        b ? [{ text: ` ✦${b.turnsLeft}`, title: `Burning: ${b.damagePerTurn} damage for ${b.turnsLeft} more turns`, colour: b.colour }] : [],
-      ),
-  },
-];
-
-/** What a player's badges show (for telling when they've changed), without building them. */
-function badgeKey(pl: Player): string {
-  if (!pl.alive) return '';
-  return `${pl.tattoo ? 't' : ''}${pl.scam ? 's' : ''}${pl.pinned ? 'p' : ''}${pl.extraTurn ? 'x' : ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}${pl.burn?.turnsLeft ?? ''}/${pl.twin?.burn?.turnsLeft ?? ''}`;
-}
-
-function badgesOf(pl: Player): HTMLElement[] {
-  if (!pl.alive) return [];
-  return BADGES.flatMap((b) =>
-    b.of(pl).map((x) => {
-      const span = el('span', b.cls, x.text);
-      span.title = x.title;
-      if (x.colour) span.style.color = x.colour;
-      return span;
-    }),
-  );
+/** A player's status badges (ui/status-looks.ts), as the spans by their name. */
+function badgeSpans(pl: Player): HTMLElement[] {
+  return badgesOf(pl).map((b) => {
+    const span = el('span', b.cls, b.text);
+    span.title = b.title;
+    if (b.colour) span.style.color = b.colour;
+    return span;
+  });
 }
 
 /** Rounds left as pips: ●●○ */

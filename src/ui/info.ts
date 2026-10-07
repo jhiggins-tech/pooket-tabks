@@ -1,10 +1,11 @@
-import { fullAmmo, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
+import { AMMO_PER_TIER, fullAmmo, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
 import { upcoming, UPCOMING, type Upcoming } from '../characters/upcoming';
 import { kindRow } from '../weapons/kinds';
-import { getWeapon, ignoresAim, kindOf } from '../weapons/registry';
+import { getWeapon, ignoresAim, isBonus, kindOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from '../game/constants';
 import { closeButton, dialog, el, tabBar } from './dom';
+import { statusInfo } from './status-looks';
 
 const BASICS = 'basics';
 
@@ -28,21 +29,23 @@ export function weaponTags(w: WeaponDef, tier: number): string[] {
   return [`Tier ${tier + 1}`, `${rounds} round${rounds === 1 ? '' : 's'}`, ignoresAim(w) ? 'No aiming' : 'Aimed'];
 }
 
-const CONTROLS: [string, string][] = [
-  ['Aim', 'Drag anywhere and pull back like a slingshot: the direction is your shot, the pull length is power. Fine-tune with ↺ ↻ and − +.'],
-  ['Weapons', 'Pick a tier on the right. Each character has 5 / 3 / 1 rounds of their tier 1 / 2 / 3 weapon (larinovsky and garyoldmancorp also have a bonus move).'],
-  ['Move', 'Hold ◀ ▶ before you fire. The fuel is one tank for the whole match, so spend it wisely.'],
-  ['Fire', 'FIRE ends your turn (except a bonus move). Last tank standing wins; if everyone runs out of ammo, most HP wins.'],
-];
+/** The characters with a bonus move as well as their three weapons, by name: "a and b" (or "a, b and c"). */
+function bonusCharacters(): string {
+  const names = ROSTER.filter((c) => c.loadout.slice(3).some((id) => isBonus(getWeapon(id)))).map((c) => c.name);
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? '');
+}
 
-const STATUSES: [string, string][] = [
-  ['✦', 'Burning (Hyperfixate): takes damage at the start of each of the next 3 turns, anyone’s.'],
-  ['🍳', 'Cooked (the Rizzler): everything they fire next turn does half damage.'],
-  ['✒', 'Tattooed (Tattoo Gun): takes +25% damage from everything for 2 turns.'],
-  ['📌', 'Pinned (Sew): can’t move on their next turn.'],
-  ['💅', 'Scamming (Women in Scam): an enemy attack that hits them this coming turn earns them a round of it.'],
-  ['☕', 'Caffeinated (Diced Coffee): goes again after this turn; the enemy’s next turn is skipped.'],
-];
+/** How to play: the controls (the rounds per tier from the roster). */
+function controls(): [string, string][] {
+  const tiers = AMMO_PER_TIER.slice(0, 3);
+  const bonus = bonusCharacters();
+  return [
+    ['Aim', 'Drag anywhere and pull back like a slingshot: the direction is your shot, the pull length is power. Fine-tune with ↺ ↻ and − +.'],
+    ['Weapons', `Pick a tier on the right. Each character has ${tiers.join(' / ')} rounds of their tier ${tiers.map((_, i) => i + 1).join(' / ')} weapon${bonus ? ` (${bonus} also have a bonus move)` : ''}.`],
+    ['Move', 'Hold ◀ ▶ before you fire. The fuel is one tank for the whole match, so spend it wisely.'],
+    ['Fire', 'FIRE ends your turn (except a bonus move). Last tank standing wins; if everyone runs out of ammo, most HP wins.'],
+  ];
+}
 
 /** The in-game info screen: how to play, and what every character's weapons do. */
 export class InfoScreen {
@@ -103,7 +106,7 @@ function basics(): HTMLElement[] {
     return section;
   };
   const cols = el('div', 'info-cols');
-  cols.append(list('Controls', CONTROLS, 'controls'), list('Status effects', STATUSES, 'statuses'));
+  cols.append(list('Controls', controls(), 'controls'), list('Status effects', statusInfo(), 'statuses'));
   return [cols];
 }
 
