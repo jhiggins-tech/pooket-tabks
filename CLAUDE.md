@@ -73,12 +73,13 @@ what it's for; weapons are documented where they're defined.
   twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than
   switching on the kind. A player's tanks (the `Player` itself, and `player.twin`) are `TankBody`s: a
   `Target` is `{ kind: 'tank', player, tank }` or a hologram. **Every mechanic's hits go through
-  `applyHit()`** (damage, the weapon's effect flags, friendly fire, refund-on-miss), then
-  `damageTarget()` → `hurt()` (floating numbers, a twin taking over). Outgoing damage × the shooter's
+  `applyHit()`** (damage, the weapon's effect flags, friendly fire, refund-on-miss), or for hits that soak
+  in (stream droplets, gunk, toxic puddles) `applySoak()` (friendly fire, refund-on-miss, the stats' hits;
+  no effect flags: none of those kinds has any), then `damageTarget()` → `hurt()` (floating numbers, a twin taking over). Outgoing damage × the shooter's
   `offence()` (halved while cooked) at every source; incoming × the victim's `vulnerable()` (tattoos).
   Full health is `Player.maxHp` (the character's `maxHp`, else `MAX_HP`). torikloud's twin (`copies.ts`)
   is placed by the player (`Player.twinSpot`, `pendingTwinSpot` / `placeTwin`) and has its own aim
-  (`Twin.angle` / `power`; `twinGun` fires with it; `Player.aimTwin` and `aimedTank` say which one
+  (`Twin.angle` / `power`; shots fire from each of `originsOf(p)` with `gunOf(p, origin)`'s aim; `Player.aimTwin` and `aimedTank` say which one
   `setAim` moves). Once Twins is spent, its slot is Yolk Sucker while the twin stands (`yolkTier`,
   `canSuckYolk`, `suckYolk` in copies.ts): `selectTier` and `fire` treat that slot as a bonus move that
   evens out the twins' health; no rounds, so it's invisible to Steal, `hasAmmo` and refunds.

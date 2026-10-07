@@ -19,6 +19,14 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 49,
+    title: 'Fixes',
+    items: [
+      'torikloud’s twin now fires Sonic Boom along its own aim, as it does Debate (it was copying the main tank’s aim).',
+      'tones2’s ten-2 and ten-3 hits now count in 📊 Stats, so their accuracy is right (it showed 0%). Matches from before stay as they were.',
+    ],
+  },
+  {
     version: 47,
     title: 'Hyperfixate burns faster',
     items: ['kcaj’s Hyperfixate burn now ticks at the start of every turn, yours as well as theirs: still 8 damage three times, but it’s all dealt a round sooner.'],

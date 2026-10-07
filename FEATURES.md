@@ -123,6 +123,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **Fixes** (audit, owner-approved, 7 Oct; rules 21). torikloud's twin fired Sonic Boom along the main tank's
+  aim (its range too): it now goes along the twin's own aim and power, as its Debate does (`gunOf` /
+  `originsOf` in `game/copies.ts` for both). And tones' ten-2 mud and ten-3 spew (and its puddles) never
+  counted a hit in the stats, so their accuracy read 0: they go through `applySoak` (`game/tanks.ts`, with
+  stream droplets) and count like everything else. Damage unchanged.
 - **garyoldmancorp's scooter goes twice as far** (owner play test, 7 Oct; rules 20): 750 px of riding a match
   (3× a tank's 250), up from 375. `SCOOTER_FUEL` 1/3 per px (was 2/3); speed and crashes unchanged.
 - **Hyperfixate burns every turn** (owner, 5 Oct; rules 16). The burn ticks at every turn change, whoever's
