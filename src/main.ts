@@ -63,12 +63,14 @@ import { StatsScreen } from './ui/stats';
 import { RANKS } from './stats/ranks';
 import { Ratings } from './ui/ranks';
 import { RankUp } from './ui/rankup';
-import { GameOverButtons } from './ui/gameover';
+import { GameOverCard } from './ui/gameover';
 import { byId } from './ui/dom';
 
 const canvas = byId<HTMLCanvasElement>('game');
 const renderer = new Renderer(canvas, WORLD_W, WORLD_H);
-const hud = new Hud();
+/** The game over card (shown by the HUD when a match ends; its buttons are wired below). */
+const gameOver = new GameOverCard();
+const hud = new Hud(gameOver);
 
 const params = readParams(location.search, navigator.webdriver);
 let nextSeed = params.seed ?? randomSeed();
@@ -131,7 +133,6 @@ let driveDir = 0;
 
 /** The match being played here, recorded to watch again from the game over card. */
 const tape = new MatchTape();
-const gameOver = new GameOverButtons();
 
 /**
  * A fresh match on the battlefield (local, online, watched, or just the backdrop behind the menus).
@@ -145,7 +146,7 @@ function startMatch(seed: number, chosen: PlayerConfig[], played = false): GameS
   else tape.clear();
   hud.reset();
   sfx.tunes.stopAll();
-  byId('gameover').hidden = true;
+  gameOver.hide();
   return state;
 }
 
@@ -426,7 +427,7 @@ gameOver.replay.addEventListener('click', () => {
   online.watchTape(replay);
 });
 gameOver.leave.addEventListener('click', () => {
-  byId('gameover').hidden = true;
+  gameOver.hide();
   if (net || online.spectator) online.close();
   else setup.show();
 });

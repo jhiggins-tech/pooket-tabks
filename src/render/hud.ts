@@ -6,6 +6,7 @@ import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { Rank } from '../stats/ranks';
 import { byId, el, query } from '../ui/dom';
+import type { GameOverCard } from '../ui/gameover';
 import { insignia } from '../ui/insignia';
 import type { GameState, Player } from '../game/state';
 
@@ -15,6 +16,9 @@ import type { GameState, Player } from '../game/state';
  * what they show changes (chips are kept and patched, so the health bars animate), the rest per turn.
  */
 export class Hud {
+  /** `gameOver`: the game over card, shown when a match ends (ui/gameover.ts). */
+  constructor(private readonly gameOver: GameOverCard) {}
+
   /** The players' ranks in this match (null: not ranked, or not signed in). */
   setRanks(ranks: (Rank | null)[]): void {
     if (ranks.map((r) => r?.id ?? '').join() === this.ranks.map((r) => r?.id ?? '').join()) return;
@@ -34,10 +38,8 @@ export class Hud {
   private readonly fuelEl = byId('fuel-fill');
   private readonly fuelLabel = query('.fuel small');
   private readonly driveEl = query('.drive');
-  private readonly gameOverEl = byId('gameover');
   /** Each player's rank in the match on screen (verified players only; ui/ranks.ts), by player id. */
   private ranks: (Rank | null)[] = [];
-  private readonly winnerEl = byId('winner');
   private readonly heistEl = byId('heist');
   private readonly coffeeEl = byId('coffee');
   private readonly wheelEl = byId('coffee-wheel');
@@ -257,17 +259,7 @@ export class Hud {
       void this.bannerEl.offsetWidth; // restart the CSS animation
       this.bannerEl.classList.add('show');
     }
-    this.gameOverEl.hidden = state.phase !== 'gameover';
-    if (state.phase === 'gameover') {
-      this.winnerEl.textContent = state.winner ? `${state.winner.name} wins!` : 'Draw!';
-      const winnerRank = state.winner ? this.ranks[state.winner.id] : null;
-      if (winnerRank) this.winnerEl.prepend(insignia(winnerRank, 'md'));
-      const loser = state.players.find((q) => q !== state.winner);
-      if (state.endReason && loser) {
-        this.winnerEl.append(el('small', 'end-reason', state.endReason === 'resigned' ? `${loser.name} resigned` : `${loser.name} ran out of time`));
-      }
-      this.winnerEl.style.color = state.winner?.colour ?? '#fff';
-    }
+    this.gameOver.show(state, (id) => this.ranks[id]);
   }
 
   /** kie's Steal: the victim's weapons as cards, one lit at a time, slowing down until one is stolen. */
