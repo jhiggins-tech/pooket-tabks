@@ -4,7 +4,19 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-(Empty: everything queued has shipped.)
+- **kiwicore, in beta** (owner, 7 Oct). Off the Coming soon list and playable in beta, like garyoldmancorp:
+  his real tier 1 now, stand-ins for the rest (single ballistic shells, as garyoldmancorp's), marked Beta.
+  - **Tier 1: berètta M2.** Throws a flat cap along a **boomerang** trajectory (out along the aim, curving
+    round and back towards the thrower) that **ignores terrain** (flies through hills). A new mechanic
+    (a new `WeaponKind`: its own path, not ballistic), so the recipe's steps: the path in its own
+    `game/` module, hits through `applyHit`, its own drawing (the spinning cap), sound, info text.
+  - **The tank wears the cap** when it isn't firing it (drawn on the dome); while it's in flight the
+    tank is bare-headed, and the cap is back on once the throw is over.
+  - This replaces the teased tier 1 "torpedo pass" (`upcoming.ts`); "throwdown" stays the tier 2 teaser.
+  - Decided (owner, 7 Oct): **20 damage per hit**; it can hit on the way out **and** on the way back,
+    each tank at most **once per pass** (so up to 40 on one tank if both passes land); the **aim sets its
+    direction and power its reach**, and it curls round and comes home; kiwicore **catches it** (no
+    damage to himself) and it's back on his head. Its name keeps the è (`berètta M2`).
 
 ### Backlog (ideas, not yet scheduled)
 
