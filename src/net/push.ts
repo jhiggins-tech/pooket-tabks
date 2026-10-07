@@ -2,7 +2,7 @@ import { isPushType, type PushType } from '../push/templates';
 import { errText, netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { getSealed, putSealed } from './sealed';
-import type { RoomRef } from './watchers';
+import type { RoomRef } from './rooms';
 
 /**
  * Notifications between the two phones in a match ("your turn", "someone joined your game"), the

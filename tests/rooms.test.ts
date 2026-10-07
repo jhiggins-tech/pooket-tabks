@@ -167,7 +167,7 @@ describe('rooms through Firebase', () => {
     host.onMessage = (m) => got.push(m);
     // Something the ghost sent that only lands now (it was on its way when the seat was freed).
     const sealer = await sealerFor('room', room.code);
-    const late = new RelayTransport(db, `rooms/${sealer.topic}`, 'guest', sealer, { me: 'ghost-id' }).start();
+    const late = new RelayTransport({ db, path: `rooms/${sealer.topic}`, sealer }, 'guest', { me: 'ghost-id' }).start();
     late.send({ k: 'hello', from: 'the ghost' });
     await until(() => server.requests.filter((r) => r.method === 'POST').length >= 1);
     real.send({ n: 1 });

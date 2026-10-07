@@ -1,6 +1,5 @@
 import { errText, netLog } from './log';
-import type { Rtdb } from './rtdb';
-import type { Sealer } from './seal';
+import type { RoomRef } from './rooms';
 import { openSealed, putSealed } from './sealed';
 
 /**
@@ -9,14 +8,6 @@ import { openSealed, putSealed } from './sealed';
  * stops. The players and the other spectators follow the list; a check-in older than WATCHER_STALE_MS no
  * longer counts (a phone that went without checking out).
  */
-
-/** A room in the database: where it is and its seal. */
-export interface RoomRef {
-  db: Rtdb;
-  /** `rooms/<topic>` */
-  path: string;
-  sealer: Sealer;
-}
 
 export interface Watcher {
   id: string;

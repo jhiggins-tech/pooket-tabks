@@ -1,6 +1,6 @@
 import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
-import { sealerFor, type Sealer } from './seal';
+import { roomRef, type RoomRef } from './rooms';
 import { getSealed, putSealed } from './sealed';
 import type { MatchSetup, Pick } from './session';
 import { compat, RULES, WIRE, type Compat } from './version';
@@ -70,10 +70,10 @@ export interface GameStore {
 export class RecordStore implements GameStore {
   private readonly writer: LatestWriter<GameRecord>;
 
-  constructor(db: Rtdb, roomPath: string, sealer: Sealer) {
+  constructor(room: RoomRef) {
     this.writer = new LatestWriter(
       async (rec) => {
-        await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
+        await putSealed(room.db, `${room.path}/game`, room.sealer, encodeMsg(rec));
         netLog(`record: saved (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : ''})`);
       },
       { retry: true, failed: (e) => netLog(`record: couldn't save (${errText(e)})`) },
@@ -86,9 +86,9 @@ export class RecordStore implements GameStore {
 }
 
 /** Put up a hosted game's open offer (before anyone has joined). */
-export async function saveOffer(db: Rtdb, roomPath: string, sealer: Sealer, offer: OpenRecord['open']): Promise<void> {
+export async function saveOffer(room: RoomRef, offer: OpenRecord['open']): Promise<void> {
   const rec: OpenRecord = { v: WIRE, rules: RULES, open: offer };
-  await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
+  await putSealed(room.db, `${room.path}/game`, room.sealer, encodeMsg(rec));
 }
 
 /** Whatever's in a room's record slot: a match, an open offer, or nothing. */
@@ -96,8 +96,8 @@ export async function loadRoomRecord(
   db: Rtdb,
   code: string,
 ): Promise<{ game: StoredGame } | { offer: OpenRecord['open']; compat: Compat; ts: number } | null> {
-  const sealer = await sealerFor('room', code);
-  const raw = await getSealed<unknown>(db, `rooms/${sealer.topic}/game`, sealer);
+  const room = await roomRef(db, code);
+  const raw = await getSealed<unknown>(db, `${room.path}/game`, room.sealer);
   if (!raw || typeof raw.value !== 'string') return null;
   const rec = decodeMsg(raw.value) as GameRecord | OpenRecord;
   // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches have run out of

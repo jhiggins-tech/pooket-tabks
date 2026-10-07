@@ -174,7 +174,7 @@ describe('one phone per seat: the one that rejoins last plays', () => {
     const host = await waiting;
     const path = `rooms/${(await sealerFor('room', room.code)).topic}`;
     let taken = 0;
-    const watch = watchSeat(db, path, 'host', room.id, () => taken++, 'phone-a');
+    const watch = watchSeat({ db, path, sealer: await sealerFor('room', room.code) }, 'host', room.id, () => taken++, 'phone-a');
     // Checking in (just the time) and rejoining from the same phone: still ours.
     await db.patch(`${path}/host`, { ts: Date.now() });
     host.close();
@@ -195,7 +195,7 @@ describe('one phone per seat: the one that rejoins last plays', () => {
     const room = await HostedRoom.open(db, undefined, 'phone-a');
     const path = `rooms/${(await sealerFor('room', room.code)).topic}`;
     let taken = 0;
-    const watch = watchSeat(db, path, 'host', room.id, () => taken++, 'phone-a');
+    const watch = watchSeat({ db, path, sealer: await sealerFor('room', room.code) }, 'host', room.id, () => taken++, 'phone-a');
     await db.put(`${path}/host`, { id: room.id, ts: Date.now() });
     await new Promise((r) => setTimeout(r, 200));
     expect(taken).toBe(0);

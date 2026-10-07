@@ -3,7 +3,7 @@ import { roomLink } from '../net/links';
 import { netLog } from '../net/log';
 import { Listing, lobbySealer, watchLobby } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
-import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost, watchSeat } from '../net/rooms';
+import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost, watchSeat, type RoomRef } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
@@ -12,7 +12,7 @@ import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
 import { announceDevice, notifySeat } from '../net/push';
-import { checkIn, type RoomRef } from '../net/watchers';
+import { checkIn } from '../net/watchers';
 import type { Transport } from '../net/transport';
 import { button, el } from './dom';
 import { loadCharacter, saveCharacter } from './profile';
@@ -650,18 +650,18 @@ export class OnlineScreen {
     }, 20_000);
     if (peer instanceof RelayTransport) {
       // Publish the spectator feed for anyone watching, and keep the match's record.
-      const pub = new ViewPublisher(peer);
+      const pub = new ViewPublisher(peer.room);
       s.on('view', (v) => pub.push(v));
       // And a public match's replay (the host's game on the Games list; the guest's, if it starts one).
-      const record = new RecordStore(peer.db, peer.roomPath, peer.sealer);
-      const replay = new ReplayRecorder(peer.db, this.opts.lobby);
+      const record = new RecordStore(peer.room);
+      const replay = new ReplayRecorder(peer.room.db, this.opts.lobby);
       s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
       s.publicReplay = !!seat.listed;
-      this.room = { db: peer.db, path: peer.roomPath, sealer: peer.sealer };
+      this.room = peer.room;
       this.audience.follow(this.room);
       announceDevice(this.room, seat.role, seat.id);
       // This player opening the match on another phone: that one plays, this one stands aside.
-      const taken = watchSeat(peer.db, peer.roomPath, seat.role, seat.id, () => {
+      const taken = watchSeat(peer.room, seat.role, seat.id, () => {
         if (this.session === s) this.elsewhere(s);
       });
       this.seatWatch = taken;

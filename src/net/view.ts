@@ -1,10 +1,9 @@
 import { fromB64, toB64 } from './b64';
 import { errText, netLog } from './log';
-import type { RelayTransport } from './relay';
-import { Rtdb } from './rtdb';
-import { seal, sealerFor, unseal } from './seal';
+import { roomRef, type RoomRef } from './rooms';
+import type { Rtdb } from './rtdb';
+import { seal, unseal } from './seal';
 import type { ViewMsg } from './session';
-import type { RoomRef } from './watchers';
 import { LatestWriter } from './writer';
 
 /**
@@ -19,9 +18,9 @@ export class ViewPublisher {
   private lastAim = 0;
   private aimTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(relay: RelayTransport) {
+  constructor(room: RoomRef) {
     const writer = (slot: 'state' | 'aim') =>
-      new LatestWriter<ViewMsg>(async (v) => relay.db.put(`${relay.roomPath}/view/${slot}`, toB64(await seal(relay.sealer, v))), {
+      new LatestWriter<ViewMsg>(async (v) => room.db.put(`${room.path}/view/${slot}`, toB64(await seal(room.sealer, v))), {
         failed: (e) => netLog(`view: couldn't publish ${slot} (${errText(e)})`),
       });
     this.state = writer('state');
@@ -47,8 +46,8 @@ const AIM_EVERY_MS = 250;
 
 /** Watch a room's spectator feed. Resolves once watching (with the room, for checking in); `onEnd` when the room closes. */
 export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => void, onEnd: () => void): Promise<{ stop: () => void; room: RoomRef }> {
-  const sealer = await sealerFor('room', code);
-  const path = `rooms/${sealer.topic}`;
+  const room = await roomRef(db, code);
+  const { path, sealer } = room;
   const host = await db.get<{ id: string; ts: number }>(`${path}/host`);
   if (!host) throw new Error(`No game with code ${code}.`);
   netLog(`watch: watching ${code}`);
@@ -85,5 +84,5 @@ export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => 
       take(e.data);
     } else if (e.path === '/aim') take(e.data);
   });
-  return { stop: () => stream.close(), room: { db, path, sealer } };
+  return { stop: () => stream.close(), room };
 }

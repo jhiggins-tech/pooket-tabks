@@ -3,7 +3,7 @@ import { Auth } from '../src/net/auth';
 import { accountAddress, announceDevice, clientId, followOutbox, notifySeat, registerPushDevice, useAccount, wantsPush, type OutboxEntry } from '../src/net/push';
 import { Rtdb } from '../src/net/rtdb';
 import { sealerFor } from '../src/net/seal';
-import type { RoomRef } from '../src/net/watchers';
+import type { RoomRef } from '../src/net/rooms';
 import { render } from '../src/push/templates';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 import { until } from './support/wait';
