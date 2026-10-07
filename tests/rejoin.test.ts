@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { FIXED_DT } from '../src/game/constants';
-import { createGame, setAim, step } from '../src/game/game';
-import type { GameState, PlayerConfig } from '../src/game/state';
+import { createGame, setAim } from '../src/game/game';
+import type { PlayerConfig } from '../src/game/state';
 import { HostedRoom, joinRoom, rejoinRoom } from '../src/net/rooms';
 import { Rtdb } from '../src/net/rtdb';
 import { AUTO_REJOIN_MS, findSeat, forgetSeat, GAMES_KEY, latestSeat, loadSeats, SEAT_EXPIRY_MS, saveSeat, touchSeat, updateSeat } from '../src/net/seat';
 import { loadRecord, RecordStore } from '../src/net/record';
 import { NetSession } from '../src/net/session';
 import { sealerFor } from '../src/net/seal';
-import { takeSnapshot } from '../src/net/snapshot';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
-import { until } from './support/wait';
+import { expectSameMatch, runPhones, type Phone } from './support/net';
+import { until, untilAsync } from './support/wait';
 
 let server: FakeRtdb;
 let db: Rtdb;
@@ -40,29 +39,8 @@ async function match() {
   return { room, host, guest };
 }
 
-/** Step whichever phones are running until `done`. */
-async function run(phones: [NetSession, GameState | null][], done: () => boolean, ms = 15_000) {
-  const t0 = Date.now();
-  while (!done()) {
-    for (const [s, st] of phones) {
-      if (st) step(st, FIXED_DT);
-      s.tick(FIXED_DT);
-    }
-    await new Promise((r) => setTimeout(r, 1));
-    if (Date.now() - t0 > ms) throw new Error('never got there');
-  }
-}
-
-const same = (A: GameState, B: GameState) => {
-  const strip = (s: GameState) => {
-    const snap = takeSnapshot(s) as Record<string, unknown>;
-    for (const k of ['floaters', 'shimmers', 'ghosts', 'explosions', 'splashes']) delete snap[k];
-    return snap;
-  };
-  expect(strip(B)).toEqual(strip(A));
-  expect(B.terrain.solid).toEqual(A.terrain.solid);
-};
-
+/** Step whichever phones are running until `done` (in real time: the relay goes through the fake Firebase). */
+const run = (phones: Phone[], done: () => boolean, ms = 15_000) => runPhones(phones, done, { ms });
 /** The guest's phone dies (no goodbye) and comes back as a brand new session on the same seat. */
 async function guestComesBack(code: string, old: NetSession, whileAway: () => Promise<void> = async () => {}) {
   (old as unknown as { transport: { close(): void } }).transport.close();
@@ -97,7 +75,7 @@ describe('rejoining a match', { timeout: 60_000 }, () => {
     expect(resumed()).toBe(true);
     expect(away).toEqual([true, false]);
     const G = back.game!;
-    same(H, G);
+    expectSameMatch(H, G);
     expect(back.localPick?.name).toBe('G');
     expect(back.remotePick?.name).toBe('H');
 
@@ -106,7 +84,7 @@ describe('rejoining a match', { timeout: 60_000 }, () => {
     setAim(G, 120, 55);
     expect(back.fire()).toBe(true);
     await run([[host, H], [back, G]], () => host.canAct() && H.turn === G.turn && H.phase === 'aiming' && G.phase === 'aiming');
-    same(H, G);
+    expectSameMatch(H, G);
     host.leave();
   });
 
@@ -128,7 +106,7 @@ describe('rejoining a match', { timeout: 60_000 }, () => {
     await run([[host, H], [back, back.game]], () => resumed() !== null);
     expect(resumed()).toBe(true);
     const G = back.game!;
-    same(H, G);
+    expectSameMatch(H, G);
     expect(H.phase).toBe('aiming');
     expect(H.turn).toBe(3); // the guest's shot played out on the host
     expect(host.canAct()).toBe(true); // and the host isn't left waiting for a result that'll never come
@@ -164,10 +142,7 @@ describe('turn by turn (both phones leave between turns)', { timeout: 60_000 }, 
   /** The room's record, once it has got to `turn`. */
   const recordAt = async (code: string, turn: number) => {
     let stored = await loadRecord(db, code);
-    for (let i = 0; i < 100 && stored?.rec.snap.turn !== turn; i++) {
-      await new Promise((r) => setTimeout(r, 20));
-      stored = await loadRecord(db, code);
-    }
+    await untilAsync(async () => (stored = await loadRecord(db, code))?.rec.snap.turn === turn);
     expect(stored?.rec.snap.turn).toBe(turn);
     return stored!;
   };
@@ -195,7 +170,7 @@ describe('turn by turn (both phones leave between turns)', { timeout: 60_000 }, 
     back.onStart = onStart;
     back.rejoin({ rec: stored!.rec, replay: true });
     await run([[back, back.game]], () => back.canAct(), 20_000);
-    same(H, back.game!);
+    expectSameMatch(H, back.game!);
     const G = back.game!;
     setAim(G, 120, 55);
     back.fire();
@@ -209,7 +184,7 @@ describe('turn by turn (both phones leave between turns)', { timeout: 60_000 }, 
     again.onStart = onStart;
     again.rejoin({ rec: stored!.rec, replay: true });
     await run([[again, again.game]], () => again.canAct(), 20_000);
-    same(G, again.game!);
+    expectSameMatch(G, again.game!);
   });
 
   it("a room with a match in it isn't taken over by a new host, until the match is four days old", async () => {

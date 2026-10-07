@@ -3,27 +3,17 @@ import { FIXED_DT, MAX_HP } from '../src/game/constants';
 import { createGame, currentPlayer, drive, finishDecoyPick, hologramsOf, selectTier, setAim, step, toggleSwapTarget } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { NetSession } from '../src/net/session';
-import { RULES, WIRE } from '../src/net/version';
-import { takeSnapshot } from '../src/net/snapshot';
 import { loopback } from '../src/net/transport';
+import { RULES, WIRE } from '../src/net/version';
+import { connectedPair, expectSameMatch } from './support/net';
 import { flush } from './support/wait';
 
-async function connected(host = 'tones', guest = 'kie', first: number | 'random' = 0) {
-  const [ta, tb] = loopback();
-  const a = new NetSession(ta, 'host');
-  const b = new NetSession(tb, 'guest');
-  for (const s of [a, b]) s.onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first });
-  a.setPick({ name: 'A', characterId: host });
-  b.setPick({ name: 'B', characterId: guest });
-  await flush();
-  expect(a.ready && b.ready).toBe(true);
+function connected(host = 'tones', guest = 'kie', first: number | 'random' = 0) {
   const players: PlayerConfig[] = [
     { name: 'A', characterId: host, colour: '#f00' },
     { name: 'B', characterId: guest, colour: '#00f' },
   ];
-  a.start(1234, players);
-  await flush();
-  return { a, b, A: a.game!, B: b.game! };
+  return connectedPair({ seed: 1234, players, onStart: (seed, players) => createGame({ seed, players, first }) });
 }
 
 /** Run both phones until the shot has played out and the next player can act (or game over). */
@@ -40,20 +30,9 @@ async function playOut(a: NetSession, b: NetSession, A: GameState, B: GameState,
   await flush();
 }
 
-const same = (A: GameState, B: GameState) => {
-  const strip = (s: GameState) => {
-    const snap = takeSnapshot(s) as Record<string, unknown>;
-    // Cosmetics are allowed to differ mid-way: the other phone snaps to the result as it was when the
-    // shooter's turn ended, while the shooter's own animations kept going.
-    delete snap.floaters;
-    delete snap.shimmers;
-    delete snap.ghosts;
-    snap.holograms = (snap.holograms as Record<string, unknown>[]).map(({ age: _age, ...h }) => h);
-    return snap;
-  };
-  expect(strip(B)).toEqual(strip(A));
-  expect(B.terrain.solid).toEqual(A.terrain.solid);
-};
+// Holograms' ages may differ mid-way: the other phone snaps to the result as it was when the shooter's
+// turn ended, while the shooter's own animations kept going.
+const same = (A: GameState, B: GameState) => expectSameMatch(A, B, { ignoreHologramAge: true });
 
 describe('networked match', { timeout: 30_000 }, () => {
   it('both phones start from the same game, host first', async () => {

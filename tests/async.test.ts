@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { FIXED_DT } from '../src/game/constants';
 import { createGame, currentPlayer, selectTier, setAim, step } from '../src/game/game';
-import type { GameState, PlayerConfig } from '../src/game/state';
+import type { PlayerConfig } from '../src/game/state';
 import { FORFEIT_MS, forfeitDue, gameStatus, opponentName, type GameRecord, type GameStore, type StoredGame } from '../src/net/record';
 import { NetSession, RESUME_WAIT } from '../src/net/session';
 import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
-import { takeSnapshot } from '../src/net/snapshot';
 import { loopback } from '../src/net/transport';
 import { decodeMsg, encodeMsg } from '../src/net/wire';
+import { connectedPair, expectSameMatch, runPhones } from './support/net';
 import { flush, settled } from './support/wait';
 
 /** The room's record, in memory (copied through the wire format, like the real thing). */
@@ -26,21 +26,7 @@ const PLAYERS: PlayerConfig[] = [
 ];
 const onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first: 0 });
 
-async function connected(store: MemoryStore) {
-  const [ta, tb] = loopback();
-  const a = new NetSession(ta, 'host');
-  const b = new NetSession(tb, 'guest');
-  for (const s of [a, b]) {
-    s.onStart = onStart;
-    s.store = store;
-  }
-  a.setPick({ name: 'A', characterId: 'tones' });
-  b.setPick({ name: 'B', characterId: 'kcaj' });
-  await flush();
-  a.start(4321, PLAYERS);
-  await flush();
-  return { a, b, A: a.game!, B: b.game! };
-}
+const connected = (store: MemoryStore) => connectedPair({ seed: 4321, players: PLAYERS, onStart, setup: (s) => (s.store = store) });
 
 /** A phone coming back to the match with nobody else there (its pipe leads nowhere). */
 function alone(role: 'host' | 'guest'): NetSession {
@@ -49,25 +35,6 @@ function alone(role: 'host' | 'guest'): NetSession {
   s.onStart = onStart;
   return s;
 }
-
-/** Run the phones (and their games) until `done`. */
-async function run(phones: [NetSession, () => GameState | null][], done: () => boolean, seconds = 60) {
-  for (let t = 0; t < seconds && !done(); t += FIXED_DT) {
-    for (const [s, g] of phones) {
-      const st = g();
-      if (st) step(st, FIXED_DT);
-      s.tick(FIXED_DT);
-    }
-    await flush();
-  }
-  expect(done()).toBe(true);
-}
-
-const strip = (s: GameState) => {
-  const snap = takeSnapshot(s) as Record<string, unknown>;
-  for (const k of ['floaters', 'shimmers', 'ghosts', 'explosions', 'splashes', 'sfx']) delete snap[k];
-  return snap;
-};
 
 describe('the game record', () => {
   it('is written when the match starts, when a shot is fired and when it has played out', async () => {
@@ -78,7 +45,7 @@ describe('the game record', () => {
     setAim(A, 60, 40);
     a.fire();
     expect(store.rec!.flying).toMatchObject({ turn: 1, owner: 0 });
-    await run([[a, () => a.game], [b, () => b.game]], settled(a, 2));
+    await runPhones([a, b], settled(a, 2));
     expect(store.rec!.flying).toBeNull();
     expect(store.rec!.last).toMatchObject({ turn: 1, owner: 0 });
     expect(store.rec!.snap.turn).toBe(2);
@@ -93,8 +60,7 @@ describe('the game record', () => {
     expect(a.peerAway).toBe(true);
     setAim(A, 60, 40);
     a.fire();
-    await run([[a, () => a.game]], settled(a, 2));
-    const hostSees = strip(a.game!);
+    await runPhones([a], settled(a, 2));
     a.away(); // and the host goes too
 
     // Later: the guest opens the game. Nobody answers, so it goes by the record: their shot again, then its go.
@@ -103,19 +69,19 @@ describe('the game record', () => {
     let resumed = false;
     back.on('resumed', () => (resumed = true));
     back.rejoin({ rec: store.rec!, replay: true });
-    await run([[back, () => back.game]], () => resumed, RESUME_WAIT + 1);
+    await runPhones([back], () => resumed, { seconds: RESUME_WAIT + 1 });
     expect(back.game!.turn).toBe(1); // replaying the host's shot
     expect(back.game!.phase).not.toBe('aiming');
     expect(back.canAct()).toBe(false);
-    await run([[back, () => back.game]], () => back.canAct());
-    expect(strip(back.game!)).toEqual(hostSees);
+    await runPhones([back], () => back.canAct());
+    expectSameMatch(a.game!, back.game!); // as the host left it
     expect(back.remotePick).toEqual({ name: 'A', characterId: 'tones' });
     expect(back.peerAway).toBe(true);
 
     // Its turn, recorded for the host to find.
     setAim(back.game!, 120, 40);
     expect(back.fire()).toBe(true);
-    await run([[back, () => back.game]], settled(back, 3));
+    await runPhones([back], settled(back, 3));
     expect(store.rec!.snap.turn).toBe(3);
     expect(store.rec!.last).toMatchObject({ turn: 2, owner: 1 });
   });
@@ -134,7 +100,7 @@ describe('the game record', () => {
     const back = alone('guest');
     back.store = store;
     back.rejoin({ rec: store.rec!, replay: true });
-    await run([[back, () => back.game]], () => back.canAct());
+    await runPhones([back], () => back.canAct());
     expect(back.game!.turn).toBe(2);
     expect(store.rec!.flying).toBeNull();
     expect(store.rec!.snap.turn).toBe(2);
@@ -151,8 +117,8 @@ describe('the game record', () => {
     const back = alone('host');
     back.store = store;
     back.rejoin({ rec: store.rec!, replay: false });
-    await run([[back, () => back.game]], settled(back, 2));
-    await run([[back, () => back.game]], () => store.rec!.snap.turn === 2, 1);
+    await runPhones([back], settled(back, 2));
+    await runPhones([back], () => store.rec!.snap.turn === 2, { seconds: 1 });
     expect(back.canAct()).toBe(false); // the guest's turn now
   });
 
@@ -161,7 +127,7 @@ describe('the game record', () => {
     const { a, b, A } = await connected(store);
     setAim(A, 60, 40);
     a.fire();
-    await run([[a, () => a.game], [b, () => b.game]], settled(b, 2));
+    await runPhones([a, b], settled(b, 2));
     a.away();
     b.away();
     const [ta, tb] = loopback();
@@ -172,8 +138,8 @@ describe('the game record', () => {
       s.store = store;
       s.rejoin({ rec: store.rec!, replay: false });
     }
-    await run([[a2, () => a2.game], [b2, () => b2.game]], () => !!a2.game && !!b2.game && b2.canAct());
-    expect(strip(a2.game!)).toEqual(strip(b2.game!));
+    await runPhones([a2, b2], () => !!a2.game && !!b2.game && b2.canAct());
+    expectSameMatch(a2.game!, b2.game!);
     expect(a2.peerAway || b2.peerAway).toBe(false); // they've heard from each other since
   });
 
@@ -190,7 +156,7 @@ describe('the game record', () => {
     back.on('resumed', () => (caughtUp = true));
     const saves = store.saves;
     back.rejoin({ rec: store.rec!, replay: true });
-    await run([[a, () => a.game], [back, () => back.game]], () => caughtUp, 1);
+    await runPhones([a, back], () => caughtUp, { seconds: 1 });
     expect(back.peerAway).toBe(false);
     expect(store.saves).toBe(saves);
     void b;
@@ -241,7 +207,7 @@ describe('the game record', () => {
     const back = alone('guest');
     back.store = store;
     back.rejoin({ rec: g.rec, replay: false });
-    await run([[back, () => back.game]], () => !!back.game, RESUME_WAIT + 1);
+    await runPhones([back], () => !!back.game, { seconds: RESUME_WAIT + 1 });
     back.forfeit();
     expect(back.game!.phase).toBe('gameover');
     expect(back.game!.winner?.name).toBe('B'); // it was A's turn

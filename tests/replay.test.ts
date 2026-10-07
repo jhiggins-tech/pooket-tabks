@@ -6,11 +6,10 @@ import { Rtdb } from '../src/net/rtdb';
 import { loadReplay, loadReplays, REPLAY_KEEP_MS, ReplayPlayer, ReplayRecorder } from '../src/net/replay';
 import { toB64 } from '../src/net/b64';
 import { seal, sealerFor } from '../src/net/seal';
-import { NetSession } from '../src/net/session';
-import { loopback } from '../src/net/transport';
 import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
-import { flush, settled } from './support/wait';
+import { connectedPair, runPhones } from './support/net';
+import { settled, untilAsync } from './support/wait';
 
 let server: FakeRtdb;
 let db: Rtdb;
@@ -29,39 +28,16 @@ const PLAYERS: PlayerConfig[] = [
 const onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first: 0 });
 
 /** Two phones over a loopback, each recording replays into the fake database (as on the Games list `lobby`). */
-async function connected(lobby: string, publicReplay = true) {
-  const [ta, tb] = loopback();
-  const a = new NetSession(ta, 'host');
-  const b = new NetSession(tb, 'guest');
-  for (const s of [a, b]) {
-    s.onStart = onStart;
-    s.store = new ReplayRecorder(db, lobby);
-  }
-  a.publicReplay = publicReplay;
-  a.setPick({ name: 'A', characterId: 'larinovsky' });
-  b.setPick({ name: 'B', characterId: 'kcaj' });
-  await flush();
-  a.start(4321, PLAYERS);
-  await flush();
-  return { a, b };
-}
-
-/** Run both phones (and their games) until `done`. */
-async function run(phones: NetSession[], done: () => boolean, seconds = 60) {
-  for (let t = 0; t < seconds && !done(); t += FIXED_DT) {
-    for (const s of phones) {
-      if (s.game) step(s.game, FIXED_DT);
-      s.tick(FIXED_DT);
-    }
-    await flush();
-  }
-  expect(done()).toBe(true);
-}
-
-/** Wait for the database to have caught up (writes are queued). */
-async function until(done: () => Promise<boolean>) {
-  for (let i = 0; i < 100 && !(await done()); i++) await new Promise((r) => setTimeout(r, 20));
-  expect(await done()).toBe(true);
+function connected(lobby: string, publicReplay = true) {
+  return connectedPair({
+    seed: 4321,
+    players: PLAYERS,
+    onStart,
+    setup: (s, role) => {
+      s.store = new ReplayRecorder(db, lobby);
+      if (role === 'host') s.publicReplay = publicReplay;
+    },
+  });
 }
 
 describe('replays', () => {
@@ -74,18 +50,18 @@ describe('replays', () => {
     expect(a.fire()).toBe(true);
     setAim(A, 60, 40);
     expect(a.fire()).toBe(true);
-    await run([a, b], settled(b, 2));
+    await runPhones([a, b], settled(b, 2));
     setAim(B, 120, 40);
     expect(b.fire()).toBe(true);
-    await run([a, b], settled(a, 3));
+    await runPhones([a, b], settled(a, 3));
     b.resign();
-    await run([a, b], () => A.phase === 'gameover');
+    await runPhones([a, b], () => A.phase === 'gameover');
 
-    await until(async () => (await loadReplays(db, lobby)).length === 1);
+    await untilAsync(async () => (await loadReplays(db, lobby)).length === 1);
     const [listing] = await loadReplays(db, lobby);
     expect(listing).toMatchObject({ seed: 4321, players: PLAYERS, over: { winner: 0, endReason: 'resigned', turns: 3 } });
     let replay = await loadReplay(db, listing!);
-    await until(async () => (replay = await loadReplay(db, listing!)).end !== null);
+    await untilAsync(async () => (replay = await loadReplay(db, listing!)).end !== null);
     expect(replay.shots.map((s) => [s.turn, s.owner])).toEqual([[1, 0], [1, 0], [2, 1]]);
     expect(replay.shots[0]!.snap.players).toMatchObject([{ ammo: [5, 3, 1, 1] }, {}]); // the bonus move first
 
@@ -122,7 +98,7 @@ describe('replays', () => {
     const { a, b } = await connected(lobby, false);
     setAim(a.game!, 60, 40);
     a.fire();
-    await run([a, b], settled(b, 2));
+    await runPhones([a, b], settled(b, 2));
     b.resign();
     await new Promise((r) => setTimeout(r, 100));
     expect(replays()).toBe(before);
@@ -132,10 +108,10 @@ describe('replays', () => {
   it('lists only finished matches, and tidies away old ones', async () => {
     const lobby = `replays-${++lobbyN}`;
     const { a, b } = await connected(lobby);
-    await until(async () => !!(await db.get(`replayList/${(await sealerFor('replays', lobby)).topic}`)));
+    await untilAsync(async () => !!(await db.get(`replayList/${(await sealerFor('replays', lobby)).topic}`)));
     expect(await loadReplays(db, lobby)).toEqual([]); // under way: not a replay yet
     b.resign();
-    await until(async () => (await loadReplays(db, lobby)).length === 1);
+    await untilAsync(async () => (await loadReplays(db, lobby)).length === 1);
     void a;
 
     // Two weeks on, it's gone (replay and all).
@@ -143,7 +119,7 @@ describe('replays', () => {
     const topic = (await sealerFor('replay', listing!.id)).topic;
     expect(await db.get(`replays/${topic}/end`)).not.toBeNull();
     expect(await loadReplays(db, lobby, Date.now() + REPLAY_KEEP_MS + 60_000)).toEqual([]);
-    await until(async () => (await db.get(`replays/${topic}`)) === null);
+    await untilAsync(async () => (await db.get(`replays/${topic}`)) === null);
     expect(await loadReplays(db, lobby)).toEqual([]);
   });
 
