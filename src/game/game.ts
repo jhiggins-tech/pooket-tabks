@@ -246,9 +246,8 @@ export function step(state: GameState, dt: number): void {
   stepSplashes(state, dt);
 
   if (state.phase === 'flying') {
-    for (const m of STEPPERS) m.step(state, dt);
-    const busy = STEPPERS.some((m) => m.busy(state));
-    if (!busy) {
+    if (!runSteppers(state, dt)) {
+      // The shot has played out: the last of the soak, then the turn settles.
       stepSoak(state, dt, true);
       settleTurn(state);
     }
@@ -257,12 +256,18 @@ export function step(state: GameState, dt: number): void {
   } else if (state.phase === 'coffee') {
     stepCoffee(state, dt);
     // A spill's little jetpack (and its mud) plays out like a shot, then the turn carries on.
-    for (const m of STEPPERS) m.step(state, dt);
-    if (coffeeDone(state) && !STEPPERS.some((m) => m.busy(state))) finishCoffee(state);
+    const busy = runSteppers(state, dt);
+    if (coffeeDone(state) && !busy) finishCoffee(state);
   } else if (state.phase === 'settling') {
     state.settleTimer -= dt;
     if (state.settleTimer <= 0) endTurn(state);
   }
+}
+
+/** Step everything that plays out during a shot (STEPPERS, in their order); returns whether any is still busy. */
+function runSteppers(state: GameState, dt: number): boolean {
+  for (const m of STEPPERS) m.step(state, dt);
+  return STEPPERS.some((m) => m.busy(state));
 }
 
 function endTurn(state: GameState): void {
