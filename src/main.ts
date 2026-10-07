@@ -1,29 +1,13 @@
 /**
  * The page: wires the game, renderer, HUD, controls, sound and screens together and runs the
- * fixed-timestep loop (FIXED_DT). Hotseat by default; `net` / `online.spectator` when playing or
+ * fixed-timestep loop (FIXED_DT). Hotseat by default; `online.session` / `online.spectator` when playing or
  * watching online.
  */
 import './style.css';
 import { randomSeed } from './core/rng';
-import { FIXED_DT, TANK_BODY_HEIGHT, WORLD_H, WORLD_W } from './game/constants';
-import { assignColours, getCharacter } from './characters/roster';
-import {
-  adjustAim,
-  canPickDecoy,
-  createGame,
-  currentPlayer,
-  drive,
-  finishDecoyPick,
-  fire,
-  hologramAt,
-  aimTwin,
-  pendingTwinSpot,
-  placeTwin,
-  selectTier,
-  setAim,
-  step,
-  toggleSwapTarget,
-} from './game/game';
+import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
+import { getCharacter, matchPlayers } from './characters/roster';
+import { adjustAim, aimTwin, canPickDecoy, createGame, currentPlayer, drive, finishDecoyPick, fire, pendingTwinSpot, selectTier, setAim, step } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -33,38 +17,30 @@ import { SfxPlayer } from './audio/sfx';
 import { takePlayRef, takeRoomCode } from './net/links';
 import { netLog, netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
-import { AUTO_REJOIN_MS, latestSeat, loadSeats, seatChanges } from './net/seat';
-import { SeatSync } from './net/seatsync';
-import { FIREBASE_API_KEY, FIREBASE_DATABASE_URL, GOOGLE_CLIENT_ID, VAPID_PUBLIC_KEY } from './net/config';
-import { Account } from './net/account';
-import { Auth } from './net/auth';
-import { localProfile } from './app/localprofile';
-import { SignInPanel } from './ui/signin';
-import { accountAddress, registerPushDevice, useAccount, wantsPush } from './net/push';
+import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
+import { FIREBASE_DATABASE_URL } from './net/config';
 import { sealerFor } from './net/seal';
-import { PushClient } from './push/client';
-import { notifyWhileOpen } from './push/foreground';
-import { NotifyButton } from './ui/notify';
-import type { NetSession } from './net/session';
+import { setupAccount } from './app/account';
+import { aimFromNear, tapBattlefield } from './app/battlefield';
 import { InfoScreen } from './ui/info';
 import { WhatsNew } from './ui/whatsnew';
 import { matchesOf } from './net/matches';
 import { OnlineScreen } from './ui/online';
 import { Rtdb } from './net/rtdb';
-import { loadCharacter, loadUsername, NamePrompt, profileChanges } from './ui/profile';
+import { loadCharacter, loadUsername, NamePrompt } from './ui/profile';
 import { Landing } from './ui/landing';
 import { SetupScreen } from './ui/setup';
 import { readParams } from './app/params';
 import { setupSoundToggle } from './app/sound';
 import { MatchTape } from './app/tape';
-import { useResultsAccount } from './net/results';
-import { nameKey, PLAYER_KEY, playerKey } from './stats/summary';
+import { nameKey, playerKey } from './stats/summary';
 import { StatsScreen } from './ui/stats';
 import { RANKS } from './stats/ranks';
 import { Ratings } from './ui/ranks';
 import { RankUp } from './ui/rankup';
 import { GameOverCard } from './ui/gameover';
 import { byId } from './ui/dom';
+import { ViewingBar } from './ui/viewing';
 
 const canvas = byId<HTMLCanvasElement>('game');
 const renderer = new Renderer(canvas, WORLD_W, WORLD_H);
@@ -73,6 +49,8 @@ const gameOver = new GameOverCard();
 const hud = new Hud(gameOver);
 
 const params = readParams(location.search, navigator.webdriver);
+/** The online database: a test's (`?db=`), else the real one (null: none, so no online play). */
+const dbUrl = params.db || FIREBASE_DATABASE_URL || null;
 let nextSeed = params.seed ?? randomSeed();
 const first = params.first;
 let players: PlayerConfig[] = [];
@@ -140,7 +118,7 @@ const tape = new MatchTape();
  */
 function startMatch(seed: number, chosen: PlayerConfig[], played = false): GameState {
   state = createGame({ seed, players: chosen, first });
-  matchPlayers = chosen;
+  playing = chosen;
   hud.setRanks(chosen.map((p) => ratings.rank(p.key)));
   if (played) tape.start(seed, chosen);
   else tape.clear();
@@ -156,15 +134,11 @@ function newGame(): void {
   nextSeed = randomSeed();
 }
 
-// ---- Online: two phones, one each, through a Firebase room. Null in a local (hotseat) game. ----
-let net: NetSession | null = null;
-/** A signed-in player's matches from their account (set up with sign-in, below). */
-let seatSync: SeatSync | null = null;
 // ---- Ranks (verified players): ratings from the hourly stats, insignia, rank-ups (ui/ranks.ts, ui/rankup.ts). ----
-const ratings = new Ratings(params.db || FIREBASE_DATABASE_URL || null, () => myStatsKey);
+const ratings = new Ratings(dbUrl, () => myStatsKey);
 const rankUp = new RankUp();
 /** Who's playing the match on screen (for their insignia). */
-let matchPlayers: PlayerConfig[] = [];
+let playing: PlayerConfig[] = [];
 /** This phone's player's rank, if it's gone up since they last saw it: celebrate (once). */
 function celebrateRankUp(): void {
   const seen = ratings.noteSeen();
@@ -172,15 +146,20 @@ function celebrateRankUp(): void {
   rankUp.show(seen.rank, seen.first, ratings.rating(myStatsKey));
   sfx.jingle(seen.rank);
 }
+/** On the menus (not in an online match): a rank-up that turns up in the totals is celebrated at once. */
+function celebrateOnMenus(): void {
+  if (landing.isOpen && !online.session) celebrateRankUp();
+}
 /** Signed in: this player's stats key (their rank goes by it; set with sign-in, below). */
 let myStatsKey: string | null = null;
+// ---- Online: two phones, one each, through a Firebase room (`online.session`: null in a local, hotseat, game). ----
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online.
   pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId, ...(myStatsKey ? { key: myStatsKey } : {}) }),
-  dbUrl: params.db || FIREBASE_DATABASE_URL || null,
+  dbUrl,
   lobby: params.lobby || PUBLIC_LOBBY,
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
-  syncSeats: () => seatSync?.sync() ?? Promise.resolve(),
+  syncSeats: () => account.seatSync?.sync() ?? Promise.resolve(),
   rankOf: (key) => ratings.rank(key),
   // A rated match just ended here: the rating moves now, and a rank-up is celebrated over the game over card.
   ranked: (opponent, score) => {
@@ -195,7 +174,6 @@ function startOnline(seed: number, chosen: PlayerConfig[], played = false): Game
   return startMatch(seed, chosen, played);
 }
 online.onConnected = (s) => {
-  net = s;
   // Both phones build the same game from the same seed; the session keeps them in step.
   s.onStart = (seed, chosen) => {
     void goFullscreen();
@@ -207,25 +185,14 @@ online.onConnected = (s) => {
 online.onSpectate = (sp) => {
   sp.onStart = (seed, chosen) => startOnline(seed, chosen);
 };
-const spectateLeave = byId('spectate-leave');
-spectateLeave.addEventListener('click', () => online.close());
-// A replay can run faster: 1×, 2×, 4×.
-const replaySpeed = byId('replay-speed');
-replaySpeed.addEventListener('click', () => {
-  const r = online.replay;
-  if (!r) return;
-  r.speed = r.speed >= 4 ? 1 : r.speed * 2;
-  replaySpeed.textContent = `${r.speed}×`;
-});
+const viewing = new ViewingBar({ leave: () => online.close(), replay: () => online.replay });
 byId('net-menu').addEventListener('click', () => online.matchMenu());
 // Start a match: the host, or a guest who joined an open game while its host was away. Players are [host, guest].
 online.onHostStart = (s) => {
   const picks = s.isHost ? [s.localPick!, s.remotePick!] : [s.remotePick!, s.localPick!];
-  const colours = assignColours(picks.map((p) => p.characterId));
-  s.start(randomSeed(), picks.map((p, i) => ({ name: p.name, characterId: p.characterId, colour: colours[i]!, ...(p.key && PLAYER_KEY.test(p.key) ? { key: p.key } : {}) })));
+  s.start(randomSeed(), matchPlayers(picks));
 };
 online.onClosed = () => {
-  net = null;
   // Back to the landing screen, with a fresh battlefield behind it.
   startMatch(randomSeed(), setup.players());
   showLanding();
@@ -253,53 +220,20 @@ function showLanding(): void {
   stopCounts();
   stopCounts = online.watchCounts((waiting, live) => landing.setCounts(waiting, live));
 }
-// ---- Notifications ("your turn", "someone joined your game"): push/, net/push.ts, public/sw.js. ----
-const pushDb = online.dbUrl ? new Rtdb(online.dbUrl) : null;
-const push = new PushClient(pushDb, params.vapid ?? VAPID_PUBLIC_KEY);
-
-// ---- Optional sign in with Google: net/auth.ts, net/account.ts (the profile follows the player),
-// net/seatsync.ts (and so do their matches), ui/signin.ts; notifications for the account (net/push.ts). ----
-const fakeAuth = params.fakeGoogle !== null && params.db ? params.db : null;
-const auth = new Auth({
-  apiKey: FIREBASE_API_KEY,
-  ...(fakeAuth ? { signInUrl: `${fakeAuth}/identitytoolkit/signInWithIdp`, refreshUrl: `${fakeAuth}/securetoken/token` } : {}),
-});
-// (A test database has no real accounts: only the fake one, `?fakegoogle`.)
-/** The database as the signed-in player (null: no sign-in here). */
-let userDb: Rtdb | null = null;
-if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIENT_ID))) {
-  userDb = new Rtdb(online.dbUrl, () => auth.token());
-  const account = new Account(auth, userDb, localProfile, () => {
+// ---- Notifications and the optional sign in with Google (app/account.ts). ----
+const account = setupAccount({
+  dbUrl: online.dbUrl,
+  params,
+  profileApplied: () => {
     setUsername(yourName());
     soundToggle.reload();
-  });
-  const seats = new SeatSync(auth, userDb, () => {
+  },
+  seatsSynced: () => {
     if (landing.isOpen) updateTurnsWaiting();
-  });
-  seatSync = seats;
-  profileChanges.on('saved', () => account.changed());
-  seatChanges.on('changed', (code) => seats.changed(code));
-  useAccount(() => auth.uid);
-  useResultsAccount(() => (userDb && auth.uid ? { uid: auth.uid, db: userDb } : null));
-  new SignInPanel(byId('account'), auth, {
-    clientId: GOOGLE_CLIENT_ID,
-    fakeGoogle: params.fakeGoogle,
-    onSignedIn: () => {
-      void account.sync();
-      void seats.sync();
-      void listPhone();
-    },
-    beforeSignOut: () => listPhone(false),
-  });
-  void account.sync();
-  void seats.sync();
-}
-/** List this phone under the signed-in account as one with notifications on (or take it off). */
-function listPhone(on = push.state() === 'on'): Promise<void> {
-  return userDb && auth.uid ? registerPushDevice(userDb, auth.uid, on) : Promise.resolve();
-}
-void push.start().then(() => listPhone());
-new NotifyButton(push, () => void listPhone());
+  },
+  alerts: { open: (ref: string) => void openMatch(ref), here: (ref: string) => online.roomTopic === ref },
+});
+const { auth } = account;
 /** A notification was tapped: into that match (one of this phone's), else the Game browser. */
 async function openMatch(ref: string): Promise<void> {
   netLog('ui: opened from a notification');
@@ -309,27 +243,17 @@ async function openMatch(ref: string): Promise<void> {
   }
   void online.join();
 }
-const alerts = { open: (ref: string) => void openMatch(ref), here: (ref: string) => online.roomTopic === ref };
-if (pushDb && wantsPush()) notifyWhileOpen(pushDb, alerts);
-// Signed in: what's for the account too (from either match seat, on any of the player's phones).
-let accountAlerts: { stop: () => void } | null = null;
-function followAccount(): void {
-  accountAlerts?.stop();
-  accountAlerts = pushDb && userDb && auth.uid ? notifyWhileOpen(pushDb, alerts, accountAddress(auth.uid)) : null;
-}
-followAccount();
-auth.onChange(followAccount);
 /** Signed in: this player's stats key (from their account), and so their rank. */
 async function refreshStatsKey(): Promise<void> {
   myStatsKey = auth.uid ? await playerKey(auth.uid) : null;
   landing.setRank(ratings.rank(myStatsKey));
-  if (landing.isOpen && !online.session) celebrateRankUp();
+  celebrateOnMenus();
 }
 auth.onChange(() => void refreshStatsKey());
 ratings.onChange(() => {
   landing.setRank(ratings.rank(myStatsKey));
-  hud.setRanks(matchPlayers.map((p) => ratings.rank(p.key)));
-  if (landing.isOpen && !online.session) celebrateRankUp();
+  hud.setRanks(playing.map((p) => ratings.rank(p.key)));
+  celebrateOnMenus();
 });
 void refreshStatsKey().then(() => ratings.load());
 navigator.serviceWorker?.addEventListener('message', (e: MessageEvent<{ type?: string; url?: string }>) => {
@@ -374,7 +298,7 @@ if (!loadUsername() && params.askName) {
 // (No goodbye when the page goes away: a reload comes straight back. Leave says goodbye.)
 
 /** Whether this phone may control the game right now (always, in a local game; never while watching). */
-const localCanAct = () => !online.spectator && (!net || net.canAct());
+const localCanAct = () => !online.spectator && (!online.session || online.session.canAct());
 
 bindControls(canvas, {
   canAim: () => state.phase === 'aiming' && localCanAct(),
@@ -383,26 +307,10 @@ bindControls(canvas, {
   selectTier: (t) => selectTier(state, t),
   setDrive: (dir) => (driveDir = dir),
   canTap: () => (canPickDecoy(state) || pendingTwinSpot(state) !== null) && localCanAct(),
-  tap: (x, y) => {
-    const w = renderer.screenToWorld(x, y);
-    // Placing torikloud's twin: wherever the ground was tapped (if it's allowed there).
-    if (pendingTwinSpot(state) !== null) return void placeTwin(state, w.x);
-    // Generous finger-sized radius (~30 CSS px).
-    const holo = hologramAt(state, w.x, w.y, 30 / renderer.cssScale);
-    if (holo) toggleSwapTarget(state, holo.id);
-  },
-  fire: () => (net ? net.fire() : fireHere()),
+  tap: (x, y) => tapBattlefield(state, renderer, x, y),
+  fire: () => (online.session ? online.session.fire() : fireHere()),
   done: () => finishDecoyPick(state),
-  aimFrom: (x, y) => {
-    // torikloud with a twin: a drag that starts near one of the tanks aims that one.
-    const p = currentPlayer(state);
-    if (!p.twin) return;
-    const w = renderer.screenToWorld(x, y);
-    const near = 60 / renderer.cssScale;
-    const dMain = Math.hypot(w.x - p.x, w.y - (p.y - TANK_BODY_HEIGHT));
-    const dTwin = Math.hypot(w.x - p.twin.x, w.y - (p.twin.y - TANK_BODY_HEIGHT));
-    if (Math.min(dMain, dTwin) < near) aimTwin(state, dTwin < dMain);
-  },
+  aimFrom: (x, y) => aimFromNear(state, renderer, x, y),
   switchAim: () => aimTwin(state, !currentPlayer(state).aimTwin),
 });
 
@@ -423,18 +331,18 @@ gameOver.replay.addEventListener('click', () => {
   if (online.replay) return online.replay.restart(); // Watch again
   const replay = tape.replay;
   if (!replay) return;
-  if (net) online.close(); // done with the match (it's over)
+  if (online.session) online.close(); // done with the match (it's over)
   online.watchTape(replay);
 });
 gameOver.leave.addEventListener('click', () => {
   gameOver.hide();
-  if (net || online.spectator) online.close();
+  if (online.session || online.spectator) online.close();
   else setup.show();
 });
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (params.debug) {
-  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return net; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText, rankUp, RANKS } });
+  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return online.session; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText, rankUp, RANKS } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */
@@ -469,6 +377,7 @@ function frameError(e: unknown): void {
   netLog(`error in a frame: ${what}`);
 }
 function runFrame(now: number): void {
+  const net = online.session;
   const replay = online.replay;
   const dt = Math.min(0.1, (now - last) / 1000) * (replay?.speed ?? 1);
   last = now;
@@ -488,14 +397,7 @@ function runFrame(now: number): void {
   for (const e of state.sfx.splice(0)) sfx.play(e);
   renderer.draw(state, dt);
   hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.ended ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
-  document.body.dataset.spectating = String(!!online.spectator);
-  if (document.body.dataset.replay !== String(!!replay)) {
-    document.body.dataset.replay = String(!!replay);
-    spectateLeave.textContent = replay ? '▶ Replay · Leave' : '👁 Watching · Leave';
-    spectateLeave.setAttribute('aria-label', replay ? 'Stop the replay' : 'Stop watching');
-    replaySpeed.textContent = `${replay?.speed ?? 1}×`;
-  }
-  document.body.dataset.online = String(!!net && !net.ended);
+  viewing.update({ spectating: !!online.spectator, replay, online: !!net && !net.ended });
   if (state.phase === 'gameover') tape.end(state);
   gameOver.update(replay ? 'replay' : online.spectator ? 'watching' : net ? 'online' : 'hotseat', !!tape.replay);
   hud.update(state);

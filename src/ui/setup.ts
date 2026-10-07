@@ -1,4 +1,4 @@
-import { assignColours, getCharacter, loadoutSummary } from '../characters/roster';
+import { assignColours, getCharacter, loadoutSummary, matchPlayers } from '../characters/roster';
 import { upcoming } from '../characters/upcoming';
 import type { PlayerConfig } from '../game/state';
 import { readJson, writeJson } from '../core/storage';
@@ -64,9 +64,8 @@ export class SetupScreen {
   }
 
   players(): PlayerConfig[] {
-    const colours = assignColours(this.seats.map((s) => s.characterId));
     const names = resolveNames(this.seats);
-    return this.seats.map((s, i) => ({ name: names[i]!, characterId: s.characterId, colour: colours[i]! }));
+    return matchPlayers(this.seats.map((s, i) => ({ name: names[i]!, characterId: s.characterId })));
   }
 
   private render(): void {
