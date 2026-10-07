@@ -17,7 +17,7 @@ import type { GameState, Player, TankBody } from './state';
  * | pinned (Sew) | `pin` | the player | their next turn (no driving or hopping) |
  *
  * (Women in Scam is a bonus move's own business: scam.ts. Soak and toxin are damage on its way: tanks.ts.)
- * How they look is render/draw/tank.ts (on the tank) and render/hud.ts (badges by the name).
+ * How they look is render/draw/tank.ts (on the tank) and ui/status-looks.ts (badges by the name, info lines).
  */
 
 /**
