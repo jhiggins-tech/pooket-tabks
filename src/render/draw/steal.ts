@@ -1,5 +1,4 @@
-import { TANK_BODY_HEIGHT } from '../../game/constants';
-import { STEAL_SPIN } from '../../game/game';
+import { STEAL_SPIN, tankCentre } from '../../game/game';
 import type { GameState } from '../../game/state';
 import type { Draw } from './context';
 
@@ -15,8 +14,8 @@ export function drawHeist(d: Draw, state: GameState): void {
   const victim = h && state.players[h.victimId];
   if (!h || !thief || !victim) return;
   const { ctx } = d;
-  const a = { x: thief.x, y: thief.y - TANK_BODY_HEIGHT - 4 };
-  const b = { x: victim.x, y: victim.y - TANK_BODY_HEIGHT - 4 };
+  const a = { x: thief.x, y: tankCentre(thief).y - 4 };
+  const b = { x: victim.x, y: tankCentre(victim).y - 4 };
   const c = { x: (a.x + b.x) / 2, y: Math.min(a.y, b.y) - 50 - Math.abs(b.x - a.x) * 0.12 };
   const at = (s: number) => ({
     x: (1 - s) ** 2 * a.x + 2 * (1 - s) * s * c.x + s ** 2 * b.x,

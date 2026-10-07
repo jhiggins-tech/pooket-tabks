@@ -1,6 +1,7 @@
 import type { Apparition, GameState } from '../../game/state';
 import type { Draw } from './context';
 import { glow } from './colour';
+import { spriteReady } from '../sprites';
 
 /** Sky apparitions (the kookaburra in parting clouds). */
 
@@ -47,7 +48,7 @@ export function drawApparition(d: Draw, a: Apparition): void {
 
   // The kookaburra, rising slightly into view with a golden halo.
   const sprite = d.sprites.kookaburra;
-  if (sprite.image.complete && sprite.image.naturalWidth > 0) {
+  if (spriteReady(sprite)) {
     const s = 0.85 + 0.15 * reveal;
     const bob = Math.sin(d.time * 2) * 1.5 + (1 - reveal) * 10;
     ctx.save();

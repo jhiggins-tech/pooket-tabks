@@ -3,6 +3,7 @@ import type { GameState, Projectile } from '../../game/state';
 import { projectileWeapon } from '../../weapons/registry';
 import { glow, withAlpha } from './colour';
 import type { Draw } from './context';
+import { spriteReady } from '../sprites';
 
 /** Projectiles (sprites, letters, plain shells) and laser beams. */
 
@@ -55,8 +56,8 @@ export function drawSprite(d: Draw, pr: Projectile): boolean {
   const weapon = projectileWeapon(pr.weaponId);
   const variants = weapon.spriteVariants;
   const id = variants?.length ? variants[(pr.variant ?? 0) % variants.length] : weapon.sprite;
-  const sprite = id && d.sprites[id];
-  if (!sprite || !sprite.image.complete || sprite.image.naturalWidth === 0) return false;
+  const sprite = id ? d.sprites[id] : undefined;
+  if (!spriteReady(sprite)) return false;
   const { ctx } = d;
   const { width: w, height: h } = sprite;
   ctx.save();
