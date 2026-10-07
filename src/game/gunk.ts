@@ -1,6 +1,7 @@
 import { randRange } from '../core/rng';
 import { getWeapon, gunkWeapon, weaponOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
+import { bodiesOf } from './bodies';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import type { Stepper } from './mechanics';
 import type { GameState, Player, Puddle, Sludge, Spew } from './state';
@@ -148,8 +149,7 @@ export function stepPuddles(state: GameState, dt: number): void {
 /** Toxin on a tank drains into (batched, trickling) damage over a couple of seconds. */
 export function drainToxin(state: GameState, dt: number): void {
   for (const p of state.players) {
-    const tw = p.twin;
-    for (const tank of tw ? [p, tw] : [p]) {
+    for (const tank of bodiesOf(p)) {
       if (tank.toxin <= 0) continue;
       const d = Math.min(tank.toxin, tank.toxinRate * dt);
       tank.toxin = tank.toxin - d < 1e-6 ? 0 : tank.toxin - d;
@@ -185,5 +185,5 @@ export const puddleStepper: Stepper = {
 /** Toxin doses drain into damage before the turn can end. */
 export const toxinStepper: Stepper = {
   step: drainToxin,
-  busy: (state) => state.players.some((p) => p.toxin > 0 || (p.twin?.toxin ?? 0) > 0),
+  busy: (state) => state.players.some((p) => bodiesOf(p).some((tank) => tank.toxin > 0)),
 };

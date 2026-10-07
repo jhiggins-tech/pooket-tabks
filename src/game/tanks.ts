@@ -3,7 +3,7 @@ import type { WeaponDef } from '../weapons/types';
 import { RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { currentPlayer, settleTanks } from './bodies';
+import { bodiesOf, currentPlayer, settleTanks } from './bodies';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
@@ -37,8 +37,7 @@ export function stepSoak(state: GameState, dt: number, final: boolean): void {
     return whole;
   };
   for (const p of state.players) {
-    const tw = p.twin;
-    for (const tank of tw ? [p, tw] : [p]) {
+    for (const tank of bodiesOf(p)) {
       const whole = flush(tank);
       if (whole > 0) hurt(state, p, tank, whole, tank.soakColour);
     }
@@ -155,8 +154,7 @@ export function tankBodies(state: GameState): { x: number; y: number; owner: Pla
   const out: { x: number; y: number; owner: Player; twin: boolean }[] = [];
   for (const p of state.players) {
     if (!p.alive) continue;
-    out.push({ x: p.x, y: p.y, owner: p, twin: false });
-    if (p.twin) out.push({ x: p.twin.x, y: p.twin.y, owner: p, twin: true });
+    for (const tank of bodiesOf(p)) out.push({ x: tank.x, y: tank.y, owner: p, twin: tank !== p });
   }
   return out;
 }
@@ -286,8 +284,7 @@ function tankBody(t: TankBody): TankBody {
 
 /** A player's burns tick (at every turn change, endTurn): the main tank's, then the twin's. */
 export function tickBurn(state: GameState, p: Player): void {
-  const tw = p.twin;
-  for (const tank of tw ? [p, tw] : [p]) {
+  for (const tank of bodiesOf(p)) {
     const b = tank.burn;
     if (!b) continue;
     b.turnsLeft--;

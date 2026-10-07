@@ -1,6 +1,6 @@
 import type { Terrain } from '../core/terrain';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
-import type { GameState, Player } from './state';
+import type { GameState, Player, TankBody } from './state';
 
 /**
  * Where the tanks are: whose turn it is, a tank's centre and muzzle, and resting hulls on the ground. A leaf
@@ -20,6 +20,11 @@ export function muzzle(p: Player): { x: number; y: number } {
   const c = tankCentre(p);
   const a = (p.angle * Math.PI) / 180;
   return { x: c.x + Math.cos(a) * BARREL_LENGTH, y: c.y - Math.sin(a) * BARREL_LENGTH };
+}
+
+/** A player's tanks, in order: the main tank (the player itself), then the twin if there is one. */
+export function bodiesOf(p: Player): TankBody[] {
+  return p.twin ? [p, p.twin] : [p];
 }
 
 /** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */
