@@ -1355,14 +1355,17 @@ body[data-remote='true'] .drive button {
   font-weight: 800;
   color: var(--c, var(--text));
 }
-/* (Inside .info-body, `.info-body p` outranks these two: the notes show at its size and opacity.) */
+/* Small print on the stats screen (scoped to .info-body so it outranks `.info-body p`). */
 .stats-note,
-.stats-footer {
+.info-body .stats-note,
+.stats-footer,
+.info-body .stats-footer {
   margin: 8px 0 0;
   font-size: 12px;
   opacity: 0.75;
 }
-.stats-footer {
+.stats-footer,
+.info-body .stats-footer {
   opacity: 0.55;
 }
 .stats-facts {
