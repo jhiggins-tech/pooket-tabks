@@ -1,6 +1,7 @@
-import { AMMO_PER_TIER, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
+import { fullAmmo, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
 import { upcoming, UPCOMING, type Upcoming } from '../characters/upcoming';
-import { getWeapon, ignoresAim, isBonus, kindOf } from '../weapons/registry';
+import { kindRow } from '../weapons/kinds';
+import { getWeapon, ignoresAim, kindOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from '../game/constants';
 import { el } from './dom';
@@ -21,8 +22,9 @@ export function movementInfo(c: CharacterDef): { label: string; text: string } {
 
 /** Little tags for a weapon card: rounds, and whether it needs aiming. */
 export function weaponTags(w: WeaponDef, tier: number): string[] {
-  const rounds = AMMO_PER_TIER[tier] ?? 1;
-  if (isBonus(w)) return ['Bonus move', kindOf(w) === 'coffee' ? 'Once a turn' : 'Once a match', 'No aiming'];
+  const rounds = fullAmmo(tier);
+  const row = kindRow(kindOf(w));
+  if (row.turn === 'bonus') return ['Bonus move', row.per === 'turn' ? 'Once a turn' : 'Once a match', 'No aiming'];
   return [`Tier ${tier + 1}`, `${rounds} round${rounds === 1 ? '' : 's'}`, ignoresAim(w) ? 'No aiming' : 'Aimed'];
 }
 

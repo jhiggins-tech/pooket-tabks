@@ -1,7 +1,7 @@
 import type { ApparitionKind } from '../weapons/types';
 import { GRAVITY } from './constants';
 import type { Droplet, GameState, Player, SfxCue } from './state';
-import { tankCentre } from './tanks';
+import { tankCentre } from './bodies';
 import { hash } from './util';
 
 /** Cosmetic effects and sound cues: floating numbers, dust, splashes, rings. Game logic never reads these back. */

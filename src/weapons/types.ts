@@ -121,7 +121,7 @@ export interface WeaponBase {
   /** Something that appears in the sky above the tank when fired (cosmetic). */
   apparition?: ApparitionKind;
   // Effects of a hit, whatever the kind of weapon (applyHit in game/tanks.ts; statuses in game/statuses.ts):
-  /** A burn on the tank hit, dealing damage at the start of each of its player's next `turns` turns. */
+  /** A burn on the tank hit, dealing damage at each of the next `turns` turn changes, whoever's turn it is. */
   dot?: { damagePerTurn: number; turns: number };
   /** "Cook" debuff: whoever it hits deals `offenceMultiplier` × damage with everything they fire on their next turn. */
   debuff?: { offenceMultiplier: number };

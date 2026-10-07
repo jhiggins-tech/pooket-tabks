@@ -1,7 +1,7 @@
 import { FUEL_PER_MATCH } from '../game/constants';
-import { isBonus, jetSpec } from '../weapons/registry';
+import { jetSpec } from '../weapons/registry';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { aimedTank, canDrinkCoffee, canSuckYolk, coffeeFailChance, coffeeSpun, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, isCoffee, jetCharge, pendingTwinSpot, weaponForTier, YOLK_SUCKER, yolkTier } from '../game/game';
+import { aimedTank, canSuckYolk, canUseSlot, coffeeFailChance, coffeeSpun, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, isCoffee, jetCharge, pendingTwinSpot, slotAt, weaponForTier, YOLK_SUCKER, yolkTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { Rank } from '../stats/ranks';
@@ -107,6 +107,7 @@ export class Hud {
     if (key === this.keys.status) return;
     this.keys.status = key;
     const aimless = isAimless(state);
+    const slot = slotAt(p, p.selectedTier);
     document.body.dataset.phase = state.phase;
     document.body.dataset.remote = String(remote);
     document.body.dataset.aimless = String(aimless);
@@ -126,7 +127,7 @@ export class Hud {
       ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
       ? `ten-2 charging… ${countdown}`
-      : isBonus(weaponForTier(p, p.selectedTier)) || p.selectedTier === yolkTier(p)
+      : slot === 'bonus' || slot === 'yolk'
       ? 'Bonus move: FIRE it, then take your turn'
       : pendingTwinSpot(state) !== null
       ? 'Tap the ground to place your twin, then FIRE'
@@ -142,10 +143,8 @@ export class Hud {
     // Just after casting Trollogram, FIRE becomes DONE: finished picking a decoy to swap into.
     const done = picking !== null && !remote;
     this.fireEl.textContent = done ? 'DONE' : 'FIRE';
-    const yolk = p.selectedTier === yolkTier(p);
-    const coffee = isCoffee(p, p.selectedTier);
-    this.fireEl.disabled =
-      !done && (state.phase !== 'aiming' || (yolk ? !canSuckYolk(p) : coffee ? !canDrinkCoffee(state, p, p.selectedTier) : (p.ammo[p.selectedTier] ?? 0) <= 0));
+    // (Not canFire: that also waits out a hop, which this key doesn't follow, so FIRE could stay greyed after landing.)
+    this.fireEl.disabled = !done && (state.phase !== 'aiming' || !canUseSlot(state, p, p.selectedTier));
   }
 
   /** A chip per player: name, status badges, and one health bar (two once Twins has split it). */
@@ -211,6 +210,8 @@ export class Hud {
       ...p.loadout.map((_, tier) => {
         const w = weaponForTier(p, tier);
         const left = p.ammo[tier] ?? 0;
+        // Usable now (loadout.ts: rounds left; Yolk Sucker: health to even out; Diced Coffee: not had one this turn).
+        const ok = canUseSlot(state, p, tier);
         const btn = document.createElement('button');
         btn.className = 'weapon';
         btn.dataset.tier = String(tier);
@@ -218,11 +219,10 @@ export class Hud {
         btn.setAttribute('aria-pressed', String(tier === p.selectedTier));
         const name = document.createElement('span');
         name.className = 'wname';
+        btn.disabled = !ok || state.phase !== 'aiming';
         if (tier === yolk) {
           // torikloud's spent Twins: Yolk Sucker, a bonus move as often as there's health to even out.
-          const ok = canSuckYolk(p);
           btn.classList.add('yolk');
-          btn.disabled = !ok || state.phase !== 'aiming';
           btn.setAttribute('aria-label', `${YOLK_SUCKER.name}, bonus move${ok ? '' : ': health already even'}`);
           name.textContent = YOLK_SUCKER.name;
           name.classList.add('long');
@@ -234,11 +234,9 @@ export class Hud {
         }
         if (isCoffee(p, tier)) {
           // Diced Coffee: once a turn until it spills; the note says the odds (or why not).
-          const ok = canDrinkCoffee(state, p, tier);
           const risk = `${Math.round(coffeeFailChance(p, tier) * 100)}%`;
           const why = left <= 0 ? 'spilt' : ok ? `${risk} risk` : 'had one';
           btn.classList.add('coffee');
-          btn.disabled = !ok || state.phase !== 'aiming';
           btn.setAttribute('aria-label', `${w.name}, bonus move: ${left <= 0 ? 'spilt' : ok ? `${risk} chance of full cream` : 'one a turn'}`);
           name.textContent = w.shortName;
           name.classList.add('long');
@@ -248,7 +246,6 @@ export class Hud {
           btn.append(name, note);
           return btn;
         }
-        btn.disabled = left <= 0 || state.phase !== 'aiming';
         btn.setAttribute('aria-label', `${w.name}, ${left} left`);
         name.textContent = w.shortName;
         name.classList.toggle('long', w.shortName.length > 8);

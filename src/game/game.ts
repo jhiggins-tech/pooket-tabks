@@ -1,16 +1,17 @@
-import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
+import { fullAmmo, getCharacter } from '../characters/roster';
 import { createRng, randRange } from '../core/rng';
 import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
 import { ignoresAim, kindOf } from '../weapons/registry';
 import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
-import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
-import { canDrinkCoffee, coffeeDone, finishCoffee, isCoffee, stepCoffee } from './coffee';
-import { canSuckYolk, resolveHolograms, stepPhaseFx, suckYolk, yolkTier } from './copies';
+import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
+import { settleTurn, tankBody } from './bodies';
+import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
+import { resolveHolograms, stepPhaseFx, suckYolk } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
 import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
-import { reselect, weaponForTier } from './loadout';
+import { canFire, canUseSlot, reselect, roundKeepsInPlay, slotAt, weaponForTier } from './loadout';
 import { runLegs } from './runner';
 import type { GameState, Player, PlayerConfig } from './state';
 import { endScams } from './scam';
@@ -23,23 +24,25 @@ import { clamp, normalizeAngle } from './util';
 /**
  * The match: creating a game, aiming and weapon choice, firing (each weapon kind's mechanics live in
  * their own module), the fixed-step simulation and the turn state machine
- * (aiming → flying → settling → aiming | gameover). Pure logic, no DOM. The public API is re-exported
- * here, so the rest of the game imports from './game'.
+ * (aiming → flying → settling → aiming | gameover; plus stealing, kie's Steal roulette, and coffee, Diced
+ * Coffee's spinner: both back to aiming, or from coffee to settling when it spilt or nothing's left to
+ * fire). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
+ * './game'.
  */
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
-export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, drive } from './movement';
+export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, WALKER_BODY } from './constants';
+export { drive } from './movement';
 export { traceBeam, volleyOffsets } from './projectiles';
 export { stitchPoint } from './sew';
 export { PHASE_FOCUS, PHASE_RANGE, boomPhaseArcs, boomRadii } from './sonic';
 export { STEAL_HOLD, STEAL_SPIN, heistIndex } from './steal';
 export { streamDuration, streamPressure } from './stream';
 export type { Target } from './tanks';
-export { currentPlayer, damagePlayer, explode, muzzle, offence, tankCentre, targetAt, targetPos } from './tanks';
+export { currentPlayer, explode, muzzle, offence, tankCentre, targetAt, targetPos } from './tanks';
 export { normalizeAngle } from './util';
-export { WALKER_BODY } from './walkers';
 
 export interface GameConfig {
   seed: number;
@@ -85,20 +88,15 @@ export function createGame(cfg: GameConfig): GameState {
       id: i,
       name: p.name,
       colour: p.colour,
-      x,
-      y: terrain.surfaceY(x),
-      hp: character.maxHp ?? MAX_HP,
+      ...tankBody({ x, y: terrain.surfaceY(x), hp: character.maxHp ?? MAX_HP }),
       maxHp: character.maxHp ?? MAX_HP,
       angle: x < width / 2 ? 45 : 135,
       power: 60,
       alive: true,
       characterId: character.id,
       loadout: [...character.loadout],
-      ammo: character.loadout.map((_, tier) => AMMO_PER_TIER[tier] ?? 1),
+      ammo: character.loadout.map((_, tier) => fullAmmo(tier)),
       selectedTier: 0,
-      burn: null,
-      soak: 0,
-      soakColour: '#ffffff',
       cooked: null,
       tattoo: null,
       pinned: null,
@@ -107,8 +105,6 @@ export function createGame(cfg: GameConfig): GameState {
       aimTwin: false,
       twinSpot: null,
       fuel: FUEL_PER_MATCH,
-      toxin: 0,
-      toxinRate: 0,
       scam: null,
       coffee: null,
       extraTurn: false,
@@ -199,32 +195,29 @@ export function aimTwin(state: GameState, twin: boolean): void {
 
 /** Whether a player has anything to fire (Diced Coffee is no shot: alone, it doesn't keep them in). */
 export function hasAmmo(p: Player): boolean {
-  return p.ammo.some((n, tier) => n > 0 && !isCoffee(p, tier));
+  return p.ammo.some((_, tier) => roundKeepsInPlay(p, tier));
 }
 
-export { weaponForTier } from './loadout';
+export { canFire, canUseSlot, slotAt, weaponForTier, type SlotKind } from './loadout';
 
 /**
- * Choose which tier the current player fires next. Returns false if it has no rounds left (Yolk Sucker:
- * nothing to even out; Diced Coffee: already had one this turn).
+ * Choose which tier the current player fires next. Returns false if it can't be used now (canUseSlot: no
+ * rounds left; Yolk Sucker: nothing to even out; Diced Coffee: already had one this turn).
  */
 export function selectTier(state: GameState, tier: number): boolean {
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
-  if ((p.ammo[tier] ?? 0) <= 0 && !(tier === yolkTier(p) && canSuckYolk(p))) return false;
-  if (isCoffee(p, tier) && !canDrinkCoffee(state, p, tier)) return false;
+  if (!canUseSlot(state, p, tier)) return false;
   p.selectedTier = tier;
   return true;
 }
 
 export function fire(state: GameState): boolean {
-  if (state.phase !== 'aiming') return false;
+  if (!canFire(state)) return false; // (not mid-hop either: land first)
   const p = currentPlayer(state);
-  if (p.hop) return false; // land first
   const tier = p.selectedTier;
   // torikloud's spent Twins slot, while the twin stands: Yolk Sucker, a bonus move (the turn carries on).
-  if (tier === yolkTier(p)) return suckYolk(state, p);
-  if ((p.ammo[tier] ?? 0) <= 0) return false;
+  if (slotAt(p, tier) === 'yolk') return suckYolk(state, p);
   const weapon = weaponForTier(p, tier);
   const kind = kindOf(weapon);
   // Not a shot (Steal, a bonus move): it does its thing, and the turn carries on.
@@ -255,24 +248,28 @@ export function step(state: GameState, dt: number): void {
   stepSplashes(state, dt);
 
   if (state.phase === 'flying') {
-    for (const m of STEPPERS) m.step(state, dt);
-    const busy = STEPPERS.some((m) => m.busy(state));
-    if (!busy) {
+    if (!runSteppers(state, dt)) {
+      // The shot has played out: the last of the soak, then the turn settles.
       stepSoak(state, dt, true);
-      state.phase = 'settling';
-      state.settleTimer = SETTLE_TIME;
+      settleTurn(state);
     }
   } else if (state.phase === 'stealing') {
     stepHeist(state, dt);
   } else if (state.phase === 'coffee') {
     stepCoffee(state, dt);
     // A spill's little jetpack (and its mud) plays out like a shot, then the turn carries on.
-    for (const m of STEPPERS) m.step(state, dt);
-    if (coffeeDone(state) && !STEPPERS.some((m) => m.busy(state))) finishCoffee(state);
+    const busy = runSteppers(state, dt);
+    if (coffeeDone(state) && !busy) finishCoffee(state);
   } else if (state.phase === 'settling') {
     state.settleTimer -= dt;
     if (state.settleTimer <= 0) endTurn(state);
   }
+}
+
+/** Step everything that plays out during a shot (STEPPERS, in their order); returns whether any is still busy. */
+function runSteppers(state: GameState, dt: number): boolean {
+  for (const m of STEPPERS) m.step(state, dt);
+  return STEPPERS.some((m) => m.busy(state));
 }
 
 function endTurn(state: GameState): void {

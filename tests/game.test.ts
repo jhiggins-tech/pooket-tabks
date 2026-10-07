@@ -66,7 +66,7 @@ describe('game', () => {
     const g = createGame({ seed: 5, players });
     const bob = g.players[1]!;
     const yBefore = bob.y;
-    explode(g, bob.x, bob.y, shell);
+    explode(g, bob.x, bob.y, shell, g.current);
     expect(bob.hp).toBeLessThan(MAX_HP);
     expect(bob.y).toBeGreaterThan(yBefore);
     expect(g.players[0]!.hp).toBe(MAX_HP);
@@ -78,7 +78,7 @@ describe('game', () => {
     fire(g);
     // Replace the in-flight shell with a direct hit on Bob.
     g.projectiles = [];
-    explode(g, g.players[1]!.x, g.players[1]!.y - 8, shell);
+    explode(g, g.players[1]!.x, g.players[1]!.y - 8, shell, g.current);
     runUntil(g, (s) => s.phase === 'gameover');
     expect(g.winner?.name).toBe('Alice');
   });

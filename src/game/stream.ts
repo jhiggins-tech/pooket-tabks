@@ -1,6 +1,7 @@
 import { randRange } from '../core/rng';
 import { weaponOf } from '../weapons/registry';
-import type { StreamSpec, WeaponDef } from '../weapons/types';
+import type { StreamSpec, WeaponOf } from '../weapons/types';
+import { bodiesOf } from './bodies';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnFloater, spawnSplash } from './fx';
 import type { Stepper } from './mechanics';
@@ -30,12 +31,11 @@ function closeEnemy(state: GameState, p: Player): Stream['close'] {
   let bestD = SPLASHBACK_RANGE;
   for (const q of state.players) {
     if (q === p || !q.alive) continue;
-    for (const [tank, twin] of [[q, false], [q.twin, true]] as const) {
-      if (!tank) continue;
+    for (const tank of bodiesOf(q)) {
       const d = Math.hypot(tank.x - p.x, tank.y - p.y);
       if (d < bestD) {
         bestD = d;
-        best = { playerId: q.id, twin };
+        best = { playerId: q.id, twin: tank !== q };
       }
     }
   }
@@ -47,7 +47,7 @@ function isClose(st: Stream, t: Target): boolean {
   return !!c && t.kind === 'tank' && t.player.id === c.playerId && (t.tank !== t.player) === c.twin;
 }
 
-export function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireStream(state: GameState, p: Player, weapon: WeaponOf<'stream'>): void {
   const m = muzzle(p);
   state.streams.push({
     id: state.nextId++,

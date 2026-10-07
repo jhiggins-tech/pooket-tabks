@@ -1,5 +1,5 @@
 import { weaponOf } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
@@ -52,7 +52,7 @@ export function runLegs(state: GameState): void {
 }
 
 /** Marathon: a runner lines up at the firer's tank (and runs a leg with every shot, this one included). */
-export function fireRunner(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireRunner(state: GameState, p: Player, weapon: WeaponOf<'runner'>): void {
   state.runners.push({ ownerId: p.id, weaponId: weapon.id, x: p.x, y: p.y, dir: 1, legLeft: 0, distance: 0, out: false });
 }
 

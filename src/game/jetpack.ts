@@ -1,11 +1,11 @@
 import { randRange } from '../core/rng';
 import { jetSpec } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import type { WeaponOf } from '../weapons/types';
+import { hullRest, otherBodyNear } from './bodies';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Jet, Player } from './state';
-import { someTankBody } from './tanks';
 import { hash } from './util';
 
 /** tones' ten-2 (and a spilt Diced Coffee, a little one straight up): the charge, the flight and the landing. */
@@ -28,7 +28,8 @@ function jetBodyHits(state: GameState, x: number, y: number, self: Player): bool
     const a = (k * Math.PI) / 4;
     if (state.terrain.isSolid(x + Math.cos(a) * JET_BODY_RADIUS, cy + Math.sin(a) * JET_BODY_RADIUS)) return true;
   }
-  return someTankBody(state, (qx, qy, owner, twin) => !(owner === self && !twin) && Math.hypot(qx - x, qy - y) < TANK_HALF_WIDTH * 2);
+  // (Holograms don't count: a flying tank passes them.)
+  return otherBodyNear(state, self, (qx, qy) => Math.hypot(qx - x, qy - y) < TANK_HALF_WIDTH * 2, { holograms: false }) !== null;
 }
 
 /** Charge, launch, fly, land. Returns true once the tank has landed. */
@@ -123,8 +124,7 @@ export function stepJet(state: GameState, j: Jet, dt: number): boolean {
 function land(state: GameState, p: Player): void {
   const { terrain } = state;
   for (let guard = 0; guard < 60; guard++) {
-    let otherX: number | null = null;
-    someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && Math.abs(qx - p.x) < TANK_HALF_WIDTH * 2 && ((otherX = qx), true));
+    const otherX = otherBodyNear(state, p, (qx) => Math.abs(qx - p.x) < TANK_HALF_WIDTH * 2, { holograms: false });
     if (otherX === null) break;
     const dir = p.x >= otherX ? 1 : -1;
     const nx = p.x + dir;
@@ -132,29 +132,21 @@ function land(state: GameState, p: Player): void {
   }
   p.x = Math.round(p.x);
   // Rest on the highest supporting column under the hull.
-  let ground = terrain.height;
-  const top = Math.max(0, p.y - TANK_BODY_HEIGHT * 2);
-  for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
-    ground = Math.min(ground, terrain.groundBelow(p.x + dx, top));
-  }
-  p.y = ground;
+  p.y = hullRest(terrain, p.x, Math.max(0, p.y - TANK_BODY_HEIGHT * 2));
   spawnDust(state, p.x, p.y, 1);
 }
 
+/**
+ * A jet about to charge: player `playerId`'s tank, with `weaponId`'s jetpack, drawn heading `heading`
+ * (radians) until it launches; along the player's aim, or along `aim` if it's given.
+ */
+export function newJet(playerId: number, weaponId: string, heading: number, aim?: { angle: number; power: number }): Jet {
+  return { playerId, weaponId, elapsed: 0, launched: false, vx: 0, vy: 0, burnLeft: 0, emitCarry: 0, flightTime: 0, heading, ...aim };
+}
+
 /** ten-2: the tank starts charging, and launches along its aim once charged. */
-export function fireJetpack(state: GameState, p: Player, weapon: WeaponDef): void {
-  state.jets.push({
-    playerId: p.id,
-    weaponId: weapon.id,
-    elapsed: 0,
-    launched: false,
-    vx: 0,
-    vy: 0,
-    burnLeft: 0,
-    emitCarry: 0,
-    flightTime: 0,
-    heading: (p.angle * Math.PI) / 180,
-  });
+export function fireJetpack(state: GameState, p: Player, weapon: WeaponOf<'jetpack'>): void {
+  state.jets.push(newJet(p.id, weapon.id, (p.angle * Math.PI) / 180));
 }
 
 export const jetStepper: Stepper = {

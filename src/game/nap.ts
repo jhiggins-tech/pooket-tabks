@@ -1,6 +1,6 @@
-import { AMMO_PER_TIER, getCharacter } from '../characters/roster';
+import { fullAmmo, getCharacter } from '../characters/roster';
 import { getWeapon, isBonus, weaponOf } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import type { WeaponOf } from '../weapons/types';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import type { GameState, Nap, Player } from './state';
@@ -41,7 +41,7 @@ function restock(p: Player, napId: string): boolean {
   const loadout = getCharacter(p.characterId).loadout;
   let changed = false;
   loadout.forEach((id, tier) => {
-    const full = AMMO_PER_TIER[tier] ?? 0;
+    const full = fullAmmo(tier);
     if (id === napId || isBonus(getWeapon(id)) || (p.ammo[tier] ?? 0) >= full) return;
     p.ammo[tier] = full;
     changed = true;
@@ -49,7 +49,7 @@ function restock(p: Player, napId: string): boolean {
   return changed;
 }
 
-export function fireNap(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireNap(state: GameState, p: Player, weapon: WeaponOf<'heal'>): void {
   state.naps.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, nextZ: 0 });
 }
 

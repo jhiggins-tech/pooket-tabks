@@ -1,3 +1,4 @@
+import { kindRow } from '../weapons/kinds';
 import { kindOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import type { GameState, Player, PlayerTally } from './state';
@@ -10,13 +11,10 @@ import type { GameState, Player, PlayerTally } from './state';
  * - A shot counts (`shots`, and `hits` if it touched an enemy tank or decoy) when its weapon can do damage:
  *   not Twins, Trollogram or Take a Nap, nor bonus moves and free actions (they aren't shots).
  * - Damage is credited in `hurt` (every hit on a tank goes through it), capped at the health that was
- *   there: to whoever caused it, with which weapon. A burn remembers who lit it (it ticks on the victim's
- *   turn); anything else during a shot is the shooter's (soak and toxin included).
+ *   there: to whoever caused it, with which weapon. A burn remembers who lit it (it ticks between turns,
+ *   whoever's); anything else during a shot is the shooter's (soak and toxin included).
  * - A kill: the hit that put a player out.
  */
-
-/** Kinds of shot that never do damage themselves (so they're left out of shots and accuracy). */
-const HARMLESS = new Set(['twin', 'decoy', 'heal']);
 
 export function newTally(): PlayerTally {
   return { shots: {}, hits: {}, dealt: {}, taken: 0, self: 0, kills: 0 };
@@ -31,7 +29,7 @@ export interface DamageSource {
 /** A shot has been fired: count it, if it's the kind that can hurt. */
 export function tallyShot(state: GameState, p: Player, weapon: WeaponDef): void {
   state.tallyShot = null;
-  if (HARMLESS.has(kindOf(weapon))) return;
+  if (kindRow(kindOf(weapon)).harmless) return; // never does damage itself (KINDS `harmless`)
   const t = tallyOf(state, p.id);
   t.shots[weapon.id] = (t.shots[weapon.id] ?? 0) + 1;
   state.tallyShot = { playerId: p.id, weaponId: weapon.id, hit: false };

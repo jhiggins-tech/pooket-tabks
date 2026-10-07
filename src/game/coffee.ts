@@ -1,7 +1,8 @@
 import { kindOf, weaponOf } from '../weapons/registry';
-import { SETTLE_TIME } from './constants';
+import { settleTurn } from './bodies';
 import { sound, spawnFloater } from './fx';
-import { weaponForTier } from './loadout';
+import { newJet } from './jetpack';
+import { canUseSlot, reselect, weaponForTier } from './loadout';
 import type { CoffeeSpin, GameState, Player } from './state';
 import { tankCentre } from './tanks';
 
@@ -16,7 +17,8 @@ import { tankCentre } from './tanks';
  *   is over (no shot this turn), and its round is gone for the match (greyed out).
  *
  * Once a turn (`Player.coffee.turn`), as many turns as it keeps winning. It's no shot: with only Diced
- * Coffee left a player has nothing to fire, so game.ts `hasAmmo` leaves it out and they sit out like anyone empty.
+ * Coffee left a player has nothing to fire, so game.ts `hasAmmo` leaves it out (its kind's `keepsInPlay`) and they
+ * sit out like anyone empty.
  */
 
 /** How long the spinner spins before it stops (s). */
@@ -42,9 +44,9 @@ export function isCoffee(p: Player, tier: number): boolean {
   return id !== undefined && kindOf(weaponForTier(p, tier)) === 'coffee';
 }
 
-/** Whether `p` can drink a Diced Coffee from `tier` now: it isn't spilt, and they haven't had one this turn. */
+/** Whether `p` can drink a Diced Coffee from `tier` now: it isn't spilt, and they haven't had one this turn (loadout.ts). */
 export function canDrinkCoffee(state: GameState, p: Player, tier: number): boolean {
-  return isCoffee(p, tier) && (p.ammo[tier] ?? 0) > 0 && p.coffee?.turn !== state.turn;
+  return isCoffee(p, tier) && canUseSlot(state, p, tier);
 }
 
 /** Spin the wheel (FIRE on Diced Coffee). */
@@ -86,20 +88,7 @@ export function stepCoffee(state: GameState, dt: number): void {
     p.ammo[c.tier] = 0;
     spawnFloater(state, at.x, at.y - 18, 'FULL CREAM 🥛', '#fff4dc');
     sound(state, 'spill');
-    state.jets.push({
-      playerId: p.id,
-      weaponId: c.weaponId,
-      elapsed: 0,
-      launched: false,
-      vx: 0,
-      vy: 0,
-      burnLeft: 0,
-      emitCarry: 0,
-      flightTime: 0,
-      heading: Math.PI / 2,
-      angle: 90,
-      power: SPILL_POWER,
-    });
+    state.jets.push(newJet(p.id, c.weaponId, Math.PI / 2, { angle: 90, power: SPILL_POWER }));
   } else {
     p.extraTurn = true;
     p.coffee = { failChance: Math.min(1, c.failChance + w.coffee.failStep), turn: state.turn };
@@ -122,12 +111,11 @@ export function finishCoffee(state: GameState): void {
   const c = state.coffee;
   state.coffee = null;
   const p = c ? state.players[c.playerId] : undefined;
-  const shot = p ? p.ammo.findIndex((n, tier) => n > 0 && !isCoffee(p, tier)) : -1;
-  if (p && shot >= 0 && (isCoffee(p, p.selectedTier) || (p.ammo[p.selectedTier] ?? 0) <= 0)) p.selectedTier = shot;
-  if (c && !c.fail && shot >= 0) {
+  // With the coffee (or an empty tier) selected, select the lowest tier with a round that isn't coffee.
+  const shot = p ? reselect(p, { inPlay: true }) : false;
+  if (c && !c.fail && shot) {
     state.phase = 'aiming';
     return;
   }
-  state.phase = 'settling';
-  state.settleTimer = SETTLE_TIME;
+  settleTurn(state);
 }

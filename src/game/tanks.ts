@@ -1,9 +1,9 @@
 import { blastOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
-import { BARREL_LENGTH, RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
+import { RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { settleTanks } from './movement';
+import { bodiesOf, settleTanks, tankBody } from './bodies';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
@@ -20,19 +20,8 @@ export type Target = { kind: 'tank'; player: Player; tank: TankBody } | { kind: 
 
 const SOAK_FLUSH_INTERVAL = 0.18; // s between batched stream-damage numbers
 
-export function currentPlayer(state: GameState): Player {
-  return state.players[state.current]!;
-}
-
-export function tankCentre(p: Player): { x: number; y: number } {
-  return { x: p.x, y: p.y - TANK_BODY_HEIGHT };
-}
-
-export function muzzle(p: Player): { x: number; y: number } {
-  const c = tankCentre(p);
-  const a = (p.angle * Math.PI) / 180;
-  return { x: c.x + Math.cos(a) * BARREL_LENGTH, y: c.y - Math.sin(a) * BARREL_LENGTH };
-}
+// (Whose turn it is and where a tank's centre and muzzle are: the leaf module bodies.ts.)
+export { currentPlayer, muzzle, tankCentre } from './bodies';
 
 // (How hard a player hits, for the mechanics that work it out: statuses.ts.)
 export { offence, scaled } from './statuses';
@@ -48,8 +37,7 @@ export function stepSoak(state: GameState, dt: number, final: boolean): void {
     return whole;
   };
   for (const p of state.players) {
-    const tw = p.twin;
-    for (const tank of tw ? [p, tw] : [p]) {
+    for (const tank of bodiesOf(p)) {
       const whole = flush(tank);
       if (whole > 0) hurt(state, p, tank, whole, tank.soakColour);
     }
@@ -148,26 +136,12 @@ export function nearestEnemyX(state: GameState, x: number, ownerId: number): num
   return best;
 }
 
-/**
- * Whether any living tank body (main tank or twin) passes `test`, without building a list (this runs for
- * every pixel of a drive or a jetpack flight).
- */
-export function someTankBody(state: GameState, test: (x: number, y: number, owner: Player, twin: boolean) => boolean): boolean {
-  for (const p of state.players) {
-    if (!p.alive) continue;
-    if (test(p.x, p.y, p, false)) return true;
-    if (p.twin && test(p.twin.x, p.twin.y, p, true)) return true;
-  }
-  return false;
-}
-
 /** Every living tank body on the field (real tanks and twins), for collisions and spacing. */
 export function tankBodies(state: GameState): { x: number; y: number; owner: Player; twin: boolean }[] {
   const out: { x: number; y: number; owner: Player; twin: boolean }[] = [];
   for (const p of state.players) {
     if (!p.alive) continue;
-    out.push({ x: p.x, y: p.y, owner: p, twin: false });
-    if (p.twin) out.push({ x: p.twin.x, y: p.twin.y, owner: p, twin: true });
+    for (const tank of bodiesOf(p)) out.push({ x: tank.x, y: tank.y, owner: p, twin: tank !== p });
   }
   return out;
 }
@@ -222,8 +196,8 @@ export function damageTarget(state: GameState, t: Target, amount: number, colour
 }
 
 /**
- * A blast at (x, y): a crater, and every target in reach takes a hit from `weapon` (applyHit), falling off
- * from `blast.damage` at the centre to nothing at the edge. The blast is the weapon's own (blastRadius /
+ * A blast at (x, y): a crater, and every target in reach takes a hit from `weapon` fired by `shooterId`
+ * (applyHit), falling off from `blast.damage` at the centre to nothing at the edge. The blast is the weapon's own (blastRadius /
  * damage) unless it's given: a runner's finish, a hologram blowing up.
  */
 export function explode(
@@ -231,7 +205,7 @@ export function explode(
   x: number,
   y: number,
   weapon: WeaponDef,
-  ownerId?: number,
+  shooterId: number,
   blast: { radius: number; damage: number } = blastOf(weapon),
 ): void {
   const r = blast.radius;
@@ -239,7 +213,6 @@ export function explode(
   state.fx.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
   sound(state, 'boom', weapon.id, r);
 
-  const shooterId = ownerId ?? currentPlayer(state).id;
   for (const t of allTargets(state)) {
     if (gone(t)) continue; // e.g. a twin promoted by this very blast
     const pos = targetPos(t);
@@ -256,11 +229,6 @@ export function explode(
     sound(state, 'dnf');
   }
   settleTanks(state);
-}
-
-/** Damage to a player's main tank. */
-export function damagePlayer(state: GameState, p: Player, amount: number, colour = '#ffffff'): void {
-  hurt(state, p, p, amount, colour);
 }
 
 /**
@@ -285,20 +253,14 @@ export function hurt(state: GameState, p: Player, tank: TankBody, amount: number
     return false;
   }
   state.fx.explosions.push({ x: tank.x, y: tank.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
-  if (tank === p) Object.assign(p, tankBody(p.twin!), { angle: p.twin!.angle, power: p.twin!.power }); // the twin carries on as the player's tank, aim and all
+  if (tank === p) Object.assign(p, tankBody(p.twin!), { angle: p.twin!.angle, power: p.twin!.power }); // the twin's own things (where it is, health, burn, soak, toxin) carry on as the player's tank, aim and all
   p.twin = null;
   return false;
 }
 
-/** A tank's own things (where it is, health, burn, soak, toxin): what a twin hands over when it takes over. */
-function tankBody(t: TankBody): TankBody {
-  return { x: t.x, y: t.y, hp: t.hp, burn: t.burn, soak: t.soak, soakColour: t.soakColour, toxin: t.toxin, toxinRate: t.toxinRate };
-}
-
 /** A player's burns tick (at every turn change, endTurn): the main tank's, then the twin's. */
 export function tickBurn(state: GameState, p: Player): void {
-  const tw = p.twin;
-  for (const tank of tw ? [p, tw] : [p]) {
+  for (const tank of bodiesOf(p)) {
     const b = tank.burn;
     if (!b) continue;
     b.turnsLeft--;

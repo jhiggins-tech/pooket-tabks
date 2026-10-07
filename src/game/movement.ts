@@ -1,9 +1,10 @@
 import { getCharacter } from '../characters/roster';
-import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust, spawnFloater } from './fx';
 import type { GameState, Hop, Player } from './state';
 import { canMove } from './statuses';
-import { currentPlayer, hurt, someTankBody } from './tanks';
+import { currentPlayer, hullRest, otherBodyNear } from './bodies';
+import { hurt } from './tanks';
 import { clamp, hash } from './util';
 
 /**
@@ -60,9 +61,7 @@ function driveTo(state: GameState, p: Player, nx: number, dir: number): number |
   if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) return 'other';
   // Another tank (or a decoy) we'd be driving into.
   const inTheWay = (qx: number) => Math.abs(qx - nx) < TANK_HALF_WIDTH * 2 && Math.abs(qx - nx) < Math.abs(qx - p.x);
-  const blocked =
-    someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && inTheWay(qx)) || state.holograms.some((h) => inTheWay(h.x));
-  if (blocked) return 'other';
+  if (otherBodyNear(state, p, inTheWay, { holograms: true }) !== null) return 'other';
   // Compare where the hull would rest at nx with where it rests now. A wall the hull is overlapping
   // behind it (a tank that dropped into a crater against its steep side) doesn't hold it back.
   const here = p.y;
@@ -123,19 +122,6 @@ function shortClimb(state: GameState, x: number, dir: number, here: number): boo
 }
 
 /**
- * How far one frog hop goes, how high it jumps (well over the DRIVE_SCRAMBLE a driving tank manages), and
- * how long it takes.
- */
-export const HOP_DISTANCE = 44;
-
-export const HOP_HEIGHT = 64;
-
-export const HOP_TIME = 0.5;
-
-/** Fuel per px hopped: frogs go twice as far as a tank on the same fuel. */
-export const HOP_FUEL = 0.5;
-
-/**
  * Hop movement: while ◀ / ▶ is held the tank makes big frog leaps, each spending HOP_FUEL per px. A hop
  * clears walls and cliffs up to HOP_HEIGHT that would stop a driving tank. Returns px moved this step.
  */
@@ -187,18 +173,17 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
     if (!clear) continue;
     // …it lands on solid ground no higher than the apex (searching from just above it, so the hull
     // never lands sunk into a bank), and not on top of another tank.
-    const y1 = hullRest(state, x1, apex - 1);
+    const y1 = hullRest(terrain, x1, apex - 1);
     if (y1 < apex) continue;
     const near = (qx: number) => Math.abs(qx - x1) < TANK_HALF_WIDTH * 2;
-    const bump = someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && near(qx)) || state.holograms.some((h) => near(h.x));
-    if (bump) continue;
+    if (otherBodyNear(state, p, near, { holograms: true }) !== null) continue;
     return { x0: p.x, y0: p.y, x1, y1, t: 0 };
   }
   return null;
 }
 
 /**
- * Like hullRest for a tank driving in direction `dir`: columns on the trailing half that are solid right
+ * Like hullRest (bodies.ts) for a tank driving in direction `dir`: columns on the trailing half that are solid right
  * up to fromY are walls it's pulling away from, so they don't count. Returns fromY - 1 (a wall) if
  * nothing under the hull can hold it.
  */
@@ -212,24 +197,5 @@ function driveRest(state: GameState, x: number, fromY: number, dir: number): num
   return Number.isFinite(ground) ? ground : fromY - 1;
 }
 
-/** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */
-function hullRest(state: GameState, x: number, fromY: number): number {
-  let ground = state.terrain.height;
-  for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
-    ground = Math.min(ground, state.terrain.groundBelow(x + dx, fromY));
-  }
-  return ground;
-}
-
-/** Drop tanks (and holograms) onto whatever ground is left beneath them. */
-export function settleTanks(state: GameState): void {
-  const { terrain } = state;
-  const twins = state.players.flatMap((p) => (p.twin ? [p.twin] : []));
-  for (const t of [...state.players, ...state.holograms, ...twins]) {
-    let ground = terrain.height;
-    for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
-      ground = Math.min(ground, terrain.groundBelow(t.x + dx, t.y));
-    }
-    t.y = ground;
-  }
-}
+// (Tanks settling onto the ground: bodies.ts.)
+export { settleTanks } from './bodies';

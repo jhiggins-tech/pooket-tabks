@@ -41,7 +41,7 @@ describe('snapshots', () => {
   it('terrain: a compact run-length mask that patches the other phone to match', () => {
     const A = createGame({ seed: 9, players });
     const B = createGame({ seed: 9, players });
-    for (let i = 0; i < 8; i++) explode(A, 150 + i * 100, 300, getWeapon('marathon'));
+    for (let i = 0; i < 8; i++) explode(A, 150 + i * 100, 300, getWeapon('marathon'), A.current);
     A.terrain.addDirt(600, 200, 12, [92, 62, 36]);
     const code = encodeSolid(A.terrain);
     expect(code.length).toBeLessThan(12_000);
@@ -57,7 +57,7 @@ describe('snapshots', () => {
 
   it("leaves cosmetic effects out (each phone keeps its own), and upgrades a stored one that has them", () => {
     const A = createGame({ seed: 9, players });
-    explode(A, 300, 300, getWeapon('marathon'));
+    explode(A, 300, 300, getWeapon('marathon'), A.current);
     expect(A.fx.explosions.length).toBeGreaterThan(0);
     const snap = takeSnapshot(A);
     expect(snap.fx).toBeUndefined();

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
 import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { createGame, currentPlayer, damagePlayer, explode, fire, isAimless, muzzle, selectTier, setAim, step, traceBeam, volleyOffsets } from '../src/game/game';
+import { createGame, currentPlayer, explode, fire, isAimless, muzzle, selectTier, setAim, step, traceBeam, volleyOffsets } from '../src/game/game';
+import { hurt } from '../src/game/tanks';
 import type { GameState } from '../src/game/state';
 import { doublePark, hyperfixate, unmedicated } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
@@ -214,7 +215,7 @@ describe('damage numbers', () => {
   it('spawn a floater that rises and fades from the damaged tank', () => {
     const g = flatGame();
     const tones = g.players[1]!;
-    damagePlayer(g, tones, 12);
+    hurt(g, tones, tones, 12);
     expect(g.fx.floaters).toHaveLength(1);
     const f = g.fx.floaters[0]!;
     expect(f.text).toBe('-12');
@@ -231,7 +232,7 @@ describe('damage numbers', () => {
   it('every blast that hurts a tank shows its number', () => {
     const g = flatGame();
     const tones = g.players[1]!;
-    explode(g, tones.x, tones.y - 8, shell);
+    explode(g, tones.x, tones.y - 8, shell, g.current);
     expect(g.fx.floaters.map((f) => f.text)).toEqual([`-${MAX_HP - tones.hp}`]);
   });
 });

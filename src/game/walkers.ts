@@ -1,14 +1,11 @@
 import { projectileWeapon } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
-import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
+import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS, WALKER_BODY } from './constants';
 import { sound } from './fx';
 import type { GameState, Projectile } from './state';
 import { explode, forEachTargetPos, nearestEnemyX, runnerAt } from './tanks';
 
 /** Walkers (kie's Weasel Pop): land, scurry towards the nearest enemy, pop. */
-
-/** How high a walker's body sits above its feet, for hit-testing and drawing. */
-export const WALKER_BODY = 7;
 
 /** Land a walker at (x, y), stand it on the ground and point it at the nearest enemy. */
 export function startWalking(state: GameState, pr: Projectile, x: number, y: number): void {

@@ -1,3 +1,4 @@
+import { kindOf } from '../weapons/registry';
 import { ring, sound, spawnFloater } from './fx';
 import { reselect, weaponForTier } from './loadout';
 import type { GameState, Heist, Player } from './state';
@@ -17,7 +18,7 @@ function stealable(state: GameState, thief: Player): { victim: Player; tier: num
   return state.players
     .filter((q) => q !== thief && q.alive)
     .flatMap((victim) => victim.ammo.map((n, tier) => ({ victim, tier, n })))
-    .filter(({ victim, tier, n }) => n > 0 && weaponForTier(victim, tier).kind !== 'steal')
+    .filter(({ victim, tier, n }) => n > 0 && kindOf(weaponForTier(victim, tier)) !== 'steal')
     .map(({ victim, tier }) => ({ victim, tier }));
 }
 
