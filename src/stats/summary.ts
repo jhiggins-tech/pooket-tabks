@@ -11,7 +11,7 @@ import { sha256Hex } from '../core/hex.ts';
 
 export const SUMMARY_VERSION = 1;
 
-/** One player's numbers (the same shape as the game's PlayerTally). */
+/** One player's numbers (the same shape as the game's PlayerTally: tests/stats.test.ts checks). */
 export interface Tally {
   shots: Record<string, number>;
   hits: Record<string, number>;

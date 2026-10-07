@@ -366,8 +366,8 @@ const ROWS: readonly RankRow[] = [
 export const START_RATING = 1000;
 /** A rank is this many rating points wide. */
 export const BAND = 80;
-/** The lowest rating in the starting rank: its band holds START_RATING. */
-const START_MIN = 960;
+/** The lowest rating in the starting rank: its band holds START_RATING, in the middle (960). */
+const START_MIN = START_RATING - BAND / 2;
 /** How far one result can move a rating at most: one band. */
 export const K = BAND;
 /** A win (and so the loss it costs) never moves less than this: a third of a band. */

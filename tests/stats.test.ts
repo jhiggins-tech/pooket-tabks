@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { PlayerTally } from '../src/game/state';
 import { aggregate, type StatsInput } from '../src/stats/aggregate';
 import { encodeStats, parseStats, STATS_PATH } from '../src/stats/store';
 import { digest, playerKey, type MatchSummary, type Tally } from '../src/stats/summary';
@@ -81,6 +82,11 @@ describe('adding up the stats', () => {
     expect(out.all.endings).toEqual({ draw: 1, resigned: 1 });
     expect(out.all.players.find((p) => p.key === 'n:ann')).toMatchObject({ draws: 1, losses: 1, wins: 0 });
   });
+});
+
+it("a summary's tally has the game's PlayerTally shape", () => {
+  // summary.ts keeps its own copy (it can't import game/state.ts and stay loadable by the stats sender).
+  expectTypeOf<Tally>().toEqualTypeOf<PlayerTally>();
 });
 
 describe('the stored totals', () => {
