@@ -46,7 +46,7 @@ what it's for; weapons are documented where they're defined.
 | `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1, `fullAmmo`), colours (`assignColours`, `matchPlayers`); `upcoming.ts`: Coming soon characters (shown, never playable; a new one's ready: give it a kit and take it off this list) |
 | `src/weapons/` | `kinds.ts` (`KINDS`: a row per kind of weapon: aimed?, shot / free / bonus, and the columns below), `types.ts` (`WeaponDef`: what every weapon has, plus its kind's spec, as a union by kind; `SpriteId`), `registry.ts` (`getWeapon`, `weaponOf(id, kind)`, `jetSpec`, `ignoresAim`, `isBonus`, `blastOf`, the plain `shell`) |
 | `src/game/` | the match, pure and DOM-free (below) |
-| `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order), `draw/<mechanic>.ts` (mirrors `src/game/`; `context.ts` is what they draw with), `hud.ts` (DOM HUD), `sprites.ts` (`spriteReady`) |
+| `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order), `draw/<mechanic>.ts` (mirrors `src/game/`; `context.ts` is what they draw with), `hud.ts` (the DOM HUD: `Hud`, over one module per part in `hud/`, each redrawn only when its key changes: `hud/part.ts`; the hint line is a table in `hud/hint.ts`), `sprites.ts` (`spriteReady`) |
 | `src/input/` | touch controls: slingshot drag, hold-to-repeat, hold-to-drive, FIRE |
 | `src/audio/` | 8-bit synth (`chip.ts`), sound recipes (`sfx.ts`: `FIRE_SOUNDS`, `ROUND_SOUNDS`, `CUE_SOUNDS`), rank-up jingles (`jingle.ts`, in `score.ts`'s notation), walker chiptunes (`tunes.ts`) |
 | `src/net/` | online play, sign-in and the account (below) |

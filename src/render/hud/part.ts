@@ -28,7 +28,8 @@ export interface Part {
 
 /** The last key something was drawn for: `changed(key)` says whether it differs (and remembers it). */
 export class Key {
-  private last = '';
+  /** Null: nothing drawn yet (or reset), so whatever comes next is drawn, even an empty key. */
+  private last: string | null = null;
 
   changed(key: string): boolean {
     if (key === this.last) return false;
@@ -36,8 +37,9 @@ export class Key {
     return true;
   }
 
+  /** Draw afresh next time, whatever the key (an overlay left showing by the last match gets hidden). */
   reset(): void {
-    this.last = '';
+    this.last = null;
   }
 }
 
