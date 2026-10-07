@@ -19,7 +19,7 @@ import {
 import type { GameState } from '../src/game/state';
 import { marathon, sew, tattooGun } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
-import { hold, passTurn, testGame, whileFlying } from './support/game';
+import { hold, passTurn, testGame, untilAiming, whileFlying } from './support/game';
 
 const players = [
   { name: 'ciarra', colour: '#f472b6', characterId: 'ciarra' },
@@ -37,10 +37,7 @@ describe('Tattoo Gun', () => {
     setAim(g, 40, 60);
     fire(g);
     const seen = new Set<object>();
-    for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) {
-      step(g, FIXED_DT);
-      g.projectiles.forEach((p) => seen.add(p));
-    }
+    whileFlying(g, 10, () => g.projectiles.forEach((p) => seen.add(p)));
     expect(seen.size).toBe(tattooGun.burst!.count);
     expect(g.players[0]!.ammo[0]).toBe(4);
   });
@@ -95,7 +92,7 @@ describe('Sew', () => {
     const g = game();
     const kie = g.players[1]!;
     sewAt(g, 0, 100);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
     expect(currentPlayer(g)).toBe(kie);
     expect(kie.pinned?.active).toBe(true);
     const x0 = kie.x;
@@ -135,7 +132,7 @@ describe('Marathon', () => {
     // kie and ciarra trade (harmless) shots; the runner keeps going.
     for (let i = 0; i < 6 && g.runners.length > 0; i++) {
       passTurn(g);
-      for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+      untilAiming(g, 3);
       if (currentPlayer(g).ammo.every((a) => a === 0)) break;
       selectTier(g, 0);
       setAim(g, 90, 0);

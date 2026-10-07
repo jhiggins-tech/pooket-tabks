@@ -7,7 +7,7 @@ import { hurt } from '../src/game/tanks';
 import type { GameState } from '../src/game/state';
 import { doublePark, hyperfixate, unmedicated } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
-import { testGame } from './support/game';
+import { stepUntil, testGame } from './support/game';
 
 const players = [
   { name: 'kcaj', colour: '#ffc53d', characterId: 'kcaj' },
@@ -58,11 +58,6 @@ describe('Double Park', () => {
   });
 });
 
-function run(g: GameState, until: (g: GameState) => boolean, seconds = 30): void {
-  for (let t = 0; t < seconds && !until(g); t += FIXED_DT) step(g, FIXED_DT);
-  if (!until(g)) throw new Error(`timed out in phase ${g.phase}`);
-}
-
 function flatGame(): GameState {
   return testGame({ seed: 4, players });
 }
@@ -107,7 +102,7 @@ describe('Hyperfixate', () => {
       step(g, FIXED_DT);
     };
     const turns: [string, number][] = [];
-    run(g, (s) => s.phase === 'aiming');
+    stepUntil(g, (s) => s.phase === 'aiming', 30);
     for (let turn = 0; turn < 5; turn++) {
       turns.push([currentPlayer(g).name, tones.hp]);
       passTurn();
@@ -131,7 +126,7 @@ describe('Hyperfixate', () => {
     aimAtEnemy(g);
     fire(g);
     expect(tones.alive).toBe(true);
-    run(g, (s) => s.phase === 'gameover');
+    stepUntil(g, (s) => s.phase === 'gameover', 30);
     expect(tones.alive).toBe(false);
     expect(g.winner?.name).toBe('kcaj');
   });
@@ -191,10 +186,14 @@ describe('Unmedicated', () => {
     Object.assign(pill, { x: g.terrain.width / 2, y: 300, vx: 0, vy: 0 });
     g.projectiles = [pill];
     let maxBounces = 0;
-    run(g, (s) => {
-      maxBounces = Math.max(maxBounces, pill.bounces);
-      return s.projectiles.length === 0;
-    });
+    stepUntil(
+      g,
+      (s) => {
+        maxBounces = Math.max(maxBounces, pill.bounces);
+        return s.projectiles.length === 0;
+      },
+      30,
+    );
     expect(maxBounces).toBe(2);
     expect(g.terrain.isSolid(g.terrain.width / 2, 402)).toBe(false); // micro crater
   });
@@ -204,7 +203,7 @@ describe('Unmedicated', () => {
     const [kcaj, tones] = g.players as [(typeof g.players)[0], (typeof g.players)[0]];
     selectTier(g, 2);
     fire(g);
-    run(g, (s) => s.phase === 'aiming' || s.phase === 'gameover');
+    stepUntil(g, (s) => s.phase === 'aiming' || s.phase === 'gameover', 30);
     expect(kcaj.hp).toBe(MAX_HP);
     expect(tones.hp).toBeLessThan(MAX_HP);
     expect(tones.hp).toBeGreaterThan(0);

@@ -23,20 +23,38 @@ export function testGame(opts: { players: PlayerConfig[]; seed?: number; heights
   return g;
 }
 
-/** Step until the shot in flight has played out (the turn then settles). */
-export function whileFlying(g: GameState, onTick?: (g: GameState) => void): void {
-  for (let t = 0; t < 20 && g.phase === 'flying'; t += FIXED_DT) {
+type OnTick = (g: GameState) => void;
+
+/** Optional time caps: `(g)`, `(g, onTick)`, `(g, seconds)` or `(g, seconds, onTick)`. */
+const capped = (a: number | OnTick | undefined, b: OnTick | undefined, seconds: number): [number, OnTick | undefined] =>
+  typeof a === 'number' ? [a, b] : [seconds, a];
+
+/** Step until the shot in flight has played out (the turn then settles), for at most `seconds` (20). */
+export function whileFlying(g: GameState, onTick?: OnTick): void;
+export function whileFlying(g: GameState, seconds: number, onTick?: OnTick): void;
+export function whileFlying(g: GameState, a?: number | OnTick, b?: OnTick): void {
+  const [seconds, onTick] = capped(a, b, 20);
+  for (let t = 0; t < seconds && g.phase === 'flying'; t += FIXED_DT) {
     step(g, FIXED_DT);
     onTick?.(g);
   }
 }
 
-/** Step until it's someone's turn to aim again (or the game is over). */
-export function untilAiming(g: GameState, onTick?: (g: GameState) => void): void {
-  for (let t = 0; t < 30 && g.phase !== 'aiming' && g.phase !== 'gameover'; t += FIXED_DT) {
+/** Step until it's someone's turn to aim again (or the game is over), for at most `seconds` (30). */
+export function untilAiming(g: GameState, onTick?: OnTick): void;
+export function untilAiming(g: GameState, seconds: number, onTick?: OnTick): void;
+export function untilAiming(g: GameState, a?: number | OnTick, b?: OnTick): void {
+  const [seconds, onTick] = capped(a, b, 30);
+  for (let t = 0; t < seconds && g.phase !== 'aiming' && g.phase !== 'gameover'; t += FIXED_DT) {
     step(g, FIXED_DT);
     onTick?.(g);
   }
+}
+
+/** Step until `cond` holds; fails if it doesn't within `seconds`. */
+export function stepUntil(g: GameState, cond: (g: GameState) => boolean, seconds: number): void {
+  for (let t = 0; t < seconds && !cond(g); t += FIXED_DT) step(g, FIXED_DT);
+  if (!cond(g)) throw new Error(`condition not met within ${seconds}s (phase ${g.phase})`);
 }
 
 /** Step until the turn has moved on (or the game is over). */

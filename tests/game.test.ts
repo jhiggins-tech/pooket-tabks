@@ -1,21 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { createGame, currentPlayer, explode, fire, selectTier, setAim, step } from '../src/game/game';
-import type { GameState } from '../src/game/state';
+import { MAX_HP } from '../src/game/constants';
+import { createGame, currentPlayer, explode, fire, selectTier, setAim } from '../src/game/game';
 import { shell } from '../src/weapons/registry';
+import { stepUntil } from './support/game';
 
 const players = [
   { name: 'Alice', colour: '#e5484d', characterId: 'kie' },
   { name: 'Bob', colour: '#3e8ef7', characterId: 'kie' },
 ];
-
-function runUntil(state: GameState, done: (s: GameState) => boolean, maxSeconds = 20): void {
-  for (let t = 0; t < maxSeconds; t += FIXED_DT) {
-    if (done(state)) return;
-    step(state, FIXED_DT);
-  }
-  throw new Error(`condition not met within ${maxSeconds}s (phase=${state.phase})`);
-}
 
 describe('game', () => {
   it('spawns tanks resting on the ground', () => {
@@ -44,7 +36,7 @@ describe('game', () => {
     expect(g.phase).toBe('flying');
     expect(fire(g)).toBe(false); // can't double-fire
 
-    runUntil(g, (s) => s.phase === 'aiming');
+    stepUntil(g, (s) => s.phase === 'aiming', 20);
     const solidAfter = g.terrain.solid.reduce((n, v) => n + v, 0);
     expect(solidAfter).toBeLessThan(solidBefore);
     expect(currentPlayer(g).name).toBe('Bob');
@@ -56,7 +48,7 @@ describe('game', () => {
     setAim(g, 180, 100); // Alice fires left, off the edge
     const solidBefore = g.terrain.solid.reduce((n, v) => n + v, 0);
     fire(g);
-    runUntil(g, (s) => s.phase === 'aiming');
+    stepUntil(g, (s) => s.phase === 'aiming', 20);
     // Might clip a hill on the way out; the point is the turn advances.
     expect(currentPlayer(g).name).toBe('Bob');
     expect(g.terrain.solid.reduce((n, v) => n + v, 0)).toBeLessThanOrEqual(solidBefore);
@@ -79,7 +71,7 @@ describe('game', () => {
     // Replace the in-flight shell with a direct hit on Bob.
     g.projectiles = [];
     explode(g, g.players[1]!.x, g.players[1]!.y - 8, shell, g.current);
-    runUntil(g, (s) => s.phase === 'gameover');
+    stepUntil(g, (s) => s.phase === 'gameover', 20);
     expect(g.winner?.name).toBe('Alice');
   });
 
@@ -120,7 +112,7 @@ describe('game', () => {
     g.players[1]!.ammo = [0, 0, 0];
     setAim(g, 90, 10);
     fire(g);
-    runUntil(g, (s) => s.phase === 'aiming');
+    stepUntil(g, (s) => s.phase === 'aiming', 20);
     expect(currentPlayer(g).name).toBe('Cat');
   });
 
@@ -131,7 +123,7 @@ describe('game', () => {
     g.players[1]!.hp = 40;
     setAim(g, 90, 10);
     fire(g);
-    runUntil(g, (s) => s.phase === 'gameover');
+    stepUntil(g, (s) => s.phase === 'gameover', 20);
     expect(g.winner?.name).toBe('Alice');
   });
 
@@ -140,9 +132,9 @@ describe('game', () => {
     g.players[0]!.ammo = [1, 0, 0];
     g.players[1]!.ammo = [0, 0, 0];
     fire(g);
-    runUntil(g, (s) => s.phase === 'settling');
+    stepUntil(g, (s) => s.phase === 'settling', 20);
     g.players[0]!.hp = g.players[1]!.hp = 50; // equalise after the blast lands
-    runUntil(g, (s) => s.phase === 'gameover');
+    stepUntil(g, (s) => s.phase === 'gameover', 20);
     expect(g.winner).toBeNull();
   });
 });

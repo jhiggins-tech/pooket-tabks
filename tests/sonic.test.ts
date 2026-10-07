@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { currentPlayer, fire, selectTier, setAim, step } from '../src/game/game';
+import { MAX_HP } from '../src/game/constants';
+import { currentPlayer, fire, selectTier, setAim } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { sonicBoom } from '../src/characters/kits';
-import { testGame } from './support/game';
+import { testGame, untilAiming, whileFlying } from './support/game';
 
 const spec = sonicBoom.sonic!;
 const players = [
@@ -22,11 +22,10 @@ function boom(g: GameState, angle = 0, power = 100): { dealt: number; hits: numb
   fire(g);
   let hits = 0;
   let last = g.players[1]!.hp;
-  for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) {
-    step(g, FIXED_DT);
+  whileFlying(g, 10, () => {
     if (g.players[1]!.hp < last) hits++;
     last = g.players[1]!.hp;
-  }
+  });
   return { dealt: MAX_HP - g.players[1]!.hp, hits };
 }
 
@@ -73,7 +72,7 @@ describe('Sonic Boom', () => {
     const g = game(100);
     boom(g);
     expect(g.players[0]!.hp).toBe(g.players[0]!.maxHp);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
     expect(currentPlayer(g).name).toBe('kie');
   });
 
