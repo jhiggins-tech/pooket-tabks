@@ -1,11 +1,11 @@
 import { randRange } from '../core/rng';
-import { getWeapon, gunkWeapon, weaponOf } from '../weapons/registry';
+import { gunkWeapon, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
 import { bodiesOf } from './bodies';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import type { Stepper } from './mechanics';
 import type { GameState, Player, Puddle, Sludge, Spew } from './state';
-import { allTargets, doseTarget, muzzle, offence, soakTarget, tankBodies, targetAt, targetOwner, targetPos } from './tanks';
+import { allTargets, applySoak, muzzle, offence, tankBodies, targetAt, targetOwner, targetPos } from './tanks';
 import { hash } from './util';
 
 /** Gunk: ten-3's spew, the mud and sludge it throws (and ten-2's propellant), toxic puddles and toxin doses. */
@@ -49,7 +49,8 @@ const GUNK_GRACE = 0.05;
 /** Moves one gunk particle. Returns true when it has landed (as dirt) or hit a tank. */
 export function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
   const { terrain } = state;
-  const spec = gunkWeapon(sl.weaponId).gunk;
+  const weapon = gunkWeapon(sl.weaponId);
+  const spec = weapon.gunk;
   sl.age += dt;
   sl.vy += GRAVITY * dt;
   const nx = sl.x + sl.vx * dt;
@@ -62,10 +63,8 @@ export function stepSludge(state: GameState, sl: Sludge, dt: number): boolean {
     const x = sl.x + (nx - sl.x) * t;
     const y = sl.y + (ny - sl.y) * t;
     const target = targetAt(state, x, y);
-    if (target && targetOwner(target) !== sl.ownerId) {
-      const dose = spec.dosePerParticle * offence(state, sl.ownerId);
-      const colour = getWeapon(sl.weaponId).colour ?? '#9be22d';
-      doseTarget(target, dose, spec.dosePerSecond, colour);
+    // (Gunk weapons have friendly fire off: it passes its owner's tanks.)
+    if (target && applySoak(state, target, weapon, sl.ownerId, spec.dosePerParticle * offence(state, sl.ownerId), weapon.colour ?? '#9be22d', { rate: spec.dosePerSecond })) {
       return true;
     }
     if (!target && sl.age > GUNK_GRACE && terrain.isSolid(x, y)) {
@@ -139,8 +138,9 @@ export function stepPuddles(state: GameState, dt: number): void {
     // One burn per sludge owner, however many patches the tank is sitting in.
     const burning = state.puddles.find((p) => p.ownerId !== targetOwner(t) && touchesPuddle(p, pos.x, pos.y));
     if (!burning) continue;
-    const amount = (gunkWeapon(burning.weaponId).gunk.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
-    soakTarget(t, amount, '#b6f04a');
+    const weapon = gunkWeapon(burning.weaponId);
+    const amount = (weapon.gunk.puddle?.damagePerSecond ?? 0) * dt * offence(state, burning.ownerId);
+    applySoak(state, t, weapon, burning.ownerId, amount, '#b6f04a');
   }
   for (const p of state.puddles) p.age += dt;
   state.puddles = state.puddles.filter((p) => p.age < p.ttl);
