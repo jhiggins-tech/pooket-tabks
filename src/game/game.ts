@@ -112,6 +112,7 @@ export function createGame(cfg: GameConfig): GameState {
       scam: null,
       coffee: null,
       extraTurn: false,
+      scooterCrash: 0,
     };
   });
 

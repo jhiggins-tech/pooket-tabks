@@ -91,7 +91,9 @@ what it's for; weapons are documented where they're defined.
   the character's).
 - **Movement** (`game/movement.ts`): one tank of fuel per match (`FUEL_PER_MATCH`), driving before
   firing; tanks roll over small lips, stop at slopes > 45° unless the climb is short or they're in a
-  hollow (so craters are always escapable). ciarra hops instead (bigger, higher, half the fuel). Pinned
+  hollow (so craters are always escapable). ciarra hops instead (bigger, higher, half the fuel);
+  garyoldmancorp rides a scooter (`SCOOTER_SPEED`, `SCOOTER_FUEL`; terrain that would stop a tank is a crash,
+  `SCOOTER_CRASH` self-damage, never lethal, once per run at it: `Player.scooterCrash`). Pinned
   tanks can't move. Who goes first: `GameConfig.first` (`'random'` in `main.ts`, from the seed).
 - **Online** (`src/net/`): phone → Firebase Realtime Database (REST + SSE, `rtdb.ts`) → phone, all sealed
   with AES-GCM from the room code (`seal.ts`). `rooms.ts` seats and codes, `relay.ts` the message pipe

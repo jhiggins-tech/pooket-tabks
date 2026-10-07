@@ -19,7 +19,7 @@ export type Preview = Extract<NetMsg, { k: 'preview' }>;
 export function previewOf(s: GameState): Preview {
   const p = currentPlayer(s);
   const twin = p.twin ? { angle: p.twin.angle, power: p.twin.power } : null;
-  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot };
+  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp };
 }
 
 /** Show the current player aiming as the preview says (if it's for this turn, while aiming). */
@@ -28,6 +28,7 @@ export function applyPreview(s: GameState, v: Preview): void {
   const p = currentPlayer(s);
   Object.assign(p, { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop, aimTwin: v.aimTwin ?? false, twinSpot: v.twinSpot ?? null });
   if (p.twin && v.twin) Object.assign(p.twin, { angle: v.twin.angle, power: v.twin.power });
+  if (typeof v.hp === 'number' && v.hp > 0) p.hp = v.hp;
 }
 
 /** Snap the game to a snapshot and its terrain. */

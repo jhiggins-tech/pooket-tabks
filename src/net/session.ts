@@ -49,6 +49,8 @@ export type NetMsg =
       twin?: { angle: number; power: number } | null;
       aimTwin?: boolean;
       twinSpot?: number | null;
+      /** Health, which can change while aiming (garyoldmancorp's scooter crashes). */
+      hp?: number;
     }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }

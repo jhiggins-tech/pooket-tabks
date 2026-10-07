@@ -63,9 +63,11 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   }
   // Rules 17: Diced Coffee (garyoldmancorp): the spinner, and each player's coffee and extra turn.
   snap.coffee ??= null;
-  for (const p of (snap.players as { coffee?: unknown; extraTurn?: boolean }[] | undefined) ?? []) {
+  for (const p of (snap.players as { coffee?: unknown; extraTurn?: boolean; scooterCrash?: number }[] | undefined) ?? []) {
     p.coffee ??= null;
     p.extraTurn ??= false;
+    // Rules 19: garyoldmancorp's scooter remembers its last crash.
+    p.scooterCrash ??= 0;
   }
   return snap;
 }

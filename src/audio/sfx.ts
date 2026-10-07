@@ -314,6 +314,17 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.7, from: midi(67), to: midi(55), duty: 0.5, vibrato: [7, 14], vol: 0.13 });
     s.noise({ at: 0.4, dur: 0.5, rate: 0.2, vol: 0.1 });
   },
+  // garyoldmancorp's scooter: a little two-stroke putt while it rides (one cue a frame, spaced out by MIN_GAP).
+  scoot: (s) => {
+    s.tone({ dur: 0.06, from: 210, to: 260, duty: 0.25, vol: 0.05 });
+    s.noise({ dur: 0.04, rate: 0.5, vol: 0.03 });
+  },
+  // Scooter crash: a clang, a rattle, and a little boing of the bell.
+  crash: (s) => {
+    s.noise({ dur: 0.25, rate: 0.7, to: 0.2, vol: 0.18 });
+    s.tone({ dur: 0.18, from: 900, to: 300, duty: 0.5, steps: 6, vol: 0.12 });
+    s.tone({ at: 0.2, dur: 0.25, from: midi(88), wave: 'triangle', vibrato: [12, 30], vol: 0.08 });
+  },
   // Sad trombone: wah wah wah waaaah.
   dnf: (s) => {
     [67, 66, 65].forEach((n, i) => s.tone({ at: i * 0.32, dur: 0.28, from: midi(n), to: midi(n) * 0.97, duty: 0.5, vol: 0.14 }));
@@ -381,7 +392,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
 };
 
 /** Minimum seconds between two plays of the same sound, so a pill storm doesn't turn into mush. */
-const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3 };
+const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11 };
 
 /** Plays queued cues on a synth, throttling rapid repeats. */
 export class SfxPlayer {

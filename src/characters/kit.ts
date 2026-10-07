@@ -11,8 +11,8 @@ export interface CharacterDef {
   colours: readonly string[];
   /** Weapon ids by tier. */
   loadout: Loadout;
-  /** How the ◀ ▶ buttons move this character: roll along the ground, or frog hops. Default drive. */
-  movement?: 'drive' | 'hop';
+  /** How the ◀ ▶ buttons move this character: roll along the ground, frog hops, or a fast scooter that crashes. Default drive. */
+  movement?: 'drive' | 'hop' | 'scooter';
   /** Starting (and full) health, if not the usual MAX_HP. */
   maxHp?: number;
   /** Playable but unfinished (stand-in moves): marked Beta in the pickers and the info screen. */

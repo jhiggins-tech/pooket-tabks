@@ -9,9 +9,14 @@ const BASICS = 'basics';
 
 /** How each character gets around with the ◀ ▶ buttons. */
 export function movementInfo(c: CharacterDef): { label: string; text: string } {
-  return c.movement === 'hop'
-    ? { label: 'Frog hops', text: 'Big frog leaps instead of driving: clears walls and cliffs no tank can climb, and goes twice as far on the same one tank of fuel.' }
-    : { label: 'Drives', text: 'Rolls over small bumps; steep hills and walls stop it.' };
+  if (c.movement === 'hop') return { label: 'Frog hops', text: 'Big frog leaps instead of driving: clears walls and cliffs no tank can climb, and goes twice as far on the same one tank of fuel.' };
+  if (c.movement === 'scooter') {
+    return {
+      label: 'Scooter',
+      text: 'Rides a little scooter: 4× as fast as a tank, and 1.5× as far on the same tank of fuel. But steep hills and walls are a crash: it stops dead and he takes 5 damage (never his last bit of health).',
+    };
+  }
+  return { label: 'Drives', text: 'Rolls over small bumps; steep hills and walls stop it.' };
 }
 
 /** Little tags for a weapon card: rounds, and whether it needs aiming. */

@@ -1,12 +1,15 @@
 import { getCharacter } from '../characters/roster';
-import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, TANK_HALF_WIDTH } from './constants';
-import { sound, spawnDust } from './fx';
+import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { sound, spawnDust, spawnFloater } from './fx';
 import type { GameState, Hop, Player } from './state';
 import { canMove } from './statuses';
-import { currentPlayer, someTankBody } from './tanks';
+import { currentPlayer, hurt, someTankBody } from './tanks';
 import { clamp, hash } from './util';
 
-/** Driving (◀ ▶, one tank of fuel per match) and ciarra's frog hops; tanks settling onto the ground. */
+/**
+ * Driving (◀ ▶, one tank of fuel per match), ciarra's frog hops and garyoldmancorp's scooter (driving, faster
+ * and further, but terrain that would stop a tank is a crash); tanks settling onto the ground.
+ */
 
 /**
  * Drive the current player's tank along the ground for dt seconds in direction `dir` (−1 / +1),
@@ -17,40 +20,77 @@ import { clamp, hash } from './util';
 export function drive(state: GameState, dir: number, dt: number): number {
   if (state.phase !== 'aiming') return 0;
   const p = currentPlayer(state);
-  if (getCharacter(p.characterId).movement === 'hop') return hopDrive(state, p, dir, dt);
+  const movement = getCharacter(p.characterId).movement;
+  if (movement === 'hop') return hopDrive(state, p, dir, dt);
   if (dir === 0 || !canMove(p)) return 0;
-  const { terrain } = state;
-  let budget = Math.min(p.fuel, DRIVE_SPEED * dt);
+  const scooter = movement === 'scooter';
+  // Still up against what the scooter crashed into: it takes a fresh run (moving off first) to crash again.
+  if (scooter && Math.sign(dir) === p.scooterCrash) return 0;
+  const perPx = scooter ? SCOOTER_FUEL : 1;
+  let budget = Math.min(p.fuel / perPx, (scooter ? SCOOTER_SPEED : DRIVE_SPEED) * dt);
   let moved = 0;
+  let stopped: 'terrain' | 'other' | null = null;
   while (budget > 0) {
     const stepX = Math.min(1, budget);
     const nx = p.x + Math.sign(dir) * stepX;
-    if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) break;
-    // Another tank (or a decoy) we'd be driving into.
-    const inTheWay = (qx: number) => Math.abs(qx - nx) < TANK_HALF_WIDTH * 2 && Math.abs(qx - nx) < Math.abs(qx - p.x);
-    const blocked =
-      someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && inTheWay(qx)) || state.holograms.some((h) => inTheWay(h.x));
-    if (blocked) break;
-    // Compare where the hull would rest at nx with where it rests now. A wall the hull is overlapping
-    // behind it (a tank that dropped into a crater against its steep side) doesn't hold it back.
-    const here = p.y;
-    const ground = driveRest(state, nx, here - DRIVE_CLIMB - 1, Math.sign(dir));
-    if (ground < here - DRIVE_CLIMB) break; // a wall
-    if (ground < here) {
-      // Climbing: a bump is fine, but not if the ground keeps rising steeply beyond it (a steep hill).
-      const aheadX = clamp(nx + Math.sign(dir) * DRIVE_LOOKAHEAD, TANK_HALF_WIDTH, terrain.width - TANK_HALF_WIDTH);
-      const limit = Math.max(DRIVE_CLIMB, DRIVE_MAX_SLOPE * Math.abs(aheadX - p.x));
-      const steep = driveRest(state, aheadX, here - limit - 1, Math.sign(dir)) < here - limit;
-      if (steep && !shortClimb(state, nx, Math.sign(dir), here) && !inHollow(state, p.x, Math.sign(dir), here)) break;
+    const ground = driveTo(state, p, nx, Math.sign(dir));
+    if (typeof ground !== 'number') {
+      stopped = ground;
+      break;
     }
     p.x = nx;
     p.y = ground;
     budget -= stepX;
     moved += stepX;
   }
-  p.fuel = Math.max(0, p.fuel - moved);
-  if (moved > 0 && hash(state.fxSeq * 0.37 + p.x) < 0.25) spawnDust(state, p.x - Math.sign(dir) * 9, p.y, 0.15);
+  p.fuel = Math.max(0, p.fuel - moved * perPx);
+  if (moved > 0) p.scooterCrash = 0;
+  if (moved > 0 && hash(state.fxSeq * 0.37 + p.x) < (scooter ? 0.6 : 0.25)) spawnDust(state, p.x - Math.sign(dir) * 9, p.y, scooter ? 0.3 : 0.15);
+  if (scooter && moved > 0) sound(state, 'scoot');
+  if (scooter && stopped === 'terrain' && p.fuel > 0) crash(state, p, Math.sign(dir));
   return moved;
+}
+
+/**
+ * Where the hull would rest one step on, at `nx` (moving `dir`), or why it can't go there: the map edge or
+ * another tank or decoy in the way ('other'), or terrain it can't cross: a wall or a steep hill ('terrain').
+ */
+function driveTo(state: GameState, p: Player, nx: number, dir: number): number | 'terrain' | 'other' {
+  const { terrain } = state;
+  if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) return 'other';
+  // Another tank (or a decoy) we'd be driving into.
+  const inTheWay = (qx: number) => Math.abs(qx - nx) < TANK_HALF_WIDTH * 2 && Math.abs(qx - nx) < Math.abs(qx - p.x);
+  const blocked =
+    someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && inTheWay(qx)) || state.holograms.some((h) => inTheWay(h.x));
+  if (blocked) return 'other';
+  // Compare where the hull would rest at nx with where it rests now. A wall the hull is overlapping
+  // behind it (a tank that dropped into a crater against its steep side) doesn't hold it back.
+  const here = p.y;
+  const ground = driveRest(state, nx, here - DRIVE_CLIMB - 1, dir);
+  if (ground < here - DRIVE_CLIMB) return 'terrain'; // a wall
+  if (ground < here) {
+    // Climbing: a bump is fine, but not if the ground keeps rising steeply beyond it (a steep hill).
+    const aheadX = clamp(nx + dir * DRIVE_LOOKAHEAD, TANK_HALF_WIDTH, terrain.width - TANK_HALF_WIDTH);
+    const limit = Math.max(DRIVE_CLIMB, DRIVE_MAX_SLOPE * Math.abs(aheadX - p.x));
+    const steep = driveRest(state, aheadX, here - limit - 1, dir) < here - limit;
+    if (steep && !shortClimb(state, nx, dir, here) && !inHollow(state, p.x, dir, here)) return 'terrain';
+  }
+  return ground;
+}
+
+/**
+ * The scooter ran into terrain it can't cross: a crash. It stops there, the rider takes SCOOTER_CRASH (but
+ * never the last of their health: a crash between shots can't end the match), and holding on into the
+ * same wall does nothing more until it's moved off.
+ */
+function crash(state: GameState, p: Player, dir: number): void {
+  p.scooterCrash = dir;
+  const at = { x: p.x + dir * TANK_HALF_WIDTH, y: p.y - TANK_BODY_HEIGHT };
+  spawnFloater(state, at.x, at.y - 14, 'CRASH!', '#ffd166');
+  spawnDust(state, at.x, p.y, 0.9);
+  state.fx.explosions.push({ x: at.x, y: at.y, radius: 7, age: 0, duration: 0.3 });
+  sound(state, 'crash');
+  hurt(state, p, p, Math.min(SCOOTER_CRASH, p.hp - 1), '#ffd166', { by: p.id, weaponId: '' });
 }
 
 /**

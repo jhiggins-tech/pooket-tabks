@@ -71,6 +71,7 @@ export const garyoldmancorp = kit(
     name: 'garyoldmancorp',
     blurb: 'Beta: Diced Coffee for two turns in a row, and stand-in shots for now.',
     colours: ['#cbd5e1', '#a5b4fc', '#fcd34d'],
+    movement: 'scooter',
     beta: true,
   },
   [betaShot, betaMortar, betaBomb, dicedCoffee],

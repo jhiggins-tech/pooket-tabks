@@ -510,6 +510,42 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   expect(errors).toEqual([]);
 });
 
+test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash", async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
+  await page.getByLabel('Player 1 character').selectOption('garyoldmancorp');
+  await page.locator('#start').tap();
+  type Dbg = { __pooket: { state: { players: { x: number; hp: number; maxHp: number; fuel: number; scooterCrash: number }[]; fx: { floaters: { text: string }[] } } } };
+  const me = () => page.evaluate(() => ({ ...(window as unknown as Dbg).__pooket.state.players[0]! }));
+  const start = await me();
+  const right = page.getByRole('button', { name: 'Drive right' });
+  const box = (await right.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'test-results/scooter.png' });
+  await page.mouse.up();
+  const after = await me();
+  expect(after.x).toBeGreaterThan(start.x + 30); // a tank would have gone ~13px
+  expect(after.fuel).toBeLessThan(start.fuel);
+  // A wall right ahead: the next push is a crash.
+  await page.evaluate(() => {
+    const s = (window as unknown as { __pooket: { state: { players: { x: number; y: number }[]; terrain: { width: number; height: number; addDirt: (x: number, y: number, r: number, c: number[]) => void } } } }).__pooket.state;
+    const p = s.players[0]!;
+    for (let y = p.y; y > p.y - 60; y -= 4) s.terrain.addDirt(p.x + 22, y, 5, [120, 90, 60]);
+  });
+  await page.mouse.down();
+  await page.waitForTimeout(400);
+  await page.mouse.up();
+  const crashed = await me();
+  expect(crashed.hp).toBe(crashed.maxHp - 5);
+  expect(crashed.scooterCrash).toBe(1);
+  await page.screenshot({ path: 'test-results/scooter-crash.png' });
+  expect(errors).toEqual([]);
+});
+
 test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];

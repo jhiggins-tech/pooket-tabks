@@ -1,10 +1,14 @@
+import { getCharacter } from '../../characters/roster';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
 import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, pendingTwinSpot, tankCentre } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
 
-/** Tanks (and their hologram, twin and ghost copies), the jetpack flame, the spew gush, the swap marker and the aim guide. */
+/**
+ * Tanks (and their hologram, twin and ghost copies), garyoldmancorp's scooter, the jetpack flame, the spew
+ * gush, the swap marker and the aim guide.
+ */
 
 /**
  * Draws player p's tank, or (with `at`) a copy of it at another spot: their twin (with its own burn), or
@@ -286,7 +290,9 @@ export function drawTanks(d: Draw, state: GameState): void {
       const phaseIn = Math.min(1, p.twin.age / HOLOGRAM_PHASE_IN);
       drawGlitchedTank(d, p, state, p.twin, 1 - phaseIn, phaseIn, 1);
     }
-    drawJet(d, p, state, () => drawGlitchedTank(d, p, state, undefined, shimmerAmt, 1, 1));
+    const ride = scooterRide(d, p, state);
+    if (ride) drawScooter(d, p, state, ride);
+    else drawJet(d, p, state, () => drawGlitchedTank(d, p, state, undefined, shimmerAmt, 1, 1));
     if (isSpewing(state, p.id)) drawSpewGush(d, p);
   }
 }
@@ -318,4 +324,96 @@ function drawTwinGhost(d: Draw, state: GameState, p: Player, x: number): void {
   ctx.arc(x, y - TANK_BODY_HEIGHT, TANK_HALF_WIDTH + 8, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
+}
+
+/** Where each scooter rider was last drawn, and until when (renderer time) they count as riding, which way. */
+const rides = new Map<number, { x: number; until: number; dir: number }>();
+
+/**
+ * garyoldmancorp rides a scooter while he moves: this works it out from the tank's position frame to
+ * frame (cosmetic, so it shows the same for a phone watching his previews), and says which way he's going.
+ */
+function scooterRide(d: Draw, p: Player, state: GameState): { dir: number } | null {
+  if (getCharacter(p.characterId).movement !== 'scooter') return null;
+  const last = rides.get(p.id);
+  const dx = last ? p.x - last.x : 0;
+  // Only driving along the ground while aiming (not a jetpack, nor a jump to a new match or snapshot).
+  const riding = state.phase === 'aiming' && !p.hop && Math.abs(dx) > 0.05 && Math.abs(dx) < 30;
+  const r = { x: p.x, until: riding ? d.time + 0.25 : (last?.until ?? 0), dir: riding ? Math.sign(dx) : (last?.dir ?? 1) };
+  rides.set(p.id, r);
+  return p.alive && state.phase === 'aiming' && d.time < r.until ? { dir: r.dir } : null;
+}
+
+/** The scooter: two little wheels, a deck in the rider's colour, the stem and bars, and his dome riding on it. */
+function drawScooter(d: Draw, p: Player, state: GameState, ride: { dir: number }): void {
+  const { ctx } = d;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.scale(ride.dir, 1); // forward is +x
+  const lean = Math.sin(d.time * 30) * 0.6;
+  // Speed lines streaming off the back.
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.2;
+  ctx.lineCap = 'round';
+  for (const [k, y] of [[0, -6], [1, -11], [2, -16]] as const) {
+    const off = (d.time * 90 + k * 7) % 12;
+    ctx.beginPath();
+    ctx.moveTo(-13 - off, y);
+    ctx.lineTo(-20 - off - k * 2, y);
+    ctx.stroke();
+  }
+  // Wheels.
+  for (const wx of [-8, 8]) {
+    ctx.fillStyle = '#1c1c1c';
+    ctx.beginPath();
+    ctx.arc(wx, -3.2, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#9aa3b2';
+    ctx.beginPath();
+    ctx.arc(wx, -3.2, 1.1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Deck.
+  ctx.fillStyle = p.colour;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(-10, -7.5, 17, 3, 1.5);
+  ctx.fill();
+  ctx.stroke();
+  // Stem and handlebars.
+  ctx.strokeStyle = '#9aa3b2';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(8, -3.2);
+  ctx.lineTo(6, -19);
+  ctx.moveTo(3, -19);
+  ctx.lineTo(9, -19.5);
+  ctx.stroke();
+  // The rider: the tank's dome, leaning into it, barrel tucked forward.
+  ctx.strokeStyle = '#1c1c1c';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-1, -13 + lean);
+  ctx.lineTo(5, -16 + lean);
+  ctx.stroke();
+  ctx.fillStyle = p.colour;
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(-2, -8 + lean, 6, Math.PI, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+  if (state.players[state.current] === p) {
+    const y = p.y - TANK_BODY_HEIGHT - BARREL_LENGTH - 16 + Math.sin(d.time * 6) * 3;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.moveTo(p.x - 7, y - 8);
+    ctx.lineTo(p.x + 7, y - 8);
+    ctx.lineTo(p.x, y);
+    ctx.closePath();
+    ctx.fill();
+  }
 }

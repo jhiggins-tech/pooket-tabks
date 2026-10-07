@@ -78,6 +78,8 @@ export interface Player extends TankBody {
   coffee: { failChance: number; turn: number } | null;
   /** Diced Coffee won this turn: when it ends, this player goes again (the next enemy turn is skipped). */
   extraTurn: boolean;
+  /** garyoldmancorp's scooter crashed going this way (−1 / +1) and hasn't moved since (0: no crash to remember). */
+  scooterCrash: number;
 }
 
 /** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
@@ -450,6 +452,8 @@ export type SfxCue =
   | 'yolk'
   | 'slurp'
   | 'spill'
+  | 'scoot'
+  | 'crash'
   | 'gameover';
 
 export interface Sfx {

@@ -4,17 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-- **garyoldmancorp: scooter movement** (owner, 7 Oct). His own way of moving, in place of driving: while
-  ◀ ▶ is held the tank turns into a small scooter (the hull swaps for a scooter, back to the tank when he
-  stops) and moves very fast, several times the usual drive speed. But when it runs into terrain it can't
-  cross (where a driving tank would stop: too steep a slope or a wall), it **crashes**: stops dead, a little
-  self-damage, a crash look and sound. Where it goes: `movement: 'scooter'` on his `CharacterDef`
-  (alongside `'drive'` and ciarra's `'hop'`) and its rules in `game/movement.ts` (fuel, speed, what counts as
-  a crash, the damage through `hurt` as self-damage); the scooter drawn in `render/draw/tank.ts`; crash and
-  ride sound cues; the info screen's movement line; online it rides the aim preview like the others; unit
-  tests for speed, crashing and damage, and an e2e step. To settle when it's built: the numbers (speed,
-  fuel, crash damage, ~5 to start) and whether a crash ends his movement for the turn or just stops him
-  where he hit.
+(Empty: everything queued has shipped.)
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -186,6 +176,15 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **garyoldmancorp's scooter** (owner, 7 Oct; rules 19). His own movement (`movement: 'scooter'`,
+  `game/movement.ts`): while ◀ ▶ is held he rides a little scooter (drawn in `render/draw/tank.ts` whenever he's
+  moving, worked out from his position so a watching phone sees it too) at **4× drive speed** (128 px/s,
+  `SCOOTER_SPEED`) and **1.5× as far** on the same tank of fuel (`SCOOTER_FUEL`, 2/3 per px: 375 px a match).
+  Terrain a tank couldn't cross (a wall, a steep hill) is a **crash**: he stops there, takes **5** (as his own
+  damage, never his last bit of health, so a crash can't end a match between shots), with a CRASH! floater,
+  a puff and a clang. Holding on into the same wall does nothing more (`Player.scooterCrash`); backing off
+  and having another go is another crash. Another tank or the map edge just stops him. Online, the aim
+  preview now carries health, so the other phone sees a crash's damage straight away.
 - **garyoldmancorp, in beta** (owner, 7 Oct; rules 17). Playable (off the Coming soon list), marked Beta in
   the pickers ("(beta)") and on his info page (`CharacterDef.beta`). His real move so far is the bonus move
   **Diced Coffee** (`game/coffee.ts`, kind `coffee`): FIRE spins an on-screen wheel, a "full cream" slice
@@ -430,5 +429,5 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
-| **garyoldmancorp** (beta) | Beta Shot: stand-in shell, 30 | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
+| **garyoldmancorp** (beta; rides a scooter: 4× speed, 1.5× range, crashes into walls for 5) | Beta Shot: stand-in shell, 30 | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |
