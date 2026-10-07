@@ -3,44 +3,21 @@
  * Firebase Realtime Database into Web Push notifications (drain.ts), then exits. Node runs it as is
  * (`node notify.ts`: plain TypeScript).
  *
- * Needs (repo secrets and variables; README, "Push notifications"): VAPID_PRIVATE_KEY and
- * FIREBASE_SERVICE_ACCOUNT (secrets), VAPID_PUBLIC_KEY, VAPID_SUBJECT and FIREBASE_DATABASE_URL
- * (variables). Exits 1 only when something's set up wrong (or the database can't be reached), so a red
- * run always means something to fix; a push that fails is just counted.
+ * Needs (README, "Push notifications"): VAPID_PRIVATE_KEY and FIREBASE_SERVICE_ACCOUNT (secrets), and
+ * VAPID_PUBLIC_KEY, VAPID_SUBJECT and FIREBASE_DATABASE_URL (each a secret or a variable). Exits 1 only
+ * when something's set up wrong (or the database can't be reached), so a red run always means something
+ * to fix; a push that fails is just counted.
  */
-import { cert, initializeApp } from 'firebase-admin/app';
 import { getDatabase } from 'firebase-admin/database';
 import webpush from 'web-push';
 import { drain, type OutboxEntry, type Store, type Subscription } from './drain.ts';
+import { initFirebase, readEnv, setupError } from './setup.ts';
 
-const NEEDED = ['VAPID_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT', 'VAPID_PUBLIC_KEY', 'VAPID_SUBJECT', 'FIREBASE_DATABASE_URL'] as const;
-const missing = NEEDED.filter((k) => !process.env[k]);
-if (missing.length) {
-  console.error(`missing: ${missing.join(', ')}`);
-  process.exit(1);
-}
-/** A value as pasted into GitHub, without stray spaces or quotes around it. */
-const env = Object.fromEntries(NEEDED.map((k) => [k, process.env[k]!.trim().replace(/^(['"])(.*)\1$/s, '$2').trim()])) as Record<(typeof NEEDED)[number], string>;
-
-/** Stop with a set-up problem, naming what's wrong but never printing the values (some are secret). */
-function setupError(what: string): never {
-  console.error(`set-up problem: ${what}`);
-  process.exit(1);
-}
+const env = readEnv(['VAPID_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT', 'VAPID_PUBLIC_KEY', 'VAPID_SUBJECT', 'FIREBASE_DATABASE_URL']);
 
 // The push services want a contact URL: `mailto:you@example.com` (a bare address gets the mailto:) or https://.
 const subject = /^(mailto:|https:\/\/)/.test(env.VAPID_SUBJECT) ? env.VAPID_SUBJECT : env.VAPID_SUBJECT.includes('@') ? `mailto:${env.VAPID_SUBJECT}` : setupError('VAPID_SUBJECT should be mailto:you@example.com (or an https:// URL)');
-let account: object;
-try {
-  account = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT) as object;
-} catch {
-  setupError("FIREBASE_SERVICE_ACCOUNT isn't JSON (paste the whole downloaded file)");
-}
-try {
-  initializeApp({ credential: cert(account), databaseURL: env.FIREBASE_DATABASE_URL });
-} catch {
-  setupError('FIREBASE_SERVICE_ACCOUNT or FIREBASE_DATABASE_URL was refused by firebase-admin');
-}
+initFirebase(env);
 try {
   webpush.setVapidDetails(subject, env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
 } catch {
