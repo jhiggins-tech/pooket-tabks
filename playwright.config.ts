@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test';
 const localChromium = process.env.PW_CHROMIUM ?? '/opt/pw-browsers/chromium';
 const executablePath = !process.env.CI && existsSync(localChromium) ? localChromium : undefined;
 
-const port = 4173;
+const port = Number(process.env.E2E_PORT ?? 4173);
 
 export default defineConfig({
   testDir: 'e2e',
