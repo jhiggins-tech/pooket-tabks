@@ -4,7 +4,7 @@ import type { WeaponOf } from '../weapons/types';
 import { tankBody } from './bodies';
 import { GRAVITY, SETTLE_TIME, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { ring, sound, spawnFloater } from './fx';
-import { reselect } from './loadout';
+import { canSuckYolk, reselect } from './loadout';
 import type { Stepper } from './mechanics';
 import type { GameState, Hologram, Player, Twin } from './state';
 import { currentPlayer, explode, tankBodies } from './tanks';
@@ -117,16 +117,8 @@ export function spawnTwin(state: GameState, p: Player): void {
  */
 export const YOLK_SUCKER = { name: 'Yolk Sucker', colour: '#ffcf33' } as const;
 
-/** The slot that's Yolk Sucker for `p` (a spent Twins, while the twin stands), or -1. */
-export function yolkTier(p: Player): number {
-  if (!p.twin || !p.alive) return -1;
-  return p.loadout.findIndex((id, tier) => kindOf(getWeapon(id)) === 'twin' && (p.ammo[tier] ?? 0) <= 0);
-}
-
-/** Whether Yolk Sucker would change anything: the twins' health is more than one apart. */
-export function canSuckYolk(p: Player): boolean {
-  return yolkTier(p) >= 0 && Math.abs(p.hp - p.twin!.hp) > 1;
-}
+// (Which slot is Yolk Sucker, and whether it would change anything: loadout.ts, with the other slot rules.)
+export { canSuckYolk, yolkTier } from './loadout';
 
 /** Even out the twins' health (see YOLK_SUCKER). Returns false if there's nothing to even out. */
 export function suckYolk(state: GameState, p: Player): boolean {

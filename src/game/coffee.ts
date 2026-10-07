@@ -2,7 +2,7 @@ import { kindOf, weaponOf } from '../weapons/registry';
 import { SETTLE_TIME } from './constants';
 import { sound, spawnFloater } from './fx';
 import { newJet } from './jetpack';
-import { weaponForTier } from './loadout';
+import { canUseSlot, weaponForTier } from './loadout';
 import type { CoffeeSpin, GameState, Player } from './state';
 import { tankCentre } from './tanks';
 
@@ -17,7 +17,8 @@ import { tankCentre } from './tanks';
  *   is over (no shot this turn), and its round is gone for the match (greyed out).
  *
  * Once a turn (`Player.coffee.turn`), as many turns as it keeps winning. It's no shot: with only Diced
- * Coffee left a player has nothing to fire, so game.ts `hasAmmo` leaves it out and they sit out like anyone empty.
+ * Coffee left a player has nothing to fire, so game.ts `hasAmmo` leaves it out (its kind's `keepsInPlay`) and they
+ * sit out like anyone empty.
  */
 
 /** How long the spinner spins before it stops (s). */
@@ -43,9 +44,9 @@ export function isCoffee(p: Player, tier: number): boolean {
   return id !== undefined && kindOf(weaponForTier(p, tier)) === 'coffee';
 }
 
-/** Whether `p` can drink a Diced Coffee from `tier` now: it isn't spilt, and they haven't had one this turn. */
+/** Whether `p` can drink a Diced Coffee from `tier` now: it isn't spilt, and they haven't had one this turn (loadout.ts). */
 export function canDrinkCoffee(state: GameState, p: Player, tier: number): boolean {
-  return isCoffee(p, tier) && (p.ammo[tier] ?? 0) > 0 && p.coffee?.turn !== state.turn;
+  return isCoffee(p, tier) && canUseSlot(state, p, tier);
 }
 
 /** Spin the wheel (FIRE on Diced Coffee). */

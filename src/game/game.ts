@@ -7,11 +7,11 @@ import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
 import { tankBody } from './bodies';
-import { canDrinkCoffee, coffeeDone, finishCoffee, isCoffee, stepCoffee } from './coffee';
-import { canSuckYolk, resolveHolograms, stepPhaseFx, suckYolk, yolkTier } from './copies';
+import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
+import { resolveHolograms, stepPhaseFx, suckYolk } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
 import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
-import { reselect, weaponForTier } from './loadout';
+import { canFire, canUseSlot, reselect, roundKeepsInPlay, slotAt, weaponForTier } from './loadout';
 import { runLegs } from './runner';
 import type { GameState, Player, PlayerConfig } from './state';
 import { endScams } from './scam';
@@ -193,32 +193,29 @@ export function aimTwin(state: GameState, twin: boolean): void {
 
 /** Whether a player has anything to fire (Diced Coffee is no shot: alone, it doesn't keep them in). */
 export function hasAmmo(p: Player): boolean {
-  return p.ammo.some((n, tier) => n > 0 && !isCoffee(p, tier));
+  return p.ammo.some((_, tier) => roundKeepsInPlay(p, tier));
 }
 
-export { weaponForTier } from './loadout';
+export { canFire, canUseSlot, slotAt, weaponForTier, type SlotKind } from './loadout';
 
 /**
- * Choose which tier the current player fires next. Returns false if it has no rounds left (Yolk Sucker:
- * nothing to even out; Diced Coffee: already had one this turn).
+ * Choose which tier the current player fires next. Returns false if it can't be used now (canUseSlot: no
+ * rounds left; Yolk Sucker: nothing to even out; Diced Coffee: already had one this turn).
  */
 export function selectTier(state: GameState, tier: number): boolean {
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
-  if ((p.ammo[tier] ?? 0) <= 0 && !(tier === yolkTier(p) && canSuckYolk(p))) return false;
-  if (isCoffee(p, tier) && !canDrinkCoffee(state, p, tier)) return false;
+  if (!canUseSlot(state, p, tier)) return false;
   p.selectedTier = tier;
   return true;
 }
 
 export function fire(state: GameState): boolean {
-  if (state.phase !== 'aiming') return false;
+  if (!canFire(state)) return false; // (not mid-hop either: land first)
   const p = currentPlayer(state);
-  if (p.hop) return false; // land first
   const tier = p.selectedTier;
   // torikloud's spent Twins slot, while the twin stands: Yolk Sucker, a bonus move (the turn carries on).
-  if (tier === yolkTier(p)) return suckYolk(state, p);
-  if ((p.ammo[tier] ?? 0) <= 0) return false;
+  if (slotAt(p, tier) === 'yolk') return suckYolk(state, p);
   const weapon = weaponForTier(p, tier);
   const kind = kindOf(weapon);
   // Not a shot (Steal, a bonus move): it does its thing, and the turn carries on.
