@@ -75,11 +75,13 @@ export function roundKeepsInPlay(p: Player, tier: number): boolean {
 
 /**
  * The selected tier has run out: select the lowest tier that still has rounds. Returns whether any tier
- * does (a player with none sits out, game.ts).
+ * does (a player with none sits out, game.ts). With `inPlay`, only rounds that keep a player in play
+ * count (roundKeepsInPlay): after a Diced Coffee, a selected coffee gives way to the lowest such tier.
  */
-export function reselect(p: Player): boolean {
-  if ((p.ammo[p.selectedTier] ?? 0) > 0) return true;
-  const next = p.ammo.findIndex((n) => n > 0);
+export function reselect(p: Player, opts: { inPlay?: boolean } = {}): boolean {
+  const ok = (tier: number) => (opts.inPlay ? roundKeepsInPlay(p, tier) : (p.ammo[tier] ?? 0) > 0);
+  if (ok(p.selectedTier)) return true;
+  const next = p.ammo.findIndex((_, tier) => ok(tier));
   if (next < 0) return false;
   p.selectedTier = next;
   return true;

@@ -1,8 +1,8 @@
 import { randRange } from '../core/rng';
 import { getWeapon, kindOf, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
-import { tankBody } from './bodies';
-import { GRAVITY, SETTLE_TIME, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { settleTurn, tankBody } from './bodies';
+import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { ring, sound, spawnFloater } from './fx';
 import { canSuckYolk, reselect } from './loadout';
 import type { Stepper } from './mechanics';
@@ -146,8 +146,7 @@ export function suckYolk(state: GameState, p: Player): boolean {
   sound(state, 'yolk');
   if (!reselect(p)) {
     // Nothing left to fire (can't usually happen: a player with no rounds sits their turn out).
-    state.phase = 'settling';
-    state.settleTimer = SETTLE_TIME;
+    settleTurn(state);
   }
   return true;
 }

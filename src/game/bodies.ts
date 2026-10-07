@@ -1,15 +1,22 @@
 import type { Terrain } from '../core/terrain';
-import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { BARREL_LENGTH, SETTLE_TIME, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import type { GameState, Player, TankBody } from './state';
 
 /**
- * Where the tanks are: whose turn it is, a tank's centre and muzzle, and resting hulls on the ground. A leaf
- * (it imports nothing else from the game), so any module can use these without an import cycle; tanks.ts
- * and movement.ts re-export them.
+ * Whose turn it is (and ending it), and where the tanks are: a tank's centre and muzzle, a player's tanks,
+ * other bodies in the way, and resting hulls on the ground. A leaf (it imports nothing else from the game
+ * but its constants), so any module can use these without an import cycle; tanks.ts and movement.ts
+ * re-export some of them.
  */
 
 export function currentPlayer(state: GameState): Player {
   return state.players[state.current]!;
+}
+
+/** The turn is over: a moment's pause to settle (SETTLE_TIME), then game.ts `endTurn` passes it on. */
+export function settleTurn(state: GameState): void {
+  state.phase = 'settling';
+  state.settleTimer = SETTLE_TIME;
 }
 
 export function tankCentre(p: Player): { x: number; y: number } {

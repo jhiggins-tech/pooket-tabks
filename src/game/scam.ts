@@ -1,9 +1,8 @@
 import { getWeapon } from '../weapons/registry';
-import { SETTLE_TIME } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { GameState, Player } from './state';
 import { reselect } from './loadout';
-import { tankCentre } from './bodies';
+import { settleTurn, tankCentre } from './bodies';
 
 /**
  * larinovsky's Women in Scam: a bonus move (it doesn't use the turn: aim and fire as usual after it).
@@ -21,8 +20,7 @@ export function armScam(state: GameState, p: Player, tier: number): boolean {
   sound(state, 'fire', p.loadout[tier]);
   if (!reselect(p)) {
     // Nothing left to fire: the scam still stands for the next enemy turn.
-    state.phase = 'settling';
-    state.settleTimer = SETTLE_TIME;
+    settleTurn(state);
   }
   return true;
 }

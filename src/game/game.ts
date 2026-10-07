@@ -5,8 +5,8 @@ import { flattenAround, generateHeights } from '../core/terrainGen';
 import { ignoresAim, kindOf } from '../weapons/registry';
 import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
-import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
-import { tankBody } from './bodies';
+import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
+import { settleTurn, tankBody } from './bodies';
 import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
 import { resolveHolograms, stepPhaseFx, suckYolk } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
@@ -250,8 +250,7 @@ export function step(state: GameState, dt: number): void {
     const busy = STEPPERS.some((m) => m.busy(state));
     if (!busy) {
       stepSoak(state, dt, true);
-      state.phase = 'settling';
-      state.settleTimer = SETTLE_TIME;
+      settleTurn(state);
     }
   } else if (state.phase === 'stealing') {
     stepHeist(state, dt);

@@ -1,8 +1,8 @@
 import { kindOf, weaponOf } from '../weapons/registry';
-import { SETTLE_TIME } from './constants';
+import { settleTurn } from './bodies';
 import { sound, spawnFloater } from './fx';
 import { newJet } from './jetpack';
-import { canUseSlot, weaponForTier } from './loadout';
+import { canUseSlot, reselect, weaponForTier } from './loadout';
 import type { CoffeeSpin, GameState, Player } from './state';
 import { tankCentre } from './tanks';
 
@@ -111,12 +111,11 @@ export function finishCoffee(state: GameState): void {
   const c = state.coffee;
   state.coffee = null;
   const p = c ? state.players[c.playerId] : undefined;
-  const shot = p ? p.ammo.findIndex((n, tier) => n > 0 && !isCoffee(p, tier)) : -1;
-  if (p && shot >= 0 && (isCoffee(p, p.selectedTier) || (p.ammo[p.selectedTier] ?? 0) <= 0)) p.selectedTier = shot;
-  if (c && !c.fail && shot >= 0) {
+  // With the coffee (or an empty tier) selected, select the lowest tier with a round that isn't coffee.
+  const shot = p ? reselect(p, { inPlay: true }) : false;
+  if (c && !c.fail && shot) {
     state.phase = 'aiming';
     return;
   }
-  state.phase = 'settling';
-  state.settleTimer = SETTLE_TIME;
+  settleTurn(state);
 }
