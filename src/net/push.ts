@@ -1,6 +1,6 @@
 import { isPushType, type PushType } from '../push/templates';
 import { errText, netLog } from './log';
-import { SERVER_TIME, type Rtdb } from './rtdb';
+import { followChildren, Newcomers, SERVER_TIME, type Rtdb } from './rtdb';
 import { getSealed, putSealed } from './sealed';
 import type { RoomRef } from './rooms';
 
@@ -101,30 +101,26 @@ export interface OutboxEntry {
  */
 export function followOutbox(db: Rtdb, onEntry: (e: OutboxEntry) => void, to = clientId()): { stop: () => void } {
   const me = to;
-  let known: Set<string> | null = null;
+  const newcomers = new Newcomers();
   const take = (id: string, v: unknown) => {
     const e = v as { type?: unknown; ref?: unknown; to?: unknown } | null;
-    if (!known || known.has(id)) return;
-    known.add(id);
+    if (!newcomers.take(id)) return;
     if (e?.to !== me || !isPushType(e.type) || typeof e.ref !== 'string') return;
     netLog(`push: ${e.type} for this phone`);
     onEntry({ id, type: e.type, ref: e.ref });
   };
-  const stream = db.stream(
+  return followChildren(
+    db,
     'outbox',
-    (ev) => {
-      if (ev.path === '/') {
-        const all = Object.entries((ev.data as Record<string, unknown>) ?? {});
-        if (!known) known = new Set(all.map(([id]) => id)); // already there: old news (or pushed already)
+    {
+      all: (all) => {
+        newcomers.start(all.map(([id]) => id)); // already there: old news (or pushed already)
         for (const [id, v] of all) take(id, v);
-      } else {
-        const id = ev.path.slice(1).split('/')[0];
-        if (id && !ev.path.slice(1).includes('/')) take(id, ev.data);
-      }
+      },
+      child: take,
     },
-    { child: 'to', value: me },
+    { deep: 'ignore', where: { child: 'to', value: me } },
   );
-  return { stop: () => stream.close() };
 }
 
 /**

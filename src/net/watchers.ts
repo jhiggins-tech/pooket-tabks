@@ -1,5 +1,6 @@
 import { errText, netLog } from './log';
 import type { RoomRef } from './rooms';
+import { followChildren, Newcomers } from './rtdb';
 import { openSealed, putSealed } from './sealed';
 
 /**
@@ -41,8 +42,8 @@ export function checkIn(room: RoomRef, id: string, name: string): { stop: () => 
 export function followWatchers(room: RoomRef, on: { list: (watchers: Watcher[]) => void; arrive: (w: Watcher) => void }, now = () => Date.now()): { stop: () => void } {
   const base = `${room.path}/watchers`;
   const entries = new Map<string, { name: string; ts: number }>();
-  /** Everyone seen so far (only newcomers are announced); null until the first look at the list. */
-  let known: Set<string> | null = null;
+  /** Only spectators who turn up after we start following are announced. */
+  const newcomers = new Newcomers();
   let last = '';
   const emit = () => {
     const list = [...entries.entries()]
@@ -60,33 +61,24 @@ export function followWatchers(room: RoomRef, on: { list: (watchers: Watcher[]) 
     if (!entry || name === null) entries.delete(id);
     else {
       entries.set(id, { name, ts: entry.ts });
-      if (known && !known.has(id) && now() - entry.ts < WATCHER_STALE_MS) {
+      if (newcomers.take(id) && now() - entry.ts < WATCHER_STALE_MS) {
         netLog(`watchers: ${name} started watching`);
         on.arrive({ id, name });
       }
-      known?.add(id);
     }
   };
-  const stream = room.db.stream(base, (e) => {
-    if (e.path === '/') {
-      const all = Object.entries((e.data as Record<string, unknown>) ?? {});
-      known ??= new Set(all.map(([id]) => id)); // already watching when we started following
-      entries.clear();
-      void Promise.all(all.map(([id, v]) => take(id, v))).then(emit);
-    } else {
-      const id = e.path.slice(1).split('/')[0];
-      if (!id) return;
-      // A whole entry, or part of one (read it whole).
-      const raw = e.path.slice(1).includes('/') ? room.db.get(`${base}/${id}`) : Promise.resolve(e.data);
-      void raw.then((v) => take(id, v)).then(emit);
-    }
-  });
-  // Check-ins go stale even when nothing changes.
-  const timer = setInterval(emit, 5000);
-  return {
-    stop: () => {
-      clearInterval(timer);
-      stream.close();
+  return followChildren(
+    room.db,
+    base,
+    {
+      all: (all) => {
+        newcomers.start(all.map(([id]) => id)); // already watching when we started following
+        entries.clear();
+        void Promise.all(all.map(([id, v]) => take(id, v))).then(emit);
+      },
+      child: (id, v) => void Promise.resolve(v).then((raw) => take(id, raw)).then(emit),
+      tick: emit, // check-ins go stale even when nothing changes
     },
-  };
+    { deep: 'reread' },
+  );
 }

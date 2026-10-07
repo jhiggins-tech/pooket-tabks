@@ -1,5 +1,5 @@
 import { errText, netLog } from './log';
-import { type Rtdb } from './rtdb';
+import { followChildren, type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
 import { openSealed, putSealed } from './sealed';
 
@@ -145,25 +145,20 @@ export function watchLobby(db: Rtdb, lobby: Sealer, onList: (games: Advert[]) =>
       emit();
     });
   };
-  const stream = db.stream(base, (e) => {
-    if (e.path === '/') {
-      games.clear();
-      for (const [k, v] of Object.entries((e.data as Record<string, unknown>) ?? {})) take(k, v);
-      emit();
-    } else {
-      const [hostId, child] = e.path.slice(1).split('/');
-      if (!hostId) return;
-      if (child) void db.get(`${base}/${hostId}`).then((v) => take(hostId, v));
-      else take(hostId, e.data);
-    }
-  });
-  // Listings age out even when nothing changes.
-  const timer = setInterval(emit, 5000);
-  emit();
-  return {
-    stop: () => {
-      clearInterval(timer);
-      stream.close();
+  const follow = followChildren(
+    db,
+    base,
+    {
+      all: (children) => {
+        games.clear();
+        for (const [k, v] of children) take(k, v);
+        emit();
+      },
+      child: take,
+      tick: emit, // listings age out even when nothing changes
     },
-  };
+    { deep: 'reread' },
+  );
+  emit();
+  return follow;
 }

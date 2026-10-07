@@ -154,6 +154,58 @@ export class Rtdb {
   }
 }
 
+/** How often `followChildren` runs its `tick`. */
+const TICK_MS = 5000;
+
+/**
+ * Follow a list of children (keyed by id) at `path`: `all` gets every child whenever the whole value comes
+ * (at first, and again after a reconnect), `child` each one that's put or patched (null: removed). A change
+ * deeper inside a child is read whole again (`deep: 'reread'`) or ignored (`'ignore'`). `tick` runs every
+ * few seconds while following (for entries that go stale with nothing changing). `where` as for `stream`.
+ */
+export function followChildren(
+  db: Rtdb,
+  path: string,
+  on: { all: (children: [string, unknown][]) => void; child: (id: string, value: unknown) => void; tick?: () => void },
+  opts: { deep: 'reread' | 'ignore'; where?: { child: string; value: string } },
+): { stop: () => void } {
+  const stream = db.stream(
+    path,
+    (e) => {
+      if (e.path === '/') return on.all(Object.entries((e.data as Record<string, unknown>) ?? {}));
+      const id = e.path.slice(1).split('/')[0];
+      if (!id) return;
+      if (!e.path.slice(1).includes('/')) on.child(id, e.data);
+      else if (opts.deep === 'reread') void db.get(`${path}/${id}`).then((v) => on.child(id, v));
+    },
+    opts.where,
+  );
+  const timer = on.tick ? setInterval(on.tick, TICK_MS) : null;
+  return {
+    stop: () => {
+      if (timer) clearInterval(timer);
+      stream.close();
+    },
+  };
+}
+
+/** Which of a followed list's children are new: whatever was there in the first whole value is old news. */
+export class Newcomers {
+  private known: Set<string> | null = null;
+
+  /** The first whole value (later ones change nothing). */
+  start(ids: Iterable<string>): void {
+    this.known ??= new Set(ids);
+  }
+
+  /** Whether `id` is new: not seen before, once the first whole value is in. Either way it's known from now on. */
+  take(id: string): boolean {
+    if (!this.known || this.known.has(id)) return false;
+    this.known.add(id);
+    return true;
+  }
+}
+
 /** Paths are mostly hashes: keep enough to tell them apart in a log. */
 function short(path: string): string {
   return path.replace(/[0-9a-f]{24}/g, (h) => `${h.slice(0, 6)}…`);
