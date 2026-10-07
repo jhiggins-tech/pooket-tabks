@@ -23,9 +23,9 @@ export const FIXED_DT = 1 / 120;
 /** Fuel for the whole match, in px of driving. It never refills, so spend it wisely. */
 export const FUEL_PER_MATCH = 250;
 export const DRIVE_SPEED = 32; // px/s
-/** garyoldmancorp's scooter: 4× drive speed, and 1.5× as far on the same tank of fuel (2/3 of a px of fuel per px). */
+/** garyoldmancorp's scooter: 4× drive speed, and 3× as far on the same tank of fuel (1/3 of a px of fuel per px). */
 export const SCOOTER_SPEED = DRIVE_SPEED * 4;
-export const SCOOTER_FUEL = 2 / 3;
+export const SCOOTER_FUEL = 1 / 3;
 /** What a scooter crash costs its rider (never the last of their health). */
 export const SCOOTER_CRASH = 5;
 /** Highest lip or bump a driving tank rolls over in one go. */

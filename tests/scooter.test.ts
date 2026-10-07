@@ -29,12 +29,19 @@ describe("garyoldmancorp's scooter", () => {
     expect(gary.y).toBe(400);
   });
 
-  it('goes 1.5× as far on the same tank of fuel', () => {
-    const g = game(false);
+  it('goes 3× as far on the same tank of fuel', () => {
+    const g = testGame({
+      seed: 9,
+      players: [
+        { name: 'gary', colour: '#cbd5e1', characterId: 'garyoldmancorp' },
+        { name: 'kcaj', colour: '#ffc53d', characterId: 'kcaj' },
+      ],
+      xs: [100, 1080],
+    });
     const gary = g.players[0]!;
     hold(g, 1, 10);
-    expect(gary.x - 300).toBeCloseTo(FUEL_PER_MATCH / SCOOTER_FUEL, 0);
-    expect(FUEL_PER_MATCH / SCOOTER_FUEL).toBeCloseTo(375);
+    expect(gary.x - 100).toBeCloseTo(FUEL_PER_MATCH / SCOOTER_FUEL, 0);
+    expect(FUEL_PER_MATCH / SCOOTER_FUEL).toBeCloseTo(750);
     expect(gary.fuel).toBeCloseTo(0, 5);
     expect(drive(g, 1, 0.1)).toBe(0);
   });

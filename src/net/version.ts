@@ -12,7 +12,7 @@
  *   `OLDEST_RULES` to `RULES` only when older matches really can't carry on.
  */
 export const WIRE = 7;
-export const RULES = 19;
+export const RULES = 20;
 export const OLDEST_RULES = 7;
 
 /** How this build stands with something from another: fine, too old to carry on, or from a newer build (reload). */

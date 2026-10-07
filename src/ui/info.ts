@@ -13,7 +13,7 @@ export function movementInfo(c: CharacterDef): { label: string; text: string } {
   if (c.movement === 'scooter') {
     return {
       label: 'Scooter',
-      text: 'Rides a little scooter: 4× as fast as a tank, and 1.5× as far on the same tank of fuel. But steep hills and walls are a crash: it stops dead and he takes 5 damage (never his last bit of health).',
+      text: 'Rides a little scooter: 4× as fast as a tank, and 3× as far on the same tank of fuel. But steep hills and walls are a crash: it stops dead and he takes 5 damage (never his last bit of health).',
     };
   }
   return { label: 'Drives', text: 'Rolls over small bumps; steep hills and walls stop it.' };
