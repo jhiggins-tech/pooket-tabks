@@ -5,7 +5,7 @@ import { insignia } from './insignia';
 /**
  * The rank-up moment: the new insignia bursts in with a ring of sparkles and its name in the rank's
  * colours, over whatever's on screen (the game over card, or the menu if the rank-up turned up in the
- * hourly totals). The rank's jingle plays alongside (main.ts, audio/sfx.ts `rankJingle`). Tap to carry on.
+ * hourly totals). The rank's jingle plays alongside (main.ts, audio/jingle.ts `rankJingle`). Tap to carry on.
  */
 export class RankUp {
   private readonly root = dialog('rankup', 'Rank up');
