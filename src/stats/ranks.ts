@@ -48,7 +48,7 @@ export interface RankRow {
 }
 
 /**
- * A rank-up jingle: a short score (audio/score.ts reads the parts, audio/sfx.ts `rankJingle` plays it). Every
+ * A rank-up jingle: a short score (audio/score.ts reads the parts, audio/jingle.ts `rankJingle` plays it). Every
  * part lasts as long as the tune.
  */
 export interface Jingle {

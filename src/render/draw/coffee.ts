@@ -2,18 +2,19 @@ import { TANK_BODY_HEIGHT } from '../../game/constants';
 import { COFFEE_SIP, COFFEE_SPIN } from '../../game/game';
 import type { GameState } from '../../game/state';
 import type { Draw } from './context';
+import { spriteReady } from '../sprites';
 
 /**
  * Diced Coffee: the iced coffee by the tank while the spinner spins. Lactose free: the tank lifts it,
  * tips it back and drains it through the straw (the level drops), then it's gone. Full cream: it topples
- * over and spills (the little jetpack is the tank's own: draw/tank.ts `drawJet`).
+ * over and spills (the little jetpack is the tank's own: draw/jetpack.ts `drawJet`).
  */
 export function drawCoffee(d: Draw, state: GameState): void {
   const c = state.coffee;
   const p = c && state.players[c.playerId];
   if (!c || !p) return;
   const sprite = d.sprites['iced-coffee'];
-  if (!sprite.image.complete || sprite.image.naturalWidth === 0) return;
+  if (!spriteReady(sprite)) return;
   const { ctx } = d;
   const { width: w, height: h } = sprite;
   // On the side the barrel isn't pointing, sitting on the ground by the tracks.

@@ -1,95 +1,19 @@
 import type { Sfx, SfxCue } from '../game/state';
 import { findWeapon, isProjectileWeapon, weaponOf } from '../weapons/registry';
-import { midi, type Synth, type ToneOpts } from './chip';
-import type { Jingle, Rank } from '../stats/ranks';
-import { parseDrums, parsePart, partSteps } from './score';
+import { arp, midi, type Synth } from './chip';
+import type { Rank } from '../stats/ranks';
+import { rankJingle } from './jingle';
 import { TunePlayer } from './tunes';
+
+/** The rank-up jingle (jingle.ts), played by `SfxPlayer.jingle`. */
+export { rankJingle };
 
 /**
  * Kitschy 8-bit sound effects. Every weapon has a firing sound (`FIRE_SOUNDS`), burst weapons blip on
- * each round (`ROUND_SOUNDS`), and game events have their own (`CUE_SOUNDS`). All synthesised.
+ * each round (`ROUND_SOUNDS`), and game events have their own (`CUE_SOUNDS`: the general ones first, then
+ * each mechanic's). All synthesised. A rank-up's jingle: jingle.ts.
  */
 type Recipe = (s: Synth, e: Sfx) => void;
-
-/** A quick run of notes (MIDI numbers), `step` s apart. */
-function arp(s: Synth, notes: number[], step: number, o: { at?: number; dur?: number; duty?: 0.125 | 0.25 | 0.5; vol?: number; wave?: 'pulse' | 'triangle' } = {}): void {
-  notes.forEach((n, i) =>
-    s.tone({ at: (o.at ?? 0) + i * step, dur: o.dur ?? step * 0.9, from: midi(n), duty: o.duty ?? 0.25, vol: o.vol ?? 0.14, wave: o.wave }),
-  );
-}
-
-/** The tune's voices, at levels that sound alike (thinner pulses and the triangle are quieter). */
-const LEAD_VOICES: Record<Jingle['voice'], Pick<ToneOpts, 'duty' | 'wave' | 'vol'>> = {
-  square: { duty: 0.5, vol: 0.15 },
-  reed: { duty: 0.25, vol: 0.16 },
-  thin: { duty: 0.125, vol: 0.22 },
-  flute: { wave: 'triangle', vol: 0.26 },
-};
-
-/**
- * A rank-up jingle (stats/ranks.ts): the rank's score, every part it has (the tune, then bass on a
- * triangle, harmony on thin pulses, noise drums), and on top what its sparkle adds: an echo of the tune
- * (1), a twinkle over the last note (2), the tune doubled a hair out of tune for a chorus, and a shimmer of
- * noise (3). Returns how long it lasts (s).
- */
-export function rankJingle(s: Synth, rank: Pick<Rank, 'jingle' | 'sparkle'>): number {
-  const j = rank.jingle;
-  const step = 15 / j.bpm;
-  const lead = parsePart(j.lead);
-  const end = partSteps(j.lead) * step;
-  const final = [...lead].reverse().find((n) => n.pitches.length);
-  const voice = LEAD_VOICES[j.voice];
-  for (const n of lead) {
-    const [p] = n.pitches;
-    if (p === undefined) continue;
-    const last = n === final;
-    const held = n.len >= 4;
-    const tone: ToneOpts = {
-      ...voice,
-      at: n.at * step,
-      dur: n.len * step * (last ? 1 : 0.95) + (last ? 0.3 : 0),
-      from: midi(p),
-      to: n.slideTo === undefined ? undefined : midi(n.slideTo),
-      vibrato: held && n.slideTo === undefined ? [5.5, midi(p) * 0.012] : undefined,
-      env: held ? [[0, 1], [0.3, 0.8], [1, 0]] : [[0, 1], [0.7, 0.75], [1, 0]],
-    };
-    s.tone(tone);
-    if (rank.sparkle >= 1) s.tone({ ...tone, at: tone.at! + step * 3, duty: 0.125, wave: undefined, vol: 0.04 });
-    if (rank.sparkle >= 3) s.tone({ ...tone, from: tone.from * 1.006, to: tone.to && tone.to * 1.006, duty: 0.5, wave: undefined, vol: 0.05 });
-  }
-  if (j.bass) {
-    for (const n of parsePart(j.bass)) {
-      for (const p of n.pitches) s.tone({ at: n.at * step, dur: n.len * step * 0.9, from: midi(p), wave: 'triangle', vol: 0.22, env: [[0, 1], [0.8, 0.7], [1, 0]] });
-    }
-  }
-  if (j.harmony) {
-    for (const n of parsePart(j.harmony)) {
-      const vol = 0.07 / Math.max(1, n.pitches.length - 0.5);
-      for (const p of n.pitches) s.tone({ at: n.at * step, dur: n.len * step * 0.95, from: midi(p), duty: 0.125, vol, env: [[0, 1], [0.15, 0.7], [0.85, 0.6], [1, 0]] });
-    }
-  }
-  if (j.drums) {
-    for (const hit of parseDrums(j.drums)) {
-      const at = hit.at * step;
-      for (const d of hit.drums) {
-        if (d === 'k') {
-          s.tone({ at, dur: 0.09, from: 160, to: 45, wave: 'triangle', vol: 0.28 });
-          s.noise({ at, dur: 0.03, rate: 0.25, vol: 0.06 });
-        } else if (d === 's') s.noise({ at, dur: 0.11, rate: 0.55, vol: 0.09 });
-        else if (d === 'h') s.noise({ at, dur: 0.035, rate: 1, vol: 0.04 });
-        else s.noise({ at, dur: Math.max(0.6, hit.len * step), rate: 0.9, to: 0.45, vol: 0.07 });
-      }
-    }
-  }
-  const top = final?.pitches[0];
-  if (rank.sparkle >= 2 && top !== undefined && final) {
-    const third = j.minor ? 15 : 16;
-    arp(s, [top + 12, top + third, top + 19, top + 24], 0.05, { at: final.at * step + 0.25, duty: 0.125, vol: 0.06 });
-    if (rank.sparkle >= 3) arp(s, [top + 24, top + 12 + third, top + 19, top + 12], 0.05, { at: final.at * step + 0.55, duty: 0.125, vol: 0.04 });
-  }
-  if (rank.sparkle >= 3 && final) s.noise({ at: final.at * step, dur: 0.8, rate: 0.95, to: 0.6, vol: 0.05 });
-  return end + 0.3;
-}
 
 /** Classic "pew": a stepped downward sweep. */
 function pew(s: Synth, at = 0, from = 1400, to = 180, vol = 0.18): void {
@@ -251,6 +175,7 @@ export const ROUND_SOUNDS: Record<string, Recipe> = {
 };
 
 export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Recipe> = {
+  // ---- Every match: blasts, hits, a refunded round, the end. ----
   // Crunchy noise explosion, bigger blasts longer and lower; tiny ones just pop.
   boom: (s, e) => {
     const r = e.size ?? 20;
@@ -268,51 +193,32 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     const big = (e.size ?? 5) >= 15;
     s.tone({ dur: big ? 0.2 : 0.1, from: big ? 520 : 700, to: big ? 160 : 380, duty: 0.25, steps: 4, vol: big ? 0.14 : 0.07 });
   },
-  // FWOOOSH-boing.
-  launch: (s) => {
-    s.noise({ dur: 0.9, rate: 0.25, to: 1.5, vol: 0.25 });
-    s.tone({ dur: 0.5, from: 180, to: 1300, duty: 0.25, steps: 12, vol: 0.15 });
+  refund: (s) => {
+    s.tone({ dur: 0.07, from: midi(83), duty: 0.5, vol: 0.14 });
+    s.tone({ at: 0.07, dur: 0.35, from: midi(88), duty: 0.5, vol: 0.14 });
   },
-  // Level-up jingle.
-  wake: (s) => arp(s, [72, 76, 79, 84, 88, 91], 0.065, { duty: 0.25, vol: 0.14 }),
-  pin: (s) => {
-    s.tone({ dur: 0.08, from: 1600, to: 500, duty: 0.5, vol: 0.14 });
-    s.tone({ at: 0.09, dur: 0.06, from: 700, duty: 0.125, vol: 0.1 });
+  // Victory!
+  gameover: (s) => {
+    arp(s, [72, 76, 79, 84], 0.11, { duty: 0.25, vol: 0.15 });
+    arp(s, [79, 84], 0.18, { at: 0.5, duty: 0.25, vol: 0.15, dur: 0.16 });
+    s.tone({ at: 0.9, dur: 0.7, from: midi(88), duty: 0.25, vibrato: [6, 10], vol: 0.15 });
   },
-  tattoo: (s) => arp(s, [96, 103], 0.05, { duty: 0.125, vol: 0.08 }),
+  // ---- Statuses (game/statuses.ts). ----
   // Sizzle and a ding.
   cook: (s) => {
     s.noise({ dur: 0.5, rate: 2, vol: 0.08 });
     s.tone({ at: 0.3, dur: 0.3, from: midi(91), wave: 'triangle', vol: 0.12 });
   },
-  // Ta-da-da-DAAA.
-  finish: (s) => {
-    arp(s, [72, 72, 72], 0.1, { duty: 0.25, vol: 0.15, dur: 0.07 });
-    s.tone({ at: 0.3, dur: 0.6, from: midi(77), duty: 0.25, vibrato: [6, 8], vol: 0.15 });
-    s.tone({ at: 0.3, dur: 0.6, from: midi(81), duty: 0.125, vol: 0.1 });
+  tattoo: (s) => arp(s, [96, 103], 0.05, { duty: 0.125, vol: 0.08 }),
+  pin: (s) => {
+    s.tone({ dur: 0.08, from: 1600, to: 500, duty: 0.5, vol: 0.14 });
+    s.tone({ at: 0.09, dur: 0.06, from: 700, duty: 0.125, vol: 0.1 });
   },
-  // Splashback: a wet slap, then the water gurgling back.
-  splashback: (s) => {
-    s.noise({ dur: 0.12, rate: 0.9, to: 0.3, vol: 0.18 });
-    s.tone({ at: 0.08, dur: 0.35, from: 520, to: 140, duty: 0.25, vibrato: [18, 30], vol: 0.12 });
-  },
-  // Yolk Sucker: a long straw slurp, then a little gulp at the other end.
-  yolk: (s) => {
-    s.tone({ dur: 0.45, from: 180, to: 420, duty: 0.25, vibrato: [22, 25], vol: 0.12 });
-    s.noise({ at: 0.05, dur: 0.35, rate: 0.4, to: 0.15, vol: 0.06 });
-    s.tone({ at: 0.5, dur: 0.12, from: midi(72), to: midi(64), duty: 0.5, vol: 0.12 });
-  },
-  // Diced Coffee, lactose free: a big straw slurp, a gulp, and a perky "ahh!".
-  slurp: (s) => {
-    s.tone({ dur: 0.55, from: 160, to: 380, duty: 0.25, vibrato: [26, 30], vol: 0.12 });
-    s.noise({ dur: 0.5, rate: 0.35, to: 0.2, vol: 0.06 });
-    s.tone({ at: 0.6, dur: 0.1, from: midi(70), to: midi(62), duty: 0.5, vol: 0.12 });
-    arp(s, [79, 84, 88], 0.07, { at: 0.8, duty: 0.25, vol: 0.12 });
-  },
-  // Diced Coffee, full cream: a queasy wobble down, then a rumble.
-  spill: (s) => {
-    s.tone({ dur: 0.7, from: midi(67), to: midi(55), duty: 0.5, vibrato: [7, 14], vol: 0.13 });
-    s.noise({ at: 0.4, dur: 0.5, rate: 0.2, vol: 0.1 });
+  // ---- Getting about (game/movement.ts): ciarra's hops, garyoldmancorp's scooter. ----
+  // Boing (frog hop).
+  hop: (s) => {
+    s.tone({ dur: 0.11, from: 240, to: 760, duty: 0.25, vol: 0.1 });
+    s.tone({ at: 0.11, dur: 0.07, from: 760, to: 520, duty: 0.25, vol: 0.06 });
   },
   // garyoldmancorp's scooter: a little two-stroke putt while it rides (one cue a frame, spaced out by MIN_GAP).
   scoot: (s) => {
@@ -325,33 +231,36 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.18, from: 900, to: 300, duty: 0.5, steps: 6, vol: 0.12 });
     s.tone({ at: 0.2, dur: 0.25, from: midi(88), wave: 'triangle', vibrato: [12, 30], vol: 0.08 });
   },
-  // Sad trombone: wah wah wah waaaah.
-  dnf: (s) => {
-    [67, 66, 65].forEach((n, i) => s.tone({ at: i * 0.32, dur: 0.28, from: midi(n), to: midi(n) * 0.97, duty: 0.5, vol: 0.14 }));
-    s.tone({ at: 0.96, dur: 0.9, from: midi(64), to: midi(63), duty: 0.5, vibrato: [6, 9], vol: 0.14 });
-  },
-  // Pitter-patter.
-  leg: (s) => {
-    for (let i = 0; i < 6; i++) s.tone({ at: i * 0.09, dur: 0.03, from: i % 2 ? 260 : 320, duty: 0.5, vol: 0.05 });
-  },
-  // Boing (frog hop).
-  hop: (s) => {
-    s.tone({ dur: 0.11, from: 240, to: 760, duty: 0.25, vol: 0.1 });
-    s.tone({ at: 0.11, dur: 0.07, from: 760, to: 520, duty: 0.25, vol: 0.06 });
-  },
+  // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),
+  // ---- Steal (game/steal.ts). ----
   // Ka-ching!
   stolen: (s) => {
     s.noise({ dur: 0.06, rate: 1.8, vol: 0.14 });
     arp(s, [88, 95, 100], 0.06, { at: 0.04, duty: 0.25, vol: 0.14, dur: 0.2 });
   },
+  // Bwomp.
+  nothing: (s) => s.tone({ dur: 0.3, from: 220, to: 80, duty: 0.5, steps: 5, vol: 0.14 }),
+  // ---- Diced Coffee (game/coffee.ts). ----
+  // Diced Coffee, lactose free: a big straw slurp, a gulp, and a perky "ahh!".
+  slurp: (s) => {
+    s.tone({ dur: 0.55, from: 160, to: 380, duty: 0.25, vibrato: [26, 30], vol: 0.12 });
+    s.noise({ dur: 0.5, rate: 0.35, to: 0.2, vol: 0.06 });
+    s.tone({ at: 0.6, dur: 0.1, from: midi(70), to: midi(62), duty: 0.5, vol: 0.12 });
+    arp(s, [79, 84, 88], 0.07, { at: 0.8, duty: 0.25, vol: 0.12 });
+  },
+  // Diced Coffee, full cream: a queasy wobble down, then a rumble.
+  spill: (s) => {
+    s.tone({ dur: 0.7, from: midi(67), to: midi(55), duty: 0.5, vibrato: [7, 14], vol: 0.13 });
+    s.noise({ at: 0.4, dur: 0.5, rate: 0.2, vol: 0.1 });
+  },
+  // ---- Women in Scam (game/scam.ts). ----
   // Women in Scam pays out: a cash-register ka-ching.
   scammed: (s) => {
     s.noise({ dur: 0.05, rate: 2, vol: 0.12 });
     arp(s, [96, 100, 103, 108], 0.05, { at: 0.05, duty: 0.125, vol: 0.13, dur: 0.25 });
   },
-  // Bwomp.
-  nothing: (s) => s.tone({ dur: 0.3, from: 220, to: 80, duty: 0.5, steps: 5, vol: 0.14 }),
+  // ---- Holograms and twins (game/copies.ts). ----
   // A hologram blows up: a stuttering digital glitch-out, a power-down ZWOOOM into a crunchy bang, then
   // a sprinkle of falling pixel sparkles.
   'holo-boom': (s) => {
@@ -365,29 +274,59 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.35, from: 700, to: 90, duty: 0.125, steps: 8, vol: 0.12 });
     s.noise({ dur: 0.35, rate: 1.4, to: 0.3, vol: 0.06 });
   },
+  // Yolk Sucker: a long straw slurp, then a little gulp at the other end.
+  yolk: (s) => {
+    s.tone({ dur: 0.45, from: 180, to: 420, duty: 0.25, vibrato: [22, 25], vol: 0.12 });
+    s.noise({ at: 0.05, dur: 0.35, rate: 0.4, to: 0.15, vol: 0.06 });
+    s.tone({ at: 0.5, dur: 0.12, from: midi(72), to: midi(64), duty: 0.5, vol: 0.12 });
+  },
+  // ---- The jetpack (game/jetpack.ts). ----
+  // FWOOOSH-boing.
+  launch: (s) => {
+    s.noise({ dur: 0.9, rate: 0.25, to: 1.5, vol: 0.25 });
+    s.tone({ dur: 0.5, from: 180, to: 1300, duty: 0.25, steps: 12, vol: 0.15 });
+  },
+  // ---- The stream (game/stream.ts). ----
+  // Splashback: a wet slap, then the water gurgling back.
+  splashback: (s) => {
+    s.noise({ dur: 0.12, rate: 0.9, to: 0.3, vol: 0.18 });
+    s.tone({ at: 0.08, dur: 0.35, from: 520, to: 140, duty: 0.25, vibrato: [18, 30], vol: 0.12 });
+  },
+  // ---- Take a Nap (game/nap.ts). ----
+  // Level-up jingle.
+  wake: (s) => arp(s, [72, 76, 79, 84, 88, 91], 0.065, { duty: 0.25, vol: 0.14 }),
+  // ---- The marathon runner (game/runner.ts). ----
+  // Pitter-patter.
+  leg: (s) => {
+    for (let i = 0; i < 6; i++) s.tone({ at: i * 0.09, dur: 0.03, from: i % 2 ? 260 : 320, duty: 0.5, vol: 0.05 });
+  },
+  // Ta-da-da-DAAA.
+  finish: (s) => {
+    arp(s, [72, 72, 72], 0.1, { duty: 0.25, vol: 0.15, dur: 0.07 });
+    s.tone({ at: 0.3, dur: 0.6, from: midi(77), duty: 0.25, vibrato: [6, 8], vol: 0.15 });
+    s.tone({ at: 0.3, dur: 0.6, from: midi(81), duty: 0.125, vol: 0.1 });
+  },
+  // Sad trombone: wah wah wah waaaah.
+  dnf: (s) => {
+    [67, 66, 65].forEach((n, i) => s.tone({ at: i * 0.32, dur: 0.28, from: midi(n), to: midi(n) * 0.97, duty: 0.5, vol: 0.14 }));
+    s.tone({ at: 0.96, dur: 0.9, from: midi(64), to: midi(63), duty: 0.5, vibrato: [6, 9], vol: 0.14 });
+  },
+  // ---- Walkers (game/walkers.ts). ----
+  // A walker tune has just been cut off: POP!
+  'tune-end': (s) => {
+    s.tone({ dur: 0.07, from: midi(93), to: midi(105), duty: 0.5, vol: 0.2 });
+    s.noise({ dur: 0.06, rate: 1.8, vol: 0.12 });
+  },
+  // ---- Projectiles (game/projectiles.ts). ----
+  // The Rizzler has spotted someone: a little "ooh-la-la" trill.
+  'lock-on': (s) => arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 }),
+  // ---- The sonic boom's bird (game/fx.ts). ----
   // Koo-koo-kaa-kaa-kaa.
   kookaburra: (s) => {
     for (let i = 0; i < 9; i++) {
       const up = i % 2 === 0;
       s.tone({ at: 0.35 + i * 0.075, dur: 0.06, from: up ? 1150 : 1700, to: up ? 1750 : 1050, duty: 0.25, vol: 0.05 + i * 0.008 });
     }
-  },
-  // The Rizzler has spotted someone: a little "ooh-la-la" trill.
-  'lock-on': (s) => arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 }),
-  refund: (s) => {
-    s.tone({ dur: 0.07, from: midi(83), duty: 0.5, vol: 0.14 });
-    s.tone({ at: 0.07, dur: 0.35, from: midi(88), duty: 0.5, vol: 0.14 });
-  },
-  // A walker tune has just been cut off: POP!
-  'tune-end': (s) => {
-    s.tone({ dur: 0.07, from: midi(93), to: midi(105), duty: 0.5, vol: 0.2 });
-    s.noise({ dur: 0.06, rate: 1.8, vol: 0.12 });
-  },
-  // Victory!
-  gameover: (s) => {
-    arp(s, [72, 76, 79, 84], 0.11, { duty: 0.25, vol: 0.15 });
-    arp(s, [79, 84], 0.18, { at: 0.5, duty: 0.25, vol: 0.15, dur: 0.16 });
-    s.tone({ at: 0.9, dur: 0.7, from: midi(88), duty: 0.25, vibrato: [6, 10], vol: 0.15 });
   },
 };
 

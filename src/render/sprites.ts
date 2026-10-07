@@ -44,6 +44,11 @@ export interface LoadedSprite extends SpriteDef {
   image: HTMLImageElement;
 }
 
+/** Whether a sprite has loaded and can be drawn (until then, draw code skips it or falls back to a plain shell). */
+export function spriteReady(sprite: LoadedSprite | undefined): sprite is LoadedSprite {
+  return !!sprite && sprite.image.complete && sprite.image.naturalWidth > 0;
+}
+
 /** Start loading every sprite up front; draw code falls back to a plain shell until ready. */
 export function loadSprites(): Record<SpriteId, LoadedSprite> {
   const out = {} as Record<SpriteId, LoadedSprite>;

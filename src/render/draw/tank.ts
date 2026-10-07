@@ -1,20 +1,31 @@
 import { getCharacter } from '../../characters/roster';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
-import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, jetCharge, muzzle, pendingTwinSpot, tankCentre } from '../../game/game';
+import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
+import { drawJet } from './jetpack';
 
 /**
- * Tanks (and their hologram, twin and ghost copies), garyoldmancorp's scooter, the jetpack flame, the spew
- * gush, the swap marker and the aim guide.
+ * Tanks (and their hologram, twin and ghost copies), garyoldmancorp's scooter, the spew gush, the swap
+ * marker and the aim guide (the jetpack's charge and flame: jetpack.ts).
  */
+
+/** Where a copy of a player's tank is drawn instead of the tank: their twin (its own burn and aim), a hologram, a ghost. */
+export interface TankCopy {
+  x: number;
+  y: number;
+  /** Its own burn (null: none); else the player's. */
+  burn?: Burn | null;
+  /** Its own aim; else the player's. */
+  angle?: number;
+}
 
 /**
  * Draws player p's tank, or (with `at`) a copy of it at another spot: their twin (with its own burn), or
  * a hologram (looking just like the real tank, statuses and all).
  */
-export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: number; y: number; burn?: Burn | null; angle?: number }): void {
+export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy): void {
   const { ctx } = d;
   const p: Player = at ? { ...owner, x: at.x, y: at.y, burn: at.burn === undefined ? owner.burn : at.burn, angle: at.angle ?? owner.angle } : owner;
   const c = tankCentre(p);
@@ -107,17 +118,20 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: { x: num
   }
   ctx.restore();
 
-  if (isCurrent && state.phase === 'aiming') {
-    const bob = Math.sin(d.time * 6) * 3;
-    const y = c.y - BARREL_LENGTH - 16 + bob;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(p.x - 7, y - 8);
-    ctx.lineTo(p.x + 7, y - 8);
-    ctx.lineTo(p.x, y);
-    ctx.closePath();
-    ctx.fill();
-  }
+  if (isCurrent && state.phase === 'aiming') drawTurnMarker(d, c);
+}
+
+/** The bobbing white arrow over the current player's tank, `c` its centre. */
+function drawTurnMarker(d: Draw, c: { x: number; y: number }): void {
+  const { ctx } = d;
+  const y = c.y - BARREL_LENGTH - 16 + Math.sin(d.time * 6) * 3;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(c.x - 7, y - 8);
+  ctx.lineTo(c.x + 7, y - 8);
+  ctx.lineTo(c.x, y);
+  ctx.closePath();
+  ctx.fill();
 }
 
 /**
@@ -128,7 +142,7 @@ export function drawGlitchedTank(
   d: Draw,
   owner: Player,
   state: GameState,
-  at: { x: number; y: number; burn?: Burn | null; angle?: number } | undefined,
+  at: TankCopy | undefined,
   glitch: number,
   build: number,
   alpha: number,
@@ -172,54 +186,6 @@ export function drawGlitchedTank(
     }
   }
   ctx.restore();
-}
-
-/**
- * ten-2: while charging the tank shakes harder and harder in a growing dust haze; once airborne it
- * blasts a plume of mud out of the back. `draw` renders the tank itself.
- */
-export function drawJet(d: Draw, p: Player, state: GameState, draw: () => void): void {
-  const { ctx } = d;
-  const jet = state.jets.find((j) => j.playerId === p.id);
-  if (!jet) return draw();
-  const c = tankCentre(p);
-  const charge = jetCharge(state, p.id);
-  if (charge !== null) {
-    const amp = 0.4 + 3.6 * charge * charge;
-    const t = Math.floor(d.time * 45);
-    // Dusty haze kicked up around the tracks.
-    glow(ctx, p.x, p.y, 10 + 18 * charge, [[0, withAlpha('#8a6440', 0.1 + 0.45 * charge)], [1, withAlpha('#8a6440', 0)]]);
-    ctx.save();
-    ctx.translate((noise(t) - 0.5) * 2 * amp, (noise(t * 1.7 + 3) - 0.5) * amp);
-    draw();
-    ctx.restore();
-    return;
-  }
-  if (jet.burnLeft > 0) {
-    // Exhaust out of the back, flickering, pointing against the launch direction.
-    const back = jet.heading + Math.PI;
-    const len = 18 + 12 * noise(Math.floor(d.time * 40));
-    ctx.save();
-    ctx.translate(c.x, c.y);
-    ctx.rotate(-back);
-    // Teardrop reaching well past the hull (half-width 11) so it isn't hidden behind the tank.
-    const tip = len + 8;
-    // A mud blast: a small hot core at the nozzle, then a plume of brown dirt.
-    const g = ctx.createLinearGradient(6, 0, tip, 0);
-    g.addColorStop(0, 'rgba(255,214,150,0.95)');
-    g.addColorStop(0.14, 'rgba(150,104,62,0.95)');
-    g.addColorStop(0.55, 'rgba(96,64,36,0.8)');
-    g.addColorStop(1, 'rgba(70,46,26,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(6, -5.5);
-    ctx.quadraticCurveTo(tip * 0.6, -4.5, tip, 0);
-    ctx.quadraticCurveTo(tip * 0.6, 4.5, 6, 5.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-  draw();
 }
 
 /** A wobbling gush at the barrel while ten-3 is spewing. */
@@ -326,21 +292,18 @@ function drawTwinGhost(d: Draw, state: GameState, p: Player, x: number): void {
   ctx.restore();
 }
 
-/** Where each scooter rider was last drawn, and until when (renderer time) they count as riding, which way. */
-const rides = new Map<number, { x: number; until: number; dir: number }>();
-
 /**
  * garyoldmancorp rides a scooter while he moves: this works it out from the tank's position frame to
  * frame (cosmetic, so it shows the same for a phone watching his previews), and says which way he's going.
  */
 function scooterRide(d: Draw, p: Player, state: GameState): { dir: number } | null {
   if (getCharacter(p.characterId).movement !== 'scooter') return null;
-  const last = rides.get(p.id);
+  const last = d.rides.get(p.id);
   const dx = last ? p.x - last.x : 0;
   // Only driving along the ground while aiming (not a jetpack, nor a jump to a new match or snapshot).
   const riding = state.phase === 'aiming' && !p.hop && Math.abs(dx) > 0.05 && Math.abs(dx) < 30;
   const r = { x: p.x, until: riding ? d.time + 0.25 : (last?.until ?? 0), dir: riding ? Math.sign(dx) : (last?.dir ?? 1) };
-  rides.set(p.id, r);
+  d.rides.set(p.id, r);
   return p.alive && state.phase === 'aiming' && d.time < r.until ? { dir: r.dir } : null;
 }
 
@@ -406,14 +369,5 @@ function drawScooter(d: Draw, p: Player, state: GameState, ride: { dir: number }
   ctx.fill();
   ctx.stroke();
   ctx.restore();
-  if (state.players[state.current] === p) {
-    const y = p.y - TANK_BODY_HEIGHT - BARREL_LENGTH - 16 + Math.sin(d.time * 6) * 3;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.moveTo(p.x - 7, y - 8);
-    ctx.lineTo(p.x + 7, y - 8);
-    ctx.lineTo(p.x, y);
-    ctx.closePath();
-    ctx.fill();
-  }
+  if (state.players[state.current] === p) drawTurnMarker(d, tankCentre(p));
 }

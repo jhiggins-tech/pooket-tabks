@@ -7,7 +7,8 @@ import { rankOf, type Rank } from '../stats/ranks';
 import { parseStats, STATS_PATH } from '../stats/store';
 import { insignia } from './insignia';
 import type { Ratings } from './ranks';
-import { el } from './dom';
+import { readStore, writeStore } from '../core/storage';
+import { closeButton, dialog, el, tabBar } from './dom';
 
 /**
  * The stats viewer (📊 Stats on the landing screen): online matches added up (src/stats/aggregate.ts,
@@ -42,8 +43,8 @@ export interface StatsOptions {
 }
 
 export class StatsScreen {
-  private readonly root = el('div', 'overlay');
-  private readonly tabs = el('div', 'info-tabs');
+  private readonly root = dialog('stats', 'Stats');
+  private readonly tabs = tabBar<Tab>({ dataTab: true });
   private readonly body = el('div', 'info-body stats-body');
   private readonly verifiedBox = el('input');
   private tab: Tab = 'leaderboard';
@@ -53,11 +54,6 @@ export class StatsScreen {
   private me: { key: string; name: string; signedIn: boolean } | null = null;
 
   constructor(private readonly opts: StatsOptions) {
-    this.root.id = 'stats';
-    this.root.hidden = true;
-    this.root.setAttribute('role', 'dialog');
-    this.root.setAttribute('aria-label', 'Stats');
-    this.tabs.setAttribute('role', 'tablist');
     this.verifiedBox.type = 'checkbox';
     this.verifiedBox.id = 'stats-verified';
     this.verifiedBox.checked = remembered();
@@ -68,15 +64,9 @@ export class StatsScreen {
     const label = this.verifiedLabel;
     label.append(this.verifiedBox, 'Verified only');
     label.title = 'Only matches both players vouched for while signed in with Google';
-    const close = el('button', 'info-close');
-    close.id = 'stats-close';
-    close.textContent = '✕';
-    close.setAttribute('aria-label', 'Close stats');
-    close.addEventListener('click', () => this.close());
     const head = el('div', 'info-head');
-    head.append(this.tabs, label, close);
+    head.append(this.tabs.el, label, closeButton('stats-close', 'Close stats', () => this.close()));
     this.root.append(head, this.body);
-    document.body.append(this.root);
   }
 
   get isOpen(): boolean {
@@ -115,18 +105,13 @@ export class StatsScreen {
   }
 
   private render(): void {
-    this.tabs.replaceChildren(
-      ...TABS.map(([id, label]) => {
-        const b = el('button', 'info-tab', label);
-        b.dataset.tab = id;
-        b.setAttribute('role', 'tab');
-        b.setAttribute('aria-selected', String(id === this.tab));
-        b.addEventListener('click', () => {
-          this.tab = id;
-          this.render();
-        });
-        return b;
-      }),
+    this.tabs.show(
+      TABS.map(([id, label]) => ({ id, label })),
+      this.tab,
+      (id) => {
+        this.tab = id;
+        this.render();
+      },
     );
     // (The leaderboard is verified players only anyway.)
     this.verifiedLabel.hidden = this.tab === 'leaderboard';
@@ -320,18 +305,5 @@ function ago(ts: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 
-function remembered(): boolean {
-  try {
-    return localStorage.getItem(VERIFIED_KEY) === 'yes';
-  } catch {
-    return false;
-  }
-}
-
-function remember(on: boolean): void {
-  try {
-    localStorage.setItem(VERIFIED_KEY, on ? 'yes' : 'no');
-  } catch {
-    /* it'll just start unticked */
-  }
-}
+const remembered = (): boolean => readStore(VERIFIED_KEY) === 'yes';
+const remember = (on: boolean): void => void writeStore(VERIFIED_KEY, on ? 'yes' : 'no'); // else it just starts unticked

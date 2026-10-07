@@ -202,3 +202,10 @@ function lfsrNoise(ctx: BaseAudioContext): AudioBuffer {
   }
   return buf;
 }
+
+/** A quick run of notes (MIDI numbers), `step` s apart. */
+export function arp(s: Synth, notes: number[], step: number, o: { at?: number; dur?: number; duty?: 0.125 | 0.25 | 0.5; vol?: number; wave?: 'pulse' | 'triangle' } = {}): void {
+  notes.forEach((n, i) =>
+    s.tone({ at: (o.at ?? 0) + i * step, dur: o.dur ?? step * 0.9, from: midi(n), duty: o.duty ?? 0.25, vol: o.vol ?? 0.14, wave: o.wave }),
+  );
+}

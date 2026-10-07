@@ -1,3 +1,5 @@
+import { Emitter } from '../core/emitter';
+import { readJson, writeJson } from '../core/storage';
 import { errText, netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { StatsSummary } from '../stats/aggregate';
@@ -28,7 +30,7 @@ interface Provisional {
 
 export class Ratings {
   private totals: Pick<StatsSummary, 'ratings' | 'updatedAt'> | null = null;
-  private readonly listeners = new Set<() => void>();
+  private readonly changes = new Emitter<{ changed: [] }>();
 
   constructor(
     private readonly dbUrl: string | null,
@@ -50,12 +52,12 @@ export class Ratings {
   /** Totals loaded elsewhere (the stats viewer). */
   take(s: Pick<StatsSummary, 'ratings' | 'updatedAt'>): void {
     this.totals = { ratings: s.ratings ?? {}, updatedAt: s.updatedAt };
-    for (const fn of this.listeners) fn();
+    this.changes.emit('changed');
   }
 
+  /** Call `fn` whenever a rating may have moved; returns the function that stops it. */
   onChange(fn: () => void): () => void {
-    this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
+    return this.changes.on('changed', fn);
   }
 
   /** A player's rating (null: not rated yet, or not signed in). This phone's own includes its latest match. */
@@ -87,12 +89,8 @@ export class Ratings {
     const me = this.me();
     if (!me) return;
     const [mine] = elo(this.rating(me) ?? START_RATING, this.rating(opponent) ?? START_RATING, score);
-    try {
-      localStorage.setItem(PROVISIONAL_KEY, JSON.stringify({ key: me, rating: Math.round(mine * 10) / 10, at: Date.now() } satisfies Provisional));
-    } catch {
-      /* the totals will have it within the hour */
-    }
-    for (const fn of this.listeners) fn();
+    writeJson(PROVISIONAL_KEY, { key: me, rating: Math.round(mine * 10) / 10, at: Date.now() } satisfies Provisional); // (else the totals will have it within the hour)
+    this.changes.emit('changed');
   }
 
   /**
@@ -104,12 +102,7 @@ export class Ratings {
     const me = this.me();
     const rank = this.rank(me);
     if (!me || !rank) return null;
-    let seen: { key?: string; id?: string; index?: number } = {};
-    try {
-      seen = JSON.parse(localStorage.getItem(SEEN_KEY) ?? '{}') as typeof seen;
-    } catch {
-      /* first look */
-    }
+    const seen = (readJson(SEEN_KEY) ?? {}) as { key?: string; id?: string; index?: number }; // (nothing: the first look)
     // What was last shown, by id (the ladder grows: a place in it moves). An older phone remembered a place
     // in the first eight ranks: that's the id it meant.
     const seenId = seen.key === me ? (seen.id ?? (typeof seen.index === 'number' ? FIRST_LADDER[seen.index] : undefined)) : undefined;
@@ -117,20 +110,12 @@ export class Ratings {
     const now = rankIndex(rank);
     const official = this.standing(me);
     const newlyRanked = !official || official.matches <= 1;
-    try {
-      localStorage.setItem(SEEN_KEY, JSON.stringify({ key: me, id: rank.id }));
-    } catch {
-      /* celebrated again next time: no harm */
-    }
+    writeJson(SEEN_KEY, { key: me, id: rank.id }); // (else celebrated again next time: no harm)
     return before < 0 ? { rank, up: newlyRanked, first: true } : { rank, up: now > before, first: false };
   }
 }
 
 function provisional(): Provisional | null {
-  try {
-    const v = JSON.parse(localStorage.getItem(PROVISIONAL_KEY) ?? 'null') as Provisional | null;
-    return v && typeof v.key === 'string' && typeof v.rating === 'number' && typeof v.at === 'number' ? v : null;
-  } catch {
-    return null;
-  }
+  const v = readJson(PROVISIONAL_KEY) as Provisional | null;
+  return v && typeof v.key === 'string' && typeof v.rating === 'number' && typeof v.at === 'number' ? v : null;
 }

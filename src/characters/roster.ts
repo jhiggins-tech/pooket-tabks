@@ -1,3 +1,5 @@
+import type { PlayerConfig } from '../game/state';
+import { PLAYER_KEY } from '../stats/summary';
 import { getWeapon } from '../weapons/registry';
 import type { CharacterDef } from './kit';
 import { KITS } from './kits';
@@ -45,6 +47,15 @@ export function assignColours(characterIds: readonly string[]): string[] {
     used.add(colour);
     return colour;
   });
+}
+
+/**
+ * A match's players from their picks, in seat order: each in their colour (assignColours) and, signed in,
+ * with their stats key (if it looks like one).
+ */
+export function matchPlayers(picks: readonly { name: string; characterId: string; key?: string }[]): PlayerConfig[] {
+  const colours = assignColours(picks.map((p) => p.characterId));
+  return picks.map((p, i) => ({ name: p.name, characterId: p.characterId, colour: colours[i]!, ...(p.key && PLAYER_KEY.test(p.key) ? { key: p.key } : {}) }));
 }
 
 export function loadoutSummary(c: CharacterDef): string {

@@ -3,6 +3,7 @@ import type { GameState } from '../../game/state';
 import { weaponOf } from '../../weapons/registry';
 import type { SpriteId } from '../../weapons/types';
 import type { Draw } from './context';
+import { spriteReady } from '../sprites';
 
 /** larinovsky's Take a Nap: two cats curl up asleep either side of the napping tank. */
 
@@ -23,7 +24,7 @@ export function drawNapCats(d: Draw, state: GameState): void {
     const fadeOut = Math.min(1, Math.max(0, (napTime - n.elapsed) / 0.3));
     for (const [i, cat] of CATS.entries()) {
       const sprite = d.sprites[cat.sprite];
-      if (!sprite.image.complete || sprite.image.naturalWidth === 0) continue;
+      if (!spriteReady(sprite)) continue;
       // Each cat turns up a moment after the last, with a little bounce.
       const t = Math.max(0, n.elapsed - i * 0.15) / 0.3;
       if (t <= 0) continue;

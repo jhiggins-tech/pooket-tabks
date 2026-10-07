@@ -333,13 +333,96 @@ body[data-charging='true'] .hint {
   color: #9be22d;
   font-size: 14px;
 }
-/* Rain weapons ignore aiming: grey out the aim controls and swap the hint. */
+/* Weapons that ignore aiming (isAimless): grey out the aim controls (the hint says so: hud.ts). */
 body[data-aimless='true'] .pad.left {
   opacity: 0.3;
   pointer-events: none;
 }
 body[data-aimless='true'] .pad.left button {
   pointer-events: none;
+}
+
+/* The buttons at the top middle: ⓘ, sound, ☰ (online), and Leave / speed while watching. */
+.top-mid {
+  position: absolute;
+  top: var(--safe-t);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+.top-mid button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  padding: 0;
+}
+#spectate-leave {
+  display: none;
+  width: auto;
+  padding: 0 14px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 800;
+}
+body[data-spectating='true'] #spectate-leave {
+  display: block;
+}
+#replay-speed {
+  display: none;
+  font-size: 13px;
+  font-weight: 800;
+}
+body[data-replay='true'] #replay-speed {
+  display: block;
+}
+body[data-spectating='true'] .pad,
+body[data-spectating='true'] .drive {
+  display: none;
+}
+#info-open {
+  font: italic 800 19px/1 Georgia, 'Times New Roman', serif;
+}
+#sound-toggle {
+  font-size: 16px;
+  line-height: 1;
+}
+#sound-toggle[aria-pressed='false'] {
+  opacity: 0.6;
+}
+body[data-phase='gameover'] .top-mid {
+  display: none;
+}
+
+/* torikloud's twin: which tank you're aiming. */
+#aim-switch {
+  align-self: flex-start;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+  border-color: var(--player-colour);
+}
+#aim-switch[aria-pressed='true'] {
+  background: var(--player-colour);
+  color: #10142a;
+}
+#aim-switch[hidden] {
+  display: none;
+}
+
+/* Short landscape phones (e.g. iPhone SE with browser chrome): a smaller HUD. */
+@media (max-height: 340px) {
+  .drive button { width: 40px; height: 34px; }
+  .hint { bottom: calc(var(--safe-b) + 40px); }
+  .control button { width: 40px; height: 40px; }
+  #fire { width: 80px; height: 80px; font-size: 19px; }
+  .readout span { font-size: 15px; }
+  .weapon { width: 80px; height: 38px; }
+  .weapon .wname { font-size: 12px; }
+  .weapon .wname.long { font-size: 10px; }
+  .weapon .wname.longer { font-size: 8.5px; }
 }
 
 
@@ -369,6 +452,18 @@ body[data-aimless='true'] .pad.left button {
 .overlay p {
   margin: 0;
   opacity: 0.75;
+}
+/* The game over card (ui/gameover.ts): the winner (and their insignia), and why the other lost. */
+#winner .insignia {
+  margin: 0 8px 0 0;
+}
+#winner .end-reason {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+  opacity: 0.8;
+  color: var(--text);
 }
 button.big {
   padding: 14px 34px;
@@ -423,6 +518,10 @@ button.big {
   padding: 3px 10px;
   font-size: 12px;
   border-radius: 999px;
+}
+/* Your insignia: a way to the leaderboard. */
+#you-rank:not(:empty) {
+  cursor: pointer;
 }
 .choices {
   display: flex;
@@ -1047,56 +1146,6 @@ body[data-remote='true'] .drive button {
 }
 
 /* ---------- Info ---------- */
-.top-mid {
-  position: absolute;
-  top: var(--safe-t);
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-}
-.top-mid button {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  padding: 0;
-}
-#spectate-leave {
-  display: none;
-  width: auto;
-  padding: 0 14px;
-  border-radius: 18px;
-  font-size: 13px;
-  font-weight: 800;
-}
-body[data-spectating='true'] #spectate-leave {
-  display: block;
-}
-#replay-speed {
-  display: none;
-  font-size: 13px;
-  font-weight: 800;
-}
-body[data-replay='true'] #replay-speed {
-  display: block;
-}
-body[data-spectating='true'] .pad,
-body[data-spectating='true'] .drive {
-  display: none;
-}
-#info-open {
-  font: italic 800 19px/1 Georgia, 'Times New Roman', serif;
-}
-#sound-toggle {
-  font-size: 16px;
-  line-height: 1;
-}
-#sound-toggle[aria-pressed='false'] {
-  opacity: 0.6;
-}
-body[data-phase='gameover'] .top-mid {
-  display: none;
-}
 #info {
   z-index: 15;
   justify-content: flex-start;
@@ -1133,109 +1182,6 @@ body[data-phase='gameover'] .top-mid {
 .info-tab[aria-selected='true'] {
   background: var(--c, #f3f5ff);
   color: #10142a;
-}
-/* The stats viewer (ui/stats.ts): the info screen's layout, with tables. */
-#stats {
-  z-index: 15;
-  justify-content: flex-start;
-  align-items: stretch;
-  gap: 8px;
-  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
-  text-align: left;
-  background: rgba(10, 14, 30, 0.96);
-}
-.stats-verified {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.stats-verified input {
-  width: 18px;
-  height: 18px;
-}
-.stats-scroll {
-  overflow-x: auto;
-  touch-action: pan-x pan-y;
-}
-.stats-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.stats-table th {
-  position: sticky;
-  top: 0;
-  padding: 6px 8px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-align: left;
-  opacity: 0.7;
-  background: rgba(10, 14, 30, 0.96);
-}
-.stats-table td {
-  padding: 7px 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-.stats-name {
-  font-weight: 800;
-}
-.stats-tick {
-  margin-left: 6px;
-  color: #5fd38d;
-}
-.stats-unverified,
-.stats-owner {
-  margin-left: 6px;
-  font-size: 10px;
-  font-weight: 700;
-  opacity: 0.55;
-}
-.stats-unverified {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.stats-char {
-  font-weight: 800;
-  color: var(--c, var(--text));
-}
-.stats-note,
-.stats-footer {
-  margin: 8px 0 0;
-  font-size: 12px;
-  opacity: 0.75;
-}
-.stats-footer {
-  opacity: 0.55;
-}
-.stats-you h2 {
-  margin: 4px 0 8px;
-}
-.stats-facts {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
-  margin: 0;
-}
-.stats-facts dt {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  opacity: 0.6;
-}
-.stats-facts dd {
-  margin: 2px 0 0;
-  font-size: 20px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
 }
 .info-close {
   flex: none;
@@ -1337,17 +1283,125 @@ body[data-phase='gameover'] .top-mid {
   }
 }
 
-/* Short landscape phones (e.g. iPhone SE with browser chrome) */
-@media (max-height: 340px) {
-  .drive button { width: 40px; height: 34px; }
-  .hint { bottom: calc(var(--safe-b) + 40px); }
-  .control button { width: 40px; height: 40px; }
-  #fire { width: 80px; height: 80px; font-size: 19px; }
-  .readout span { font-size: 15px; }
-  .weapon { width: 80px; height: 38px; }
-  .weapon .wname { font-size: 12px; }
-  .weapon .wname.long { font-size: 10px; }
-  .weapon .wname.longer { font-size: 8.5px; }
+/* ---------- Stats (ui/stats.ts): the info screen's layout, with tables ---------- */
+#stats {
+  z-index: 15;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 8px;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  text-align: left;
+  background: rgba(10, 14, 30, 0.96);
+}
+.stats-verified {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.stats-verified input {
+  width: 18px;
+  height: 18px;
+}
+.stats-scroll {
+  overflow-x: auto;
+  touch-action: pan-x pan-y;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stats-table th {
+  position: sticky;
+  top: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  opacity: 0.7;
+  background: rgba(10, 14, 30, 0.96);
+}
+.stats-table td {
+  padding: 7px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.stats-name {
+  font-weight: 800;
+}
+.stats-tick {
+  margin-left: 6px;
+  color: #5fd38d;
+}
+.stats-unverified,
+.stats-owner {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.55;
+}
+.stats-unverified {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stats-char {
+  font-weight: 800;
+  color: var(--c, var(--text));
+}
+/* (Inside .info-body, `.info-body p` outranks these two: the notes show at its size and opacity.) */
+.stats-note,
+.stats-footer {
+  margin: 8px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.stats-footer {
+  opacity: 0.55;
+}
+.stats-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+.stats-facts dt {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+.stats-facts dd {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+/* The leaderboard. */
+.stats-rank {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.stats-rank .insignia {
+  margin: 0;
+}
+.stats-table tr.stats-podium td:first-child {
+  font-size: 18px;
+}
+.stats-table tr.stats-me td {
+  background: rgba(255, 207, 51, 0.12);
+}
+.stats-table tr.stats-me td:first-child {
+  box-shadow: inset 3px 0 0 #ffcf33;
 }
 
 /* ---------- What's new ---------- */
@@ -1470,14 +1524,6 @@ body[data-online='true'] #net-menu {
 }
 #net-away[data-turn='yours'] {
   background: rgba(30, 90, 60, 0.92);
-}
-#winner .end-reason {
-  display: block;
-  margin-top: 4px;
-  font-size: 16px;
-  font-weight: 700;
-  opacity: 0.8;
-  color: var(--text);
 }
 
 /* ---------- Game browser ---------- */
@@ -1887,24 +1933,6 @@ body[data-online='true'] #net-menu {
   opacity: 0.75;
 }
 
-/* ---------- torikloud's twin: which tank you're aiming ---------- */
-#aim-switch {
-  align-self: flex-start;
-  height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 800;
-  border-color: var(--player-colour);
-}
-#aim-switch[aria-pressed='true'] {
-  background: var(--player-colour);
-  color: #10142a;
-}
-#aim-switch[hidden] {
-  display: none;
-}
-
 /* ---------- Rank insignia (ui/insignia.ts) and the rank-up moment (ui/rankup.ts) ---------- */
 .insignia {
   position: relative;
@@ -1995,9 +2023,6 @@ body[data-online='true'] #net-menu {
 }
 .you .insignia {
   margin-left: 6px;
-}
-#winner .insignia {
-  margin: 0 8px 0 0;
 }
 
 #rankup {
@@ -2099,27 +2124,4 @@ body[data-online='true'] #net-menu {
   .insignia::after {
     opacity: 0.8;
   }
-}
-
-/* The leaderboard (ui/stats.ts) */
-.stats-rank {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-}
-.stats-rank .insignia {
-  margin: 0;
-}
-.stats-table tr.stats-podium td:first-child {
-  font-size: 18px;
-}
-.stats-table tr.stats-me td {
-  background: rgba(255, 207, 51, 0.12);
-}
-.stats-table tr.stats-me td:first-child {
-  box-shadow: inset 3px 0 0 #ffcf33;
-}
-#you-rank:not(:empty) {
-  cursor: pointer;
 }
