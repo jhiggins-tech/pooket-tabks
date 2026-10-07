@@ -25,7 +25,7 @@ function throwAt(g: GameState, angle: number, power: number): void {
   fire(g);
 }
 
-describe("kiwicore's berètta M2", () => {
+describe("kiwicore's béretta M2", () => {
   it('flies through the hills to the end of its loop and back: 20 out, 20 back, on whatever is at the far end', () => {
     const g = game();
     const kcaj = g.players[1]!;

@@ -437,7 +437,7 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   await expect(weapons.nth(4)).toHaveAttribute('aria-pressed', 'true');
 });
 
-test("kiwicore's berètta M2: the cap comes off his head, loops out through anything and back, and hits both ways", async ({ page }) => {
+test("kiwicore's béretta M2: the cap comes off his head, loops out through anything and back, and hits both ways", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'kiwicore', p2: 'kcaj', query: 'debug' });
   const at = await page.evaluate(() => {
     const d = window.__pooket;
@@ -732,7 +732,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   // So is kiwicore.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['berètta M2', 'Beta Mortar', 'Beta Bomb']);
+  await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Beta Mortar', 'Beta Bomb']);
 });
 
 test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {

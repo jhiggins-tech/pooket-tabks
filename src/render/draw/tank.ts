@@ -118,7 +118,7 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
     ctx.stroke();
   }
   if (wearsCap(state, owner)) {
-    // kiwicore's flat cap, peak the way he's aiming (off while his berètta M2 is flying).
+    // kiwicore's flat cap, peak the way he's aiming (off while his béretta M2 is flying).
     const cap = capSpot(p);
     drawFlatCap(ctx, cap.x, cap.y + 2, Math.cos((p.angle * Math.PI) / 180) >= 0 ? 1 : -1);
   }

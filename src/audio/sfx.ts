@@ -156,7 +156,7 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
     s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
   },
-  // kiwicore's berètta M2: the cap whup-whup-whupping round its loop (loud near him, faint far out), for as long as it flies.
+  // kiwicore's béretta M2: the cap whup-whup-whupping round its loop (loud near him, faint far out), for as long as it flies.
   'beretta-m2': (s, e) => {
     const spec = weaponOf('beretta-m2', 'boomerang').boomerang;
     const dur = boomerangFlight(spec, boomerangReach(spec, e.size ?? 50));
@@ -250,7 +250,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.18, from: 900, to: 300, duty: 0.5, steps: 6, vol: 0.12 });
     s.tone({ at: 0.2, dur: 0.25, from: midi(88), wave: 'triangle', vibrato: [12, 30], vol: 0.08 });
   },
-  // ---- berètta M2 (game/boomerang.ts). ----
+  // ---- béretta M2 (game/boomerang.ts). ----
   // Caught! A thwap of cloth, and a cheery "ta-da".
   catch: (s) => {
     s.noise({ dur: 0.05, rate: 1.4, vol: 0.12 });

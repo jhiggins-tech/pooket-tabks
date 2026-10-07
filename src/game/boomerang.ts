@@ -7,7 +7,7 @@ import type { Boomerang, GameState, Player } from './state';
 import { applyHit, scaled, tankCentre, targetAt, targetKey, targetOwner } from './tanks';
 
 /**
- * kiwicore's berètta M2: his flat cap, thrown like a boomerang. It flies a teardrop loop through anything
+ * kiwicore's béretta M2: his flat cap, thrown like a boomerang. It flies a teardrop loop through anything
  * (terrain doesn't stop it, and it leaves no mark): out from his dome (the barrel's pivot, where every aim
  starts; it's drawn lifting off his head), curling out on one side
  * of the aim line to the far end of the loop (exactly along the aim, as far as the power says), and back

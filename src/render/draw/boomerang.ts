@@ -3,7 +3,7 @@ import type { GameState } from '../../game/state';
 import { weaponOf } from '../../weapons/registry';
 import type { Draw } from './context';
 
-/** kiwicore's flat cap: on his dome (draw/tank.ts), and spinning round its loop when thrown (the berètta M2), drawn bigger in flight to be seen. */
+/** kiwicore's flat cap: on his dome (draw/tank.ts), and spinning round its loop when thrown (the béretta M2), drawn bigger in flight to be seen. */
 
 /**
  * A flat cap side on, brim towards `facing` (±1), its band's middle at (x, y): a low tweed crown sloping

@@ -10,7 +10,7 @@ describe('roster', () => {
     expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp', 'kiwicore']);
   });
 
-  it("kiwicore's beta loadout: the berètta M2 and two stand-in shots; he wears a flat cap", () => {
+  it("kiwicore's beta loadout: the béretta M2 and two stand-in shots; he wears a flat cap", () => {
     expect(getCharacter('kiwicore').loadout).toEqual(['beretta-m2', 'kiwi-mortar', 'kiwi-bomb']);
     expect(getWeapon('beretta-m2').kind).toBe('boomerang');
     expect(['kiwi-mortar', 'kiwi-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'ballistic']);
