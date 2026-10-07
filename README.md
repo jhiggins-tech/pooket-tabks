@@ -39,12 +39,15 @@ src/
   audio/       8-bit synth, sound effects and chiptunes
   net/         online play through Firebase: rooms, relay, match session, spectating, rejoining, replays
   push/        push notifications: subscribing, the templates (shared with notifier/), the open page's alerts
-  ui/          setup, info, what's new, online screens
+  stats/       match summaries, adding them up, ranks and ratings (shared with notifier/)
+  ui/          landing, setup, profile, info, what's new, stats, online screens
+  app/         main.ts's helpers: the query string, sound toggle, replay tape, the profile kept on the phone
   main.ts      fixed-timestep loop wiring it all together
 tests/         Vitest unit tests (Node; a local Firebase stand-in for the online code)
 e2e/           Playwright on an emulated landscape phone (incl. multi-phone online flows)
 firebase/      database security rules and setup guide
-notifier/      the push sender, run every 5 minutes by .github/workflows/notify.yml (not part of the site)
+notifier/      not part of the site: the push sender (every 5 minutes, .github/workflows/notify.yml) and
+               the stats sender (hourly, .github/workflows/stats.yml)
 public/sw.js   the service worker: shows pushes, opens the game when one is tapped
 ```
 
