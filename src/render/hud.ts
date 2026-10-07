@@ -5,6 +5,7 @@ import { aimedTank, canSuckYolk, canUseSlot, coffeeFailChance, coffeeSpun, curre
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { Rank } from '../stats/ranks';
+import { byId, el, query } from '../ui/dom';
 import { insignia } from '../ui/insignia';
 import type { GameState, Player } from '../game/state';
 
@@ -31,8 +32,8 @@ export class Hud {
   private readonly weaponsEl = byId('weapons');
   private readonly hintEl = byId('hint');
   private readonly fuelEl = byId('fuel-fill');
-  private readonly fuelLabel = document.querySelector<HTMLElement>('.fuel small')!;
-  private readonly driveEl = document.querySelector<HTMLElement>('.drive')!;
+  private readonly fuelLabel = query('.fuel small');
+  private readonly driveEl = query('.drive');
   private readonly gameOverEl = byId('gameover');
   /** Each player's rank in the match on screen (verified players only; ui/ranks.ts), by player id. */
   private ranks: (Rank | null)[] = [];
@@ -154,28 +155,23 @@ export class Hud {
       this.keys.chipsShape = shape;
       this.keys.chips = '';
       this.chips = state.players.map((pl) => {
-        const el = document.createElement('div');
-        el.className = 'chip';
-        el.style.setProperty('--c', pl.colour);
-        const name = document.createElement('span');
-        name.className = 'name';
-        name.textContent = pl.name;
+        const chip = el('div', 'chip');
+        chip.style.setProperty('--c', pl.colour);
+        const name = el('span', 'name', pl.name);
         const rank = this.ranks[state.players.indexOf(pl)];
         if (rank) name.append(insignia(rank));
-        const badges = document.createElement('span');
+        const badges = el('span');
         name.append(badges);
-        const bar = document.createElement('span');
-        bar.className = 'bars';
+        const bar = el('span', 'bars');
         const fills = (pl.twin ? [0, 1] : [0]).map(() => {
-          const track = document.createElement('span');
-          track.className = 'hp';
-          const fill = document.createElement('span');
+          const track = el('span', 'hp');
+          const fill = el('span');
           track.append(fill);
           bar.append(track);
           return fill;
         });
-        el.append(name, bar);
-        return { el, fills, badges, badgeKey: '' };
+        chip.append(name, bar);
+        return { el: chip, fills, badges, badgeKey: '' };
       });
       this.playersEl.replaceChildren(...this.chips.map((c) => c.el));
     }
@@ -212,13 +208,11 @@ export class Hud {
         const left = p.ammo[tier] ?? 0;
         // Usable now (loadout.ts: rounds left; Yolk Sucker: health to even out; Diced Coffee: not had one this turn).
         const ok = canUseSlot(state, p, tier);
-        const btn = document.createElement('button');
-        btn.className = 'weapon';
+        const btn = el('button', 'weapon');
         btn.dataset.tier = String(tier);
         btn.classList.toggle('selected', tier === p.selectedTier);
         btn.setAttribute('aria-pressed', String(tier === p.selectedTier));
-        const name = document.createElement('span');
-        name.className = 'wname';
+        const name = el('span', 'wname');
         btn.disabled = !ok || state.phase !== 'aiming';
         if (tier === yolk) {
           // torikloud's spent Twins: Yolk Sucker, a bonus move as often as there's health to even out.
@@ -226,10 +220,7 @@ export class Hud {
           btn.setAttribute('aria-label', `${YOLK_SUCKER.name}, bonus move${ok ? '' : ': health already even'}`);
           name.textContent = YOLK_SUCKER.name;
           name.classList.add('long');
-          const note = document.createElement('span');
-          note.className = 'pips bonus';
-          note.textContent = ok ? 'bonus' : 'even';
-          btn.append(name, note);
+          btn.append(name, el('span', 'pips bonus', ok ? 'bonus' : 'even'));
           return btn;
         }
         if (isCoffee(p, tier)) {
@@ -240,10 +231,7 @@ export class Hud {
           btn.setAttribute('aria-label', `${w.name}, bonus move: ${left <= 0 ? 'spilt' : ok ? `${risk} chance of full cream` : 'one a turn'}`);
           name.textContent = w.shortName;
           name.classList.add('long');
-          const note = document.createElement('span');
-          note.className = 'pips bonus';
-          note.textContent = why;
-          btn.append(name, note);
+          btn.append(name, el('span', 'pips bonus', why));
           return btn;
         }
         btn.setAttribute('aria-label', `${w.name}, ${left} left`);
@@ -276,10 +264,7 @@ export class Hud {
       if (winnerRank) this.winnerEl.prepend(insignia(winnerRank, 'md'));
       const loser = state.players.find((q) => q !== state.winner);
       if (state.endReason && loser) {
-        const why = document.createElement('small');
-        why.className = 'end-reason';
-        why.textContent = state.endReason === 'resigned' ? `${loser.name} resigned` : `${loser.name} ran out of time`;
-        this.winnerEl.append(why);
+        this.winnerEl.append(el('small', 'end-reason', state.endReason === 'resigned' ? `${loser.name} resigned` : `${loser.name} ran out of time`));
       }
       this.winnerEl.style.color = state.winner?.colour ?? '#fff';
     }
@@ -304,17 +289,13 @@ export class Hud {
     cards!.replaceChildren(
       ...h.options.map((id, tier) => {
         const w = getWeapon(id);
-        const card = document.createElement('div');
-        card.className = 'heist-card';
+        const card = el('div', 'heist-card');
         // The stolen round comes off their pips the moment it lands.
         const shown = victim.ammo[tier] ?? 0;
         card.classList.toggle('empty', shown <= 0 && !(h.locked && tier === h.victimTier));
         card.classList.toggle('lit', tier === lit);
         card.classList.toggle('stolen', h.locked && tier === h.victimTier);
-        const wname = document.createElement('span');
-        wname.className = 'wname';
-        wname.textContent = w.shortName;
-        card.append(wname, pips(shown, AMMO_PER_TIER[tier] ?? shown));
+        card.append(el('span', 'wname', w.shortName), pips(shown, AMMO_PER_TIER[tier] ?? shown));
         return card;
       }),
     );
@@ -344,13 +325,10 @@ export class Hud {
       title!.replaceChildren(name(p.name, p.colour), ' orders a Diced Coffee…');
       // Each slice's label runs out from the middle along the slice.
       const label = (text: string, cls: string, mid: number) => {
-        const el = document.createElement('span');
-        el.className = `coffee-label ${cls}`;
-        const words = document.createElement('span');
-        words.textContent = text;
-        el.append(words);
-        el.style.transform = `translateY(-50%) rotate(${mid - 90}deg)`;
-        return { el, mid };
+        const l = el('span', `coffee-label ${cls}`);
+        l.append(el('span', undefined, text));
+        l.style.transform = `translateY(-50%) rotate(${mid - 90}deg)`;
+        return { el: l, mid };
       };
       this.wheelLabels = [label('full cream', 'full', full / 2), label('lactose\nfree', 'free', full + (360 - full) / 2)];
       this.wheelEl.replaceChildren(...this.wheelLabels.map((l) => l.el));
@@ -429,9 +407,7 @@ function badgesOf(pl: Player): HTMLElement[] {
   if (!pl.alive) return [];
   return BADGES.flatMap((b) =>
     b.of(pl).map((x) => {
-      const span = document.createElement('span');
-      span.className = b.cls;
-      span.textContent = x.text;
+      const span = el('span', b.cls, x.text);
       span.title = x.title;
       if (x.colour) span.style.color = x.colour;
       return span;
@@ -441,21 +417,11 @@ function badgesOf(pl: Player): HTMLElement[] {
 
 /** Rounds left as pips: ●●○ */
 function pips(left: number, max: number): HTMLElement {
-  const el = document.createElement('span');
-  el.className = 'pips';
-  el.textContent = '●'.repeat(left) + '○'.repeat(Math.max(0, max - left));
-  return el;
+  return el('span', 'pips', '●'.repeat(left) + '○'.repeat(Math.max(0, max - left)));
 }
 
 function name(text: string, colour: string): HTMLElement {
-  const b = document.createElement('b');
-  b.textContent = text;
+  const b = el('b', undefined, text);
   b.style.color = colour;
   return b;
-}
-
-function byId<T extends HTMLElement = HTMLElement>(id: string): T {
-  const el = document.getElementById(id);
-  if (!el) throw new Error(`#${id} missing`);
-  return el as T;
 }

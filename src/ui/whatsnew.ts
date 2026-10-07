@@ -4,7 +4,7 @@
  */
 
 import { readStore, writeStore } from '../core/storage';
-import { el } from './dom';
+import { button, dialog, el } from './dom';
 
 export interface Release {
   /** Goes up by one per release. */
@@ -364,24 +364,15 @@ function markSeen(): void {
 }
 
 export class WhatsNew {
-  private readonly root = el('div', 'overlay');
+  private readonly root = dialog('whatsnew', 'What’s new');
   private readonly body = el('div', 'whatsnew-body');
 
   constructor() {
-    this.root.id = 'whatsnew';
-    this.root.hidden = true;
-    this.root.setAttribute('role', 'dialog');
-    this.root.setAttribute('aria-label', 'What’s new');
     const card = el('div', 'whatsnew-card');
-    const h = el('h2');
-    h.textContent = 'What’s new';
-    const ok = el('button', 'big');
+    const ok = button('Got it', () => this.close(), 'big');
     ok.id = 'whatsnew-ok';
-    ok.textContent = 'Got it';
-    ok.addEventListener('click', () => this.close());
-    card.append(h, this.body, ok);
+    card.append(el('h2', undefined, 'What’s new'), this.body, ok);
     this.root.append(card);
-    document.body.append(this.root);
   }
 
   get isOpen(): boolean {
@@ -400,15 +391,9 @@ export class WhatsNew {
     this.body.replaceChildren(
       ...releases.map((r) => {
         const section = el('section');
-        const title = el('h3');
-        title.textContent = r.title;
         const list = el('ul');
-        for (const item of r.items) {
-          const li = el('li');
-          li.textContent = item;
-          list.append(li);
-        }
-        section.append(title, list);
+        for (const item of r.items) list.append(el('li', undefined, item));
+        section.append(el('h3', undefined, r.title), list);
         return section;
       }),
     );

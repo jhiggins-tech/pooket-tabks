@@ -1,3 +1,5 @@
+import { byId } from '../ui/dom';
+
 export interface ControlHandlers {
   canAim(): boolean;
   setAim(angle: number, power: number): void;
@@ -112,16 +114,16 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
   }
 
   // Weapon buttons are re-rendered by the HUD, so listen on their container.
-  document.getElementById('weapons')?.addEventListener('click', (e) => {
+  byId('weapons').addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-tier]');
     if (btn && !btn.disabled && h.canAim()) h.selectTier(Number(btn.dataset.tier));
   });
 
-  document.getElementById('aim-switch')?.addEventListener('click', () => {
+  byId('aim-switch').addEventListener('click', () => {
     if (h.canAim()) h.switchAim();
   });
 
-  document.getElementById('fire')?.addEventListener('click', () => {
+  byId('fire').addEventListener('click', () => {
     if (h.canAim()) h.fire();
     else if (h.canTap()) h.done();
   });

@@ -64,8 +64,9 @@ import { RANKS } from './stats/ranks';
 import { Ratings } from './ui/ranks';
 import { RankUp } from './ui/rankup';
 import { GameOverButtons } from './ui/gameover';
+import { byId } from './ui/dom';
 
-const canvas = document.getElementById('game') as HTMLCanvasElement;
+const canvas = byId<HTMLCanvasElement>('game');
 const renderer = new Renderer(canvas, WORLD_W, WORLD_H);
 const hud = new Hud();
 
@@ -89,7 +90,7 @@ const landing = new Landing({
   },
   changeName: () => void namePrompt.ask(yourName()).then(setUsername),
 });
-document.getElementById('hotseat-back')!.addEventListener('click', () => {
+byId('hotseat-back').addEventListener('click', () => {
   setup.hide();
   showLanding();
 });
@@ -115,15 +116,15 @@ let state: GameState = createGame({ seed: nextSeed, players: setup.players(), fi
 // Kitschy 8-bit sound effects, synthesised live.
 const chip = new Chip();
 const sfx = new SfxPlayer(chip, () => chip.now);
-const soundToggle = setupSoundToggle(chip, document.getElementById('sound-toggle')!);
+const soundToggle = setupSoundToggle(chip, byId('sound-toggle'));
 
 // Characters in this match show in their match colours; the rest in their signature colour.
 const info = new InfoScreen(
   (id) => state.players.find((p) => p.characterId === id)?.colour ?? getCharacter(id).colours[0]!,
 );
-document.getElementById('info-open')!.addEventListener('click', () => info.open(currentPlayer(state).characterId));
-document.getElementById('setup-info')!.addEventListener('click', () => info.open(loadCharacter() ?? setup.players()[0]?.characterId));
-document.getElementById('hotseat-info')!.addEventListener('click', () => info.open(setup.players()[0]?.characterId));
+byId('info-open').addEventListener('click', () => info.open(currentPlayer(state).characterId));
+byId('setup-info').addEventListener('click', () => info.open(loadCharacter() ?? setup.players()[0]?.characterId));
+byId('hotseat-info').addEventListener('click', () => info.open(setup.players()[0]?.characterId));
 
 /** Which drive button is held (−1 / 0 / +1); applied every simulation step. */
 let driveDir = 0;
@@ -144,7 +145,7 @@ function startMatch(seed: number, chosen: PlayerConfig[], played = false): GameS
   else tape.clear();
   hud.reset();
   sfx.tunes.stopAll();
-  document.getElementById('gameover')!.hidden = true;
+  byId('gameover').hidden = true;
   return state;
 }
 
@@ -205,17 +206,17 @@ online.onConnected = (s) => {
 online.onSpectate = (sp) => {
   sp.onStart = (seed, chosen) => startOnline(seed, chosen);
 };
-const spectateLeave = document.getElementById('spectate-leave')!;
+const spectateLeave = byId('spectate-leave');
 spectateLeave.addEventListener('click', () => online.close());
 // A replay can run faster: 1×, 2×, 4×.
-const replaySpeed = document.getElementById('replay-speed')!;
+const replaySpeed = byId('replay-speed');
 replaySpeed.addEventListener('click', () => {
   const r = online.replay;
   if (!r) return;
   r.speed = r.speed >= 4 ? 1 : r.speed * 2;
   replaySpeed.textContent = `${r.speed}×`;
 });
-document.getElementById('net-menu')!.addEventListener('click', () => online.matchMenu());
+byId('net-menu').addEventListener('click', () => online.matchMenu());
 // Start a match: the host, or a guest who joined an open game while its host was away. Players are [host, guest].
 online.onHostStart = (s) => {
   const picks = s.isHost ? [s.localPick!, s.remotePick!] : [s.remotePick!, s.localPick!];
@@ -279,7 +280,7 @@ if (online.dbUrl && (fakeAuth || (!params.db && FIREBASE_API_KEY && GOOGLE_CLIEN
   seatChanges.on('changed', (code) => seats.changed(code));
   useAccount(() => auth.uid);
   useResultsAccount(() => (userDb && auth.uid ? { uid: auth.uid, db: userDb } : null));
-  new SignInPanel(document.getElementById('account')!, auth, {
+  new SignInPanel(byId('account'), auth, {
     clientId: GOOGLE_CLIENT_ID,
     fakeGoogle: params.fakeGoogle,
     onSignedIn: () => {
@@ -349,10 +350,10 @@ const stats = new StatsScreen({
   ratings,
   you: async () => (auth.uid ? { key: await playerKey(auth.uid), name: yourName(), signedIn: true } : { key: nameKey(yourName()), name: yourName(), signedIn: false }),
 });
-document.getElementById('setup-stats')!.addEventListener('click', () => stats.open());
+byId('setup-stats').addEventListener('click', () => stats.open());
 // Your insignia on the first screen: where you stand on the leaderboard.
-document.getElementById('you-rank')!.addEventListener('click', () => stats.open('leaderboard'));
-document.getElementById('setup-whatsnew')!.addEventListener('click', () => whatsNew.open());
+byId('you-rank').addEventListener('click', () => stats.open('leaderboard'));
+byId('setup-whatsnew').addEventListener('click', () => whatsNew.open());
 function welcome(): void {
   if (openedRoom) online.invite(openedRoom);
   else if (openedPlay) void openMatch(openedPlay);
@@ -425,7 +426,7 @@ gameOver.replay.addEventListener('click', () => {
   online.watchTape(replay);
 });
 gameOver.leave.addEventListener('click', () => {
-  document.getElementById('gameover')!.hidden = true;
+  byId('gameover').hidden = true;
   if (net || online.spectator) online.close();
   else setup.show();
 });

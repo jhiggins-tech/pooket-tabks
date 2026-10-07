@@ -1,4 +1,5 @@
 import type { Rank } from '../stats/ranks';
+import { el } from './dom';
 import { SHAPES } from './insignia-shapes';
 
 /**
@@ -16,8 +17,7 @@ export type InsigniaSize = 'sm' | 'md' | 'lg';
 export function insignia(rank: Rank, size: InsigniaSize = 'sm'): HTMLElement {
   const shape = SHAPES[rank.shape];
   const [light, dark] = rank.colours;
-  const wrap = document.createElement('span');
-  wrap.className = `insignia insignia-${size} rank-${rank.id} sparkle-${rank.sparkle}`;
+  const wrap = el('span', `insignia insignia-${size} rank-${rank.id} sparkle-${rank.sparkle}`);
   wrap.title = `${rank.name} rank`;
   wrap.setAttribute('role', 'img');
   wrap.setAttribute('aria-label', `${rank.name} rank`);

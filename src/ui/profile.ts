@@ -2,7 +2,7 @@ import { isCharacterId } from '../characters/roster';
 import { Emitter } from '../core/emitter';
 import { readStore, writeStore } from '../core/storage';
 import { NAME_MAX } from './seats';
-import { el } from './dom';
+import { dialog, el } from './dom';
 
 /**
  * Who's playing on this phone: a username asked for the first time the game opens in a browser, saved in
@@ -46,21 +46,15 @@ export function saveCharacter(id: string): void {
 
 /** The first-visit prompt: "What's your name?", until one is saved. */
 export class NamePrompt {
-  private readonly root = el('div', 'overlay');
+  private readonly root = dialog('name-prompt', 'What’s your name?');
   private readonly input = el('input');
-  private readonly ok = el('button', 'big');
+  private readonly ok = el('button', 'big', 'Let’s play');
   private done: ((name: string) => void) | null = null;
 
   constructor() {
-    this.root.id = 'name-prompt';
-    this.root.hidden = true;
-    this.root.setAttribute('role', 'dialog');
-    this.root.setAttribute('aria-label', 'What’s your name?');
     const card = el('form', 'name-card');
-    const h = el('h2');
-    h.textContent = 'What’s your name?';
-    const p = el('p');
-    p.textContent = 'It’s your player name, here and in online games. You can change it any time (✎ Change).';
+    const h = el('h2', undefined, 'What’s your name?');
+    const p = el('p', undefined, 'It’s your player name, here and in online games. You can change it any time (✎ Change).');
     this.input.type = 'text';
     this.input.maxLength = NAME_MAX;
     this.input.setAttribute('autocomplete', 'nickname');
@@ -69,7 +63,6 @@ export class NamePrompt {
     this.input.setAttribute('aria-label', 'Your name');
     this.ok.type = 'submit';
     this.ok.id = 'name-ok';
-    this.ok.textContent = 'Let’s play';
     this.input.addEventListener('input', () => this.refresh());
     card.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -82,7 +75,6 @@ export class NamePrompt {
     });
     card.append(h, p, this.input, this.ok);
     this.root.append(card);
-    document.body.append(this.root);
   }
 
   /** Ask for a name (pre-filled with `suggestion`); resolves once one is saved. */
