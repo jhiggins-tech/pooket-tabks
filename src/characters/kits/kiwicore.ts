@@ -32,7 +32,7 @@ export const bandAid = {
   name: 'Band Aid',
   shortName: 'Band Aid',
   info:
-    'A drum kit appears round your tank, a drumstick comes out of the barrel, and a chiptune thrasher kicks in. Tap anywhere on the beat as the notes land on the drums: every hit heals, perfect ones twice as much as close ones, up to 40% of your health for a flawless run. Three missed beats (or taps off the beat) and the band packs up.',
+    'A drum kit appears round your tank, a drumstick comes out of the barrel, and a chiptune thrasher kicks in. Tap anywhere on the beat as the notes reach the line above you (the stick plays the drums left and right): every hit heals, perfect ones twice as much as close ones, up to 40% of your health for a flawless run. Three missed beats (or taps off the beat) and the band packs up.',
   kind: 'drum',
   drum: {
     bpm: 180,

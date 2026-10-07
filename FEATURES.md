@@ -187,10 +187,11 @@ Nothing queued.
   stand-in Beta Mortar, and the "throwdown" teaser): a Dance Dance Revolution style rhythm minigame
   (`game/drums.ts`, kind `drum`). FIRE starts it: a drum kit appears round his tank (snare left, floor tom
   right, a hi-hat), a drumstick comes out of his barrel, the view zooms in on him, and a chiptune thrasher
-  plays (E minor, 180 bpm: a bar of hi-hat count-in, then four bars; `audio/tunes.ts`). 24 notes fall onto
-  the drums, alternately left and right (a quarter-note bar, two with bursts of quavers, a flat-out quaver
-  fill). **Tap anywhere** on the beat: the turret swings over the top to that drum, with a snare crack or a
-  tom thud. Within 70 ms a **perfect** hit, within 150 ms **close** (worth half); a note let go by, or a tap
+  plays (E minor, 180 bpm: a bar of hi-hat count-in, then four bars; `audio/tunes.ts`). 24 notes fall in a
+  single stream onto a hit line above his tank (a quarter-note bar, two with bursts of quavers, a flat-out
+  quaver fill; owner, 7 Oct: one stream rather than one onto each drum, which was confusing). **Tap
+  anywhere** on the beat: the turret swings over the top to the next drum (they alternate, left and right,
+  by themselves), with a snare crack or a tom thud. Within 70 ms a **perfect** hit, within 150 ms **close** (worth half); a note let go by, or a tap
   with no note near, is a miss, and **3 misses** end it. Hits heal as they land: a flawless run gives back
   **40% of full health** (owner: "only a tier 2"), never over full. When it's over it's fired for real (the
   round spent; a crash cymbal), and the kit packs away. Online, the drumming is the drummer's phone's input

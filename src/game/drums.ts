@@ -9,7 +9,8 @@ import { currentPlayer, tankCentre } from './tanks';
 /**
  * kiwicore's Band Aid: a rhythm minigame. A drum kit appears round his tank and a drumstick out of his
  * barrel; over a four-bar chiptune thrasher (after a bar's count-in), a note comes on every hit of the
- * chart, alternately on the left drum and the right one. Every tap, anywhere, hits the next note: the
+ * chart (shown as one stream falling onto a hit line: render/draw/drums.ts), and the stick goes to the left
+ * drum and the right one in turn. Every tap, anywhere, hits the next note: the
  * turret swings over to that drum. Within `perfect` of the note it's a perfect hit, within `close` a close
  * one (worth half); a note let go by, or a tap with no note near, is a miss, and three misses end it. Hits
  * heal as they land: a flawless run gives back `maxHeal` of his full health (40%), never over full.

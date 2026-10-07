@@ -133,7 +133,7 @@ export class Renderer {
     const k = state.drums;
     const p = k && state.players[k.playerId];
     const want = p && k.outro === null ? DRUM_ZOOM : 1;
-    if (p) this.focus = { x: p.x, y: p.y - 20 };
+    if (p) this.focus = { x: p.x, y: p.y - 50 }; // the tank, and the notes' stream above it
     this.zoom += (want - this.zoom) * Math.min(1, dt * 6);
     if (Math.abs(this.zoom - want) < 0.002) this.zoom = want;
     this.aim();

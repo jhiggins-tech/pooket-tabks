@@ -5,16 +5,17 @@ import type { Draw } from './context';
 
 /**
  * kiwicore's Band Aid: the drum kit round his tank (a snare on the left, a floor tom on the right, a
- * hi-hat), the notes falling onto the drums, the drumstick out of his barrel, and the verdicts. His turret
+ * hi-hat), the notes falling in one stream onto a hit line above the tank, the drumstick out of his barrel, and the verdicts. His turret
  * swinging over to each drum is `drumStick` (draw/tank.ts draws the barrel at that angle).
  */
 
 /** How far each drum's head is from the barrel's pivot (px across, and down). */
 const DRUM_X = 24;
 const DRUM_DOWN = 3;
-/** How long before its time a note shows, falling onto its drum (s), and how fast it falls (px/s). */
+/** The hit line's height above the barrel's pivot; how long before its time a note shows, falling onto it (s), and how fast it falls (px/s). */
+const HIT_LINE = 26;
 const NOTE_LEAD = 1.1;
-const NOTE_FALL = 80;
+const NOTE_FALL = 75;
 /** How long the turret takes to swing from one drum to the other (s), and the words stay up (s). */
 const SWING = 0.09;
 const VERDICT = 0.45;
@@ -138,26 +139,35 @@ export function drawDrums(d: Draw, state: GameState): void {
   ctx.fill();
 
   if (k.outro === null) {
-    // The notes still to come, falling onto their drums (a ring on each drum shows where to land them).
-    for (const side of [-1, 1]) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(c.x + side * DRUM_X, head, 8.5, 3.2, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    // The notes still to come: one stream falling onto the hit line above the tank (which drum each
+    // goes to is automatic, alternating).
+    const line = c.y - HIT_LINE;
+    const pulse = Math.max(0, 1 - ((k.t % beat) / beat) * 3) * (k.t >= drum.countIn * beat - beat ? 1 : 0);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = `rgba(255,255,255,${0.55 + 0.4 * pulse})`;
+    ctx.lineWidth = 2 + pulse;
+    ctx.beginPath();
+    ctx.moveTo(c.x - 14, line);
+    ctx.lineTo(c.x + 14, line);
+    ctx.stroke();
+    // A faint track for the notes to come down.
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(c.x, line - NOTE_LEAD * NOTE_FALL);
+    ctx.lineTo(c.x, line);
+    ctx.stroke();
     times.forEach((at, i) => {
       if (k.beats[i] !== 0) return;
       const due = at - k.t;
       if (due > NOTE_LEAD || due < -drum.close) return;
-      const x = c.x + noteSide(i) * DRUM_X;
-      const y = head - Math.max(0, due) * NOTE_FALL;
-      ctx.globalAlpha = show * Math.min(1, (NOTE_LEAD - due) / 0.2);
-      ctx.fillStyle = noteSide(i) < 0 ? '#f472b6' : '#38bdf8';
+      const y = line - due * NOTE_FALL;
+      ctx.globalAlpha = show * Math.min(1, (NOTE_LEAD - due) / 0.2) * (due < 0 ? 0.5 : 1);
+      ctx.fillStyle = '#facc15';
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.arc(c.x, y, 4, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     });
@@ -166,25 +176,24 @@ export function drawDrums(d: Draw, state: GameState): void {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
-    const say = (text: string, y: number, size: number, colour: string) => {
+    const say = (text: string, x: number, y: number, size: number, colour: string) => {
       ctx.font = `bold ${size}px system-ui, sans-serif`;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
       ctx.lineWidth = 3;
-      ctx.strokeText(text, c.x, y);
+      ctx.strokeText(text, x, y);
       ctx.fillStyle = colour;
-      ctx.fillText(text, c.x, y);
+      ctx.fillText(text, x, y);
     };
-    // The count-in: 1, 2, 3, 4.
-    if (k.t < drum.countIn * beat) say(String(Math.floor(k.t / beat) + 1), c.y - 34, 16, '#fde68a');
-    // The latest verdict, popping up.
+    // Beside the hit line: the count-in (1, 2, 3, 4) and the misses on the left, the latest verdict on the right.
+    if (k.t < drum.countIn * beat) say(String(Math.floor(k.t / beat) + 1), c.x - 30, line, 16, '#fde68a');
+    else if (k.misses > 0) say('✖'.repeat(k.misses), c.x - 32, line, 8, '#f87171');
     if (k.last && k.t - k.last.at < VERDICT) {
       const age = (k.t - k.last.at) / VERDICT;
       const [text, colour] = k.last.beat === 1 ? ['PERFECT!', '#86efac'] : k.last.beat === 2 ? ['CLOSE', '#fde68a'] : ['MISS', '#f87171'];
-      say(text, c.y - 26 - age * 6, 10, colour);
+      say(text, c.x + 40, line - age * 6, 9, colour);
     }
-    // What it's healed so far, and the misses (three and it's over).
-    if (k.healed > 0) say(`+${k.healed}`, c.y + 16, 8, '#86efac');
-    if (k.misses > 0) say('✖'.repeat(k.misses), c.y - 44, 8, '#f87171');
+    // What it's healed so far.
+    if (k.healed > 0) say(`+${k.healed}`, c.x, c.y + 16, 8, '#86efac');
   }
   ctx.restore();
 }
