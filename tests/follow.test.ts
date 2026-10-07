@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fire } from '../src/game/game';
-import { applyPreview, previewOf, putState, shotResolved } from '../src/net/follow';
+import { applyPreview, previewOf, putState, ResultBuffer, shotResolved, SYNC_GRACE } from '../src/net/follow';
 import { encodeSolid, takeSnapshot } from '../src/net/snapshot';
 import { testGame, untilAiming, whileFlying } from './support/game';
 
@@ -53,5 +53,39 @@ describe('following a match', () => {
     expect(shotResolved(g, turn)).toBe(true);
     putState(g, snap, terrain);
     expect([g.turn, g.phase, encodeSolid(g.terrain)]).toEqual([turn, 'aiming', terrain]);
+  });
+
+  it('a result that comes in mid-shot waits out the grace period; each step clears only its own part', () => {
+    const b = new ResultBuffer<string>();
+    expect(b.due(10)).toBeNull(); // nothing pending: no waiting
+    b.fired({ turn: 3, owner: 1 });
+    b.resultIn('r');
+    expect(b.due(SYNC_GRACE - 1)).toBeNull();
+    expect(b.due(1)).toBe('r');
+    b.dropResult();
+    expect([b.shot, b.pending]).toEqual([{ turn: 3, owner: 1 }, null]);
+    b.resultIn('r2');
+    b.settledHere(); // the shot's done here; the result stays
+    expect([b.shot, b.pending]).toEqual([null, 'r2']);
+    b.cleared();
+    expect([b.shot, b.pending]).toEqual([null, null]);
+    // A known result (a replay) has its own grace, until the next one is applied.
+    b.known('k', 60);
+    expect(b.due(SYNC_GRACE + 1)).toBeNull();
+    b.applied();
+    b.resultIn('r3');
+    expect(b.due(SYNC_GRACE)).toBe('r3');
+  });
+
+  it('a shot is resolved by the game it is followed in', () => {
+    const g = testGame({ seed: 5, players });
+    const b = new ResultBuffer<string>();
+    expect(b.resolved(g)).toBe(false);
+    b.fired({ turn: g.turn, owner: g.current });
+    fire(g);
+    whileFlying(g);
+    expect(b.resolved(g)).toBe(false);
+    untilAiming(g);
+    expect([b.resolved(g), b.resolved(null)]).toEqual([true, false]);
   });
 });
