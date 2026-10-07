@@ -3,11 +3,11 @@ import { DICTIONARIES } from '../weapons/dictionaries';
 import { projectileWeapon } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT } from './constants';
-import { twinGun } from './copies';
+import { gunOf } from './copies';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { settleTanks } from './bodies';
-import type { Burst, GameState, Player, Projectile } from './state';
+import { settleTanks, type Gun } from './bodies';
+import type { Burst, GameState, Origin, Player, Projectile } from './state';
 import { applyHit, explode, forEachTargetPos, muzzle, runnerAt, scaled, tankCentre, targetAt, type Target } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
 
@@ -26,20 +26,20 @@ function spawnProjectile(state: GameState, owner: Player, weapon: Projectiles, x
   state.projectiles.push({ x, y, vx, vy, weaponId: weapon.id, ownerId: owner.id, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0, variant });
 }
 
-function fireBallistic(state: GameState, p: Player, weapon: Projectiles): void {
-  const speed = (p.power / 100) * MAX_SPEED;
-  const m = muzzle(p);
+function fireBallistic(state: GameState, p: Player, gun: Gun, weapon: Projectiles): void {
+  const speed = (gun.power / 100) * MAX_SPEED;
+  const m = muzzle(gun);
   volleyOffsets(weapon).forEach((offset, i) => {
-    const a = ((p.angle + offset) * Math.PI) / 180;
+    const a = ((gun.angle + offset) * Math.PI) / 180;
     spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed, i);
   });
 }
 
 /** Ballistic rounds from the main tank or the twin: a single shot/volley, a burst, or a word. */
-export function fireRounds(state: GameState, p: Player, weapon: Projectiles, origin: 'main' | 'twin'): void {
-  const gun = origin === 'twin' ? twinGun(p) : p;
+export function fireRounds(state: GameState, p: Player, weapon: Projectiles, origin: Origin): void {
+  const gun = gunOf(p, origin);
   if (!weapon.burst) {
-    fireBallistic(state, gun, weapon);
+    fireBallistic(state, p, gun, weapon);
     return;
   }
   let word: string | null = null;
@@ -168,7 +168,7 @@ export function stepBurst(state: GameState, b: Burst, dt: number): boolean {
   const count = b.word ? b.word.length : spec.count;
   // A twin destroyed mid-burst (or a dead player) stops firing.
   if (!p.alive || (b.origin === 'twin' && !p.twin)) return true;
-  const gun = b.origin === 'twin' ? twinGun(p) : p;
+  const gun = gunOf(p, b.origin);
   b.elapsed += dt;
   while (b.fired < count && b.elapsed >= b.fired * spec.interval) {
     const m = muzzle({ ...gun, angle: b.angle });

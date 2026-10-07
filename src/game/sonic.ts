@@ -2,21 +2,24 @@ import { getWeapon, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import type { Stepper } from './mechanics';
-import type { Boom, GameState, Player } from './state';
+import { gunOf } from './copies';
+import type { Boom, GameState, Origin, Player } from './state';
 import { allTargets, applyHit, gone, muzzle, scaled, targetKey, targetOwner, targetPos } from './tanks';
 
 /** torikloud's Sonic Boom: waves of expanding arcs, and twin booms phasing where they overlap. */
 
-export function fireSonic(state: GameState, p: Player, weapon: WeaponOf<'sonic'>, gun: Player): void {
+/** A boom from one of the player's tanks (`origin`), along that tank's own aim, its power setting the range. */
+export function fireSonic(state: GameState, p: Player, weapon: WeaponOf<'sonic'>, origin: Origin): void {
   const spec = weapon.sonic;
+  const gun = gunOf(p, origin);
   const m = muzzle(gun);
   state.booms.push({
     ownerId: p.id,
     weaponId: weapon.id,
     x: m.x,
     y: m.y,
-    angle: (p.angle * Math.PI) / 180,
-    range: spec.minRange + (spec.maxRange - spec.minRange) * (p.power / 100),
+    angle: (gun.angle * Math.PI) / 180,
+    range: spec.minRange + (spec.maxRange - spec.minRange) * (gun.power / 100),
     elapsed: 0,
     hits: Array.from({ length: spec.waves }, () => []),
   });

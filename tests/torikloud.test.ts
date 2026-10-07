@@ -217,6 +217,16 @@ describe('Twins', () => {
   });
 });
 
+/** Aim both of torikloud's tanks the same way (each tank keeps its own aim), the main tank last. */
+function aimBoth(g: GameState, angle: number, power: number): void {
+  if (g.players[0]!.twin) {
+    aimTwin(g, true);
+    setAim(g, angle, power);
+    aimTwin(g, false);
+  }
+  setAim(g, angle, power);
+}
+
 describe('Sonic Boom crossover', () => {
   /** kie placed where both tanks' arcs overlap, beyond a lone boom's range. */
   function boomAt(twin: boolean, kieX: number): number {
@@ -226,7 +236,7 @@ describe('Sonic Boom crossover', () => {
     kie.x = kieX;
     kie.y = 400;
     selectTier(g, 1);
-    setAim(g, 0, 40); // lone range: 150 + 350 * 0.4 = 290px
+    aimBoth(g, 0, 40); // lone range: 150 + 350 * 0.4 = 290px
     fire(g);
     whileFlying(g);
     return MAX_HP - kie.hp;
@@ -245,11 +255,53 @@ describe('Sonic Boom crossover', () => {
     expect(boomAt(true, 200 + range + 60)).toBeGreaterThan(0);
   });
 
+  it('each tank booms along its own aim: the twin with its angle and power, not the main tank’s', () => {
+    const g = game(71);
+    withTwin(g);
+    const tori = g.players[0]!;
+    const kie = g.players[1]!;
+    selectTier(g, 1);
+    aimTwin(g, true);
+    setAim(g, 180, 100); // the twin booms back towards the left edge, at full range
+    aimTwin(g, false);
+    setAim(g, 0, 20); // the main tank booms right, short
+    fire(g);
+    const spec = sonicBoom.sonic!;
+    const [main, twin] = g.booms;
+    expect(g.booms).toHaveLength(2);
+    expect(main!.angle).toBeCloseTo(0);
+    expect(main!.range).toBeCloseTo(spec.minRange + (spec.maxRange - spec.minRange) * 0.2);
+    expect(twin!.angle).toBeCloseTo(Math.PI);
+    expect(twin!.range).toBeCloseTo(spec.maxRange);
+    expect(twin!.x).toBeLessThan(tori.twin!.x); // out of the twin's own barrel, pointing left
+    // kie, right of the twin and beyond the main tank's short range, is out of both arcs: unharmed.
+    kie.x = 700;
+    kie.y = 400;
+    whileFlying(g);
+    expect(kie.hp).toBe(MAX_HP);
+  });
+
+  it('the twin’s boom reaches an enemy along the twin’s aim, wherever the main tank points', () => {
+    const g = game(71);
+    withTwin(g);
+    const kie = g.players[1]!;
+    kie.x = 650; // 200px right of the twin, 450px right of the main tank (beyond its reach)
+    kie.y = 400;
+    selectTier(g, 1);
+    aimTwin(g, true);
+    setAim(g, 0, 40);
+    aimTwin(g, false);
+    setAim(g, 180, 40); // the main tank booms away from kie
+    fire(g);
+    whileFlying(g);
+    expect(kie.hp).toBeLessThan(MAX_HP);
+  });
+
   it('the overlapping stretches of the waves are shown phasing', async () => {
     const g = game(72);
     withTwin(g);
     selectTier(g, 1);
-    setAim(g, 0, 60);
+    aimBoth(g, 0, 60);
     fire(g);
     const { boomPhaseArcs } = await import('../src/game/game');
     let seen = 0;
