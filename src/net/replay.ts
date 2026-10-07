@@ -1,3 +1,4 @@
+import { hex } from '../core/hex';
 import { finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
 import { netLog } from './log';
@@ -53,8 +54,7 @@ export interface Replay {
 }
 
 export function newReplayId(): string {
-  const b = globalThis.crypto.getRandomValues(new Uint8Array(12));
-  return [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return hex(globalThis.crypto.getRandomValues(new Uint8Array(12)));
 }
 
 const replaySealer = (id: string) => sealerFor('replay', id);

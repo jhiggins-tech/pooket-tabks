@@ -1,3 +1,4 @@
+import { hex } from '../core/hex';
 import { netLog } from './log';
 import { clientId } from './push';
 import { RelayTransport, ROOM_CLEARED } from './relay';
@@ -31,8 +32,7 @@ export const TAKEOVER_WAIT_MS = 1500;
 const checkIn = (db: Rtdb, path: string) => () => void db.patch(`${path}/host`, { ts: SERVER_TIME }).catch(() => {});
 
 export function randomId(): string {
-  const b = globalThis.crypto.getRandomValues(new Uint8Array(8));
-  return [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+  return hex(globalThis.crypto.getRandomValues(new Uint8Array(8)));
 }
 
 export function newRoomCode(): string {

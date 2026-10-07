@@ -1,3 +1,4 @@
+import { sha256Hex } from '../core/hex';
 import { netLog } from '../net/log';
 import { clientId, wantsPush } from '../net/push';
 import { SERVER_TIME, type Rtdb } from '../net/rtdb';
@@ -102,8 +103,7 @@ export class PushClient {
 
 /** A subscription's key in the database: the first 32 hex digits of SHA-256(endpoint). */
 export async function subId(endpoint: string): Promise<string> {
-  const h = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(endpoint)));
-  return [...h.subarray(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return (await sha256Hex(endpoint)).slice(0, 32);
 }
 
 function fromB64Url(s: string): Uint8Array<ArrayBuffer> {
