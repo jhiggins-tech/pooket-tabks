@@ -8,6 +8,7 @@ import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
 import { settleTurn, tankBody } from './bodies';
 import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
+import { startDrums } from './drums';
 import { resolveHolograms, stepPhaseFx, suckYolk } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
 import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
@@ -30,6 +31,7 @@ import { clamp, normalizeAngle } from './util';
  * './game'.
  */
 export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
+export { DRUM_OUTRO, drumClock, drumsReady, drumTap, followDrums, isDrum, noteSide, noteTimes, startDrums, trackEnd } from './drums';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
@@ -122,6 +124,7 @@ export function createGame(cfg: GameConfig): GameState {
     phase: 'aiming',
     heist: null,
     coffee: null,
+    drums: null,
     sfx: [],
     tunes: [],
     refund: null,
@@ -222,6 +225,11 @@ export function fire(state: GameState): boolean {
   if (slotAt(p, tier) === 'yolk') return suckYolk(state, p);
   const weapon = weaponForTier(p, tier);
   const kind = kindOf(weapon);
+  // Band Aid: FIRE starts the drumming; it's fired for real when that's over.
+  if (kind === 'drum' && state.phase === 'aiming') {
+    startDrums(state);
+    return false;
+  }
   // Not a shot (Steal, a bonus move): it does its thing, and the turn carries on.
   if (!isShotKind(kind)) return FREE_ACTIONS[kind](state, p, tier);
   p.ammo[tier]!--;

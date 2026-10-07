@@ -37,6 +37,11 @@ export const KINDS = {
   sew: { aims: true, turn: 'shot' },
   /** Thrown out along the aim, curling round and back to the thrower, through terrain (kiwicore's flat cap). */
   boomerang: { aims: true, turn: 'shot' },
+  /**
+   * A rhythm minigame (kiwicore's Band Aid): FIRE starts it (the `drumming` phase: game/drums.ts), it's
+   * fired for real when it's over, and its hits heal.
+   */
+  drum: { aims: false, turn: 'shot', harmless: true },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

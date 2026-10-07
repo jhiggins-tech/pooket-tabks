@@ -5,6 +5,7 @@ import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
 import { drawFlatCap } from './boomerang';
+import { drumStick } from './drums';
 import { drawJet } from './jetpack';
 
 /**
@@ -28,7 +29,9 @@ export interface TankCopy {
  */
 export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy): void {
   const { ctx } = d;
-  const p: Player = at ? { ...owner, x: at.x, y: at.y, burn: at.burn === undefined ? owner.burn : at.burn, angle: at.angle ?? owner.angle } : owner;
+  // Drumming Band Aid, the barrel swings from drum to drum (drums.ts).
+  const stick = at ? null : drumStick(state, owner);
+  const p: Player = at ? { ...owner, x: at.x, y: at.y, burn: at.burn === undefined ? owner.burn : at.burn, angle: at.angle ?? owner.angle } : stick !== null ? { ...owner, angle: stick } : owner;
   const c = tankCentre(p);
   const isCurrent = !at && state.players[state.current] === owner && state.phase !== 'gameover';
 
@@ -120,7 +123,7 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
   if (wearsCap(state, owner)) {
     // kiwicore's flat cap, peak the way he's aiming (off while his béretta M2 is flying).
     const cap = capSpot(p);
-    drawFlatCap(ctx, cap.x, cap.y + 2, Math.cos((p.angle * Math.PI) / 180) >= 0 ? 1 : -1);
+    drawFlatCap(ctx, cap.x, cap.y + 2, Math.cos(((at?.angle ?? owner.angle) * Math.PI) / 180) >= 0 ? 1 : -1);
   }
   ctx.restore();
 

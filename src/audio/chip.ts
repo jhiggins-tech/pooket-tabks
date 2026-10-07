@@ -62,6 +62,13 @@ export class Chip implements Synth {
   /** Pass an OfflineAudioContext to render sounds to a buffer (previews, tests). */
   constructor(private readonly offline?: OfflineAudioContext) {}
 
+  /** How late what's played is heard (s): the output's own delay, where the browser says (0 if not). */
+  get latency(): number {
+    const live = this.ctx as (AudioContext & { outputLatency?: number }) | null;
+    if (!live || this.offline) return 0;
+    return (live.outputLatency || 0) + (live.baseLatency || 0);
+  }
+
   /** Browsers only allow audio after a user gesture: call this from one. */
   unlock(): void {
     if (!this.ctx) {

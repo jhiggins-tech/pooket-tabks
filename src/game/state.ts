@@ -159,6 +159,32 @@ export interface Boomerang {
   hits: string[];
 }
 
+/** A note's verdict in Band Aid: not yet, perfect, close, or missed. */
+export type Beat = 0 | 1 | 2 | 3;
+
+/** kiwicore's Band Aid in play: the drum kit round his tank, the track's clock and how he's doing. */
+export interface DrumSet {
+  playerId: number;
+  weaponId: string;
+  /** Seconds since it began (the count-in first). */
+  t: number;
+  /** Each note's verdict, in order. */
+  beats: Beat[];
+  misses: number;
+  /** What the hits so far are worth (hp), and what's been given back (never over full health). */
+  owed: number;
+  healed: number;
+  /** The drum the stick last went to (−1 left, +1 right), and when (`t`). */
+  side: number;
+  swungAt: number;
+  /** The latest verdict (a stray tap is a miss too) and when, for the words over the kit. */
+  last: { beat: Beat; at: number } | null;
+  /** The track is over (or he missed too many): it's fired, and the kit packs away. */
+  done: boolean;
+  /** Seconds into packing away (once fired), null before. */
+  outro: number | null;
+}
+
 /** A marathon runner, jogging a leg at a time towards the nearest enemy, across turns. */
 export interface Runner {
   ownerId: number;
@@ -480,6 +506,8 @@ export type SfxCue =
   | 'scoot'
   | 'crash'
   | 'catch'
+  | 'drum'
+  | 'whiff'
   | 'gameover';
 
 export interface Sfx {
@@ -493,8 +521,10 @@ export interface Sfx {
 /**
  * `stealing`: kie's Steal roulette is spinning; `coffee`: the Diced Coffee spinner is spinning, then
  * the drink (or the spill) plays out. Either way the turn carries on (back to `aiming`) afterwards.
+ * `drumming`: kiwicore is playing Band Aid (like aiming, it's this phone's input, streamed in previews);
+ * when it's over it's fired, and the shot (`flying`) is the kit packing away.
  */
-export type Phase = 'aiming' | 'stealing' | 'coffee' | 'flying' | 'settling' | 'gameover';
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'flying' | 'settling' | 'gameover';
 
 /**
  * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
@@ -555,6 +585,8 @@ export interface GameState {
   heist: Heist | null;
   /** Diced Coffee's spinner, while it spins and the drink (or spill) plays out. */
   coffee: CoffeeSpin | null;
+  /** kiwicore's Band Aid, while he drums and while the kit packs away after. */
+  drums: DrumSet | null;
   /** Sound cues since the audio layer last drained them (capped). */
   sfx: Sfx[];
   /** Weapons whose walker chiptune is playing (cosmetic). */

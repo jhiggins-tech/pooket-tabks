@@ -461,6 +461,43 @@ test("kiwicore's béretta M2: the cap comes off his head, loops out through anyt
   expect(hp).toEqual([100, 60]);
 });
 
+test("kiwicore's Band Aid: a drum kit, notes to tap on the beat anywhere, and the hits heal", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'kiwicore', p2: 'kcaj', query: 'debug' });
+  await page.evaluate(() => (window.__pooket.state.players[0]!.hp = 40));
+  await page.locator('#weapons .weapon').nth(1).tap();
+  await expect(page.locator('#hint')).toHaveText('Band Aid: FIRE, then tap anywhere on the beat to heal');
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.phase === 'drumming');
+  await expect(page.locator('#hint')).toContainText('Tap anywhere on the beat!');
+  // A drummer with perfect timing: a touch on the screen at each note (the game's own note times), until
+  // the last six, which are left to go by (three misses end it early).
+  await page.evaluate(() => {
+    const s = window.__pooket.state;
+    const k = s.drums!;
+    const beat = 60 / 180;
+    const notes = [0, 2, 4, 6, 7, 8, 10, 12, 13, 14, 15, 16, 18, 19, 20, 22, 24, 25];
+    const now = k.t;
+    for (const eighth of notes) {
+      const at = 4 * beat + (eighth * beat) / 2;
+      window.setTimeout(() => document.querySelector('#game')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })), (at - now) * 1000);
+    }
+  });
+  await page.waitForTimeout(3000);
+  const at = await page.evaluate(() => {
+    const d = window.__pooket;
+    const p = d.state.players[0]!;
+    return d.renderer.worldToScreen(p.x, p.y);
+  });
+  await page.screenshot({ path: 'test-results/band-aid.png' });
+  await page.screenshot({ path: 'test-results/band-aid-kit.png', clip: { x: at.x - 110, y: at.y - 120, width: 220, height: 150 } });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  const hp = await page.evaluate(() => window.__pooket.state.players[0]!.hp);
+  // 18 hits of 24: 30 at most (all perfect), 15 at least (all close).
+  expect(hp).toBeGreaterThanOrEqual(40 + 15);
+  expect(hp).toBeLessThanOrEqual(40 + 30);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[1])).toBe(2);
+});
+
 test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', query: 'debug' });
   const me = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
@@ -732,7 +769,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   // So is kiwicore.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Beta Mortar', 'Beta Bomb']);
+  await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Band Aid', 'Beta Bomb']);
 });
 
 test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {

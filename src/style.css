@@ -980,6 +980,12 @@ button.big {
   .coffee-label { font-size: 9px; line-height: 10px; padding-left: 9px; }
 }
 
+/* Band Aid: a touch anywhere is a drum hit (input/controls.ts), so the controls let touches through. */
+body.drumming #hud,
+body.drumming #hud * {
+  pointer-events: none;
+}
+
 /* ---------- Online (two phones, through a Firebase room) ---------- */
 body[data-remote='true'] .pad,
 body[data-remote='true'] .drive {

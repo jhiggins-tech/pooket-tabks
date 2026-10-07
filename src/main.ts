@@ -7,7 +7,7 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, canPickDecoy, createGame, currentPlayer, drive, finishDecoyPick, fire, pendingTwinSpot, selectTier, setAim, step } from './game/game';
+import { adjustAim, aimTwin, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, selectTier, setAim, step } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -308,11 +308,20 @@ bindControls(canvas, {
   setDrive: (dir) => (driveDir = dir),
   canTap: () => (canPickDecoy(state) || pendingTwinSpot(state) !== null) && localCanAct(),
   tap: (x, y) => tapBattlefield(state, renderer, x, y),
-  fire: () => (online.session ? online.session.fire() : fireHere()),
+  fire: () => fireNow(),
   done: () => finishDecoyPick(state),
   aimFrom: (x, y) => aimFromNear(state, renderer, x, y),
   switchAim: () => aimTwin(state, !currentPlayer(state).aimTwin),
+  canDrum: () => state.phase === 'drumming' && localCanAct(),
+  // When the finger came down, on the simulation's clock (the time since its last tick: what's left over in
+  // `acc`, and since this frame began), less how late the music is heard.
+  drum: (at) => drumTap(state, Math.min(0.1, Math.max(-0.2, acc + (at - last) / 1000 - chip.latency))),
 });
+
+/** Fire for whoever's turn it is on this phone (online, through the session, which tells the other phone). */
+function fireNow(): boolean {
+  return online.session ? online.session.fire() : fireHere();
+}
 
 const onResize = () => renderer.resize();
 window.addEventListener('resize', onResize);
@@ -385,10 +394,16 @@ function runFrame(now: number): void {
   const paused = info.isOpen && !net && !online.spectator; // a local game waits while the info screen is up; online can't
   if (paused) acc = 0;
   while (acc >= FIXED_DT) {
-    if (localCanAct()) drive(state, driveDir, FIXED_DT);
+    if (localCanAct()) {
+      drive(state, driveDir, FIXED_DT);
+      drumClock(state, FIXED_DT);
+    }
     step(state, FIXED_DT);
     acc -= FIXED_DT;
   }
+  // Band Aid's over: fire it (the round, and how it went, go to the other phone like any shot).
+  if (drumsReady(state) && localCanAct()) fireNow();
+  document.body.classList.toggle('drumming', state.phase === 'drumming');
   net?.tick(dt);
   if (net) online.matchFinished(state.phase === 'gameover');
   online.tick();

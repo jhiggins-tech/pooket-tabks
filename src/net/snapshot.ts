@@ -71,6 +71,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   }
   // Rules 22: kiwicore's béretta M2 (a boomerang).
   snap.boomerangs ??= [];
+  // Rules 23: his Band Aid.
+  snap.drums ??= null;
   return snap;
 }
 

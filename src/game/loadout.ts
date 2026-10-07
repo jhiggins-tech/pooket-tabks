@@ -58,6 +58,8 @@ export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
  * nothing, with no enemy rounds to take: it says so, and the turn carries on.)
  */
 export function canFire(state: GameState): boolean {
+  // Band Aid is fired when the drumming's over (game/drums.ts).
+  if (state.phase === 'drumming') return !!state.drums?.done;
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
   return !p.hop && canUseSlot(state, p, p.selectedTier);

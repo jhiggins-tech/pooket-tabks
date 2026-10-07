@@ -61,7 +61,9 @@ what it's for; weapons are documented where they're defined.
 
 ### The match (`src/game/`)
 - **Turns** (`game.ts`): `aiming → flying → settling → aiming | gameover`, plus `stealing` (kie's Steal
-  roulette) and `coffee` (Diced Coffee's spinner), both back to `aiming`. `fire()` (gated by `canFire`) spends
+  roulette) and `coffee` (Diced Coffee's spinner), both back to `aiming`, and `drumming` (kiwicore's Band
+  Aid: a rhythm minigame between FIRE and the shot, run by the drummer's phone like aiming and streamed in
+  its previews; `drums.ts`). `fire()` (gated by `canFire`) spends
   the round and calls the weapon kind's entry in `FIRE` (free actions and bonus moves: `FREE_ACTIONS`, and
   the turn carries on); `state.lastShot` is the turn's shot; `step()` runs `STEPPERS` while flying
   (`runSteppers`) and settles once none is busy (`settleTurn`); `endTurn()` runs statuses, holograms, refunds,
@@ -77,7 +79,7 @@ what it's for; weapons are documented where they're defined.
 - **Mechanics** (`mechanics.ts`): `FIRE` maps each shot kind to how it goes off (the type insists on one
   per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of the
   simulation). Each mechanic's module (`stream`, `jetpack`, `gunk`, `walkers`, `sonic`, `sew`, `boomerang`,
-  `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules, and
+  `drums`, `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules, and
   says what it does in its header.
 - **Tanks and damage** (`tanks.ts`, `bodies.ts`): hit-testing goes through `targetAt()` / `Target` (a tank,
   a twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than switching

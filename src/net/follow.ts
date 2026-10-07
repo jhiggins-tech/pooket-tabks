@@ -1,4 +1,4 @@
-import { currentPlayer } from '../game/game';
+import { currentPlayer, followDrums } from '../game/game';
 import type { GameState } from '../game/state';
 import type { NetMsg } from './session';
 import { applySnapshot, decodeSolid, type Snapshot } from './snapshot';
@@ -19,12 +19,14 @@ export type Preview = Extract<NetMsg, { k: 'preview' }>;
 export function previewOf(s: GameState): Preview {
   const p = currentPlayer(s);
   const twin = p.twin ? { angle: p.twin.angle, power: p.twin.power } : null;
-  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp };
+  const drums = s.phase === 'drumming' ? s.drums : null;
+  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums };
 }
 
-/** Show the current player aiming as the preview says (if it's for this turn, while aiming). */
+/** Show the current player aiming (or drumming Band Aid) as the preview says (if it's for this turn, before they fire). */
 export function applyPreview(s: GameState, v: Preview): void {
-  if (v.turn !== s.turn || s.phase !== 'aiming') return;
+  if (v.turn !== s.turn || (s.phase !== 'aiming' && s.phase !== 'drumming')) return;
+  if (v.drums) followDrums(s, v.drums);
   const p = currentPlayer(s);
   Object.assign(p, { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop, aimTwin: v.aimTwin ?? false, twinSpot: v.twinSpot ?? null });
   if (p.twin && v.twin) Object.assign(p.twin, { angle: v.twin.angle, power: v.twin.power });

@@ -25,7 +25,7 @@ export interface SonicSpec {
 }
 
 /** Chiptunes a weapon can play (see src/audio/tunes.ts). */
-export type TuneId = 'pop-goes-the-weasel';
+export type TuneId = 'pop-goes-the-weasel' | 'band-aid';
 
 /** Cosmetic apparitions a weapon can summon in the sky when fired. */
 export type ApparitionKind = 'kookaburra';
@@ -217,6 +217,24 @@ export interface BoomerangSpec {
 }
 
 /**
+ * Drum: a rhythm minigame over a chiptune (`tune`): after `countIn` beats at `bpm`, a note comes at each
+ * of `notes` (in eighth notes from the end of the count-in), alternately on the left and right drum. A tap
+ * within `perfect` s of a note is a perfect hit, within `close` a close one (half as good); a note let go
+ * by, or a tap with no note near, is a miss, and `misses` of them end it. A flawless run heals `maxHeal`
+ * of full health.
+ */
+export interface DrumSpec {
+  bpm: number;
+  countIn: number;
+  notes: readonly number[];
+  perfect: number;
+  close: number;
+  maxHeal: number;
+  misses: number;
+  tune: TuneId;
+}
+
+/**
  * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any hill;
  * on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
  */
@@ -249,6 +267,7 @@ export type WeaponDef = WeaponBase &
     | { kind: 'twin' }
     | { kind: 'sew'; sew: SewSpec }
     | { kind: 'boomerang'; boomerang: BoomerangSpec }
+    | { kind: 'drum'; drum: DrumSpec }
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }

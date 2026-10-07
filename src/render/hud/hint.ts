@@ -2,7 +2,7 @@
  * The hint line under the controls: what to do now. `HINTS` is an ordered table of [when, text]: the first
  * row that applies wins. Pure and DOM-free (tests/hud-hint.test.ts).
  */
-import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isCoffee, jetCharge, pendingTwinSpot, slotAt } from '../../game/game';
+import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isCoffee, isDrum, jetCharge, pendingTwinSpot, slotAt } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { jetSpec } from '../../weapons/registry';
 
@@ -26,7 +26,9 @@ interface HintCase extends HintView {
 const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] = [
   [(c) => c.remote && c.syncing, () => 'Syncing…'],
   // Online, the other phone's turn.
-  [(c) => c.remote && c.state.phase !== 'gameover', (c) => `${c.p.name} is ${c.state.phase === 'aiming' ? 'aiming' : 'firing'}…`],
+  [(c) => c.remote && c.state.phase !== 'gameover', (c) => `${c.p.name} is ${c.state.phase === 'aiming' ? 'aiming' : c.state.phase === 'drumming' ? 'drumming' : 'firing'}…`],
+  // Band Aid.
+  [(c) => c.state.phase === 'drumming', (c) => (c.state.drums?.done ? '' : `🥁 Tap anywhere on the beat! ${'✖'.repeat(c.state.drums?.misses ?? 0)}`)],
   // The steal roulette and the coffee spinner say it all themselves.
   [(c) => c.state.phase === 'stealing' || c.state.phase === 'coffee', () => ''],
   [(c) => isCoffee(c.p, c.p.selectedTier), (c) => `Diced Coffee: ${Math.round(coffeeFailChance(c.p, c.p.selectedTier) * 100)}% full cream (ends your turn) · FIRE to spin`],
@@ -37,6 +39,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   ],
   [(c) => c.countdown !== null, (c) => `ten-2 charging… ${c.countdown}`],
   [(c) => isBonusSlot(c.p), () => 'Bonus move: FIRE it, then take your turn'],
+  [(c) => isDrum(c.p, c.p.selectedTier), () => 'Band Aid: FIRE, then tap anywhere on the beat to heal'],
   [(c) => pendingTwinSpot(c.state) !== null, () => 'Tap the ground to place your twin, then FIRE'],
   [(c) => isAimless(c.state), () => 'No aiming needed. Just FIRE'],
   [(c) => !!c.p.twin, () => 'Drag from a tank to aim it · 🎯 switches tank'],

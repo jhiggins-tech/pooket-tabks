@@ -1,6 +1,7 @@
 import type { Sfx, SfxCue } from '../game/state';
 import { boomerangFlight, boomerangReach } from '../game/boomerang';
-import { findWeapon, isProjectileWeapon, weaponOf } from '../weapons/registry';
+import { findWeapon, isProjectileWeapon, kindOf, weaponOf } from '../weapons/registry';
+import type { TuneId } from '../weapons/types';
 import { arp, midi, type Synth } from './chip';
 import type { Rank } from '../stats/ranks';
 import { rankJingle } from './jingle';
@@ -165,11 +166,12 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
       s.tone({ at: t, dur: 0.07, from: 260, to: 520, wave: 'triangle', vol: 0.11 * near });
     }
   },
-  // kiwicore's stand-in shots (beta): plain pews, as garyoldmancorp's.
-  'kiwi-mortar': (s) => {
-    pew(s, 0, 1100, 160, 0.18);
-    s.noise({ dur: 0.12, rate: 0.45, vol: 0.16 });
+  // kiwicore's Band Aid is fired when the track's over: a big crash cymbal and a power chord to finish.
+  'band-aid': (s) => {
+    s.noise({ dur: 1.1, rate: 1.7, to: 0.4, vol: 0.16, env: [[0, 1], [1, 0]] });
+    for (const n of [52, 59, 64]) s.tone({ dur: 0.7, from: midi(n), duty: 0.125, vibrato: [7, 6], vol: 0.07, env: [[0, 1], [0.6, 0.6], [1, 0]] });
   },
+  // kiwicore's stand-in shot (beta): a plain pew, as garyoldmancorp's.
   'kiwi-bomb': (s) => {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
     s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
@@ -250,6 +252,19 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.18, from: 900, to: 300, duty: 0.5, steps: 6, vol: 0.12 });
     s.tone({ at: 0.2, dur: 0.25, from: midi(88), wave: 'triangle', vibrato: [12, 30], vol: 0.08 });
   },
+  // ---- Band Aid (game/drums.ts). ----
+  // A hit: the left drum's a snare (crack), the right a floor tom (doom).
+  drum: (s, e) => {
+    if ((e.size ?? -1) < 0) {
+      s.noise({ dur: 0.13, rate: 1.3, to: 0.6, vol: 0.24 });
+      s.tone({ dur: 0.05, from: 260, to: 180, duty: 0.5, vol: 0.1 });
+    } else {
+      s.tone({ dur: 0.2, from: 170, to: 80, duty: 0.5, steps: 6, vol: 0.22 });
+      s.noise({ dur: 0.05, rate: 0.5, vol: 0.12 });
+    }
+  },
+  // A miss: the stick clacks the rim.
+  whiff: (s) => s.tone({ dur: 0.04, from: 1900, to: 1500, duty: 0.125, vol: 0.06 }),
   // ---- béretta M2 (game/boomerang.ts). ----
   // Caught! A thwap of cloth, and a cheery "ta-da".
   catch: (s) => {
@@ -378,15 +393,19 @@ export class SfxPlayer {
   }
 
   play(e: Sfx): void {
-    // Walker chiptunes: strike up while they walk, stop dead when the last one is gone.
+    // Chiptunes: walkers' strike up while they walk and stop dead (POP!) when the last one is gone; Band
+    // Aid's plays while he drums, and just stops.
     const w = (e.cue === 'tune' || e.cue === 'tune-end') && e.weaponId ? findWeapon(e.weaponId) : undefined;
-    const tune = w && isProjectileWeapon(w) ? w.tune : undefined;
+    const tune: TuneId | undefined = !w ? undefined : isProjectileWeapon(w) ? w.tune : kindOf(w) === 'drum' ? weaponOf(w.id, 'drum').drum.tune : undefined;
     if (e.cue === 'tune') {
       if (tune) this.tunes.start(tune);
       this.played++;
       return;
     }
-    if (e.cue === 'tune-end' && tune) this.tunes.stop(tune);
+    if (e.cue === 'tune-end' && tune) {
+      this.tunes.stop(tune);
+      if (w && !isProjectileWeapon(w)) return;
+    }
     const recipe = e.cue === 'fire' ? FIRE_SOUNDS[e.weaponId ?? ''] : e.cue === 'round' ? ROUND_SOUNDS[e.weaponId ?? ''] : CUE_SOUNDS[e.cue];
     if (!recipe) return;
     const key = `${e.cue}:${e.weaponId ?? ''}`;

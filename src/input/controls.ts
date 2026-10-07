@@ -18,6 +18,10 @@ export interface ControlHandlers {
   aimFrom(clientX: number, clientY: number): void;
   /** The Main / Twin switch: aim the other tank. */
   switchAim(): void;
+  /** Whether touches are drum hits right now (Band Aid). */
+  canDrum(): boolean;
+  /** A drum hit: a finger came down at `timeStamp` (the event's, in performance.now() time). */
+  drum(timeStamp: number): void;
 }
 
 const DRAG_DEADZONE_PX = 10;
@@ -55,9 +59,22 @@ export function fullPowerDragPx(viewportW: number, viewportH: number): number {
  * - Hold-to-drive buttons (spending fuel).
  * - Weapon tier buttons.
  * - A big FIRE button (release never fires, so hotseat mis-taps are harmless).
+ * - Band Aid: a touch anywhere is a drum hit.
  */
 export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): void {
   let drag: { id: number; x: number; y: number; moved: boolean } | null = null;
+
+  // Band Aid: every finger that comes down, anywhere, is a drum hit, the moment it lands (a rhythm game
+  // can't wait for it to lift). The HUD's controls let touches through meanwhile (body.drumming, style.css).
+  window.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (!h.canDrum()) return;
+      e.preventDefault();
+      h.drum(e.timeStamp);
+    },
+    { capture: true },
+  );
 
   canvas.addEventListener('pointerdown', (e) => {
     if (!(h.canAim() || h.canTap()) || drag) return;

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { berettaM2 } from '../src/characters/kits';
-import { MAX_HP } from '../src/game/constants';
-import { boomerangPoint, fire, selectTier, setAim, tankCentre, wearsCap } from '../src/game/game';
+import { bandAid, berettaM2 } from '../src/characters/kits';
+import { FIXED_DT, MAX_HP } from '../src/game/constants';
+import { boomerangPoint, drumClock, drumsReady, drumTap, fire, noteSide, noteTimes, selectTier, setAim, tankCentre, trackEnd, wearsCap } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { testGame, untilAiming, whileFlying } from './support/game';
+import { applyPreview, previewOf } from '../src/net/follow';
+import { run, testGame, untilAiming, whileFlying } from './support/game';
 
 const players = [
   { name: 'kiwicore', colour: '#84cc16', characterId: 'kiwicore' },
@@ -99,5 +100,105 @@ describe("kiwicore's béretta M2", () => {
     expect(wearsCap(g, kiwi)).toBe(false);
     whileFlying(g);
     expect(wearsCap(g, kiwi)).toBe(true);
+  });
+});
+
+describe("kiwicore's Band Aid", () => {
+  const drum = bandAid.drum;
+  const times = noteTimes(drum);
+
+  function drumming(hp = 50): GameState {
+    const g = game();
+    g.players[0]!.hp = hp;
+    selectTier(g, 1);
+    expect(fire(g)).toBe(false); // FIRE starts the drumming: it's fired at the end
+    expect(g.phase).toBe('drumming');
+    return g;
+  }
+
+  /** Run the drummer's clock up to `t` (s from the start). */
+  function clockTo(g: GameState, t: number): void {
+    while (!g.drums!.done && g.drums!.t + FIXED_DT <= t) drumClock(g, FIXED_DT);
+  }
+
+  /** Tap every note, `late` s after it. */
+  function play(g: GameState, late: number): void {
+    for (const at of times) {
+      clockTo(g, at + late);
+      drumTap(g, at + late - g.drums!.t);
+    }
+    clockTo(g, trackEnd(drum) + 0.1);
+  }
+
+  it('24 notes over a bar of count-in and four bars at 180 bpm, alternating left and right', () => {
+    expect(drum.notes).toHaveLength(24);
+    expect(times[0]).toBeCloseTo(4 * (60 / 180));
+    expect(times.at(-1)! - times[0]!).toBeCloseTo(31 * (30 / 180));
+    expect([0, 1, 2, 3].map(noteSide)).toEqual([-1, 1, -1, 1]);
+  });
+
+  it('a flawless run heals 40% of full health, and then it fires: the round spent, the kit packs away, the turn moves on', () => {
+    const g = drumming();
+    const kiwi = g.players[0]!;
+    expect(kiwi.ammo[1]).toBe(3); // not spent yet
+    play(g, 0.01);
+    expect(g.drums!.beats.every((b) => b === 1)).toBe(true);
+    expect(kiwi.hp).toBe(50 + 0.4 * kiwi.maxHp);
+    expect(drumsReady(g)).toBe(true);
+    expect(fire(g)).toBe(true);
+    expect(kiwi.ammo[1]).toBe(2);
+    expect(g.phase).toBe('flying');
+    expect(g.sfx.some((e) => e.cue === 'fire' && e.weaponId === 'band-aid')).toBe(true);
+    whileFlying(g);
+    expect(g.drums).toBeNull();
+    untilAiming(g);
+    expect(g.current).toBe(1);
+    expect(kiwi.hp).toBe(90);
+  });
+
+  it('close hits are worth half; it never heals past full', () => {
+    const g = drumming();
+    play(g, 0.11);
+    expect(g.drums!.beats.every((b) => b === 2)).toBe(true);
+    expect(g.players[0]!.hp).toBe(50 + 0.2 * g.players[0]!.maxHp);
+    const full = drumming(95);
+    play(full, 0);
+    expect([full.players[0]!.hp, full.drums!.healed]).toEqual([100, 5]);
+  });
+
+  it('three misses and the band packs up: notes let go by, or taps with no note near', () => {
+    const g = drumming();
+    clockTo(g, times[2]! + drum.close + 0.02);
+    expect([g.drums!.misses, g.drums!.done, g.players[0]!.hp]).toEqual([3, true, 50]);
+    expect(g.sfx.some((e) => e.cue === 'tune-end')).toBe(true);
+    const spam = drumming();
+    for (let i = 0; i < 3; i++) drumTap(spam, 0); // during the count-in
+    expect([spam.drums!.misses, spam.drums!.done]).toEqual([3, true]);
+    // Done: no more taps count, and it's fired.
+    drumTap(spam, 0);
+    expect(spam.drums!.misses).toBe(3);
+    expect(fire(spam)).toBe(true);
+  });
+
+  it('can’t be fired until it’s over, and nothing else moves meanwhile', () => {
+    const g = drumming();
+    clockTo(g, 1);
+    expect(fire(g)).toBe(false);
+    run(g, 2); // the game's own steps leave the drumming alone (only the drummer's phone runs its clock)
+    expect([g.phase, g.drums!.t]).toEqual(['drumming', g.drums!.t]);
+    expect(g.drums!.t).toBeLessThan(1.01);
+  });
+
+  it('another phone follows it from the previews: the drumming, health, music and hits', () => {
+    const g = drumming();
+    const watcher = game();
+    watcher.players[0]!.hp = 50;
+    clockTo(g, times[0]!);
+    drumTap(g, 0);
+    applyPreview(watcher, previewOf(g));
+    expect(watcher.phase).toBe('drumming');
+    expect(watcher.drums!.beats[0]).toBe(1);
+    expect(watcher.players[0]!.hp).toBe(g.players[0]!.hp);
+    expect(watcher.sfx.map((e) => e.cue)).toEqual(['tune', 'drum']);
   });
 });

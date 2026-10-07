@@ -183,6 +183,20 @@ Nothing queued.
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **kiwicore's Band Aid** (owner, 7 Oct; rules 23; beta, a testing push). His tier 2 (replacing the
+  stand-in Beta Mortar, and the "throwdown" teaser): a Dance Dance Revolution style rhythm minigame
+  (`game/drums.ts`, kind `drum`). FIRE starts it: a drum kit appears round his tank (snare left, floor tom
+  right, a hi-hat), a drumstick comes out of his barrel, the view zooms in on him, and a chiptune thrasher
+  plays (E minor, 180 bpm: a bar of hi-hat count-in, then four bars; `audio/tunes.ts`). 24 notes fall onto
+  the drums, alternately left and right (a quarter-note bar, two with bursts of quavers, a flat-out quaver
+  fill). **Tap anywhere** on the beat: the turret swings over the top to that drum, with a snare crack or a
+  tom thud. Within 70 ms a **perfect** hit, within 150 ms **close** (worth half); a note let go by, or a tap
+  with no note near, is a miss, and **3 misses** end it. Hits heal as they land: a flawless run gives back
+  **40% of full health** (owner: "only a tier 2"), never over full. When it's over it's fired for real (the
+  round spent; a crash cymbal), and the kit packs away. Online, the drumming is the drummer's phone's input
+  (like aiming: the `drumming` phase), streamed to the other phone and spectators in the aim previews,
+  music and hits included. Taps are timed from the touch itself, less the phone's reported audio delay.
+  To try out (owner feedback wanted): the timing windows, the chart, how it feels on a real phone.
 - **kiwicore, in beta** (owner, 7 Oct; rules 22). Playable (off the Coming soon list), marked Beta like
   garyoldmancorp. His real tier 1 is the **béretta M2** (béret + Beretta; `game/boomerang.ts`, a new kind, `boomerang`): he
   throws his flat cap like a boomerang along a teardrop loop that ignores terrain (no crater, no marks): out
@@ -191,9 +205,8 @@ Nothing queued.
   the way out and once on the way back at most (so up to 40 on one tank: a tank at the far end of the loop
   catches both passes). He catches it, no harm to him. He **wears the cap** on his dome when it isn't flying
   (`CharacterDef.hat`, drawn in `render/draw/boomerang.ts`); it lifts off his head when thrown and settles
-  back on when caught (a whup-whup whirr in flight, a "ta-da" on the catch). Tiers 2 and 3 are stand-in shells
-  (Beta Mortar 45, Beta Bomb 70); throwdown is still meant for tier 2. Replaces the "torpedo pass" teaser.
-  A testing push: no What's new release.
+  back on when caught (a whup-whup whirr in flight, a "ta-da" on the catch). Tier 3 is a stand-in shell
+  (Beta Bomb 70). Replaces the "torpedo pass" teaser. A testing push: no What's new release.
 - **garyoldmancorp's scooter** (owner, 7 Oct; rules 19). His own movement (`movement: 'scooter'`,
   `game/movement.ts`): while ◀ ▶ is held he rides a little scooter (drawn in `render/draw/tank.ts` whenever he's
   moving, worked out from his position so a watching phone sees it too) at **4× drive speed** (128 px/s,
@@ -449,5 +462,5 @@ between visits.
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
 | **garyoldmancorp** (beta; rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Beta Shot: stand-in shell, 30 | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
-| **kiwicore** (beta; wears a flat cap) | béretta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70 |
+| **kiwicore** (beta; wears a flat cap) | béretta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Band Aid: a rhythm minigame over a 4-bar chiptune thrasher, tap anywhere on the beat (24 notes), the turret swings a drumstick from drum to drum; perfect and close hits heal, up to 40% of full health; 3 misses end it | Beta Bomb: stand-in shell, 70 |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

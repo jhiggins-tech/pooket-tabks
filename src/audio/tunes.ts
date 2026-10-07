@@ -29,7 +29,23 @@ const bassB: Note[] = [[48, 3], [55, 3], [55, 3], [48, 3]];
 const bassPop: Note[] = [[53, 3], [50, 3], [55, 3], [48, 3]];
 const hats: Note[] = Array.from({ length: 16 }, () => [1, 3] as Note);
 
+// Band Aid's thrasher, in E minor at 180 bpm (one step = one quaver): a bar of hi-hat count-in, then four
+// bars of chugging riff over a galloping bass, the last bar a chromatic run down. No drums: he plays those.
+const riff = [52, 52, 52, 52, 55, 52, 58, 57];
+const riffLift = [52, 52, 52, 52, 55, 57, 58, 60];
+const runDown = [64, 63, 62, 61, 60, 59, 58, 52];
+const thrash = [...riff, ...riff, ...riffLift, ...runDown];
+const countIn: Note = [null, 8];
+
 export const TUNES: Record<TuneId, Tune> = {
+  'band-aid': {
+    step: 60 / 180 / 2,
+    tracks: [
+      { notes: [countIn, ...thrash.map((n): Note => [n, 1])], wave: 'pulse', duty: 0.125, vol: 0.12, gate: 0.6 },
+      { notes: [countIn, ...thrash.map((n): Note => [n - 12, 1])], wave: 'triangle', vol: 0.2, gate: 0.75 },
+      { notes: [...Array.from({ length: 4 }, (): Note => [1, 2]), ...Array.from({ length: 32 }, (): Note => [1, 1])], wave: 'noise', vol: 0.05, gate: 0.2 },
+    ],
+  },
   'pop-goes-the-weasel': {
     step: 0.16,
     tracks: [
