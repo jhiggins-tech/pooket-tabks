@@ -1,6 +1,6 @@
 import { randRange } from '../core/rng';
 import { getWeapon, gunkWeapon, weaponOf } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import type { WeaponOf } from '../weapons/types';
 import { bodiesOf } from './bodies';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import type { Stepper } from './mechanics';
@@ -159,7 +159,7 @@ export function drainToxin(state: GameState, dt: number): void {
 }
 
 /** ten-3: a gush of chunks from the barrel. */
-export function fireSpew(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireSpew(state: GameState, p: Player, weapon: WeaponOf<'spew'>): void {
   state.spews.push({ playerId: p.id, weaponId: weapon.id, elapsed: 0, emitCarry: 0 });
 }
 

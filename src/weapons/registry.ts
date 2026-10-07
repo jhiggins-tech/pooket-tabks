@@ -29,18 +29,19 @@ export function findWeapon(id: string): WeaponDef | undefined {
   return byId.get(id);
 }
 
-/** A weapon of a particular kind, with its kind's spec (an id of another kind is a bug: it throws). */
-export function weaponOf<K extends WeaponKind>(id: string, kind: K): WeaponOf<K> {
+/**
+ * A weapon of a particular kind (or one of several), with its kind's spec (an id of another kind is a bug:
+ * it throws).
+ */
+export function weaponOf<K extends WeaponKind>(id: string, ...kinds: [K, ...K[]]): WeaponOf<K> {
   const w = getWeapon(id);
-  if (kindOf(w) !== kind) throw new Error(`${id} isn't a ${kind} weapon`);
+  if (!(kinds as WeaponKind[]).includes(kindOf(w))) throw new Error(`${id} isn't a ${kinds.join(' or ')} weapon`);
   return w as WeaponOf<K>;
 }
 
 /** The weapon a projectile was fired with (ballistic or rain). */
 export function projectileWeapon(id: string): WeaponOf<'ballistic' | 'rain'> {
-  const w = getWeapon(id);
-  if (!isProjectileWeapon(w)) throw new Error(`${id} doesn't fire projectiles`);
-  return w;
+  return weaponOf(id, 'ballistic', 'rain');
 }
 
 export function isProjectileWeapon(w: WeaponDef): w is WeaponOf<'ballistic' | 'rain'> {
@@ -50,16 +51,12 @@ export function isProjectileWeapon(w: WeaponDef): w is WeaponOf<'ballistic' | 'r
 
 /** The jetpack of a weapon that launches its tank (ten-2; a spilt Diced Coffee). */
 export function jetSpec(id: string): JetpackSpec {
-  const w = getWeapon(id);
-  if (!('jetpack' in w)) throw new Error(`${id} doesn't jetpack`);
-  return w.jetpack;
+  return weaponOf(id, 'jetpack', 'coffee').jetpack;
 }
 
 /** A weapon that throws gunk (jetpack propellant, spew chunks, a spilt coffee's). */
 export function gunkWeapon(id: string): WeaponOf<'jetpack' | 'spew' | 'coffee'> {
-  const w = getWeapon(id);
-  if (!('gunk' in w)) throw new Error(`${id} doesn't throw gunk`);
-  return w;
+  return weaponOf(id, 'jetpack', 'spew', 'coffee');
 }
 
 /** How big a weapon's blast is (nothing, for kinds that don't blow up). */

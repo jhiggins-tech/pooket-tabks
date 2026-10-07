@@ -1,6 +1,6 @@
 import { randRange } from '../core/rng';
 import { weaponOf } from '../weapons/registry';
-import type { StreamSpec, WeaponDef } from '../weapons/types';
+import type { StreamSpec, WeaponOf } from '../weapons/types';
 import { bodiesOf } from './bodies';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnFloater, spawnSplash } from './fx';
@@ -47,7 +47,7 @@ function isClose(st: Stream, t: Target): boolean {
   return !!c && t.kind === 'tank' && t.player.id === c.playerId && (t.tank !== t.player) === c.twin;
 }
 
-export function fireStream(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireStream(state: GameState, p: Player, weapon: WeaponOf<'stream'>): void {
   const m = muzzle(p);
   state.streams.push({
     id: state.nextId++,

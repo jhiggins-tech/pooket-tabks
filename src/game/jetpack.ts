@@ -1,6 +1,6 @@
 import { randRange } from '../core/rng';
 import { jetSpec } from '../weapons/registry';
-import type { WeaponDef } from '../weapons/types';
+import type { WeaponOf } from '../weapons/types';
 import { hullRest, otherBodyNear } from './bodies';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust } from './fx';
@@ -145,7 +145,7 @@ export function newJet(playerId: number, weaponId: string, heading: number, aim?
 }
 
 /** ten-2: the tank starts charging, and launches along its aim once charged. */
-export function fireJetpack(state: GameState, p: Player, weapon: WeaponDef): void {
+export function fireJetpack(state: GameState, p: Player, weapon: WeaponOf<'jetpack'>): void {
   state.jets.push(newJet(p.id, weapon.id, (p.angle * Math.PI) / 180));
 }
 
