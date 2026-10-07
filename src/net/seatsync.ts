@@ -2,6 +2,7 @@ import type { Auth } from './auth';
 import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
 import { findSeat, loadForgotten, loadSeats, SEAT_EXPIRY_MS, takeSeats, type Seat } from './seat';
+import { SerialQueue } from './writer';
 
 /**
  * A signed-in player's match seats follow them (net/seat.ts): `users/<uid>/games/<room code>` holds each
@@ -30,7 +31,7 @@ interface Entry {
 type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 export class SeatSync {
-  private queue: Promise<void> = Promise.resolve();
+  private readonly queue = new SerialQueue();
   private readonly store: Store | undefined;
   private readonly now: () => number;
 
@@ -101,11 +102,6 @@ export class SeatSync {
   }
 
   private run(job: () => Promise<unknown>): Promise<void> {
-    const next = this.queue.then(job).then(
-      () => {},
-      (e: unknown) => netLog(`seats: ${errText(e)}`),
-    );
-    this.queue = next;
-    return next;
+    return this.queue.run(job, (e) => netLog(`seats: ${errText(e)}`));
   }
 }

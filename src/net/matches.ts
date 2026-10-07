@@ -3,7 +3,7 @@ import { gameStatus, loadRoomRecord, opponentName, type GameStatus } from './rec
 import { endOfSnapshot, reportMatch } from './results';
 import { roomRef } from './rooms';
 import type { Rtdb } from './rtdb';
-import { forgetSeat, loadSeats, type Seat } from './seat';
+import { bySeat, forgetSeat, loadSeats, seatOf, type Seat } from './seat';
 
 /** This phone's matches (its seats), and how each stands: the Game browser's first rows, the landing screen's dot. */
 
@@ -32,13 +32,13 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
           if (!(await db.get(`${room.path}/host`))) return (forgetSeat(seat.code), null);
           return { seat, status: 'lobby', opponent: '…', detail: 'your match' };
         }
-        const seatNo = seat.role === 'host' ? 0 : 1;
+        const seatNo = seatOf(seat.role);
         const status = gameStatus(stored, seatNo);
         // Finished: file this phone's results for the stats (once), even if it's never opened again.
         if (status === 'won' || status === 'lost' || status === 'draw') {
           void roomRef(db, seat.code).then((room) => reportMatch(db, room.sealer.topic, seatNo, stored.rec.setup, endOfSnapshot(stored.rec.snap)));
         }
-        const [me, them] = seatNo === 0 ? stored.rec.setup.players : [...stored.rec.setup.players].reverse();
+        const [me, them] = bySeat(stored.rec.setup.players, seatNo);
         const detail = me && them ? `${characterName(me.characterId)} vs ${characterName(them.characterId)} · your match` : 'your match';
         return { seat, status, opponent: opponentName(stored, seatNo), detail };
       } catch {

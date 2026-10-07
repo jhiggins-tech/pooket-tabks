@@ -6,7 +6,7 @@ import { RelayTransport } from '../net/relay';
 import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, RoomError, roomHost, watchSeat, type RoomRef } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
-import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
+import { bySeat, findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
 import { loadReplay, ReplayPlayer, ReplayRecorder, type Replay, type ReplayListing } from '../net/replay';
 import { NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
@@ -734,7 +734,7 @@ export class OnlineScreen {
     this.resultsFiled = key;
     void reportMatch(this.room.db, this.room.sealer.topic, s.localSeat, s.matchSetup, endOfGame(s.game));
     // Both players signed in: a rated match (net rank changes and a rank-up are worked out at once).
-    const [mine, theirs] = s.localSeat === 0 ? s.matchSetup.players : [...s.matchSetup.players].reverse();
+    const [mine, theirs] = bySeat(s.matchSetup.players, s.localSeat);
     if (mine?.key && theirs?.key && mine.key !== theirs.key && mine.key === this.pick().key) {
       const w = s.game.winner?.id ?? null;
       this.opts.ranked?.(theirs.key, w === null ? 0.5 : w === s.localSeat ? 1 : 0);

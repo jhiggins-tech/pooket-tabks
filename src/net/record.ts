@@ -2,6 +2,7 @@ import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
 import { roomRef, type RoomRef } from './rooms';
 import { getSealed, putSealed } from './sealed';
+import { otherSeat } from './seat';
 import type { MatchSetup, Pick } from './session';
 import { compat, RULES, WIRE, type Compat } from './version';
 import { upgradeSnapshot, type Snapshot } from './snapshot';
@@ -144,5 +145,5 @@ export function gameStatus(g: StoredGame, seat: number, now = Date.now()): GameS
 
 /** The other player's name in a match (seat 0 is the host). */
 export function opponentName(g: StoredGame, seat: number): string {
-  return g.rec.setup.players[seat === 0 ? 1 : 0]?.name ?? 'them';
+  return g.rec.setup.players[otherSeat(seat)]?.name ?? 'them';
 }

@@ -6,6 +6,7 @@ import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
 import { newReplayId } from './replay';
+import { otherSeat, seatOf } from './seat';
 import { RULES, WIRE } from './version';
 import type { Transport } from './transport';
 
@@ -29,6 +30,11 @@ export interface Pick {
   characterId: string;
   /** Signed in with Google: their stats key (stats/summary.ts `playerKey`), so the other phone can show their rank. */
   key?: string;
+}
+
+/** Just who and as which character (a pick or a player, without the rest). */
+export function brief(p: { name: string; characterId: string }): { name: string; characterId: string } {
+  return { name: p.name, characterId: p.characterId };
 }
 
 export type NetMsg =
@@ -166,7 +172,7 @@ export class NetSession {
     private readonly transport: Transport,
     role: 'host' | 'guest',
   ) {
-    this.localSeat = role === 'host' ? 0 : 1;
+    this.localSeat = seatOf(role);
     transport.onMessage = (m) => this.receive(m as NetMsg);
     transport.onClose = () => this.drop();
     transport.onQuiet = (quiet) => this.setPeerAway(quiet);
@@ -230,9 +236,7 @@ export class NetSession {
     const state = this.begin({ seed, players, rules: RULES, replay });
     const terrain = encodeSolid(state.terrain);
     this.transport.send({ k: 'start', seed, players, rules: RULES, terrain, replay } satisfies NetMsg);
-    const snap = takeSnapshot(state);
-    this.view('start', snap, terrain);
-    this.record(snap, terrain);
+    this.publish('start', takeSnapshot(state), terrain);
     return state;
   }
 
@@ -250,18 +254,16 @@ export class NetSession {
   fire(): boolean {
     const s = this.state;
     if (!s || !this.canAct()) return false;
-    const snap = takeSnapshot(s);
     // The swap target is a secret: the other phone learns where we went from the result.
-    snap.swapTargetId = null;
+    const snap = this.sharedSnapshot(s);
     const terrain = encodeSolid(s.terrain);
     if (!fire(s)) return false;
     this.shot = { turn: snap.turn, owner: this.localSeat };
     netLog(`session: fired on turn ${snap.turn}`);
     this.transport.send({ k: 'fire', turn: snap.turn, snap } satisfies NetMsg);
-    this.view('fire', snap, terrain);
     // In the record at once: closing the app mid-shot doesn't undo it.
     this.flyingShot = { turn: snap.turn, owner: this.localSeat, snap, terrain };
-    this.record(snap, terrain);
+    this.publish('fire', snap, terrain);
     this.events.emit('shot', this.flyingShot);
     return true;
   }
@@ -318,11 +320,10 @@ export class NetSession {
     const snap = takeSnapshot(s);
     const terrain = encodeSolid(s.terrain);
     if (shot.owner === this.localSeat) this.transport.send({ k: 'sync', turn: s.turn, snap, terrain } satisfies NetMsg);
-    this.view('sync', snap, terrain);
     this.shot = null;
     this.lastShot = this.flyingShot;
     this.flyingShot = null;
-    this.record(snap, terrain);
+    this.publish('sync', snap, terrain);
   }
 
   /**
@@ -333,10 +334,10 @@ export class NetSession {
     netLog(`session: catching up from the record (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : replay && rec.last ? ', replaying their shot' : ''})`);
     const pickOf = (i: number): Pick | null => {
       const p = rec.setup.players[i];
-      return p ? { name: p.name, characterId: p.characterId } : null;
+      return p ? brief(p) : null;
     };
     this.localPick = pickOf(this.localSeat) ?? this.localPick;
-    this.remotePick = pickOf(this.localSeat === 0 ? 1 : 0) ?? this.remotePick;
+    this.remotePick = pickOf(otherSeat(this.localSeat)) ?? this.remotePick;
     const s = this.begin(rec.setup);
     this.lastShot = rec.last;
     const from = rec.flying ?? (replay ? rec.last : null);
@@ -382,7 +383,7 @@ export class NetSession {
     netLog('session: leaving the match for now');
     this.transport.send({ k: 'away' } satisfies NetMsg);
     this.end('away');
-    (this.transport.detach ?? this.transport.close).call(this.transport);
+    this.letGo();
   }
 
   /**
@@ -393,7 +394,7 @@ export class NetSession {
     if (this.lost) return;
     netLog('session: standing aside for this player’s other phone');
     this.end('away');
-    (this.transport.detach ?? this.transport.close).call(this.transport);
+    this.letGo();
   }
 
   /** The match ended between shots (resigned, out of time): record how it stands. */
@@ -404,8 +405,25 @@ export class NetSession {
     this.shot = null;
     this.pendingSync = null;
     this.flyingShot = null;
-    this.view('sync', snap, terrain);
+    this.publish('sync', snap, terrain);
+  }
+
+  /** A state the match has reached (and the terrain then): out to spectators and into the record. */
+  private publish(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
+    this.view(why, snap, terrain);
     this.record(snap, terrain);
+  }
+
+  /** The state as the other phone may see it: the swap target is a secret (it learns it from the result). */
+  private sharedSnapshot(s: GameState): Snapshot {
+    const snap = takeSnapshot(s);
+    snap.swapTargetId = null;
+    return snap;
+  }
+
+  /** Stop using the pipe, leaving the room as it is (if the transport can; otherwise just close it). */
+  private letGo(): void {
+    (this.transport.detach ?? this.transport.close).call(this.transport);
   }
 
   private record(snap: Snapshot, terrain: string): void {
@@ -439,8 +457,7 @@ export class NetSession {
     this.shot = null;
     this.pendingSync = null;
     const picks: [Pick | null, Pick | null] = this.isHost ? [this.localPick, this.remotePick] : [this.remotePick, this.localPick];
-    const snap = s ? takeSnapshot(s) : null;
-    if (snap) snap.swapTargetId = null; // still a secret
+    const snap = s ? this.sharedSnapshot(s) : null; // (the swap target still a secret)
     netLog(`session: catching the other phone up${s ? ` (turn ${s.turn})` : ' (lobby)'}`);
     this.transport.send({
       k: 'resume',
@@ -545,9 +562,8 @@ export class NetSession {
         return;
       case 'resume': {
         if (this.phase.k !== 'rejoining') return;
-        const other = this.isHost ? 1 : 0;
         this.localPick = msg.picks[this.localSeat] ?? this.localPick;
-        this.remotePick = msg.picks[other] ?? this.remotePick;
+        this.remotePick = msg.picks[otherSeat(this.localSeat)] ?? this.remotePick;
         if (msg.setup && msg.snap && msg.terrain) {
           netLog(`session: caught up (turn ${msg.snap.turn})`);
           const s = this.begin(msg.setup);
@@ -572,7 +588,7 @@ export class NetSession {
         const s = this.state;
         if (!s) return;
         netLog('session: the other phone resigned');
-        concede(s, this.localSeat === 0 ? 1 : 0, 'resigned');
+        concede(s, otherSeat(this.localSeat), 'resigned');
         this.shot = null;
         this.pendingSync = null;
         return;
@@ -590,7 +606,7 @@ export class NetSession {
     netLog(`session: other phone runs wire ${msg.v} rules ${msg.rules ?? '?'}, this one ${WIRE} / ${RULES}: ${who === 'us' ? 'this phone' : 'the other phone'} needs to reload`);
     // Not the end of the match: leave the room as it is, to carry on once both are up to date.
     this.end('outdated');
-    (this.transport.detach ?? this.transport.close).call(this.transport);
+    this.letGo();
     this.events.emit('outdated', who);
     return true;
   }
