@@ -3,7 +3,7 @@ import { SETTLE_TIME } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { GameState, Player } from './state';
 import { reselect } from './loadout';
-import { tankCentre } from './tanks';
+import { tankCentre } from './bodies';
 
 /**
  * larinovsky's Women in Scam: a bonus move (it doesn't use the turn: aim and fire as usual after it).

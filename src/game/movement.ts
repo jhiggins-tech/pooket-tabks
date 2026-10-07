@@ -3,7 +3,8 @@ import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SC
 import { sound, spawnDust, spawnFloater } from './fx';
 import type { GameState, Hop, Player } from './state';
 import { canMove } from './statuses';
-import { currentPlayer, hurt, someTankBody } from './tanks';
+import { currentPlayer, hullRest } from './bodies';
+import { hurt, someTankBody } from './tanks';
 import { clamp, hash } from './util';
 
 /**
@@ -187,7 +188,7 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
     if (!clear) continue;
     // …it lands on solid ground no higher than the apex (searching from just above it, so the hull
     // never lands sunk into a bank), and not on top of another tank.
-    const y1 = hullRest(state, x1, apex - 1);
+    const y1 = hullRest(terrain, x1, apex - 1);
     if (y1 < apex) continue;
     const near = (qx: number) => Math.abs(qx - x1) < TANK_HALF_WIDTH * 2;
     const bump = someTankBody(state, (qx, _qy, owner, twin) => !(owner === p && !twin) && near(qx)) || state.holograms.some((h) => near(h.x));
@@ -198,7 +199,7 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
 }
 
 /**
- * Like hullRest for a tank driving in direction `dir`: columns on the trailing half that are solid right
+ * Like hullRest (bodies.ts) for a tank driving in direction `dir`: columns on the trailing half that are solid right
  * up to fromY are walls it's pulling away from, so they don't count. Returns fromY - 1 (a wall) if
  * nothing under the hull can hold it.
  */
@@ -212,24 +213,5 @@ function driveRest(state: GameState, x: number, fromY: number, dir: number): num
   return Number.isFinite(ground) ? ground : fromY - 1;
 }
 
-/** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */
-function hullRest(state: GameState, x: number, fromY: number): number {
-  let ground = state.terrain.height;
-  for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
-    ground = Math.min(ground, state.terrain.groundBelow(x + dx, fromY));
-  }
-  return ground;
-}
-
-/** Drop tanks (and holograms) onto whatever ground is left beneath them. */
-export function settleTanks(state: GameState): void {
-  const { terrain } = state;
-  const twins = state.players.flatMap((p) => (p.twin ? [p.twin] : []));
-  for (const t of [...state.players, ...state.holograms, ...twins]) {
-    let ground = terrain.height;
-    for (let dx = -TANK_HALF_WIDTH + 2; dx <= TANK_HALF_WIDTH - 2; dx += 2) {
-      ground = Math.min(ground, terrain.groundBelow(t.x + dx, t.y));
-    }
-    t.y = ground;
-  }
-}
+// (Tanks settling onto the ground: bodies.ts.)
+export { settleTanks } from './bodies';

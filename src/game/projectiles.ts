@@ -6,7 +6,7 @@ import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT } from './constants';
 import { twinGun } from './copies';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { settleTanks } from './movement';
+import { settleTanks } from './bodies';
 import type { Burst, GameState, Player, Projectile } from './state';
 import { applyHit, explode, forEachTargetPos, muzzle, runnerAt, scaled, tankCentre, targetAt, type Target } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';

@@ -1,9 +1,9 @@
 import { blastOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
-import { BARREL_LENGTH, RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
+import { RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { settleTanks } from './movement';
+import { currentPlayer, settleTanks } from './bodies';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
@@ -20,19 +20,8 @@ export type Target = { kind: 'tank'; player: Player; tank: TankBody } | { kind: 
 
 const SOAK_FLUSH_INTERVAL = 0.18; // s between batched stream-damage numbers
 
-export function currentPlayer(state: GameState): Player {
-  return state.players[state.current]!;
-}
-
-export function tankCentre(p: Player): { x: number; y: number } {
-  return { x: p.x, y: p.y - TANK_BODY_HEIGHT };
-}
-
-export function muzzle(p: Player): { x: number; y: number } {
-  const c = tankCentre(p);
-  const a = (p.angle * Math.PI) / 180;
-  return { x: c.x + Math.cos(a) * BARREL_LENGTH, y: c.y - Math.sin(a) * BARREL_LENGTH };
-}
+// (Whose turn it is and where a tank's centre and muzzle are: the leaf module bodies.ts.)
+export { currentPlayer, muzzle, tankCentre } from './bodies';
 
 // (How hard a player hits, for the mechanics that work it out: statuses.ts.)
 export { offence, scaled } from './statuses';
