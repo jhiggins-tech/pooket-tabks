@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import { type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
 import { openSealed, putSealed } from './sealed';
@@ -55,7 +55,7 @@ export function advertise(
     try {
       await putSealed(db, path, lobby, { ...ad, ts: Date.now() });
     } catch (e) {
-      netLog(`lobby: listing failed (${e instanceof Error ? e.message : e})`);
+      netLog(`lobby: listing failed (${errText(e)})`);
     }
   };
   void put();

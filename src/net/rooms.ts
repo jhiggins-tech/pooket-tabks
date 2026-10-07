@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import { clientId } from './push';
 import { RelayTransport, ROOM_CLEARED } from './relay';
 import { RtdbError, SERVER_TIME, type Rtdb } from './rtdb';
@@ -86,7 +86,7 @@ export class HostedRoom {
         return room;
       } catch (e) {
         if (!(e instanceof RtdbError)) {
-          netLog(`rooms: couldn't reach the database (${e instanceof Error ? e.message : e})`);
+          netLog(`rooms: couldn't reach the database (${errText(e)})`);
           throw new Error("Couldn't reach the game server. Is this phone online?");
         }
         netLog(`rooms: code ${code} refused (${e.message})`);
@@ -137,7 +137,10 @@ export class HostedRoom {
     netLog('rooms: guest seat freed');
   }
 
-  /** Stop waiting and close the room (not once a game has started: the transport owns it then). */
+  /**
+   * Stop waiting and checking in, leaving the room as it is (an open game stays open; once a game has
+   * started, the transport has it). Only `cancel` removes the room.
+   */
   stop(): void {
     if (this.stopped) return;
     this.stopped = true;

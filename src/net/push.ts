@@ -1,5 +1,5 @@
 import { isPushType, type PushType } from '../push/templates';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import { getSealed, putSealed } from './sealed';
 import type { RoomRef } from './watchers';
@@ -70,7 +70,7 @@ export function announceDevice(room: RoomRef, role: 'host' | 'guest', seatId: st
   const uid = accountUid();
   const device: Device = { clientId: clientId(), seatId, push: wantsPush(), ...(uid ? { uid } : {}) };
   void putSealed(room.db, `${room.path}/devices/${role}`, room.sealer, device).catch((e: unknown) =>
-    netLog(`push: couldn't announce this device (${e instanceof Error ? e.message : e})`),
+    netLog(`push: couldn't announce this device (${errText(e)})`),
   );
 }
 
@@ -85,7 +85,7 @@ export async function notifySeat(room: RoomRef, role: 'host' | 'guest', type: Pu
     await room.db.post('outbox', { type, ref: room.sealer.topic, to: account ? accountAddress(account) : d.clientId, originClientId: clientId(), createdAt: SERVER_TIME });
     netLog(`push: told the ${role} (${type})`);
   } catch (e) {
-    netLog(`push: couldn't send ${type} (${e instanceof Error ? e.message : e})`);
+    netLog(`push: couldn't send ${type} (${errText(e)})`);
   }
 }
 
@@ -137,6 +137,6 @@ export async function registerPushDevice(db: Rtdb, uid: string, on: boolean): Pr
     else await db.remove(`users/${uid}/push/${clientId()}`);
     netLog(`push: ${on ? 'listed on' : 'taken off'} the account`);
   } catch (e) {
-    netLog(`push: couldn't update the account's phones (${e instanceof Error ? e.message : e})`);
+    netLog(`push: couldn't update the account's phones (${errText(e)})`);
   }
 }

@@ -1,5 +1,5 @@
 import type { Auth } from '../net/auth';
-import { netLog } from '../net/log';
+import { errText, netLog } from '../net/log';
 import { button, el } from './dom';
 
 /**
@@ -113,7 +113,7 @@ export class SignInPanel {
       }
       id.renderButton(slot, { type: 'standard', theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'pill' });
     } catch (e) {
-      netLog(`signin: ${e instanceof Error ? e.message : e}`);
+      netLog(`signin: ${errText(e)}`);
       this.fail(e instanceof Error ? `${e.message}. Check your connection and try again.` : 'Sign-in failed.');
     }
   }
@@ -123,7 +123,7 @@ export class SignInPanel {
       await this.auth.signInWithGoogle(credential);
       this.opts.onSignedIn();
     } catch (e) {
-      netLog(`signin: ${e instanceof Error ? e.message : e}`);
+      netLog(`signin: ${errText(e)}`);
       this.fail("Couldn't sign in. Try again in a moment.");
     }
   }

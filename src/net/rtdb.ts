@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 
 /**
  * A tiny client for the Firebase Realtime Database REST API (no SDK): read/write JSON at a path, and
@@ -72,7 +72,7 @@ export class Rtdb {
       await this.get('lobby/ping');
       return true;
     } catch (e) {
-      netLog(`db: unreachable (${e instanceof Error ? e.message : e})`);
+      netLog(`db: unreachable (${errText(e)})`);
       return false;
     }
   }
@@ -139,7 +139,7 @@ export class Rtdb {
           }
         } catch (e) {
           if (closed) return;
-          netLog(`db: stream ${short(path)} dropped: ${e instanceof Error ? e.message : e}`);
+          netLog(`db: stream ${short(path)} dropped: ${errText(e)}`);
         }
         if (!closed) await new Promise((r) => setTimeout(r, 1000)); // then reconnect
       }

@@ -1,6 +1,6 @@
 import { finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
@@ -99,7 +99,7 @@ export class ReplayRecorder implements GameStore {
     this.done.add(key);
     this.queue = this.queue.then(write).catch((e: unknown) => {
       this.done.delete(key);
-      netLog(`replay: couldn't save ${key.split('/')[1]} (${e instanceof Error ? e.message : e})`);
+      netLog(`replay: couldn't save ${key.split('/')[1]} (${errText(e)})`);
     });
   }
 

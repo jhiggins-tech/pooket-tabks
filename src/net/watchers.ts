@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
 import type { Sealer } from './seal';
 import { openSealed, putSealed } from './sealed';
@@ -30,7 +30,7 @@ export const WATCHER_STALE_MS = 60_000;
 export function checkIn(room: RoomRef, id: string, name: string): { stop: () => void } {
   const path = `${room.path}/watchers/${id}`;
   const put = () =>
-    void putSealed(room.db, path, room.sealer, { name }).catch((e: unknown) => netLog(`watchers: couldn't check in (${e instanceof Error ? e.message : e})`));
+    void putSealed(room.db, path, room.sealer, { name }).catch((e: unknown) => netLog(`watchers: couldn't check in (${errText(e)})`));
   put();
   const timer = setInterval(put, CHECK_IN_MS);
   netLog('watchers: checked in');

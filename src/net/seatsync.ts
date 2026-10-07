@@ -1,5 +1,5 @@
 import type { Auth } from './auth';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
 import { findSeat, loadForgotten, loadSeats, SEAT_EXPIRY_MS, takeSeats, type Seat } from './seat';
 
@@ -103,7 +103,7 @@ export class SeatSync {
   private run(job: () => Promise<unknown>): Promise<void> {
     const next = this.queue.then(job).then(
       () => {},
-      (e: unknown) => netLog(`seats: ${e instanceof Error ? e.message : e}`),
+      (e: unknown) => netLog(`seats: ${errText(e)}`),
     );
     this.queue = next;
     return next;

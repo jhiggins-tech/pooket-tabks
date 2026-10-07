@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
 import { sealerFor, type Sealer } from './seal';
 import { getSealed, putSealed } from './sealed';
@@ -76,7 +76,7 @@ export class RecordStore implements GameStore {
         await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
         netLog(`record: saved (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : ''})`);
       },
-      { retry: true, failed: (e) => netLog(`record: couldn't save (${e instanceof Error ? e.message : e})`) },
+      { retry: true, failed: (e) => netLog(`record: couldn't save (${errText(e)})`) },
     );
   }
 
@@ -100,7 +100,8 @@ export async function loadRoomRecord(
   const raw = await getSealed<unknown>(db, `rooms/${sealer.topic}/game`, sealer);
   if (!raw || typeof raw.value !== 'string') return null;
   const rec = decodeMsg(raw.value) as GameRecord | OpenRecord;
-  // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches are over by 5 Oct.)
+  // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches have run out of
+  // time by now, but one is only forfeited when it's opened, and a seat kept fresh can still lead to one.)
   if (rec.v === 7) {
     rec.rules ??= 7;
     if ('setup' in rec) rec.setup.rules ??= 7;

@@ -1,8 +1,11 @@
 import { fromB64, toB64 } from './b64';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { Rtdb, RtdbEvent } from './rtdb';
 import { seal, unseal, type Sealer } from './seal';
 import type { Transport } from './transport';
+
+/** How often to ping while the other phone is away (enough to notice each other again after a blip). */
+const QUIET_PING_MS = 30_000;
 
 /**
  * A message pipe through a room: each side posts sealed, numbered batches to its outbox and streams
@@ -13,9 +16,6 @@ import type { Transport } from './transport';
  * Each pipe numbers its batches within an epoch (when it started): a phone that rejoins starts a new
  * epoch at 1, and the other side switches to it and ignores anything left over from the old one.
  */
-/** How often to ping while the other phone is away (enough to notice each other again after a blip). */
-const QUIET_PING_MS = 30_000;
-
 export class RelayTransport implements Transport {
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
@@ -96,7 +96,10 @@ export class RelayTransport implements Transport {
     void this.flush();
   }
 
-  /** Stop using this pipe but leave the room as it is (the host is about to wait for someone else). */
+  /**
+   * Stop using this pipe but leave the room as it is: the match carries on without this phone (turn by
+   * turn, or on its other phone), or the host frees the guest seat to wait for someone else.
+   */
   detach(): void {
     if (this.closed) return;
     this.stop();
@@ -149,8 +152,8 @@ export class RelayTransport implements Transport {
       await this.db.post(this.outbox, batch.payload);
       this.lastSent = Date.now();
     } catch (e) {
-      if (this.closed) return netLog(`relay: a last message didn't go (${e instanceof Error ? e.message : e})`);
-      netLog(`relay: send failed (${e instanceof Error ? e.message : e}), retrying`);
+      if (this.closed) return netLog(`relay: a last message didn't go (${errText(e)})`);
+      netLog(`relay: send failed (${errText(e)}), retrying`);
       this.retry.unshift(batch);
       await new Promise((r) => setTimeout(r, 1000));
     } finally {

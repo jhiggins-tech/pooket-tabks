@@ -1,6 +1,6 @@
 import type { GameState } from '../game/state';
 import { digest, matchId, roundTally, SUMMARY_VERSION, type MatchSummary, type Tally } from '../stats/summary';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 import type { MatchSetup } from './session';
 import type { Snapshot } from './snapshot';
@@ -75,7 +75,7 @@ export async function reportMatch(db: Rtdb, topic: string, seat: 0 | 1, setup: M
     markReported(key);
     netLog(`stats: results filed${acct ? ' and vouched for' : ''}`);
   } catch (e) {
-    netLog(`stats: couldn't file the results (${e instanceof Error ? e.message : e})`);
+    netLog(`stats: couldn't file the results (${errText(e)})`);
   }
 }
 

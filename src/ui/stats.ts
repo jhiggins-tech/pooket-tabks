@@ -1,5 +1,5 @@
 import { characterName, isCharacterId, getCharacter, ROSTER } from '../characters/roster';
-import { netLog } from '../net/log';
+import { errText, netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { CharacterRow, Counts, PlayerRow, StatsSummary, StatsView } from '../stats/aggregate';
 import { findWeapon } from '../weapons/registry';
@@ -107,7 +107,7 @@ export class StatsScreen {
       if (this.stats) this.opts.ratings?.take(this.stats);
       this.status = 'ready';
     } catch (e) {
-      netLog(`stats: couldn't load (${e instanceof Error ? e.message : e})`);
+      netLog(`stats: couldn't load (${errText(e)})`);
       this.status = 'error';
     }
     if (this.isOpen) this.render();

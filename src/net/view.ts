@@ -1,5 +1,5 @@
 import { fromB64, toB64 } from './b64';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { RelayTransport } from './relay';
 import { Rtdb } from './rtdb';
 import { seal, sealerFor, unseal } from './seal';
@@ -22,7 +22,7 @@ export class ViewPublisher {
   constructor(relay: RelayTransport) {
     const writer = (slot: 'state' | 'aim') =>
       new LatestWriter<ViewMsg>(async (v) => relay.db.put(`${relay.roomPath}/view/${slot}`, toB64(await seal(relay.sealer, v))), {
-        failed: (e) => netLog(`view: couldn't publish ${slot} (${e instanceof Error ? e.message : e})`),
+        failed: (e) => netLog(`view: couldn't publish ${slot} (${errText(e)})`),
       });
     this.state = writer('state');
     this.aim = writer('aim');

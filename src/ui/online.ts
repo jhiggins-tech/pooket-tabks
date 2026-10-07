@@ -58,8 +58,10 @@ export interface OnlineOptions {
  * back to. Leaving in the lobby, before the match starts, ends it.
  *
  * Each way in (the Game browser, hosting, joining, rejoining, watching) is an attempt (`Scope`): starting
- * another, connecting, or leaving ends it, which stops whatever it had going; its async steps check
- * `scope.alive` when they come back. The screens themselves are in `online/`.
+ * another, connecting, or leaving ends it, which runs what it registered to stop (streams, check-ins,
+ * waiting for a guest); its async steps check `scope.alive` when they come back. Not everything it made
+ * goes with it: leaving the host screen leaves the open game in the room (and on the Games list), and a
+ * connection lives on as the match's session. The screens themselves are in `online/`.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');

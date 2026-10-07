@@ -1,5 +1,5 @@
 import type { Auth } from './auth';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
 
 /**
@@ -93,7 +93,7 @@ export class Account {
   private run(job: () => Promise<unknown>): Promise<void> {
     const next = this.queue.then(job).then(
       () => {},
-      (e: unknown) => netLog(`account: ${e instanceof Error ? e.message : e}`),
+      (e: unknown) => netLog(`account: ${errText(e)}`),
     );
     this.queue = next;
     return next;
