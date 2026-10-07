@@ -69,6 +69,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
     // Rules 19: garyoldmancorp's scooter remembers its last crash.
     p.scooterCrash ??= 0;
   }
+  // Rules 22: kiwicore's berètta M2 (a boomerang).
+  snap.boomerangs ??= [];
   return snap;
 }
 

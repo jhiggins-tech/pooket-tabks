@@ -1,6 +1,6 @@
 # Pooket Tabks
 
-Artillery (Worms / Pocket Tanks style) for **phone browsers**: seven characters (one in beta) with their own
+Artillery (Worms / Pocket Tanks style) for **phone browsers**: eight characters (two in beta) with their own
 three-weapon kits, destructible terrain, kitschy 8-bit sound. Play hotseat on one phone, or on two
 phones anywhere with a 4-letter room code (others can watch).
 
@@ -10,7 +10,7 @@ phones anywhere with a 4-letter room code (others can watch).
 ## How to play
 - **Start:** the first visit asks your name. The landing screen has the **Game browser** (online) and
   **Local hotseat** (two players on one phone, each picking a character: tones, kie, kcaj, torikloud,
-  ciarra, larinovsky, and garyoldmancorp in beta). Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of
+  ciarra, larinovsky, and garyoldmancorp and kiwicore in beta). Each kit has 5 rounds of tier 1, 3 of tier 2 and 1 of
   tier 3 (larinovsky and garyoldmancorp also have a bonus move). ⓘ explains every weapon; ✨ shows what's new.
 - **Aim:** drag anywhere and pull back like a slingshot: direction is the angle (a full 360°), pull
   length is power. Fine-tune with ↺ ↻ and − +.

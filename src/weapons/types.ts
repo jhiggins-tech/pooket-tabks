@@ -203,6 +203,20 @@ export interface SewSpec {
 }
 
 /**
+ * Boomerang: thrown from the dome, it flies a loop through anything: out to its reach along the
+ * aim (`minRange`–`maxRange`, set by power), round and home again, the loop `curl` × its reach wide (out
+ * above the aim line, back below). It takes `flight` s per 100 px of reach (plus a moment: game/boomerang.ts). Each enemy it passes through
+ * takes `damage`, once on the way out and once on the way back at most; the thrower catches it.
+ */
+export interface BoomerangSpec {
+  minRange: number;
+  maxRange: number;
+  curl: number;
+  flight: number;
+  damage: number;
+}
+
+/**
  * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any hill;
  * on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
  */
@@ -234,6 +248,7 @@ export type WeaponDef = WeaponBase &
     | { kind: 'heal'; heal: { napTime: number } }
     | { kind: 'twin' }
     | { kind: 'sew'; sew: SewSpec }
+    | { kind: 'boomerang'; boomerang: BoomerangSpec }
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }

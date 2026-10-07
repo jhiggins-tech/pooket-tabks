@@ -604,7 +604,7 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await expect(guest.locator('#online .screen-top h2')).toHaveText('Choose your tank');
   await expect(guest.locator('#online')).toContainText("Joining Jack's game");
   // An upcoming character can be looked at, not picked.
-  await guest.getByLabel('Your tank').selectOption('kiwicore');
+  await guest.getByLabel('Your tank').selectOption('odsey');
   await expect(guest.locator('.tank-details .coming-soon-banner')).toHaveText('Coming soon');
   await expect(guest.locator('#tank-go')).toBeDisabled();
   await guest.screenshot({ path: 'test-results/coming-soon-tank.png' });

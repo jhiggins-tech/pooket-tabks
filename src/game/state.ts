@@ -137,6 +137,28 @@ export interface Stitch {
   done: boolean;
 }
 
+/** A boomerang in flight (kiwicore's flat cap): where it was thrown from, and how far round its loop it is. */
+export interface Boomerang {
+  ownerId: number;
+  weaponId: string;
+  /** Where it was thrown from, and comes back to (the thrower's dome). */
+  x0: number;
+  y0: number;
+  /** The aim, radians, maths convention. */
+  angle: number;
+  /** How far out the loop reaches, along the aim (px). */
+  range: number;
+  /** Which side of the aim line it goes out on: +1 its left (above, thrown rightwards), −1 its right. */
+  side: number;
+  /** Seconds in flight, and the whole loop's. */
+  t: number;
+  duration: number;
+  /** On its way back (past the far end of the loop). */
+  back: boolean;
+  /** Target keys hit on this pass (cleared when it turns for home). */
+  hits: string[];
+}
+
 /** A marathon runner, jogging a leg at a time towards the nearest enemy, across turns. */
 export interface Runner {
   ownerId: number;
@@ -457,6 +479,7 @@ export type SfxCue =
   | 'spill'
   | 'scoot'
   | 'crash'
+  | 'catch'
   | 'gameover';
 
 export interface Sfx {
@@ -555,6 +578,7 @@ export interface GameState {
   jets: Jet[];
   spews: Spew[];
   stitches: Stitch[];
+  boomerangs: Boomerang[];
   runners: Runner[];
   bursts: Burst[];
   naps: Nap[];

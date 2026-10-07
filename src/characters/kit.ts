@@ -13,6 +13,8 @@ export interface CharacterDef {
   loadout: Loadout;
   /** How the ◀ ▶ buttons move this character: roll along the ground, frog hops, or a fast scooter that crashes. Default drive. */
   movement?: 'drive' | 'hop' | 'scooter';
+  /** Something worn on the tank's dome (kiwicore's flat cap, which his berètta M2 throws). */
+  hat?: 'flat-cap';
   /** Starting (and full) health, if not the usual MAX_HP. */
   maxHp?: number;
   /** Playable but unfinished (stand-in moves): marked Beta in the pickers and the info screen. */

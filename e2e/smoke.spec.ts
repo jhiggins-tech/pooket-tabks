@@ -19,8 +19,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp (beta)']);
-  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(5);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp (beta)', 'kiwicore (beta)']);
+  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(4);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
   await expect(p1Name).toHaveValue('tones2');
@@ -437,6 +437,30 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   await expect(weapons.nth(4)).toHaveAttribute('aria-pressed', 'true');
 });
 
+test("kiwicore's berètta M2: the cap comes off his head, loops out through anything and back, and hits both ways", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'kiwicore', p2: 'kcaj', query: 'debug' });
+  const at = await page.evaluate(() => {
+    const d = window.__pooket;
+    const p = d.state.players[0]!;
+    return d.renderer.worldToScreen(p.x, p.y);
+  });
+  await page.screenshot({ path: 'test-results/kiwicore-cap.png', clip: { x: at.x - 50, y: at.y - 50, width: 100, height: 70 } });
+  // Aimed right at kcaj (over whatever's between), with the power to reach: the far end of the loop is on them.
+  await page.evaluate(() => {
+    const [kiwi, kcaj] = window.__pooket.state.players as [typeof window.__pooket.state.players[0], typeof window.__pooket.state.players[0]];
+    const dx = kcaj.x - kiwi.x;
+    const dy = kiwi.y - kcaj.y;
+    Object.assign(kiwi, { angle: Math.round((Math.atan2(dy, dx) * 180) / Math.PI), power: Math.round((Math.hypot(dx, dy) - 100) / 8) });
+  });
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.boomerangs.length === 1);
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: 'test-results/beretta-m2.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  const hp = await page.evaluate(() => window.__pooket.state.players.map((p) => p.hp));
+  expect(hp).toEqual([100, 60]);
+});
+
 test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', query: 'debug' });
   const me = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
@@ -656,7 +680,7 @@ test('info screen explains every character and weapon', async ({ page }) => {
   expect(frozen).not.toBe('[]');
   await page.waitForTimeout(400);
   expect(await shots()).toBe(frozen);
-  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the seven, and five coming soon
+  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the eight, and four coming soon
   for (const [name, weapon] of [['tones2', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
@@ -686,16 +710,16 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
 
   // The info screen: a tab each, with the banner.
   await page.locator('#hotseat-info').tap();
-  for (const name of ['shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']) {
+  for (const name of ['shotdownboyz', 'odsey', 'lankcity', 'doctorfox']) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.coming-soon h2')).toHaveText(name);
     await expect(page.locator('.coming-soon .coming-soon-banner')).toHaveText('Coming soon');
   }
   await page.screenshot({ path: 'test-results/coming-soon-info.png' });
   // Teased moves, marked work in progress.
-  await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
-  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['torpedo pass', 'throwdown']);
-  await expect(page.locator('.coming-soon-cards .info-tags')).toHaveText(['Tier 1', 'Tier 2']);
+  await page.getByRole('tab', { name: 'lankcity', exact: true }).tap();
+  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['HARD disk drive', 'lizard walk']);
+  await expect(page.locator('.coming-soon-cards .info-tags')).toHaveText(['Tier 2', 'Movement']);
   await expect(page.locator('.coming-soon-wip')).toContainText('subject to change');
   await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
   await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['summon digger', 'neurodiverge', 'tank build']);
@@ -705,6 +729,10 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Mortar', 'Beta Bomb', 'Diced Coffee']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
+  // So is kiwicore.
+  await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
+  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
+  await expect(page.locator('.info-card h3')).toHaveText(['berètta M2', 'Beta Mortar', 'Beta Bomb']);
 });
 
 test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {

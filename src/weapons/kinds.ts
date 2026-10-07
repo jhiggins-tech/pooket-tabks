@@ -35,6 +35,8 @@ export const KINDS = {
   twin: { aims: false, turn: 'shot', harmless: true },
   /** A needle and thread stitching along the aim through terrain. */
   sew: { aims: true, turn: 'shot' },
+  /** Thrown out along the aim, curling round and back to the thrower, through terrain (kiwicore's flat cap). */
+  boomerang: { aims: true, turn: 'shot' },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

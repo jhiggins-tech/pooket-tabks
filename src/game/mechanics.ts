@@ -1,5 +1,6 @@
 import type { ShotKind, WeaponKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
+import { boomerangStepper, throwBoomerang } from './boomerang';
 import { decoyPickStepper, fireDecoys, hologramBlastStepper, originsOf, spawnTwin } from './copies';
 import { fireSpew, puddleStepper, sludgeStepper, spewStepper, toxinStepper } from './gunk';
 import { fireJetpack, jetStepper } from './jetpack';
@@ -61,6 +62,7 @@ export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   decoy: fireDecoys,
   twin: (state, p) => spawnTwin(state, p),
   sew: fireSew,
+  boomerang: throwBoomerang,
   runner: fireRunner,
   spew: fireSpew,
   jetpack: fireJetpack,
@@ -78,6 +80,7 @@ export const STEPPERS: Stepper[] = [
   spewStepper,
   burstStepper,
   stitchStepper,
+  boomerangStepper,
   runnerStepper,
   napStepper,
   boomStepper,

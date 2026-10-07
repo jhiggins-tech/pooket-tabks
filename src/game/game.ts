@@ -29,6 +29,7 @@ import { clamp, normalizeAngle } from './util';
  * fire). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
  * './game'.
  */
+export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
@@ -136,6 +137,7 @@ export function createGame(cfg: GameConfig): GameState {
     jets: [],
     spews: [],
     stitches: [],
+    boomerangs: [],
     runners: [],
     bursts: [],
     naps: [],

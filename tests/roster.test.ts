@@ -5,9 +5,16 @@ import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the seven selectable characters (garyoldmancorp in beta)', () => {
-    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp']);
+  it('has the eight selectable characters (garyoldmancorp and kiwicore in beta)', () => {
+    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp', 'kiwicore']);
+  });
+
+  it("kiwicore's beta loadout: the berètta M2 and two stand-in shots; he wears a flat cap", () => {
+    expect(getCharacter('kiwicore').loadout).toEqual(['beretta-m2', 'kiwi-mortar', 'kiwi-bomb']);
+    expect(getWeapon('beretta-m2').kind).toBe('boomerang');
+    expect(['kiwi-mortar', 'kiwi-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'ballistic']);
+    expect(getCharacter('kiwicore').hat).toBe('flat-cap');
   });
 
   it("garyoldmancorp's beta loadout: three stand-in shots and Diced Coffee", () => {
@@ -24,7 +31,7 @@ describe('roster', () => {
   });
 
   it('upcoming characters are shown but never playable (not in the roster, nor a valid pick anywhere)', () => {
-    expect(UPCOMING.map((u) => u.name)).toEqual(['shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']);
+    expect(UPCOMING.map((u) => u.name)).toEqual(['shotdownboyz', 'odsey', 'lankcity', 'doctorfox']);
     for (const u of UPCOMING) {
       expect(isCharacterId(u.id)).toBe(false);
       expect(() => getCharacter(u.id)).toThrow();
@@ -32,11 +39,8 @@ describe('roster', () => {
     }
     expect(upcoming('tones')).toBeUndefined();
     // Teased moves (work in progress), by slot.
-    expect(upcoming('kiwicore')!.teasers).toEqual([
-      { slot: 'Tier 1', name: 'torpedo pass' },
-      { slot: 'Tier 2', name: 'throwdown' },
-    ]);
     expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now (beta)
+    expect(upcoming('kiwicore')).toBeUndefined(); // likewise
     expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
     expect(upcoming('shotdownboyz')!.teasers!.map((t) => t.name)).toEqual(['summon digger', 'neurodiverge', 'tank build']);
     expect(upcoming('odsey')!.teasers).toBeUndefined();

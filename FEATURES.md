@@ -4,19 +4,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-- **kiwicore, in beta** (owner, 7 Oct). Off the Coming soon list and playable in beta, like garyoldmancorp:
-  his real tier 1 now, stand-ins for the rest (single ballistic shells, as garyoldmancorp's), marked Beta.
-  - **Tier 1: berètta M2.** Throws a flat cap along a **boomerang** trajectory (out along the aim, curving
-    round and back towards the thrower) that **ignores terrain** (flies through hills). A new mechanic
-    (a new `WeaponKind`: its own path, not ballistic), so the recipe's steps: the path in its own
-    `game/` module, hits through `applyHit`, its own drawing (the spinning cap), sound, info text.
-  - **The tank wears the cap** when it isn't firing it (drawn on the dome); while it's in flight the
-    tank is bare-headed, and the cap is back on once the throw is over.
-  - This replaces the teased tier 1 "torpedo pass" (`upcoming.ts`); "throwdown" stays the tier 2 teaser.
-  - Decided (owner, 7 Oct): **20 damage per hit**; it can hit on the way out **and** on the way back,
-    each tank at most **once per pass** (so up to 40 on one tank if both passes land); the **aim sets its
-    direction and power its reach**, and it curls round and comes home; kiwicore **catches it** (no
-    damage to himself) and it's back on his head. Its name keeps the è (`berètta M2`).
+Nothing queued.
 
 ### Backlog (ideas, not yet scheduled)
 
@@ -195,6 +183,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **kiwicore, in beta** (owner, 7 Oct; rules 22). Playable (off the Coming soon list), marked Beta like
+  garyoldmancorp. His real tier 1 is the **berètta M2** (`game/boomerang.ts`, a new kind, `boomerang`): he
+  throws his flat cap like a boomerang along a teardrop loop that ignores terrain (no crater, no marks): out
+  above the aim line, round the far end (which is exactly on the aim line, as far as the power says: 100–900
+  px) and home below it, slowing as it turns. **20 damage** to each enemy target it passes through, once on
+  the way out and once on the way back at most (so up to 40 on one tank: a tank at the far end of the loop
+  catches both passes). He catches it, no harm to him. He **wears the cap** on his dome when it isn't flying
+  (`CharacterDef.hat`, drawn in `render/draw/boomerang.ts`); it lifts off his head when thrown and settles
+  back on when caught (a whup-whup whirr in flight, a "ta-da" on the catch). Tiers 2 and 3 are stand-in shells
+  (Beta Mortar 45, Beta Bomb 70); throwdown is still meant for tier 2. Replaces the "torpedo pass" teaser.
+  A testing push: no What's new release.
 - **garyoldmancorp's scooter** (owner, 7 Oct; rules 19). His own movement (`movement: 'scooter'`,
   `game/movement.ts`): while ◀ ▶ is held he rides a little scooter (drawn in `render/draw/tank.ts` whenever he's
   moving, worked out from his position so a watching phone sees it too) at **4× drive speed** (128 px/s,
@@ -450,4 +449,5 @@ between visits.
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
 | **garyoldmancorp** (beta; rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Beta Shot: stand-in shell, 30 | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
+| **kiwicore** (beta; wears a flat cap) | berètta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70 |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

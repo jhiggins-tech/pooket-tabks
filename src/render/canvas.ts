@@ -1,6 +1,7 @@
 import type { Terrain } from '../core/terrain';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
+import { drawBoomerangs } from './draw/boomerang';
 import { drawCoffee } from './draw/coffee';
 import { drawGhosts, drawHologramBlasts } from './draw/copies';
 import { drawExplosions, drawFloaters } from './draw/fx';
@@ -35,6 +36,7 @@ const LAYERS: Layer[] = [
   drawAim,
   drawProjectiles,
   drawStitches,
+  drawBoomerangs,
   drawRunners,
   drawLiquid,
   drawBeams,

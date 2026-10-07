@@ -1,4 +1,5 @@
 import type { Sfx, SfxCue } from '../game/state';
+import { boomerangFlight, boomerangReach } from '../game/boomerang';
 import { findWeapon, isProjectileWeapon, weaponOf } from '../weapons/registry';
 import { arp, midi, type Synth } from './chip';
 import type { Rank } from '../stats/ranks';
@@ -155,6 +156,24 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
     s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
   },
+  // kiwicore's berètta M2: the cap whup-whup-whupping round its loop (loud near him, faint far out), for as long as it flies.
+  'beretta-m2': (s, e) => {
+    const spec = weaponOf('beretta-m2', 'boomerang').boomerang;
+    const dur = boomerangFlight(spec, boomerangReach(spec, e.size ?? 50));
+    for (let t = 0; t < dur - 0.05; t += 0.11) {
+      const near = 0.4 + 0.6 * Math.abs(Math.cos((Math.PI * t) / dur));
+      s.tone({ at: t, dur: 0.07, from: 260, to: 520, wave: 'triangle', vol: 0.11 * near });
+    }
+  },
+  // kiwicore's stand-in shots (beta): plain pews, as garyoldmancorp's.
+  'kiwi-mortar': (s) => {
+    pew(s, 0, 1100, 160, 0.18);
+    s.noise({ dur: 0.12, rate: 0.45, vol: 0.16 });
+  },
+  'kiwi-bomb': (s) => {
+    s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
+    s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
+  },
   // Diced Coffee: ice rattling in the cup as the spinner starts.
   'diced-coffee': (s) => {
     for (let i = 0; i < 7; i++) s.tone({ at: i * 0.05, dur: 0.03, from: 2200 + ((i * 557) % 900), wave: 'triangle', vol: 0.08 });
@@ -230,6 +249,12 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.25, rate: 0.7, to: 0.2, vol: 0.18 });
     s.tone({ dur: 0.18, from: 900, to: 300, duty: 0.5, steps: 6, vol: 0.12 });
     s.tone({ at: 0.2, dur: 0.25, from: midi(88), wave: 'triangle', vibrato: [12, 30], vol: 0.08 });
+  },
+  // ---- berètta M2 (game/boomerang.ts). ----
+  // Caught! A thwap of cloth, and a cheery "ta-da".
+  catch: (s) => {
+    s.noise({ dur: 0.05, rate: 1.4, vol: 0.12 });
+    arp(s, [79, 84], 0.09, { at: 0.06, duty: 0.25, vol: 0.12, dur: 0.14 });
   },
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),

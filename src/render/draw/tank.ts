@@ -1,13 +1,14 @@
 import { getCharacter } from '../../characters/roster';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
-import { canPickDecoy, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre } from '../../game/game';
+import { canPickDecoy, capSpot, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre, wearsCap } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
+import { drawFlatCap } from './boomerang';
 import { drawJet } from './jetpack';
 
 /**
- * Tanks (and their hologram, twin and ghost copies), garyoldmancorp's scooter, the spew gush, the swap
+ * Tanks (and their hologram, twin and ghost copies; kiwicore's flat cap: boomerang.ts), garyoldmancorp's scooter, the spew gush, the swap
  * marker and the aim guide (the jetpack's charge and flame: jetpack.ts).
  */
 
@@ -115,6 +116,11 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
       ctx.lineTo(p.x + sx - 2.5, p.y + 1);
     }
     ctx.stroke();
+  }
+  if (wearsCap(state, owner)) {
+    // kiwicore's flat cap, peak the way he's aiming (off while his berètta M2 is flying).
+    const cap = capSpot(p);
+    drawFlatCap(ctx, cap.x, cap.y + 2, Math.cos((p.angle * Math.PI) / 180) >= 0 ? 1 : -1);
   }
   ctx.restore();
 

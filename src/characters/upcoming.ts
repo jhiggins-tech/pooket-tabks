@@ -27,15 +27,6 @@ export const UPCOMING: readonly Upcoming[] = [
       { slot: 'Passive', name: 'tank build' },
     ],
   },
-  {
-    id: 'kiwicore',
-    name: 'kiwicore',
-    colour: '#84cc16',
-    teasers: [
-      { slot: 'Tier 1', name: 'torpedo pass' },
-      { slot: 'Tier 2', name: 'throwdown' },
-    ],
-  },
   { id: 'odsey', name: 'odsey', colour: '#c084fc' },
   {
     id: 'lankcity',
