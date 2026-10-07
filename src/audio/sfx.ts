@@ -218,6 +218,24 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   steal: (s) => {
     arp(s, [71, 70, 69, 68, 67], 0.1, { duty: 0.125, vol: 0.13, dur: 0.05 });
   },
+  // garyoldmancorp's stand-in shots (beta): plain pews, bigger for the higher tiers.
+  'beta-shot': (s) => {
+    pew(s, 0, 1600, 300, 0.15);
+    s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });
+  },
+  'beta-mortar': (s) => {
+    pew(s, 0, 1100, 160, 0.18);
+    s.noise({ dur: 0.12, rate: 0.45, vol: 0.16 });
+  },
+  'beta-bomb': (s) => {
+    s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
+    s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
+  },
+  // Diced Coffee: ice rattling in the cup as the spinner starts.
+  'diced-coffee': (s) => {
+    for (let i = 0; i < 7; i++) s.tone({ at: i * 0.05, dur: 0.03, from: 2200 + ((i * 557) % 900), wave: 'triangle', vol: 0.08 });
+    s.tone({ at: 0.35, dur: 0.25, from: 300, to: 900, duty: 0.125, vol: 0.08 });
+  },
 };
 
 /** Per-round blips for burst weapons. */
@@ -283,6 +301,18 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.45, from: 180, to: 420, duty: 0.25, vibrato: [22, 25], vol: 0.12 });
     s.noise({ at: 0.05, dur: 0.35, rate: 0.4, to: 0.15, vol: 0.06 });
     s.tone({ at: 0.5, dur: 0.12, from: midi(72), to: midi(64), duty: 0.5, vol: 0.12 });
+  },
+  // Diced Coffee, lactose free: a big straw slurp, a gulp, and a perky "ahh!".
+  slurp: (s) => {
+    s.tone({ dur: 0.55, from: 160, to: 380, duty: 0.25, vibrato: [26, 30], vol: 0.12 });
+    s.noise({ dur: 0.5, rate: 0.35, to: 0.2, vol: 0.06 });
+    s.tone({ at: 0.6, dur: 0.1, from: midi(70), to: midi(62), duty: 0.5, vol: 0.12 });
+    arp(s, [79, 84, 88], 0.07, { at: 0.8, duty: 0.25, vol: 0.12 });
+  },
+  // Diced Coffee, full cream: a queasy wobble down, then a rumble.
+  spill: (s) => {
+    s.tone({ dur: 0.7, from: midi(67), to: midi(55), duty: 0.5, vibrato: [7, 14], vol: 0.13 });
+    s.noise({ at: 0.4, dur: 0.5, rate: 0.2, vol: 0.1 });
   },
   // Sad trombone: wah wah wah waaaah.
   dnf: (s) => {

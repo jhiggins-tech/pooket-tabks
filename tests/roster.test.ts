@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { AMMO_PER_TIER, assignColours, getCharacter, loadoutSummary, ROSTER } from '../src/characters/roster';
-import { getWeapon } from '../src/weapons/registry';
+import { getWeapon, isBonus } from '../src/weapons/registry';
 import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the six selectable characters', () => {
-    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
+  it('has the seven selectable characters (garyoldmancorp in beta)', () => {
+    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp']);
+  });
+
+  it("garyoldmancorp's beta loadout: three stand-in shots and Diced Coffee", () => {
+    expect(getCharacter('garyoldmancorp').loadout).toEqual(['beta-shot', 'beta-mortar', 'beta-bomb', 'diced-coffee']);
+    expect(['beta-shot', 'beta-mortar', 'beta-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'ballistic', 'ballistic']);
   });
 
   it('torikloud, larinovsky and ciarra have their own kits', () => {
@@ -18,7 +24,7 @@ describe('roster', () => {
   });
 
   it('upcoming characters are shown but never playable (not in the roster, nor a valid pick anywhere)', () => {
-    expect(UPCOMING.map((u) => u.name)).toEqual(['garyoldmancorp', 'shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']);
+    expect(UPCOMING.map((u) => u.name)).toEqual(['shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']);
     for (const u of UPCOMING) {
       expect(isCharacterId(u.id)).toBe(false);
       expect(() => getCharacter(u.id)).toThrow();
@@ -30,7 +36,7 @@ describe('roster', () => {
       { slot: 'Tier 1', name: 'torpedo pass' },
       { slot: 'Tier 2', name: 'throwdown' },
     ]);
-    expect(upcoming('garyoldmancorp')!.teasers!.map((t) => t.slot)).toEqual(['Tier 2', 'Tier 3', 'Bonus action']);
+    expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now (beta)
     expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
     expect(upcoming('shotdownboyz')!.teasers!.map((t) => t.name)).toEqual(['summon digger', 'neurodiverge', 'tank build']);
     expect(upcoming('odsey')!.teasers).toBeUndefined();
@@ -44,7 +50,7 @@ describe('roster', () => {
     for (const c of ROSTER) {
       expect([3, 4]).toContain(c.loadout.length);
       for (const id of c.loadout) expect(() => getWeapon(id)).not.toThrow();
-      c.loadout.forEach((id, tier) => expect(getWeapon(id).kind === 'scam').toBe(tier === 3));
+      c.loadout.forEach((id, tier) => expect(isBonus(getWeapon(id))).toBe(tier === 3));
     }
   });
 

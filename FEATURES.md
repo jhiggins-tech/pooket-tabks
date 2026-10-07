@@ -13,6 +13,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
+- garyoldmancorp's real moves, to replace the beta stand-ins: the teasers were tier 2 kamp karl, tier 3
+  the crinkler and a bonus action, stop the violence (Diced Coffee took the bonus slot; owner to decide).
 
 ## Shipped
 
@@ -174,6 +176,18 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **garyoldmancorp, in beta** (owner, 7 Oct; rules 17). Playable (off the Coming soon list), marked Beta in
+  the pickers ("(beta)") and on his info page (`CharacterDef.beta`). His real move so far is the bonus move
+  **Diced Coffee** (`game/coffee.ts`, kind `coffee`): FIRE spins an on-screen wheel, a "full cream" slice
+  (the chance it fails) and "lactose free" the rest, decided up front from the seeded RNG. Lactose free:
+  the tank drinks a little iced coffee (`assets/sprites/iced-coffee.svg`, `render/draw/coffee.ts`) and the
+  enemy's next turn is skipped, so he goes twice in a row (☕ badge). Full cream: a small ten-2 straight up
+  (the weapon's own jetpack, harmless cream for exhaust) and Diced Coffee is greyed out for the match. It
+  starts at 10% to fail, +10% after every win; once a turn, as many turns as it keeps winning. The turn
+  carries on after it (a bonus move). It isn't a shot: with only Diced Coffee left a player has nothing to
+  fire and sits out. Tiers 1–3 are stand-ins, single ballistic shells: Beta Shot (30), Beta Mortar (45),
+  Beta Bomb (70). The earlier teasers (tier 2 kamp karl, tier 3 the crinkler, bonus action stop the
+  violence) are off the game for now; see the Backlog.
 - **Rank-up jingles, a tune each** (owner, 4 Oct). Every rank's jingle is its own short score
   (`src/stats/ranks.ts` `jingle`, in the notation of `src/audio/score.ts`: notes, rests, chords, slides,
   drums), not an arpeggio moved up or down. They build up the ladder: the lowest ranks are a lone tune, then
@@ -404,4 +418,5 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
+| **garyoldmancorp** (beta) | Beta Shot: stand-in shell, 30 | Beta Mortar: stand-in shell, 45 | Beta Bomb: stand-in shell, 70. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up and it's gone |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

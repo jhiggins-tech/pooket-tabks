@@ -202,6 +202,13 @@ select option {
 .weapon.yolk .wname {
   color: #ffcf33;
 }
+/* garyoldmancorp's Diced Coffee: the note is the odds of full cream (or spilt / had one). */
+.weapon.coffee .wname {
+  color: #e7c39a;
+}
+.weapon.coffee .pips.bonus {
+  color: #e7c39a;
+}
 .weapon .pips.bonus {
   font-size: 9px;
   font-weight: 800;
@@ -751,6 +758,127 @@ button.big {
 @media (max-height: 340px) {
   #heist { top: 10%; padding: 8px 12px 10px; gap: 6px; }
   .heist-card { width: 90px; height: 50px; }
+}
+
+/* ---------- Diced Coffee spinner ---------- */
+#coffee {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px 12px;
+  border-radius: 18px;
+  background: rgba(8, 11, 26, 0.86);
+  border: 2px solid var(--drinker);
+  z-index: 5;
+}
+#coffee[hidden] {
+  display: none;
+}
+#coffee.won {
+  border-color: #6ee7a0;
+  animation: heist-lock 0.5s ease-out;
+}
+#coffee.spilt {
+  border-color: #fff4dc;
+  animation: heist-lock 0.5s ease-out;
+}
+.coffee-title {
+  margin: 0;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.coffee-title b {
+  font-weight: 900;
+}
+.coffee-dial {
+  position: relative;
+  width: 140px;
+  height: 140px;
+}
+/* The wheel: full cream from the top, clockwise, for --full; lactose free the rest. */
+#coffee-wheel {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: conic-gradient(#fff4dc 0 var(--full), #7a4a24 var(--full) 360deg);
+  box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
+}
+#coffee-wheel::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #3b2412;
+}
+/* A slice's label: from near the middle, out along the slice. */
+.coffee-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  padding-left: 11px;
+  transform-origin: 0 50%;
+  font-size: 10px;
+  line-height: 11px;
+  font-weight: 900;
+  white-space: pre;
+  text-align: center;
+}
+.coffee-label > span {
+  display: inline-block;
+}
+.coffee-label.flip > span {
+  transform: rotate(180deg);
+}
+.coffee-label.full {
+  color: #5a3a1c;
+}
+.coffee-label.free {
+  color: #f4e3c8;
+}
+.coffee-pointer {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 0;
+  height: 0;
+  margin-left: -9px;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 16px solid var(--drinker);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.6));
+}
+.coffee-result {
+  margin: 0;
+  min-height: 18px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--drinker);
+}
+#coffee.won .coffee-result {
+  color: #6ee7a0;
+}
+#coffee.spilt .coffee-result {
+  color: #fff4dc;
+}
+.coffee-result.rolling {
+  letter-spacing: 6px;
+  animation: heist-dots 0.6s steps(2) infinite;
+}
+@media (max-height: 340px) {
+  #coffee { top: 6%; padding: 6px 14px 8px; gap: 5px; }
+  .coffee-dial { width: 116px; height: 116px; }
+  .coffee-label { font-size: 9px; line-height: 10px; padding-left: 9px; }
 }
 
 /* ---------- Online (two phones, through a Firebase room) ---------- */
@@ -1706,6 +1834,18 @@ body[data-online='true'] #net-menu {
   text-transform: uppercase;
   transform: rotate(-2deg);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+/* A playable character that isn't finished (stand-in moves). */
+.beta-banner {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px dashed var(--c, #f3f5ff);
+  color: var(--c, #f3f5ff);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .seat-card .coming-soon-banner {
   align-self: center;

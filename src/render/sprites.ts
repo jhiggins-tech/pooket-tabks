@@ -1,3 +1,4 @@
+import icedCoffeeUrl from '../assets/sprites/iced-coffee.svg';
 import iceCreamConeUrl from '../assets/sprites/ice-cream-cone.svg';
 import pillUrl from '../assets/sprites/pill.svg';
 import pillBlueUrl from '../assets/sprites/pill-blue.svg';
@@ -35,6 +36,8 @@ const SPRITES: Record<SpriteId, SpriteDef> = {
   // Take a Nap's cats (not a weapon, but drawn the same way).
   'cat-ginger': { url: catGingerUrl, width: 20, height: 12 },
   'cat-grey': { url: catGreyUrl, width: 20, height: 12 },
+  // Diced Coffee's drink (upright, held by the tank: not a projectile).
+  'iced-coffee': { url: icedCoffeeUrl, width: 10, height: 15 },
 };
 
 export interface LoadedSprite extends SpriteDef {

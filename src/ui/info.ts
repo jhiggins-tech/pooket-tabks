@@ -1,6 +1,6 @@
 import { AMMO_PER_TIER, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
 import { upcoming, UPCOMING, type Upcoming } from '../characters/upcoming';
-import { getWeapon, ignoresAim, isBonus } from '../weapons/registry';
+import { getWeapon, ignoresAim, isBonus, kindOf } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { MAX_HP } from '../game/constants';
 import { el } from './dom';
@@ -17,23 +17,24 @@ export function movementInfo(c: CharacterDef): { label: string; text: string } {
 /** Little tags for a weapon card: rounds, and whether it needs aiming. */
 export function weaponTags(w: WeaponDef, tier: number): string[] {
   const rounds = AMMO_PER_TIER[tier] ?? 1;
-  if (isBonus(w)) return ['Bonus move', 'Once a match', 'No aiming'];
+  if (isBonus(w)) return ['Bonus move', kindOf(w) === 'coffee' ? 'Once a turn' : 'Once a match', 'No aiming'];
   return [`Tier ${tier + 1}`, `${rounds} round${rounds === 1 ? '' : 's'}`, ignoresAim(w) ? 'No aiming' : 'Aimed'];
 }
 
 const CONTROLS: [string, string][] = [
   ['Aim', 'Drag anywhere and pull back like a slingshot: the direction is your shot, the pull length is power. Fine-tune with ↺ ↻ and − +.'],
-  ['Weapons', 'Pick a tier on the right. Each character has 5 / 3 / 1 rounds of their tier 1 / 2 / 3 weapon (larinovsky also has a once-a-match bonus move).'],
+  ['Weapons', 'Pick a tier on the right. Each character has 5 / 3 / 1 rounds of their tier 1 / 2 / 3 weapon (larinovsky and garyoldmancorp also have a bonus move).'],
   ['Move', 'Hold ◀ ▶ before you fire. The fuel is one tank for the whole match, so spend it wisely.'],
   ['Fire', 'FIRE ends your turn (except a bonus move). Last tank standing wins; if everyone runs out of ammo, most HP wins.'],
 ];
 
 const STATUSES: [string, string][] = [
-  ['✦', 'Burning (Hyperfixate): takes damage at the start of each of their next turns.'],
+  ['✦', 'Burning (Hyperfixate): takes damage at the start of each of the next 3 turns, anyone’s.'],
   ['🍳', 'Cooked (the Rizzler): everything they fire next turn does half damage.'],
   ['✒', 'Tattooed (Tattoo Gun): takes +25% damage from everything for 2 turns.'],
   ['📌', 'Pinned (Sew): can’t move on their next turn.'],
   ['💅', 'Scamming (Women in Scam): an enemy attack that hits them this coming turn earns them a round of it.'],
+  ['☕', 'Caffeinated (Diced Coffee): goes again after this turn; the enemy’s next turn is skipped.'],
 ];
 
 /** The in-game info screen: how to play, and what every character's weapons do. */
@@ -147,7 +148,7 @@ export function comingSoon(u: Upcoming): HTMLElement[] {
  * which can be picked to look at but not played.
  */
 export function addCharacterOptions(select: HTMLSelectElement, selected: string): void {
-  for (const c of ROSTER) select.add(new Option(c.name, c.id, false, c.id === selected));
+  for (const c of ROSTER) select.add(new Option(c.beta ? `${c.name} (beta)` : c.name, c.id, false, c.id === selected));
   const group = el('optgroup');
   group.label = 'Coming soon';
   for (const u of UPCOMING) group.append(new Option(`${u.name} (soon)`, u.id, false, u.id === selected));
@@ -170,7 +171,7 @@ export function characterDetails(c: CharacterDef, colour: string): HTMLElement[]
   const health = el('p', 'info-move info-health');
   const hp = c.maxHp ?? MAX_HP;
   health.append(Object.assign(el('b'), { textContent: 'Health' }), ` · ${hp}${hp > MAX_HP ? ` (most start with ${MAX_HP})` : ''}`);
-  header.append(name, blurb, moves, health);
+  header.append(name, ...(c.beta ? [el('span', 'beta-banner', 'Beta: stand-in moves for now')] : []), blurb, moves, health);
 
   const cards = el('div', 'info-cards');
   cards.style.setProperty('--c', colour);

@@ -61,6 +61,12 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
       b.weaponId ??= '';
     }
   }
+  // Rules 17: Diced Coffee (garyoldmancorp): the spinner, and each player's coffee and extra turn.
+  snap.coffee ??= null;
+  for (const p of (snap.players as { coffee?: unknown; extraTurn?: boolean }[] | undefined) ?? []) {
+    p.coffee ??= null;
+    p.extraTurn ??= false;
+  }
   return snap;
 }
 

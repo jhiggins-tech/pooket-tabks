@@ -2,7 +2,7 @@ import type { DictionaryId } from './dictionaries';
 import type { WeaponKind } from './kinds';
 
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle' | 'cat-ginger' | 'cat-grey';
+export type SpriteId = 'iced-coffee' | 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle' | 'cat-ginger' | 'cat-grey';
 
 /** How a weapon is delivered: see the table in kinds.ts. */
 export type { WeaponKind } from './kinds';
@@ -95,6 +95,17 @@ export interface StreamSpec {
    */
   spray?: number;
   speedSpread?: number;
+}
+
+/**
+ * Diced Coffee: a bonus move with a spinner. It fails (lands on full cream) `failChance` of the time, and
+ * `failStep` more after each win. A win (lactose free): the drinker goes again after this turn, the next
+ * enemy turn skipped. A fail: a little ten-2 straight up (the weapon's `jetpack` and `gunk`), and it's
+ * gone for the match. Once a turn.
+ */
+export interface CoffeeSpec {
+  failChance: number;
+  failStep: number;
 }
 
 /** What every weapon has, whatever its kind. */
@@ -226,6 +237,8 @@ export type WeaponDef = WeaponBase &
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }
+    /** The spinner's odds, and the little jetpack (and its gunk) of a spill. */
+    | { kind: 'coffee'; coffee: CoffeeSpec; jetpack: JetpackSpec; gunk: GunkSpec }
   );
 
 /** The weapons of one kind (with that kind's spec). */

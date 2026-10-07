@@ -18,16 +18,6 @@ export interface Teaser {
 
 export const UPCOMING: readonly Upcoming[] = [
   {
-    id: 'garyoldmancorp',
-    name: 'garyoldmancorp',
-    colour: '#cbd5e1',
-    teasers: [
-      { slot: 'Tier 2', name: 'kamp karl' },
-      { slot: 'Tier 3', name: 'the crinkler' },
-      { slot: 'Bonus action', name: 'stop the violence' },
-    ],
-  },
-  {
     id: 'shotdownboyz',
     name: 'shotdownboyz',
     colour: '#f87171',

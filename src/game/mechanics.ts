@@ -10,6 +10,7 @@ import { fireSew, stitchStepper } from './sew';
 import { boomStepper, fireSonic } from './sonic';
 import type { GameState, Player } from './state';
 import { armScam } from './scam';
+import { startCoffee } from './coffee';
 import { startHeist } from './steal';
 import { dropletStepper, fireStream, streamStepper } from './stream';
 import { soakStepper } from './tanks';
@@ -42,6 +43,7 @@ export type FreeActionFn = (state: GameState, p: Player, tier: number) => boolea
 export const FREE_ACTIONS: Record<Exclude<WeaponKind, ShotKind>, FreeActionFn> = {
   steal: startHeist,
   scam: armScam,
+  coffee: startCoffee,
 };
 
 /** How each kind of shot goes off (each given a weapon of its kind: see `fireShot`). */

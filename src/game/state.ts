@@ -74,6 +74,10 @@ export interface Player extends TankBody {
   fuel: number;
   /** Women in Scam in play: until the end of the next enemy turn; `loot` is the weapon of the first enemy hit on this tank. */
   scam: { loot: string | null } | null;
+  /** Diced Coffee: the chance it fails next time, and the turn it was last drunk (it's once a turn). Null: never drunk. */
+  coffee: { failChance: number; turn: number } | null;
+  /** Diced Coffee won this turn: when it ends, this player goes again (the next enemy turn is skipped). */
+  extraTurn: boolean;
 }
 
 /** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
@@ -295,6 +299,9 @@ export interface Jet {
   flightTime: number;
   /** Launch direction (radians), for drawing the flame. */
   heading: number;
+  /** Launch along this angle and power instead of the player's aim (a spilt Diced Coffee goes straight up). */
+  angle?: number;
+  power?: number;
 }
 
 /** A series of rounds being fired one after another (Pill Pusher). */
@@ -441,6 +448,8 @@ export type SfxCue =
   | 'lock-on'
   | 'splashback'
   | 'yolk'
+  | 'slurp'
+  | 'spill'
   | 'gameover';
 
 export interface Sfx {
@@ -451,8 +460,29 @@ export interface Sfx {
   size?: number;
 }
 
-/** `stealing`: kie's Steal roulette is spinning; the turn carries on (back to `aiming`) once it lands. */
-export type Phase = 'aiming' | 'stealing' | 'flying' | 'settling' | 'gameover';
+/**
+ * `stealing`: kie's Steal roulette is spinning; `coffee`: the Diced Coffee spinner is spinning, then
+ * the drink (or the spill) plays out. Either way the turn carries on (back to `aiming`) afterwards.
+ */
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'flying' | 'settling' | 'gameover';
+
+/**
+ * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
+ * spinning to a stop under the pointer. The result is decided up front (seeded); the spin is the suspense.
+ */
+export interface CoffeeSpin {
+  playerId: number;
+  tier: number;
+  weaponId: string;
+  /** The full cream slice: the chance it fails, as it was when spun. */
+  failChance: number;
+  fail: boolean;
+  /** Where the pointer ends up, as a fraction of the way round the wheel (full cream is 0 to `failChance`). */
+  stop: number;
+  t: number;
+  /** Set once the wheel has stopped and the result has taken effect. */
+  landed: boolean;
+}
 
 /**
  * kie's Steal: a slot-machine roulette over the victim's weapons that slows down and lands on the one
@@ -493,6 +523,8 @@ export interface GameState {
   phase: Phase;
   /** kie's Steal roulette, while it spins. */
   heist: Heist | null;
+  /** Diced Coffee's spinner, while it spins and the drink (or spill) plays out. */
+  coffee: CoffeeSpin | null;
   /** Sound cues since the audio layer last drained them (capped). */
   sfx: Sfx[];
   /** Weapons whose walker chiptune is playing (cosmetic). */

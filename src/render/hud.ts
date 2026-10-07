@@ -1,7 +1,7 @@
 import { FUEL_PER_MATCH } from '../game/constants';
-import { isBonus, weaponOf } from '../weapons/registry';
+import { isBonus, jetSpec } from '../weapons/registry';
 import { AMMO_PER_TIER } from '../characters/roster';
-import { aimedTank, canSuckYolk, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, jetCharge, pendingTwinSpot, weaponForTier, YOLK_SUCKER, yolkTier } from '../game/game';
+import { aimedTank, canDrinkCoffee, canSuckYolk, coffeeFailChance, coffeeSpun, currentPlayer, decoyPickLeft, heistIndex, hologramsOf, isAimless, isCoffee, jetCharge, pendingTwinSpot, weaponForTier, YOLK_SUCKER, yolkTier } from '../game/game';
 import { getCharacter } from '../characters/roster';
 import { getWeapon } from '../weapons/registry';
 import type { Rank } from '../stats/ranks';
@@ -38,8 +38,12 @@ export class Hud {
   private ranks: (Rank | null)[] = [];
   private readonly winnerEl = byId('winner');
   private readonly heistEl = byId('heist');
+  private readonly coffeeEl = byId('coffee');
+  private readonly wheelEl = byId('coffee-wheel');
+  /** The spinner's slice labels, with where each points from the middle (degrees clockwise from the top). */
+  private wheelLabels: { el: HTMLElement; mid: number }[] = [];
   /** The last key each part was drawn for. */
-  private readonly keys = { readouts: '', status: '', chips: '', chipsShape: '', weapons: '', heist: '', turn: '' };
+  private readonly keys = { readouts: '', status: '', chips: '', chipsShape: '', weapons: '', heist: '', coffee: '', wheel: '', turn: '' };
   /** The name chips, kept between updates (rebuilt when the players or their number of bars change). */
   private chips: { el: HTMLElement; fills: HTMLElement[]; badges: HTMLElement; badgeKey: string }[] = [];
   /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
@@ -55,6 +59,7 @@ export class Hud {
     this.updateChips(state, p);
     this.updateWeapons(state, p);
     this.updateHeist(state);
+    this.updateCoffee(state);
     this.updateTurn(state, p);
   }
 
@@ -113,8 +118,10 @@ export class Hud {
       ? 'Syncing…'
       : remote && state.phase !== 'gameover'
       ? `${p.name} is ${state.phase === 'aiming' ? 'aiming' : 'firing'}…`
-      : state.phase === 'stealing'
+      : state.phase === 'stealing' || state.phase === 'coffee'
       ? ''
+      : isCoffee(p, p.selectedTier)
+      ? `Diced Coffee: ${Math.round(coffeeFailChance(p, p.selectedTier) * 100)}% full cream · FIRE to spin, then take your turn`
       : picking !== null
       ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
@@ -136,7 +143,9 @@ export class Hud {
     const done = picking !== null && !remote;
     this.fireEl.textContent = done ? 'DONE' : 'FIRE';
     const yolk = p.selectedTier === yolkTier(p);
-    this.fireEl.disabled = !done && (state.phase !== 'aiming' || (yolk ? !canSuckYolk(p) : (p.ammo[p.selectedTier] ?? 0) <= 0));
+    const coffee = isCoffee(p, p.selectedTier);
+    this.fireEl.disabled =
+      !done && (state.phase !== 'aiming' || (yolk ? !canSuckYolk(p) : coffee ? !canDrinkCoffee(state, p, p.selectedTier) : (p.ammo[p.selectedTier] ?? 0) <= 0));
   }
 
   /** A chip per player: name, status badges, and one health bar (two once Twins has split it). */
@@ -195,7 +204,7 @@ export class Hud {
   /** The weapon buttons: rebuilt only when the loadout, rounds, selection or phase change. */
   private updateWeapons(state: GameState, p: Player): void {
     const yolk = yolkTier(p);
-    const key = `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}|${yolk}|${canSuckYolk(p)}`;
+    const key = `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}|${yolk}|${canSuckYolk(p)}|${state.turn}|${p.coffee?.turn}|${p.coffee?.failChance}`;
     if (key === this.keys.weapons) return;
     this.keys.weapons = key;
     this.weaponsEl.replaceChildren(
@@ -220,6 +229,22 @@ export class Hud {
           const note = document.createElement('span');
           note.className = 'pips bonus';
           note.textContent = ok ? 'bonus' : 'even';
+          btn.append(name, note);
+          return btn;
+        }
+        if (isCoffee(p, tier)) {
+          // Diced Coffee: once a turn until it spills; the note says the odds (or why not).
+          const ok = canDrinkCoffee(state, p, tier);
+          const risk = `${Math.round(coffeeFailChance(p, tier) * 100)}%`;
+          const why = left <= 0 ? 'spilt' : ok ? `${risk} risk` : 'had one';
+          btn.classList.add('coffee');
+          btn.disabled = !ok || state.phase !== 'aiming';
+          btn.setAttribute('aria-label', `${w.name}, bonus move: ${left <= 0 ? 'spilt' : ok ? `${risk} chance of full cream` : 'one a turn'}`);
+          name.textContent = w.shortName;
+          name.classList.add('long');
+          const note = document.createElement('span');
+          note.className = 'pips bonus';
+          note.textContent = why;
           btn.append(name, note);
           return btn;
         }
@@ -300,6 +325,53 @@ export class Hud {
     result!.classList.toggle('rolling', !h.locked);
   }
 
+  /**
+   * Diced Coffee's spinner: a wheel (full cream slice, lactose free the rest) turning under a fixed
+   * pointer and easing to a stop, then the result. Built when a spin starts; turned every frame.
+   */
+  private updateCoffee(state: GameState): void {
+    const c = state.coffee;
+    const key = c ? `${c.playerId}|${c.failChance}|${c.landed}` : '';
+    if (key !== this.keys.coffee) {
+      this.keys.coffee = key;
+      this.coffeeEl.hidden = !c;
+      if (!c) return;
+      const p = state.players[c.playerId]!;
+      const full = c.failChance * 360;
+      this.coffeeEl.style.setProperty('--drinker', p.colour);
+      this.coffeeEl.style.setProperty('--full', `${full}deg`);
+      this.coffeeEl.classList.toggle('landed', c.landed);
+      this.coffeeEl.classList.toggle('won', c.landed && !c.fail);
+      this.coffeeEl.classList.toggle('spilt', c.landed && c.fail);
+      const [title, , result] = [...this.coffeeEl.children] as HTMLElement[];
+      title!.replaceChildren(name(p.name, p.colour), ' orders a Diced Coffee…');
+      // Each slice's label runs out from the middle along the slice.
+      const label = (text: string, cls: string, mid: number) => {
+        const el = document.createElement('span');
+        el.className = `coffee-label ${cls}`;
+        const words = document.createElement('span');
+        words.textContent = text;
+        el.append(words);
+        el.style.transform = `translateY(-50%) rotate(${mid - 90}deg)`;
+        return { el, mid };
+      };
+      this.wheelLabels = [label('full cream', 'full', full / 2), label('lactose\nfree', 'free', full + (360 - full) / 2)];
+      this.wheelEl.replaceChildren(...this.wheelLabels.map((l) => l.el));
+      this.keys.wheel = ''; // new labels: turn their words over below if need be
+      result!.textContent = !c.landed ? '• • •' : c.fail ? 'Full cream… 🥛 it’s all over the place' : 'Lactose free! ☕ Go again';
+      result!.classList.toggle('rolling', !c.landed);
+    }
+    if (!c) return;
+    const spun = coffeeSpun(c) * 360;
+    const turn = `rotate(${(-spun).toFixed(1)}deg)`;
+    if (turn !== this.keys.wheel) {
+      this.keys.wheel = turn;
+      this.wheelEl.style.transform = turn;
+      // A label turned round to point left would read upside down: turn its words over.
+      for (const l of this.wheelLabels) l.el.classList.toggle('flip', Math.cos(((l.mid - 90 - spun) * Math.PI) / 180) < 0);
+    }
+  }
+
   reset(): void {
     for (const k of Object.keys(this.keys) as (keyof Hud['keys'])[]) this.keys[k] = '';
   }
@@ -310,7 +382,7 @@ function jetCountdown(state: GameState): number | null {
   const p = currentPlayer(state);
   const jet = state.jets.find((j) => j.playerId === p.id);
   if (jetCharge(state, p.id) === null || !jet) return null;
-  return Math.max(1, Math.ceil(weaponOf(jet.weaponId, 'jetpack').jetpack.chargeTime - jet.elapsed));
+  return Math.max(1, Math.ceil(jetSpec(jet.weaponId).chargeTime - jet.elapsed));
 }
 
 /**
@@ -335,6 +407,7 @@ const BADGES: { cls: string; of: (pl: Player) => { text: string; title: string; 
   { cls: 'tattoo', of: (pl) => (pl.tattoo ? [{ text: ' ✒', title: 'Tattooed: takes extra damage' }] : []) },
   { cls: 'scam', of: (pl) => (pl.scam ? [{ text: ' 💅', title: 'Women in Scam: an enemy hit this turn earns a round of it' }] : []) },
   { cls: 'pinned', of: (pl) => (pl.pinned ? [{ text: ' 📌', title: 'Pinned: can’t move next turn' }] : []) },
+  { cls: 'again', of: (pl) => (pl.extraTurn ? [{ text: ' ☕', title: 'Diced Coffee: goes again after this turn' }] : []) },
   {
     cls: 'cooked',
     of: (pl) => (pl.cooked ? [{ text: ' 🍳', title: pl.cooked.active ? 'Cooked: half damage this turn' : 'Cooked: half damage next turn' }] : []),
@@ -352,7 +425,7 @@ const BADGES: { cls: string; of: (pl: Player) => { text: string; title: string; 
 /** What a player's badges show (for telling when they've changed), without building them. */
 function badgeKey(pl: Player): string {
   if (!pl.alive) return '';
-  return `${pl.tattoo ? 't' : ''}${pl.scam ? 's' : ''}${pl.pinned ? 'p' : ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}${pl.burn?.turnsLeft ?? ''}/${pl.twin?.burn?.turnsLeft ?? ''}`;
+  return `${pl.tattoo ? 't' : ''}${pl.scam ? 's' : ''}${pl.pinned ? 'p' : ''}${pl.extraTurn ? 'x' : ''}${pl.cooked ? (pl.cooked.active ? 'C' : 'c') : ''}${pl.burn?.turnsLeft ?? ''}/${pl.twin?.burn?.turnsLeft ?? ''}`;
 }
 
 function badgesOf(pl: Player): HTMLElement[] {

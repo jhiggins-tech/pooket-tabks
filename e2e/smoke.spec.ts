@@ -22,8 +22,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky']);
-  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(6);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp (beta)']);
+  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(5);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
   await expect(p1Name).toHaveValue('tones2');
@@ -510,6 +510,72 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   expect(errors).toEqual([]);
 });
 
+test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up and it's gone", async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('./?seed=777&debug');
+  await page.locator('#open-hotseat').tap();
+  await page.getByLabel('Player 1 character').selectOption('garyoldmancorp');
+  await page.getByLabel('Player 2 character').selectOption('kcaj');
+  await page.locator('#start').tap();
+  type CoffeeDbg = {
+    __pooket: { state: { current: number; phase: string; rng: (() => number) & { state: number }; players: { angle: number; power: number; y: number; extraTurn: boolean }[] } };
+  };
+  // The spinner's two draws (whether it fails, where it stops): `v`, then the game's own RNG again.
+  const rig = (v: number) =>
+    page.evaluate((v) => {
+      const s = (window as unknown as CoffeeDbg).__pooket.state;
+      const real = s.rng;
+      let left = 2;
+      s.rng = Object.assign(() => (left-- > 0 ? v : real()), { state: real.state });
+    }, v);
+  const weapons = page.locator('#weapons .weapon');
+  const coffee = weapons.nth(3);
+  await expect(coffee).toHaveAttribute('aria-label', 'Diced Coffee, bonus move: 10% chance of full cream');
+  await coffee.tap();
+  await expect(page.locator('#hint')).toHaveText('Diced Coffee: 10% full cream · FIRE to spin, then take your turn');
+
+  // Lactose free: the wheel spins, the tank drinks, and it's still gary's turn (with another to come).
+  await rig(0.9);
+  await page.locator('#fire').tap();
+  await expect(page.locator('#coffee')).toBeVisible();
+  await expect(page.locator('.coffee-label')).toHaveText(['full cream', 'lactose free']);
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: 'test-results/diced-coffee-spinner.png' });
+  await expect(page.locator('.coffee-result')).toHaveText('Lactose free! ☕ Go again', { timeout: 5_000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'test-results/diced-coffee-drink.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-phase', 'aiming', { timeout: 5_000 });
+  await expect(page.locator('#coffee')).toBeHidden();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '1');
+  await expect(page.locator('#players .again')).toHaveCount(1);
+  await expect(coffee).toBeDisabled(); // once a turn
+  await expect(coffee.locator('.pips')).toHaveText('had one');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
+  // Fire a shot: kcaj's turn is skipped.
+  await page.evaluate(() => Object.assign((window as unknown as CoffeeDbg).__pooket.state.players[0]!, { angle: 90, power: 5 }));
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  expect(await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.current)).toBe(0);
+  await expect(page.locator('#turn-banner')).toHaveText("garyoldmancorp's turn");
+  await expect(coffee).toHaveAttribute('aria-label', 'Diced Coffee, bonus move: 20% chance of full cream');
+
+  // Full cream: a little jetpack straight up, and Diced Coffee is spilt for good.
+  await coffee.tap();
+  await rig(0);
+  const ground = await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.players[0]!.y);
+  await page.locator('#fire').tap();
+  await expect(page.locator('.coffee-result')).toHaveText('Full cream… 🥛 it’s all over the place', { timeout: 5_000 });
+  await expect.poll(() => page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.players[0]!.y), { timeout: 5_000 }).toBeLessThan(ground - 40);
+  await page.screenshot({ path: 'test-results/diced-coffee-spill.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-phase', 'aiming', { timeout: 10_000 });
+  await expect(coffee).toBeDisabled();
+  await expect(coffee.locator('.pips')).toHaveText('spilt');
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2');
+  expect(errors).toEqual([]);
+});
+
 test("torikloud's Twins and Debate", async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
@@ -657,7 +723,7 @@ test('info screen explains every character and weapon', async ({ page }) => {
   expect(frozen).not.toBe('[]');
   await page.waitForTimeout(400);
   expect(await shots()).toBe(frozen);
-  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the six, and six coming soon
+  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the seven, and five coming soon
   for (const [name, weapon] of [['tones2', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
@@ -690,7 +756,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
 
   // The info screen: a tab each, with the banner.
   await page.locator('#hotseat-info').tap();
-  for (const name of ['garyoldmancorp', 'shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']) {
+  for (const name of ['shotdownboyz', 'kiwicore', 'odsey', 'lankcity', 'doctorfox']) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.coming-soon h2')).toHaveText(name);
     await expect(page.locator('.coming-soon .coming-soon-banner')).toHaveText('Coming soon');
@@ -701,9 +767,14 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['torpedo pass', 'throwdown']);
   await expect(page.locator('.coming-soon-cards .info-tags')).toHaveText(['Tier 1', 'Tier 2']);
   await expect(page.locator('.coming-soon-wip')).toContainText('subject to change');
-  await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
-  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['kamp karl', 'the crinkler', 'stop the violence']);
+  await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
+  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['summon digger', 'neurodiverge', 'tank build']);
   await page.screenshot({ path: 'test-results/coming-soon-teasers.png' });
+  // garyoldmancorp is playable now, in beta.
+  await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
+  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Mortar', 'Beta Bomb', 'Diced Coffee']);
+  await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   expect(errors).toEqual([]);
 });
 

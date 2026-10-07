@@ -1,5 +1,5 @@
 import { randRange } from '../core/rng';
-import { weaponOf } from '../weapons/registry';
+import { jetSpec } from '../weapons/registry';
 import type { WeaponDef } from '../weapons/types';
 import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust } from './fx';
@@ -8,7 +8,7 @@ import type { GameState, Jet, Player } from './state';
 import { someTankBody } from './tanks';
 import { hash } from './util';
 
-/** tones' ten-2: the charge, the flight and the landing. */
+/** tones' ten-2 (and a spilt Diced Coffee, a little one straight up): the charge, the flight and the landing. */
 
 /** Radius of the circle used for a flying tank's collisions (centred on the body). */
 const JET_BODY_RADIUS = 7.5;
@@ -19,7 +19,7 @@ const JET_MAX_FLIGHT = 8; // s
 export function jetCharge(state: GameState, playerId: number): number | null {
   const j = state.jets.find((x) => x.playerId === playerId);
   if (!j || j.launched) return null;
-  return Math.min(1, j.elapsed / weaponOf(j.weaponId, 'jetpack').jetpack.chargeTime);
+  return Math.min(1, j.elapsed / jetSpec(j.weaponId).chargeTime);
 }
 
 function jetBodyHits(state: GameState, x: number, y: number, self: Player): boolean {
@@ -34,7 +34,7 @@ function jetBodyHits(state: GameState, x: number, y: number, self: Player): bool
 /** Charge, launch, fly, land. Returns true once the tank has landed. */
 export function stepJet(state: GameState, j: Jet, dt: number): boolean {
   const p = state.players[j.playerId]!;
-  const spec = weaponOf(j.weaponId, 'jetpack').jetpack;
+  const spec = jetSpec(j.weaponId);
   const { terrain } = state;
   j.elapsed += dt;
 
@@ -45,8 +45,8 @@ export function stepJet(state: GameState, j: Jet, dt: number): boolean {
       if (hash(j.elapsed * 97.13) < k * k * 0.6) spawnDust(state, p.x, p.y, k);
       return false;
     }
-    const a = (p.angle * Math.PI) / 180;
-    const speed = (p.power / 100) * MAX_SPEED * spec.thrust;
+    const a = ((j.angle ?? p.angle) * Math.PI) / 180;
+    const speed = ((j.power ?? p.power) / 100) * MAX_SPEED * spec.thrust;
     j.vx = Math.cos(a) * speed;
     j.vy = -Math.sin(a) * speed;
     j.heading = a;

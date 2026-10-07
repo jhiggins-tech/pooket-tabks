@@ -1,6 +1,7 @@
 import type { Terrain } from '../core/terrain';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
+import { drawCoffee } from './draw/coffee';
 import { drawGhosts, drawHologramBlasts } from './draw/copies';
 import { drawExplosions, drawFloaters } from './draw/fx';
 import { drawPuddles, drawSludge } from './draw/gunk';
@@ -28,6 +29,7 @@ const LAYERS: Layer[] = [
   drawPuddles,
   drawSludge, // behind the tanks so the jet flame stays visible
   drawTanks,
+  drawCoffee,
   drawNapCats,
   drawGhosts,
   drawAim,

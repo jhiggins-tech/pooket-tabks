@@ -1,6 +1,6 @@
 import { KITS } from '../characters/kits';
 import { KINDS, type WeaponKind } from './kinds';
-import type { WeaponDef, WeaponOf } from './types';
+import type { JetpackSpec, WeaponDef, WeaponOf } from './types';
 
 export const shell = {
   id: 'shell',
@@ -48,8 +48,15 @@ export function isProjectileWeapon(w: WeaponDef): w is WeaponOf<'ballistic' | 'r
   return k === 'ballistic' || k === 'rain';
 }
 
-/** A weapon that throws gunk (jetpack propellant, spew chunks). */
-export function gunkWeapon(id: string): WeaponOf<'jetpack' | 'spew'> {
+/** The jetpack of a weapon that launches its tank (ten-2; a spilt Diced Coffee). */
+export function jetSpec(id: string): JetpackSpec {
+  const w = getWeapon(id);
+  if (!('jetpack' in w)) throw new Error(`${id} doesn't jetpack`);
+  return w.jetpack;
+}
+
+/** A weapon that throws gunk (jetpack propellant, spew chunks, a spilt coffee's). */
+export function gunkWeapon(id: string): WeaponOf<'jetpack' | 'spew' | 'coffee'> {
   const w = getWeapon(id);
   if (!('gunk' in w)) throw new Error(`${id} doesn't throw gunk`);
   return w;
@@ -70,7 +77,7 @@ export function ignoresAim(w: WeaponDef): boolean {
   return !KINDS[kindOf(w)].aims;
 }
 
-/** Once-a-match bonus moves (they don't spend the turn, and Take a Nap's restock skips them). */
+/** Bonus moves (they don't spend the turn, and Take a Nap's restock skips them). */
 export function isBonus(w: WeaponDef): boolean {
   return KINDS[kindOf(w)].turn === 'bonus';
 }

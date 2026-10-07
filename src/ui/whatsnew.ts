@@ -15,6 +15,14 @@ export interface Release {
 /** Newest first. Add a release (version + 1) when shipping something players will notice. */
 export const CHANGELOG: Release[] = [
   {
+    version: 48,
+    title: '☕ garyoldmancorp (beta)',
+    items: [
+      'garyoldmancorp is playable, in beta. His bonus move is Diced Coffee: spin the wheel. Lactose free and he drinks it, and the enemy’s next turn is skipped: two turns in a row. Full cream and he’s jetpacked straight up, and Diced Coffee is gone for the match.',
+      'It starts at a 10% chance of full cream, 10% more after every win, and it’s once a turn. His three shots are stand-ins for now.',
+    ],
+  },
+  {
     version: 47,
     title: 'Hyperfixate burns faster',
     items: ['kcaj’s Hyperfixate burn now ticks at the start of every turn, yours as well as theirs: still 8 damage three times, but it’s all dealt a round sooner.'],

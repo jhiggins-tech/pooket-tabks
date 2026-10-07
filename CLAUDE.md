@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 Pooket Tabks: a Worms / Pocket Tanks style artillery game for **phone browsers only** (landscape, touch),
-hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Six characters, each with a
-three-weapon kit (larinovsky has a fourth: a bonus move); hotseat on one phone, or two phones online through Firebase (with spectators).
+hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Seven characters, each with a
+three-weapon kit (larinovsky and garyoldmancorp have a fourth: a bonus move; garyoldmancorp is in beta, `CharacterDef.beta`, with
+stand-in shots); hotseat on one phone, or two phones online through Firebase (with spectators).
 
 ## Working rules
 - The owner has authorised pushing directly to `main` (no branches or PRs unless asked). Every push runs
@@ -53,14 +54,19 @@ what it's for; weapons are documented where they're defined.
 
 ## How the game fits together
 - **Turn state machine** (`game/game.ts`): `aiming → flying → settling → aiming | gameover` (plus
-  `stealing` for kie's roulette). `fire()` spends the round and calls the weapon kind's entry in
+  `stealing` for kie's roulette and `coffee` for Diced Coffee's spinner, both back to `aiming`). `fire()` spends the round and calls the weapon kind's entry in
   `FIRE` (a `scam` bonus move instead stays in `aiming`); `state.lastShot` is the turn's shot; `step()` advances every `STEPPERS` entry each tick while flying and settles once none is busy;
   `endTurn()` runs statuses, holograms (a hit one blows up as the shot plays out, `hologramBlastStepper`), refunds and picks the next player (skipping the dead and the
   out-of-ammo; if nobody has ammo, most HP wins). `game.ts` re-exports the public API: import from `game/game`.
 - **Mechanics** (`game/mechanics.ts`): `FIRE` maps each `WeaponKind` to how it goes off (the type insists
   on one per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of
   the simulation). Each mechanic's module (`stream`, `jetpack`, `gunk`, `walkers`, `sonic`, `sew`,
-  `runner`, `nap`, `steal`, `scam`, `projectiles`, `copies`) owns its fire function, steppers and rules.
+  `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules.
+  **Diced Coffee** (`coffee.ts`, garyoldmancorp's bonus move): a seeded spinner (`state.coffee`, phase
+  `coffee`; the HUD's `#coffee` wheel); a win sets `Player.extraTurn` (`endTurn` gives the same player the
+  next turn), a loss launches the weapon's own little jetpack straight up (`Jet.angle` / `power`, stepped
+  with the other `STEPPERS` during the phase) and empties its round. Once a turn (`Player.coffee.turn`); not a
+  shot, so `hasAmmo` ignores it.
 - **Tanks and damage** (`game/tanks.ts`): hit-testing goes through `targetAt()` / `Target` (a tank, a
   twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than
   switching on the kind. A player's tanks (the `Player` itself, and `player.twin`) are `TankBody`s: a

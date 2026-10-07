@@ -6,6 +6,7 @@ import { ignoresAim, kindOf } from '../weapons/registry';
 import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
+import { canDrinkCoffee, coffeeDone, finishCoffee, isCoffee, stepCoffee } from './coffee';
 import { canSuckYolk, resolveHolograms, stepPhaseFx, suckYolk, yolkTier } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
 import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
@@ -25,6 +26,7 @@ import { clamp, normalizeAngle } from './util';
  * (aiming → flying → settling → aiming | gameover). Pure logic, no DOM. The public API is re-exported
  * here, so the rest of the game imports from './game'.
  */
+export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
@@ -108,6 +110,8 @@ export function createGame(cfg: GameConfig): GameState {
       toxin: 0,
       toxinRate: 0,
       scam: null,
+      coffee: null,
+      extraTurn: false,
     };
   });
 
@@ -119,6 +123,7 @@ export function createGame(cfg: GameConfig): GameState {
     turn: 1,
     phase: 'aiming',
     heist: null,
+    coffee: null,
     sfx: [],
     tunes: [],
     refund: null,
@@ -191,17 +196,22 @@ export function aimTwin(state: GameState, twin: boolean): void {
   p.aimTwin = twin && !!p.twin;
 }
 
+/** Whether a player has anything to fire (Diced Coffee is no shot: alone, it doesn't keep them in). */
 export function hasAmmo(p: Player): boolean {
-  return p.ammo.some((n) => n > 0);
+  return p.ammo.some((n, tier) => n > 0 && !isCoffee(p, tier));
 }
 
 export { weaponForTier } from './loadout';
 
-/** Choose which tier the current player fires next. Returns false if it has no rounds left (Yolk Sucker: nothing to even out). */
+/**
+ * Choose which tier the current player fires next. Returns false if it has no rounds left (Yolk Sucker:
+ * nothing to even out; Diced Coffee: already had one this turn).
+ */
 export function selectTier(state: GameState, tier: number): boolean {
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
   if ((p.ammo[tier] ?? 0) <= 0 && !(tier === yolkTier(p) && canSuckYolk(p))) return false;
+  if (isCoffee(p, tier) && !canDrinkCoffee(state, p, tier)) return false;
   p.selectedTier = tier;
   return true;
 }
@@ -253,6 +263,11 @@ export function step(state: GameState, dt: number): void {
     }
   } else if (state.phase === 'stealing') {
     stepHeist(state, dt);
+  } else if (state.phase === 'coffee') {
+    stepCoffee(state, dt);
+    // A spill's little jetpack (and its mud) plays out like a shot, then the turn carries on.
+    for (const m of STEPPERS) m.step(state, dt);
+    if (coffeeDone(state) && !STEPPERS.some((m) => m.busy(state))) finishCoffee(state);
   } else if (state.phase === 'settling') {
     state.settleTimer -= dt;
     if (state.settleTimer <= 0) endTurn(state);
@@ -270,7 +285,11 @@ function endTurn(state: GameState): void {
     spawnFloater(state, c.x, c.y - 18, 'REFUNDED', '#ffcc1f');
     sound(state, 'refund');
   }
-  turnEnding(currentPlayer(state));
+  const ending = currentPlayer(state);
+  // Diced Coffee won this turn: the same player goes again (the next enemy turn is skipped).
+  const again = ending.extraTurn;
+  ending.extraTurn = false;
+  turnEnding(ending);
   endScams(state);
   state.lastShot = null; // burns ticking below aren't this turn's attack
   state.tallyShot = null;
@@ -282,8 +301,8 @@ function endTurn(state: GameState): void {
     const p = state.players[(state.current + k) % n]!;
     if (p.alive) tickBurn(state, p);
   }
-  let next = -1;
-  for (let k = 1; k <= n; k++) {
+  let next = again && ending.alive && hasAmmo(ending) ? state.current : -1;
+  for (let k = 1; k <= n && next < 0; k++) {
     const idx = (state.current + k) % n;
     const p = state.players[idx]!;
     if (p.alive && hasAmmo(p)) {

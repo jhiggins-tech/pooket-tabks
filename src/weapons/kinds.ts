@@ -5,7 +5,8 @@
  *
  * - `aims`: uses the aim (angle and power); otherwise just press FIRE.
  * - `turn`: what firing it does to the turn. `shot`: spends it (the shot plays out, then the next player);
- *   `free`: the turn carries on (Steal); `bonus`: the turn carries on, and it's a once-a-match move.
+ *   `free`: the turn carries on (Steal); `bonus`: the turn carries on, and it's a bonus move (once a match,
+ *   or, for Diced Coffee, once a turn until it fails).
  */
 export const KINDS = {
   /** Projectiles launched from the barrel, pulled by gravity (bursts, volleys, bouncers, walkers, homers, words). */
@@ -36,6 +37,8 @@ export const KINDS = {
   steal: { aims: false, turn: 'free' },
   /** Women in Scam: an enemy hit on the firer next turn earns them a round of the weapon that did it. */
   scam: { aims: false, turn: 'bonus' },
+  /** Diced Coffee: a spinner; a win skips the next enemy turn (go again), a loss spills it for good. */
+  coffee: { aims: false, turn: 'bonus' },
 } as const satisfies Record<string, { aims: boolean; turn: 'shot' | 'free' | 'bonus' }>;
 
 export type WeaponKind = keyof typeof KINDS;
