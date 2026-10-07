@@ -7,7 +7,7 @@
  * Logs are public (the repo is): counts, types and the first 8 characters of a subscription's id only,
  * never endpoints, keys or what a notification says.
  */
-import { render } from '../src/push/templates.ts';
+import { pushPayload, render, type SubscriptionRecord } from '../src/push/templates.ts';
 
 export interface OutboxEntry {
   type?: unknown;
@@ -18,11 +18,8 @@ export interface OutboxEntry {
   attempts?: unknown;
 }
 
-export interface Subscription {
-  endpoint: string;
-  keys: { p256dh: string; auth: string };
-  clientId: string;
-}
+/** A stored subscription, as far as sending goes (its `createdAt` isn't needed). */
+export type Subscription = Omit<SubscriptionRecord, 'createdAt'>;
 
 export interface Store {
   /** The oldest entries first, at most `limit`. */
@@ -124,7 +121,7 @@ export async function drain(store: Store, push: Pusher, opts: { now?: number; lo
       await store.deleteEntry(id);
       continue;
     }
-    const payload = JSON.stringify({ eventId: id, title: shown.title, body: shown.body, url: shown.url, tag: `evt-${id}` });
+    const payload = JSON.stringify(pushPayload(id, shown));
     const devices = await devicesFor(e.to);
     const targets = subs.filter(([subId, s]) => devices.has(s.clientId) && s.clientId !== e.originClientId && !pruned.has(subId));
     const outcomes: Outcome[] = [];

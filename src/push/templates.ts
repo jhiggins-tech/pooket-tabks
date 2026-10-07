@@ -34,3 +34,43 @@ export function render(type: unknown, ref: unknown): Rendered | null {
       return { title: '🎮 Someone joined your game', body: 'Your game in Pooket Tabks has started. Tap to play.', url };
   }
 }
+
+/**
+ * What a push carries (JSON, from the sender to the service worker), and what the open page shows: the
+ * notification for outbox entry `eventId`. public/sw.js (a classic service worker: no imports) reads it
+ * with its own copy of `PUSH_ICON` and `showOptions`; keep them in step.
+ */
+export interface PushPayload {
+  eventId: string;
+  title: string;
+  body: string;
+  url: string;
+  tag: string;
+}
+
+/** The notifications' icon and badge, relative to the site. */
+export const PUSH_ICON = './icon.svg';
+
+/** A notification's tag: one per outbox entry, so the open page's alert and the push are the same notification. */
+export const pushTag = (eventId: string): string => `evt-${eventId}`;
+
+export function pushPayload(eventId: string, shown: Rendered): PushPayload {
+  return { eventId, title: shown.title, body: shown.body, url: shown.url, tag: pushTag(eventId) };
+}
+
+/** The options a payload is shown with (`showNotification(p.title, showOptions(p))`). */
+export function showOptions(p: PushPayload): { body: string; tag: string; icon: string; badge: string; data: { url: string; eventId: string } } {
+  return { body: p.body, tag: p.tag, icon: PUSH_ICON, badge: PUSH_ICON, data: { url: p.url, eventId: p.eventId } };
+}
+
+/**
+ * A phone's push subscription, as stored at `pushSubscriptions/<id>` (push/client.ts writes it, with the
+ * server's time as `createdAt`; the sender reads it).
+ */
+export interface SubscriptionRecord<Time = number> {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  /** The device it's for (net/push.ts `clientId`): outbox entries are addressed by it. */
+  clientId: string;
+  createdAt: Time;
+}

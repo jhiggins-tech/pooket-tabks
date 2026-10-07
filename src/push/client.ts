@@ -1,12 +1,13 @@
 import { netLog } from '../net/log';
 import { clientId, wantsPush } from '../net/push';
 import { SERVER_TIME, type Rtdb } from '../net/rtdb';
+import type { SubscriptionRecord } from './templates';
 
 /**
  * Push notifications on this phone: the service worker (public/sw.js), asking permission (only ever
  * from a tap: a "no" is for good), the subscription and its record in the database
- * (`pushSubscriptions/<the first 32 hex digits of SHA-256(endpoint)>`: { endpoint, keys, clientId,
- * createdAt }), which the sender (notifier/) pushes to. Re-synced on every load, as subscriptions can
+ * (`pushSubscriptions/<the first 32 hex digits of SHA-256(endpoint)>`: a `SubscriptionRecord`,
+ * push/templates.ts), which the sender (notifier/) pushes to. Re-synced on every load, as subscriptions can
  * change under us. Off when the VAPID key isn't set (config.ts).
  *
  * On iPhone (any browser: they're all Safari underneath) push only works in the app added to the Home
@@ -88,12 +89,13 @@ export class PushClient {
     const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: fromB64Url(this.vapidKey) }));
     const json = sub.toJSON();
     if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) throw new Error('subscription without keys');
-    await this.db!.put(`pushSubscriptions/${await subId(json.endpoint)}`, {
+    const record: SubscriptionRecord<typeof SERVER_TIME> = {
       endpoint: json.endpoint,
       keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
       clientId: clientId(),
       createdAt: SERVER_TIME,
-    });
+    };
+    await this.db!.put(`pushSubscriptions/${await subId(json.endpoint)}`, record);
     netLog('push: subscribed');
   }
 }

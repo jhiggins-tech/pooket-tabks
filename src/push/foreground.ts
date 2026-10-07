@@ -2,7 +2,7 @@ import { followOutbox } from '../net/push';
 import type { Rtdb } from '../net/rtdb';
 import { showToast } from '../ui/toast';
 import { isSeen, markSeen } from './seen';
-import { render } from './templates';
+import { pushPayload, render, showOptions } from './templates';
 
 /**
  * While the page is open, notifications for this phone arrive at once (the sender's push comes minutes
@@ -19,7 +19,8 @@ export function notifyWhileOpen(db: Rtdb, on: { open: (ref: string) => void; her
       if (document.visibilityState === 'visible') return showToast(`${r.title} ${r.body}`, () => on.open(e.ref));
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
       const reg = await navigator.serviceWorker?.ready;
-      await reg?.showNotification(r.title, { body: r.body, tag: `evt-${e.id}`, icon: './icon.svg', badge: './icon.svg', data: { url: r.url, eventId: e.id } });
+      const p = pushPayload(e.id, r);
+      await reg?.showNotification(p.title, showOptions(p));
     })();
   }, to);
 }

@@ -2,18 +2,20 @@
  * Pooket Tabks' service worker: shows push notifications ("your turn", "someone joined your game") and
  * opens the game when one is tapped. It doesn't cache anything (the page loads as normal).
  *
- * Each push is { eventId, title, body, url, tag } from the sender (notifier/). A notification the open
- * page already showed (the `seen` store in IndexedDB, shared with src/push/seen.ts) isn't alerted again.
- * Every push must still end in a visible notification (Chrome insists, and iOS revokes subscriptions
- * that don't), so a repeat replaces the one in the tray quietly instead.
+ * Each push is a `PushPayload` ({ eventId, title, body, url, tag }, src/push/templates.ts) from the
+ * sender (notifier/). A notification the open page already showed (the `seen` store in IndexedDB, shared
+ * with src/push/seen.ts) isn't alerted again. Every push must still end in a visible notification
+ * (Chrome insists, and iOS revokes subscriptions that don't), so a repeat replaces the one in the tray
+ * quietly instead.
  *
- * Bump VERSION when this file changes so phones pick up the new one.
+ * A classic service worker can't import, so it keeps its own copies of templates.ts's `PUSH_ICON` and
+ * `showOptions` (below): keep them in step. Phones pick up a new version of this file by themselves (the
+ * browser checks it for changes, byte for byte, when the page registers it).
  */
-const VERSION = 1;
-
 const DB = 'pooket-push';
 const STORE = 'seen';
 const KEEP_MS = 7 * 24 * 60 * 60_000;
+/** templates.ts `PUSH_ICON`. */
 const ICON = './icon.svg';
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -72,6 +74,7 @@ async function onPush(event) {
     // Something's off with it, but a push must always show something.
     return self.registration.showNotification('Pooket Tabks', { body: 'Something happened in one of your games.', icon: ICON, badge: ICON });
   }
+  // templates.ts `showOptions`.
   const options = { body: msg.body, tag: msg.tag, icon: ICON, badge: ICON, data: { url: msg.url, eventId: msg.eventId } };
   if (!(await isSeen(msg.eventId))) {
     await self.registration.showNotification(msg.title, options);
@@ -104,7 +107,3 @@ async function onClick(event) {
 }
 
 self.addEventListener('notificationclick', (event) => event.waitUntil(onClick(event)));
-
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'version') event.source && event.source.postMessage({ type: 'version', version: VERSION });
-});
