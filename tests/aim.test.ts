@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../src/core/rng';
 import { Terrain } from '../src/core/terrain';
-import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
-import { adjustAim, createGame, fire, muzzle, normalizeAngle, selectTier, setAim, step } from '../src/game/game';
+import { MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
+import { adjustAim, createGame, fire, muzzle, normalizeAngle, selectTier, setAim } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { angleLabel } from '../src/render/hud';
+import { whileFlying } from './support/game';
 
 const players = [
   { name: 'kcaj', colour: '#ffc53d', characterId: 'kcaj' },
@@ -85,7 +86,7 @@ describe('360° aiming', () => {
       selectTier(g, 0); // Double Park
       setAim(g, a, 100);
       fire(g);
-      for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) step(g, FIXED_DT);
+      whileFlying(g, 10);
       if (g.players[1]!.hp < MAX_HP && g.players[0]!.hp === MAX_HP) hits.push(a);
     }
     expect(hits.length).toBeGreaterThan(0);

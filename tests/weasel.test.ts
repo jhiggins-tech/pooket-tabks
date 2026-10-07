@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_DT, MAX_HP } from '../src/game/constants';
-import { fire, selectTier, setAim, step } from '../src/game/game';
+import { MAX_HP } from '../src/game/constants';
+import { fire, selectTier, setAim } from '../src/game/game';
 import type { GameState, Projectile } from '../src/game/state';
 import { weaselPop } from '../src/characters/kits';
-import { testGame } from './support/game';
+import { testGame, whileFlying } from './support/game';
 
 const walk = weaselPop.walk!;
 const players = [
@@ -23,13 +23,6 @@ function dropWeasel(g: GameState, x: number, y = 380): Projectile {
   Object.assign(w, { x, y, vx: 0, vy: 0 });
   g.projectiles = [w];
   return w;
-}
-
-function tick(g: GameState, seconds: number, each?: () => void): void {
-  for (let t = 0; t < seconds && g.phase === 'flying'; t += FIXED_DT) {
-    step(g, FIXED_DT);
-    each?.();
-  }
 }
 
 describe('Weasel Pop', () => {
@@ -57,9 +50,9 @@ describe('Weasel Pop', () => {
     const w = dropWeasel(g, x0);
     const before = g.terrain.solid.reduce((n, v) => n + v, 0);
     let walkedTo = x0;
-    tick(g, 1);
+    whileFlying(g, 1);
     expect(w.walkDir).toBe(1);
-    tick(g, 10, () => g.projectiles.includes(w) && (walkedTo = w.x));
+    whileFlying(g, 10, () => g.projectiles.includes(w) && (walkedTo = w.x));
     expect(g.projectiles).toHaveLength(0);
     expect(walkedTo - x0).toBeGreaterThan(walk.speed * walk.duration * 0.8);
     expect(walkedTo - x0).toBeLessThan(walk.speed * walk.duration * 1.1);
@@ -71,7 +64,7 @@ describe('Weasel Pop', () => {
     const g = game();
     const tones = g.players[1]!;
     const w = dropWeasel(g, tones.x + 60);
-    tick(g, 1);
+    whileFlying(g, 1);
     expect(w.walkDir).toBe(-1);
   });
 
@@ -81,7 +74,7 @@ describe('Weasel Pop', () => {
       const tones = g.players[1]!;
       const w = dropWeasel(g, tones.x + side * 40);
       let poppedAt = NaN;
-      tick(g, walk.duration * 0.9, () => {
+      whileFlying(g, walk.duration * 0.9, () => {
         if (g.projectiles.includes(w)) poppedAt = w.x;
       });
       expect(g.projectiles).toHaveLength(0);
@@ -99,7 +92,7 @@ describe('Weasel Pop', () => {
     tones.y = g.terrain.surfaceY(tones.x);
     const w = dropWeasel(g, ledge - 40);
     let walked = 0;
-    tick(g, walk.duration, () => {
+    whileFlying(g, walk.duration, () => {
       if (g.projectiles.includes(w)) walked = w.walkTime;
     });
     expect(g.projectiles).toHaveLength(0);
@@ -115,7 +108,7 @@ describe('Weasel Pop', () => {
     tones.y = 380;
     const w = dropWeasel(g, 760);
     let last = 0;
-    tick(g, walk.duration, () => {
+    whileFlying(g, walk.duration, () => {
       if (g.projectiles.includes(w)) last = w.x;
     });
     expect(g.projectiles).toHaveLength(0);
@@ -128,7 +121,7 @@ describe('Weasel Pop', () => {
     const g = game((x) => (x >= step ? 396 : 400)); // a 4px ledge
     const w = dropWeasel(g, step - 30);
     let maxX = 0;
-    tick(g, walk.duration - 0.1, () => (maxX = Math.max(maxX, w.x)));
+    whileFlying(g, walk.duration - 0.1, () => (maxX = Math.max(maxX, w.x)));
     expect(maxX).toBeGreaterThan(step + 20);
   });
 
@@ -137,7 +130,7 @@ describe('Weasel Pop', () => {
     const g = game((x) => (x >= wall ? 300 : 400));
     const w = dropWeasel(g, wall - 30);
     let maxX = 0;
-    tick(g, walk.duration - 0.1, () => (maxX = Math.max(maxX, w.x)));
+    whileFlying(g, walk.duration - 0.1, () => (maxX = Math.max(maxX, w.x)));
     expect(maxX).toBeLessThan(wall);
   });
 
@@ -147,7 +140,7 @@ describe('Weasel Pop', () => {
     const w = dropWeasel(g, edge - 20);
     let fell = false;
     let maxX = 0;
-    tick(g, walk.duration + 1, () => {
+    whileFlying(g, walk.duration + 1, () => {
       if (g.projectiles.includes(w)) {
         if (w.walkDir === 0 && w.x > edge) fell = true;
         maxX = Math.max(maxX, w.x);
@@ -161,7 +154,7 @@ describe('Weasel Pop', () => {
     const g = game();
     const tones = g.players[1]!;
     dropWeasel(g, tones.x, tones.y - 40);
-    tick(g, 0.5);
+    whileFlying(g, 0.5);
     expect(g.projectiles).toHaveLength(0);
     expect(tones.hp).toBeLessThan(MAX_HP);
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
-import { aimTwin, canSuckYolk, currentPlayer, explode, fire, isAimless, pendingTwinSpot, placeTwin, selectTier, setAim, step, targetAt, yolkTier } from '../src/game/game';
+import { MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
+import { aimTwin, canSuckYolk, currentPlayer, explode, fire, isAimless, pendingTwinSpot, placeTwin, selectTier, setAim, targetAt, yolkTier } from '../src/game/game';
 import { TANK_HALF_WIDTH } from '../src/game/constants';
 import { drainToxin } from '../src/game/gunk';
 import { doseTarget } from '../src/game/tanks';
@@ -9,7 +9,7 @@ import type { GameState, Projectile } from '../src/game/state';
 import { DICTIONARIES } from '../src/weapons/dictionaries';
 import { debate, hyperfixate, sonicBoom, tattooGun, theRizzler } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
-import { passTurn, testGame, untilNextTurn, whileFlying } from './support/game';
+import { passTurn, testGame, untilAiming, untilNextTurn, whileFlying } from './support/game';
 
 const players = [
   { name: 'torikloud', colour: '#a78bfa', characterId: 'torikloud' },
@@ -42,7 +42,7 @@ function withTwin(g: GameState): void {
   const tw = g.players[0]!.twin!;
   tw.x = 450;
   tw.y = 400;
-  for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+  untilAiming(g, 3);
   passTurn(g); // kie
   expect(currentPlayer(g).name).toBe('torikloud');
 }

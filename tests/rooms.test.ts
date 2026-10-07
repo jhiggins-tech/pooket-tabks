@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { FIXED_DT } from '../src/game/constants';
-import { createGame, currentPlayer, setAim, step } from '../src/game/game';
-import type { GameState, PlayerConfig } from '../src/game/state';
+import { createGame, currentPlayer, setAim } from '../src/game/game';
+import type { PlayerConfig } from '../src/game/state';
 import { toB64 } from '../src/net/b64';
 import { Listing, lobbySealer, watchLobby, type Advert } from '../src/net/lobby';
 import { RelayTransport } from '../src/net/relay';
@@ -11,6 +10,7 @@ import { seal, sealerFor } from '../src/net/seal';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession } from '../src/net/session';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
+import { expectSameMatch, runPhones } from './support/net';
 import { until } from './support/wait';
 
 let server: FakeRtdb;
@@ -230,17 +230,8 @@ describe('rooms through Firebase', () => {
       setAim(S, S.current === 0 ? 60 : 120, 60);
       expect(me.fire()).toBe(true);
       const next = S.current === 0 ? guest : host;
-      const t0 = Date.now();
-      while (!(next.canAct() && H.turn === G.turn && H.phase === 'aiming' && G.phase === 'aiming')) {
-        for (const [s, st] of [[host, H], [guest, G]] as [NetSession, GameState][]) {
-          step(st, FIXED_DT);
-          s.tick(FIXED_DT);
-        }
-        await new Promise((r) => setTimeout(r, 1));
-        if (Date.now() - t0 > 15_000) throw new Error('turn never resolved');
-      }
-      expect(G.players.map((p) => [p.hp, p.x, p.ammo])).toEqual(H.players.map((p) => [p.hp, p.x, p.ammo]));
-      expect(G.terrain.solid).toEqual(H.terrain.solid);
+      await runPhones([[host, H], [guest, G]], () => next.canAct() && H.turn === G.turn && H.phase === 'aiming' && G.phase === 'aiming', { ms: 15_000 });
+      expectSameMatch(H, G);
     }
     expect(currentPlayer(H).name).toBe('H');
     host.leave();

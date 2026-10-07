@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FIXED_DT } from '../src/game/constants';
 import { currentPlayer, drive, fire, heistIndex, isAimless, selectTier, STEAL_HOLD, STEAL_SPIN, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
-import { testGame } from './support/game';
+import { run, testGame } from './support/game';
 
 function game(seed = 7, enemy = 'tones'): GameState {
   return testGame({
@@ -12,10 +12,6 @@ function game(seed = 7, enemy = 'tones'): GameState {
       { name: enemy, colour: '#ff5a5f', characterId: enemy },
     ],
   });
-}
-
-function run(g: GameState, seconds: number): void {
-  for (let t = 0; t < seconds; t += FIXED_DT) step(g, FIXED_DT);
 }
 
 function steal(g: GameState): void {

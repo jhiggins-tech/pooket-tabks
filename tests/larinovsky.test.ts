@@ -6,7 +6,7 @@ import { createGame, currentPlayer, explode, fire, isAimless, offence, selectTie
 import type { GameState, Projectile } from '../src/game/state';
 import { pillPusher, takeANap, theRizzler, womenInScam } from '../src/characters/kits';
 import { getWeapon, shell } from '../src/weapons/registry';
-import { passTurn, testGame, whileFlying } from './support/game';
+import { passTurn, testGame, untilAiming, whileFlying } from './support/game';
 
 const players = [
   { name: 'larinovsky', colour: '#34d399', characterId: 'larinovsky' },
@@ -54,10 +54,9 @@ describe('Pill Pusher', () => {
     setAim(g, 60, 55);
     fire(g);
     const speeds: number[] = [];
-    for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) {
-      step(g, FIXED_DT);
+    whileFlying(g, 10, () => {
       for (const p of g.projectiles) if (p.age === FIXED_DT) speeds.push(Math.hypot(p.vx, p.vy));
-    }
+    });
     expect(new Set(speeds.map((v) => Math.round(v))).size).toBeGreaterThan(1);
     expect(before - g.terrain.solid.reduce((n, v) => n + v, 0)).toBeGreaterThan(300);
   });
@@ -150,7 +149,7 @@ describe('Take a Nap', () => {
     expect(lari.hp).toBe(MAX_HP);
     expect(g.fx.floaters.some((f) => f.text === `+${MAX_HP - 37}`)).toBe(true);
     expect(lari.ammo[2]).toBe(0);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
     expect(currentPlayer(g).name).toBe('kie');
   });
 
@@ -205,7 +204,7 @@ describe('Women in Scam', () => {
     explode(g, lari.x, lari.y - TANK_BODY_HEIGHT / 2, getWeapon('weasel-pop'), 1);
     explode(g, lari.x, lari.y - TANK_BODY_HEIGHT / 2, getWeapon('weasel-pop'), 1); // hit twice: still one round
     whileFlying(g);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
   }
 
   it("is a bonus move: an enemy hit on larinovsky's tank next turn earns a round of that weapon", () => {
@@ -249,7 +248,7 @@ describe('Women in Scam', () => {
     const kie = g.players[1]!;
     explode(g, kie.x, kie.y - TANK_BODY_HEIGHT / 2, getWeapon('weasel-pop'), 1);
     whileFlying(g);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
     expect(lari.hp).toBe(MAX_HP - 5);
     expect(lari.loadout).toHaveLength(4);
   });
@@ -269,7 +268,7 @@ describe('Women in Scam', () => {
     lari.ammo = [0, 0, 0, 1];
     selectTier(g, 3);
     fire(g);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
     expect(currentPlayer(g).name).toBe('kie');
     expect(lari.scam).not.toBeNull();
   });

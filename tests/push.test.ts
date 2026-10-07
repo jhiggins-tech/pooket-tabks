@@ -46,7 +46,7 @@ describe('notifications, the database side', () => {
   it("tells the other seat's device, by the room's topic (never its code), only if it has notifications on", async () => {
     be('bob-phone', true);
     announceDevice(room, 'guest', 'guest-seat');
-    await until(() => JSON.stringify(server.tree()).includes('devices'));
+    await until(() => server.at(`${room.path}/devices/guest`) !== null);
     be('ann-phone', false);
     await notifySeat(room, 'guest', 'your-turn');
     await until(() => outbox().length === 1);
@@ -56,7 +56,7 @@ describe('notifications, the database side', () => {
 
     // Ann has notifications off: Bob's phone doesn't write anything for her.
     announceDevice(room, 'host', 'host-seat');
-    await new Promise((r) => setTimeout(r, 100));
+    await until(() => server.at(`${room.path}/devices/host`) !== null);
     be('bob-phone', true);
     await notifySeat(room, 'host', 'your-turn');
     expect(outbox()).toHaveLength(1);
@@ -65,7 +65,7 @@ describe('notifications, the database side', () => {
   it("a device left over from an earlier game in the room (another seat id) isn't told", async () => {
     be('old-phone', true);
     announceDevice(room, 'guest', 'someone-before');
-    await new Promise((r) => setTimeout(r, 100));
+    await until(() => server.at(`${room.path}/devices/guest`) !== null);
     be('ann-phone', true);
     await notifySeat(room, 'guest', 'your-turn');
     expect(outbox()).toHaveLength(0);
@@ -76,11 +76,11 @@ describe('notifications, the database side', () => {
     await room.db.post('outbox', { type: 'your-turn', ref: room.sealer.topic, to: clientId(), originClientId: 'x', createdAt: 1 }); // before it opened
     const got: OutboxEntry[] = [];
     const f = followOutbox(room.db, (e) => got.push(e));
-    await new Promise((r) => setTimeout(r, 200));
+    await until(() => server.streams('outbox') === 1);
     await room.db.post('outbox', { type: 'joined', ref: room.sealer.topic, to: 'someone-else', originClientId: 'x', createdAt: 2 });
     await room.db.post('outbox', { type: 'joined', ref: room.sealer.topic, to: 'bob-phone', originClientId: 'x', createdAt: 3 });
     await until(() => got.length === 1);
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200)); // (and nothing else comes)
     expect(got).toEqual([{ id: expect.any(String), type: 'joined', ref: room.sealer.topic }]);
     f.stop();
   });
@@ -89,7 +89,7 @@ describe('notifications, the database side', () => {
     be('bob-phone', false);
     useAccount(() => 'bob-uid');
     announceDevice(room, 'guest', 'guest-seat');
-    await until(() => JSON.stringify(server.tree()).includes('devices'));
+    await until(() => server.at(`${room.path}/devices/guest`) !== null);
     useAccount(() => null);
     be('ann-phone', false);
     await notifySeat(room, 'guest', 'your-turn');
@@ -103,12 +103,12 @@ describe('notifications, the database side', () => {
     const got: string[] = [];
     const mine = followOutbox(room.db, (e) => got.push(`phone:${e.type}`));
     const account = followOutbox(room.db, (e) => got.push(`account:${e.type}`), accountAddress('bob-uid'));
-    await new Promise((r) => setTimeout(r, 200));
+    await until(() => server.streams('outbox') === 2);
     await room.db.post('outbox', { type: 'joined', ref: room.sealer.topic, to: 'u:someone-else', originClientId: 'x', createdAt: 1 });
     await room.db.post('outbox', { type: 'your-turn', ref: room.sealer.topic, to: 'u:bob-uid', originClientId: 'x', createdAt: 2 });
     await room.db.post('outbox', { type: 'joined', ref: room.sealer.topic, to: 'bob-phone', originClientId: 'x', createdAt: 3 });
     await until(() => got.length === 2);
-    await new Promise((r) => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200)); // (and nothing else comes)
     expect(got.sort()).toEqual(['account:your-turn', 'phone:joined']);
     mine.stop();
     account.stop();

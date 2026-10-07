@@ -3,7 +3,7 @@ import { FIXED_DT, MAX_HP, TANK_HALF_WIDTH } from '../src/game/constants';
 import { createGame, currentPlayer, drive, fire, jetCharge, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { ten2 } from '../src/characters/kits';
-import { testGame } from './support/game';
+import { testGame, untilAiming, whileFlying } from './support/game';
 
 const spec = ten2.jetpack!;
 const players = [
@@ -21,13 +21,6 @@ function launch(g: GameState, angle: number, power: number): void {
   fire(g);
 }
 
-function run(g: GameState, seconds: number, onTick?: () => void): void {
-  for (let t = 0; t < seconds && g.phase === 'flying'; t += FIXED_DT) {
-    step(g, FIXED_DT);
-    onTick?.();
-  }
-}
-
 function solidCount(g: GameState): number {
   return g.terrain.solid.reduce((n, v) => n + v, 0);
 }
@@ -43,11 +36,11 @@ describe('ten-2', () => {
     const tones = g.players[0]!;
     const start = { x: tones.x, y: tones.y };
     launch(g, 60, 60);
-    run(g, spec.chargeTime - 0.05);
+    whileFlying(g, spec.chargeTime - 0.05);
     expect({ x: tones.x, y: tones.y }).toEqual(start);
     expect(jetCharge(g, 0)).toBeGreaterThan(0.99);
     expect(g.sludge).toHaveLength(0);
-    run(g, 0.2);
+    whileFlying(g, 0.2);
     expect(jetCharge(g, 0)).toBeNull(); // launched
     expect(tones.y).toBeLessThan(start.y);
     expect(g.sludge.length).toBeGreaterThan(0);
@@ -60,7 +53,7 @@ describe('ten-2', () => {
       tones.x = 550; // mid-map so either direction has room
       const x0 = tones.x;
       launch(g, angle, power);
-      run(g, 25);
+      whileFlying(g, 25);
       expect(g.phase).not.toBe('flying');
       // Resting on the highest ground under its hull (which may be its own mud).
       let rest = g.terrain.height;
@@ -81,7 +74,7 @@ describe('ten-2', () => {
     const tones = g.players[0]!;
     tones.x = 60;
     launch(g, 170, 100);
-    run(g, 25);
+    whileFlying(g, 25);
     expect(tones.x).toBeGreaterThanOrEqual(TANK_HALF_WIDTH);
   });
 
@@ -89,7 +82,7 @@ describe('ten-2', () => {
     const g = flatGame();
     const before = solidCount(g);
     launch(g, 70, 55);
-    run(g, 25);
+    whileFlying(g, 25);
     expect(solidCount(g)).toBeGreaterThan(before + 200);
     expect(g.sludge).toHaveLength(0);
   });
@@ -103,7 +96,7 @@ describe('ten-2', () => {
     const hpOverTime: number[] = [];
     let burnEndedAt = -1;
     let t = 0;
-    run(g, 30, () => {
+    whileFlying(g, 30, () => {
       t += FIXED_DT;
       const jet = g.jets[0];
       if (burnEndedAt < 0 && (!jet || (jet.launched && jet.burnLeft <= 0))) burnEndedAt = t;
@@ -125,9 +118,9 @@ describe('ten-2', () => {
     const tones = g.players[0]!;
     const x0 = tones.x;
     launch(g, 270, 80);
-    run(g, 25);
+    whileFlying(g, 25);
     expect(Math.abs(tones.x - x0)).toBeLessThan(3);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    untilAiming(g, 3);
     expect(currentPlayer(g).name).toBe('kie');
   });
 
@@ -137,7 +130,7 @@ describe('ten-2', () => {
     tones.x = 400;
     kie.x = 400 + 150;
     launch(g, 60, 45);
-    run(g, 25);
+    whileFlying(g, 25);
     expect(Math.abs(tones.x - kie.x)).toBeGreaterThanOrEqual(TANK_HALF_WIDTH * 2);
   });
 
@@ -146,7 +139,7 @@ describe('ten-2', () => {
     const before = solidCount(g);
     launch(g, 55, 60);
     const seen = new Set<object>();
-    run(g, 25, () => g.sludge.forEach((p) => seen.add(p)));
+    whileFlying(g, 25, () => g.sludge.forEach((p) => seen.add(p)));
     expect(seen.size).toBeGreaterThan(800);
     expect(solidCount(g) - before).toBeGreaterThan(5000);
     let minX = Infinity;
@@ -165,7 +158,7 @@ describe('ten-2', () => {
   it("doesn't leave mud hanging in mid-air behind the tank", () => {
     const g = flatGame();
     launch(g, 70, 70);
-    run(g, 25);
+    whileFlying(g, 25);
     // Every column is solid from its surface all the way down: no mud floating with air beneath it.
     const w = g.terrain.width;
     for (let x = 0; x < w; x++) {
@@ -177,8 +170,8 @@ describe('ten-2', () => {
   it("never buries tones under his own mud: he can still drive afterwards", () => {
     const g = flatGame();
     launch(g, 80, 30);
-    run(g, 25);
-    for (let t = 0; t < 3 && g.phase !== 'aiming'; t += FIXED_DT) step(g, FIXED_DT);
+    whileFlying(g, 25);
+    untilAiming(g, 3);
     for (let t = 0; t < 3 && currentPlayer(g).name !== 'tones'; t += FIXED_DT) {
       g.phase = 'settling';
       g.settleTimer = 0;

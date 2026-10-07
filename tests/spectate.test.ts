@@ -7,36 +7,19 @@ import { ViewPublisher, watchRoom } from '../src/net/view';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession, type ViewMsg } from '../src/net/session';
 import { Spectator } from '../src/net/spectate';
-import { loopback } from '../src/net/transport';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
-import { flush } from './support/wait';
+import { connectedPair, expectSameMatch } from './support/net';
+import { flush, until } from './support/wait';
 
 const players: PlayerConfig[] = [
   { name: 'H', characterId: 'kcaj', colour: '#fc0' },
   { name: 'G', characterId: 'tones', colour: '#f55' },
 ];
 const build = (seed: number, p: PlayerConfig[]) => createGame({ seed, players: p });
-const same = (a: GameState, b: GameState) => {
-  expect(b.players.map((p) => [p.hp, p.x, p.y, p.ammo])).toEqual(a.players.map((p) => [p.hp, p.x, p.y, p.ammo]));
-  expect(b.turn).toBe(a.turn);
-  expect(b.terrain.solid).toEqual(a.terrain.solid);
-};
-
 /** Two players over loopback, with every view message also going to `feed`. */
 async function match(feed: (v: ViewMsg) => void) {
-  const [ta, tb] = loopback();
-  const host = new NetSession(ta, 'host');
-  const guest = new NetSession(tb, 'guest');
-  for (const s of [host, guest]) {
-    s.onStart = build;
-    s.on('view', feed);
-  }
-  host.setPick({ name: 'H', characterId: 'kcaj' });
-  guest.setPick({ name: 'G', characterId: 'tones' });
-  await flush();
-  host.start(77, players);
-  await flush();
-  return { host, guest, H: host.game!, G: guest.game! };
+  const { a, b, A, B } = await connectedPair({ seed: 77, players, onStart: build, setup: (s) => s.on('view', feed) });
+  return { host: a, guest: b, H: A, G: B };
 }
 
 /** Fire for whoever's turn it is and play both phones (and the spectator) until the next turn. */
@@ -63,7 +46,7 @@ describe('spectating', { timeout: 60_000 }, () => {
     sp.onStart = build;
     const { host, guest, H, G } = await match((v) => sp.receive(v));
     expect(sp.game).not.toBeNull();
-    same(H, sp.game!);
+    expectSameMatch(H, sp.game!);
     for (let t = 0; t < 3; t++) {
       await turn(host, guest, H, G, () => {
         step(sp.game!, FIXED_DT);
@@ -73,7 +56,7 @@ describe('spectating', { timeout: 60_000 }, () => {
         step(sp.game!, FIXED_DT);
         sp.tick(FIXED_DT);
       }
-      same(H, sp.game!);
+      expectSameMatch(H, sp.game!);
     }
   });
 
@@ -85,7 +68,7 @@ describe('spectating', { timeout: 60_000 }, () => {
     const sp = new Spectator();
     sp.onStart = build;
     sp.receive(latest!);
-    same(H, sp.game!);
+    expectSameMatch(H, sp.game!);
   });
 
   it("sees the live aim, but can't be steered by it after a shot", async () => {
@@ -109,14 +92,6 @@ describe('spectating through Firebase', () => {
   afterEach(async () => {
     await server.close();
   });
-  const until = async (cond: () => boolean, ms = 5000) => {
-    const t0 = Date.now();
-    while (!cond()) {
-      if (Date.now() - t0 > ms) throw new Error('timed out');
-      await new Promise((r) => setTimeout(r, 10));
-    }
-  };
-
   it('players publish, a watcher with the code follows along, and is told when the room closes', { timeout: 30_000 }, async () => {
     const room = await HostedRoom.open(db);
     const hostSide = room.waitForGuest();
@@ -140,7 +115,7 @@ describe('spectating through Firebase', () => {
     let ended = false;
     await watchRoom(db, room.code, (v) => sp.receive(v), () => (ended = true));
     await until(() => !!sp.game);
-    same(host.game!, sp.game!);
+    expectSameMatch(host.game!, sp.game!);
     // Nothing readable in the database.
     expect(JSON.stringify(server.tree())).not.toContain('kcaj');
 

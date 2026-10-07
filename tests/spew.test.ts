@@ -3,7 +3,7 @@ import { FIXED_DT, MAX_HP, TANK_BODY_HEIGHT } from '../src/game/constants';
 import { currentPlayer, fire, isSpewing, selectTier, setAim, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { ten3 } from '../src/characters/kits';
-import { testGame } from './support/game';
+import { testGame, whileFlying } from './support/game';
 
 const players = [
   { name: 'tones', colour: '#ff5a5f', characterId: 'tones' },
@@ -33,10 +33,9 @@ describe('ten-3', () => {
     const g = game(900); // kie far away
     spew(g, 45, 100);
     let furthest = 0;
-    for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) {
-      step(g, FIXED_DT);
+    whileFlying(g, 10, () => {
       for (const s of g.sludge) furthest = Math.max(furthest, s.x - 300);
-    }
+    });
     expect(furthest).toBeGreaterThan(80);
     expect(furthest).toBeLessThan(230);
     expect(g.players[1]!.hp).toBe(MAX_HP);
@@ -71,7 +70,7 @@ describe('ten-3', () => {
     const g = game(900);
     const before = g.terrain.solid.reduce((n, v) => n + v, 0);
     spew(g, 30, 60);
-    for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) step(g, FIXED_DT);
+    whileFlying(g, 10);
     expect(g.terrain.solid.reduce((n, v) => n + v, 0)).toBeGreaterThan(before + 100);
   });
 
@@ -118,7 +117,7 @@ describe('ten-3', () => {
   it("tones' own sludge never burns him", () => {
     const g = game(600);
     spew(g, 270, 30); // straight down at his own feet
-    for (let t = 0; t < 10 && g.phase === 'flying'; t += FIXED_DT) step(g, FIXED_DT);
+    whileFlying(g, 10);
     expect(g.players[0]!.hp).toBe(MAX_HP);
   });
 });
