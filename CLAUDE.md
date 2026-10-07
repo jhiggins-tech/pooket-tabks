@@ -67,7 +67,7 @@ what it's for; weapons are documented where they're defined.
   **Diced Coffee** (`coffee.ts`, garyoldmancorp's bonus move): a seeded spinner (`state.coffee`, phase
   `coffee`; the HUD's `#coffee` wheel); a win sets `Player.extraTurn` (`endTurn` gives the same player the
   next turn), a loss launches the weapon's own little jetpack straight up (`Jet.angle` / `power`, stepped
-  with the other `STEPPERS` during the phase) and empties its round. Once a turn (`Player.coffee.turn`); not a
+  with the other `STEPPERS` during the phase), empties its round and ends the turn (`finishCoffee`). Once a turn (`Player.coffee.turn`); not a
   shot, so `hasAmmo` ignores it.
 - **Tanks and damage** (`game/tanks.ts`): hit-testing goes through `targetAt()` / `Target` (a tank, a
   twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than

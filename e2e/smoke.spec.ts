@@ -510,7 +510,7 @@ test("larinovsky's Women in Scam: a bonus move, and a scammed round turns up as 
   expect(errors).toEqual([]);
 });
 
-test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up and it's gone", async ({ page }) => {
+test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -534,7 +534,7 @@ test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpack
   const coffee = weapons.nth(3);
   await expect(coffee).toHaveAttribute('aria-label', 'Diced Coffee, bonus move: 10% chance of full cream');
   await coffee.tap();
-  await expect(page.locator('#hint')).toHaveText('Diced Coffee: 10% full cream · FIRE to spin, then take your turn');
+  await expect(page.locator('#hint')).toHaveText('Diced Coffee: 10% full cream (ends your turn) · FIRE to spin');
 
   // Lactose free: the wheel spins, the tank drinks, and it's still gary's turn (with another to come).
   await rig(0.9);
@@ -561,18 +561,24 @@ test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpack
   await expect(page.locator('#turn-banner')).toHaveText("garyoldmancorp's turn");
   await expect(coffee).toHaveAttribute('aria-label', 'Diced Coffee, bonus move: 20% chance of full cream');
 
-  // Full cream: a little jetpack straight up, and Diced Coffee is spilt for good.
+  // Full cream: a little jetpack straight up, the turn is over, and Diced Coffee is spilt for good.
   await coffee.tap();
   await rig(0);
   const ground = await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.players[0]!.y);
   await page.locator('#fire').tap();
-  await expect(page.locator('.coffee-result')).toHaveText('Full cream… 🥛 it’s all over the place', { timeout: 5_000 });
+  await expect(page.locator('.coffee-result')).toHaveText('Full cream… 🥛 turn over', { timeout: 5_000 });
   await expect.poll(() => page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.players[0]!.y), { timeout: 5_000 }).toBeLessThan(ground - 40);
   await page.screenshot({ path: 'test-results/diced-coffee-spill.png' });
-  await expect(page.locator('body')).toHaveAttribute('data-phase', 'aiming', { timeout: 10_000 });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '3', { timeout: 10_000 });
+  expect(await page.evaluate(() => (window as unknown as CoffeeDbg).__pooket.state.current)).toBe(1);
+  await expect(page.locator('#turn-banner')).toHaveText("kcaj's turn");
+  // Back to gary: a shot selected, the coffee greyed out.
+  await page.evaluate(() => Object.assign((window as unknown as CoffeeDbg).__pooket.state.players[1]!, { angle: 90, power: 5 }));
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '4', { timeout: 15_000 });
   await expect(coffee).toBeDisabled();
   await expect(coffee.locator('.pips')).toHaveText('spilt');
-  await expect(page.locator('body')).toHaveAttribute('data-turn', '2');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-pressed', 'true');
   expect(errors).toEqual([]);
 });
 

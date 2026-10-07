@@ -38,15 +38,15 @@ export const betaBomb = {
 
 /**
  * garyoldmancorp's bonus move: a spinner (game/coffee.ts). Lactose free (90% the first time): he drinks
- * it and goes again after this turn. Full cream: a little ten-2 straight up, and it's gone for good. Each
- * win makes the next spin 10% riskier. Once a turn.
+ * it and goes again after this turn. Full cream: a little ten-2 straight up, his turn ends there, and it's
+ * gone for good. Each win makes the next spin 10% riskier. Once a turn.
  */
 export const dicedCoffee = {
   id: 'diced-coffee',
   name: 'Diced Coffee',
   shortName: 'Diced Coffee',
   info:
-    'Bonus move: doesn’t use your turn (aim and fire as usual after it), once a turn. Spin the wheel: lactose free and you drink it, and the enemy’s next turn is skipped (you go twice in a row); full cream and you’re jetpacked straight up, and Diced Coffee is gone for the match. It starts at a 10% chance of full cream, 10% more after every win.',
+    'Bonus move, once a turn: spin the wheel before you fire. Lactose free: you drink it, aim and fire as usual, and the enemy’s next turn is skipped (you go twice in a row). Full cream: you’re jetpacked straight up, your turn is over, and Diced Coffee is gone for the match. It starts at a 10% chance of full cream, 10% more after every win.',
   kind: 'coffee',
   coffee: { failChance: 0.1, failStep: 0.1 },
   // A small ten-2, straight up (game/coffee.ts launches it at 90°, full power).

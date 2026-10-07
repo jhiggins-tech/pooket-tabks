@@ -6,14 +6,14 @@ import type { CoffeeSpin, GameState, Player } from './state';
 import { tankCentre } from './tanks';
 
 /**
- * garyoldmancorp's Diced Coffee: a bonus move (it doesn't use the turn: aim and fire as usual after it).
+ * garyoldmancorp's Diced Coffee: a bonus move (a win doesn't use the turn: aim and fire as usual after it).
  * A spinner with a full cream slice (the chance it fails: `failChance`, plus `failStep` after every win)
  * and a lactose free one spins to a stop, decided up front from the seeded RNG.
  *
  * - **Lactose free**: the tank drinks it, and when this turn ends the player goes again (the next enemy
  *   turn is skipped: game.ts `endTurn`, by `Player.extraTurn`). The next spin is riskier.
- * - **Full cream**: a little ten-2 straight up (the weapon's own `jetpack`, harmless mud), and its round
- *   is gone for the match (greyed out).
+ * - **Full cream**: a little ten-2 straight up (the weapon's own `jetpack`, harmless mud), then the turn
+ *   is over (no shot this turn), and its round is gone for the match (greyed out).
  *
  * Once a turn (`Player.coffee.turn`), as many turns as it keeps winning. It's no shot: with only Diced
  * Coffee left a player has nothing to fire, so game.ts `hasAmmo` leaves it out and they sit out like anyone empty.
@@ -115,16 +115,16 @@ export function coffeeDone(state: GameState): boolean {
 }
 
 /**
- * Back to the turn: aiming, with a shot selected. With no shot left to fire (Diced Coffee alone), the
- * turn ends (a win still skips the next enemy turn).
+ * After a win, back to the turn: aiming, with a shot selected. A spill ends the turn (the penalty), and so
+ * does having no shot left to fire (Diced Coffee alone; a win still skips the next enemy turn).
  */
 export function finishCoffee(state: GameState): void {
   const c = state.coffee;
   state.coffee = null;
   const p = c ? state.players[c.playerId] : undefined;
   const shot = p ? p.ammo.findIndex((n, tier) => n > 0 && !isCoffee(p, tier)) : -1;
-  if (p && shot >= 0) {
-    if (isCoffee(p, p.selectedTier) || (p.ammo[p.selectedTier] ?? 0) <= 0) p.selectedTier = shot;
+  if (p && shot >= 0 && (isCoffee(p, p.selectedTier) || (p.ammo[p.selectedTier] ?? 0) <= 0)) p.selectedTier = shot;
+  if (c && !c.fail && shot >= 0) {
     state.phase = 'aiming';
     return;
   }

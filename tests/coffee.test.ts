@@ -80,25 +80,28 @@ describe('Diced Coffee', () => {
     expect(chances.map((c) => Math.round(c * 100))).toEqual([10, 20, 30]);
   });
 
-  it('full cream: a little jetpack straight up and back down, harmless, and Diced Coffee is gone for good', () => {
+  it('full cream: a little jetpack straight up and back down, harmless; his turn is over and Diced Coffee is gone for good', () => {
     const g = match();
     const [gary, kcaj] = g.players as [GameState['players'][0], GameState['players'][0]];
     const { x, y } = gary;
+    const ammo = [...gary.ammo];
     let top = y;
     rigged(g, 0);
     selectTier(g, COFFEE);
     fire(g);
     untilAiming(g, (s) => (top = Math.min(top, s.players[0]!.y)));
-    expect(g.phase).toBe('aiming');
     expect(y - top).toBeGreaterThan(30); // it went up
     expect(gary.x).toBe(x); // straight up
     expect(Math.abs(gary.y - y)).toBeLessThan(10); // and back down where it was (on a little splash of cream)
     expect([gary.hp, kcaj.hp]).toEqual([gary.maxHp, kcaj.maxHp]);
-    expect(gary.ammo[COFFEE]).toBe(0);
+    // No shot this turn: straight on to kcaj's.
+    expect([g.phase, g.turn, currentPlayer(g)]).toEqual(['aiming', 2, kcaj]);
+    expect(gary.ammo).toEqual([...ammo.slice(0, COFFEE), 0]);
     expect(gary.extraTurn).toBe(false);
-    expect(selectTier(g, COFFEE)).toBe(false);
     passTurn(g);
-    expect(currentPlayer(g)).toBe(kcaj);
+    expect(currentPlayer(g)).toBe(gary);
+    expect(gary.selectedTier).toBe(0); // a shot, not the spilt coffee
+    expect(selectTier(g, COFFEE)).toBe(false);
   });
 
   it('the wheel stops inside the slice of the result: full cream is the first failChance of the way round', () => {

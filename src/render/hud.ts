@@ -121,7 +121,7 @@ export class Hud {
       : state.phase === 'stealing' || state.phase === 'coffee'
       ? ''
       : isCoffee(p, p.selectedTier)
-      ? `Diced Coffee: ${Math.round(coffeeFailChance(p, p.selectedTier) * 100)}% full cream · FIRE to spin, then take your turn`
+      ? `Diced Coffee: ${Math.round(coffeeFailChance(p, p.selectedTier) * 100)}% full cream (ends your turn) · FIRE to spin`
       : picking !== null
       ? `${state.swapTargetId !== null ? 'Swapping into that decoy' : 'Tap a decoy to swap into it'} · DONE when ready (${Math.ceil(picking)})`
       : countdown !== null
@@ -358,7 +358,7 @@ export class Hud {
       this.wheelLabels = [label('full cream', 'full', full / 2), label('lactose\nfree', 'free', full + (360 - full) / 2)];
       this.wheelEl.replaceChildren(...this.wheelLabels.map((l) => l.el));
       this.keys.wheel = ''; // new labels: turn their words over below if need be
-      result!.textContent = !c.landed ? '• • •' : c.fail ? 'Full cream… 🥛 it’s all over the place' : 'Lactose free! ☕ Go again';
+      result!.textContent = !c.landed ? '• • •' : c.fail ? 'Full cream… 🥛 turn over' : 'Lactose free! ☕ Go again';
       result!.classList.toggle('rolling', !c.landed);
     }
     if (!c) return;
