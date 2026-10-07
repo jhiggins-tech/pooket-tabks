@@ -8,7 +8,7 @@ import { settleTurn, tankCentre } from './bodies';
  * larinovsky's Women in Scam: a bonus move (it doesn't use the turn: aim and fire as usual after it).
  * Until the end of the next enemy turn, an enemy attack that hits larinovsky's own tank (not anything
  * else) earns them a round of the weapon that enemy fired that turn, to keep: one round per enemy turn,
- * however many times it hits. The hit is noted in `damagePlayer`; the round is paid out in `endTurn`.
+ * however many times it hits. The hit is noted in `hurt` (tanks.ts); the round is paid out in `endTurn`.
  */
 
 /** Use the bonus move: spend its round and carry on aiming (or, with nothing left to fire, end the turn). */

@@ -107,7 +107,7 @@ describe('driving out of craters', () => {
           const g = createGame({ seed, players: [{ name: 'a', colour: '#f00', characterId: who }, { name: 'b', colour: '#00f', characterId: 'kie' }] });
           const a = g.players[0]!;
           const rng = createRng(seed * 7);
-          for (let k = 0; k < 6; k++) explode(g, a.x + randRange(rng, -40, 40), a.y + randRange(rng, -20, 10), getWeapon(k % 2 ? 'shell' : 'marathon'));
+          for (let k = 0; k < 6; k++) explode(g, a.x + randRange(rng, -40, 40), a.y + randRange(rng, -20, 10), getWeapon(k % 2 ? 'shell' : 'marathon'), g.current);
           Object.assign(a, { hp: 100, alive: true });
           g.phase = 'aiming';
           const x0 = a.x;

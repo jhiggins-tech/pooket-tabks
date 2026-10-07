@@ -99,7 +99,7 @@ describe('the game queues sound cues', () => {
     const g = createGame({ seed: 3, players });
     fire(g);
     expect(g.sfx).toContainEqual(expect.objectContaining({ cue: 'fire', weaponId: 'weasel-pop' }));
-    explode(g, g.players[1]!.x, g.players[1]!.y - 8, getWeapon('shell'));
+    explode(g, g.players[1]!.x, g.players[1]!.y - 8, getWeapon('shell'), g.current);
     expect(g.sfx.map((e) => e.cue)).toEqual(expect.arrayContaining(['boom', 'hit']));
   });
 
@@ -115,7 +115,7 @@ describe('the game queues sound cues', () => {
 
   it('keeps the queue bounded when nobody drains it', () => {
     const g = createGame({ seed: 3, players });
-    for (let i = 0; i < 200; i++) explode(g, 10, 10, getWeapon('unmedicated'));
+    for (let i = 0; i < 200; i++) explode(g, 10, 10, getWeapon('unmedicated'), g.current);
     expect(g.sfx.length).toBeLessThanOrEqual(64);
   });
 });

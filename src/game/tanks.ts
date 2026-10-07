@@ -3,7 +3,7 @@ import type { WeaponDef } from '../weapons/types';
 import { RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { bodiesOf, currentPlayer, settleTanks, tankBody } from './bodies';
+import { bodiesOf, settleTanks, tankBody } from './bodies';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
@@ -196,8 +196,8 @@ export function damageTarget(state: GameState, t: Target, amount: number, colour
 }
 
 /**
- * A blast at (x, y): a crater, and every target in reach takes a hit from `weapon` (applyHit), falling off
- * from `blast.damage` at the centre to nothing at the edge. The blast is the weapon's own (blastRadius /
+ * A blast at (x, y): a crater, and every target in reach takes a hit from `weapon` fired by `shooterId`
+ * (applyHit), falling off from `blast.damage` at the centre to nothing at the edge. The blast is the weapon's own (blastRadius /
  * damage) unless it's given: a runner's finish, a hologram blowing up.
  */
 export function explode(
@@ -205,7 +205,7 @@ export function explode(
   x: number,
   y: number,
   weapon: WeaponDef,
-  ownerId?: number,
+  shooterId: number,
   blast: { radius: number; damage: number } = blastOf(weapon),
 ): void {
   const r = blast.radius;
@@ -213,7 +213,6 @@ export function explode(
   state.fx.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
   sound(state, 'boom', weapon.id, r);
 
-  const shooterId = ownerId ?? currentPlayer(state).id;
   for (const t of allTargets(state)) {
     if (gone(t)) continue; // e.g. a twin promoted by this very blast
     const pos = targetPos(t);
@@ -230,11 +229,6 @@ export function explode(
     sound(state, 'dnf');
   }
   settleTanks(state);
-}
-
-/** Damage to a player's main tank. */
-export function damagePlayer(state: GameState, p: Player, amount: number, colour = '#ffffff'): void {
-  hurt(state, p, p, amount, colour);
 }
 
 /**
