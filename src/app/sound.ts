@@ -1,4 +1,5 @@
 import type { Chip } from '../audio/chip';
+import { readStore, writeStore } from '../core/storage';
 import { profileChanges } from '../ui/profile';
 
 export const SOUND_KEY = 'pooket-tabks.sound';
@@ -14,19 +15,12 @@ export function setupSoundToggle(chip: Chip, button: HTMLElement): { reload: () 
     button.textContent = on ? '🔊' : '🔇';
     button.setAttribute('aria-pressed', String(on));
     button.setAttribute('aria-label', on ? 'Sound on' : 'Sound off');
-    try {
-      localStorage.setItem(SOUND_KEY, on ? 'on' : 'off');
-    } catch {
-      /* not critical */
-    }
+    writeStore(SOUND_KEY, on ? 'on' : 'off'); // not critical
   };
   let on = true;
   const reload = () => {
-    try {
-      on = localStorage.getItem(SOUND_KEY) !== 'off';
-    } catch {
-      /* storage unavailable */
-    }
+    const saved = readStore(SOUND_KEY);
+    if (saved !== null) on = saved !== 'off'; // (storage unavailable: as it is)
     set(on);
   };
   reload();

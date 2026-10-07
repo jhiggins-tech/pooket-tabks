@@ -3,6 +3,7 @@
  * remembered in localStorage, so the popup only comes back when there's something new.
  */
 
+import { readStore, writeStore } from '../core/storage';
 import { el } from './dom';
 
 export interface Release {
@@ -354,20 +355,12 @@ export function unseenReleases(seen: number | null, log: Release[] = CHANGELOG):
 }
 
 export function readSeen(): number | null {
-  try {
-    const v = Number.parseInt(localStorage.getItem(WHATS_NEW_KEY) ?? '', 10);
-    return Number.isFinite(v) ? v : null;
-  } catch {
-    return null;
-  }
+  const v = Number.parseInt(readStore(WHATS_NEW_KEY) ?? '', 10);
+  return Number.isFinite(v) ? v : null;
 }
 
 function markSeen(): void {
-  try {
-    localStorage.setItem(WHATS_NEW_KEY, String(LATEST));
-  } catch {
-    /* storage unavailable: it'll just show again */
-  }
+  writeStore(WHATS_NEW_KEY, String(LATEST)); // (storage unavailable: it'll just show again)
 }
 
 export class WhatsNew {

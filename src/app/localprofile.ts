@@ -1,4 +1,5 @@
 import { isCharacterId } from '../characters/roster';
+import { readStore, writeStore } from '../core/storage';
 import type { LocalProfile, ProfileData } from '../net/account';
 import { LISTED_KEY, PAST_KEY } from '../ui/online/prefs';
 import { CHARACTER_KEY, cleanName, USERNAME_KEY } from '../ui/profile';
@@ -10,20 +11,8 @@ import { SOUND_KEY } from './sound';
  * (to be sent up), and what comes down from the account isn't one.
  */
 
-const read = (key: string): string | undefined => {
-  try {
-    return localStorage.getItem(key) ?? undefined;
-  } catch {
-    return undefined;
-  }
-};
-const write = (key: string, value: string): void => {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* storage unavailable: it lasts this visit at most */
-  }
-};
+const read = (key: string): string | undefined => readStore(key) ?? undefined;
+const write = (key: string, value: string): void => void writeStore(key, value); // (storage unavailable: it lasts this visit at most)
 
 export const localProfile: LocalProfile = {
   read(): ProfileData {

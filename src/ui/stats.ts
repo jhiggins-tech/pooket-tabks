@@ -7,6 +7,7 @@ import { rankOf, type Rank } from '../stats/ranks';
 import { parseStats, STATS_PATH } from '../stats/store';
 import { insignia } from './insignia';
 import type { Ratings } from './ranks';
+import { readStore, writeStore } from '../core/storage';
 import { el } from './dom';
 
 /**
@@ -320,18 +321,5 @@ function ago(ts: number): string {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 }
 
-function remembered(): boolean {
-  try {
-    return localStorage.getItem(VERIFIED_KEY) === 'yes';
-  } catch {
-    return false;
-  }
-}
-
-function remember(on: boolean): void {
-  try {
-    localStorage.setItem(VERIFIED_KEY, on ? 'yes' : 'no');
-  } catch {
-    /* it'll just start unticked */
-  }
-}
+const remembered = (): boolean => readStore(VERIFIED_KEY) === 'yes';
+const remember = (on: boolean): void => void writeStore(VERIFIED_KEY, on ? 'yes' : 'no'); // else it just starts unticked

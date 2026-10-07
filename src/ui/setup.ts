@@ -1,6 +1,7 @@
 import { assignColours, getCharacter, loadoutSummary } from '../characters/roster';
 import { upcoming } from '../characters/upcoming';
 import type { PlayerConfig } from '../game/state';
+import { readJson, writeJson } from '../core/storage';
 import { byId, el } from './dom';
 import { addCharacterOptions } from './info';
 import { loadUsername } from './profile';
@@ -119,18 +120,11 @@ export class SetupScreen {
   }
 }
 
+/** The last hotseat picks (the defaults if there are none, or they're unreadable). */
 function loadSeats(): Seat[] {
-  try {
-    return parseSeats(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null'));
-  } catch {
-    return parseSeats(null); // storage unavailable or corrupt
-  }
+  return parseSeats(readJson(STORAGE_KEY));
 }
 
 function saveSeats(seats: Seat[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(seats));
-  } catch {
-    /* private mode etc. — not critical */
-  }
+  writeJson(STORAGE_KEY, seats); // not critical if it doesn't stick
 }

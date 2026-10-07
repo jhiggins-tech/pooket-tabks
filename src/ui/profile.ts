@@ -1,5 +1,6 @@
 import { isCharacterId } from '../characters/roster';
 import { Emitter } from '../core/emitter';
+import { readStore, writeStore } from '../core/storage';
 import { NAME_MAX } from './seats';
 import { el } from './dom';
 
@@ -19,24 +20,15 @@ export function cleanName(raw: string): string {
   return raw.replace(/\s+/g, ' ').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, NAME_MAX).trim();
 }
 
+/** The saved username (null: none yet, or storage unavailable: ask again next time). */
 export function loadUsername(): string | null {
-  try {
-    const name = cleanName(localStorage.getItem(USERNAME_KEY) ?? '');
-    return name || null;
-  } catch {
-    return null; // storage unavailable: ask again next time
-  }
+  return cleanName(readStore(USERNAME_KEY) ?? '') || null;
 }
 
 export function saveUsername(raw: string): string | null {
   const name = cleanName(raw);
   if (!name) return null;
-  try {
-    localStorage.setItem(USERNAME_KEY, name);
-    profileChanges.emit('saved');
-  } catch {
-    /* private mode etc.: it lasts this visit */
-  }
+  if (writeStore(USERNAME_KEY, name)) profileChanges.emit('saved'); // (else it lasts this visit)
   return name;
 }
 
@@ -44,21 +36,12 @@ export const CHARACTER_KEY = 'pooket.character';
 
 /** The character this phone last played online (picked in the online lobby). */
 export function loadCharacter(): string | null {
-  try {
-    const id = localStorage.getItem(CHARACTER_KEY);
-    return id && isCharacterId(id) ? id : null;
-  } catch {
-    return null;
-  }
+  const id = readStore(CHARACTER_KEY);
+  return id && isCharacterId(id) ? id : null;
 }
 
 export function saveCharacter(id: string): void {
-  try {
-    localStorage.setItem(CHARACTER_KEY, id);
-    profileChanges.emit('saved');
-  } catch {
-    /* it'll just be picked again */
-  }
+  if (writeStore(CHARACTER_KEY, id)) profileChanges.emit('saved'); // (else it'll just be picked again)
 }
 
 /** The first-visit prompt: "What's your name?", until one is saved. */
