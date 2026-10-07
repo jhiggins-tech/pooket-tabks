@@ -12,7 +12,9 @@ stand-in shots); hotseat on one phone, or two phones online through Firebase (wi
 - `FEATURES.md` is the features list and work queue. Requests to "queue" something go there; shipping
   moves it to **Shipped** (and updates the character table). Balance changes get a **Balance** entry.
 - Anything players will notice gets a release in `src/ui/whatsnew.ts` (`CHANGELOG`, newest first, version
-  + 1; never edit a release that has already shipped).
+  + 1; never edit a release that has already shipped). **Testing pushes** (betas, work in progress, like
+  garyoldmancorp's) get no release: the owner calls a roll-up release when there's a batch, and it lists
+  them then. The next release is 49 (48 was withdrawn).
 - **Hidden ranks**: 25 of the 33 ranks (everything but Bronze, Silver, Gold, Platinum, Diamond, Master,
   Grandmaster, Champion) are meant to be *discovered*: never name them (or describe their looks) in
   `whatsnew.ts`, FEATURES.md, README, CLAUDE.md, comments outside `src/stats/ranks.ts`, tests or commit

@@ -187,7 +187,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   carries on after it (a bonus move). It isn't a shot: with only Diced Coffee left a player has nothing to
   fire and sits out. Tiers 1–3 are stand-ins, single ballistic shells: Beta Shot (30), Beta Mortar (45),
   Beta Bomb (70). The earlier teasers (tier 2 kamp karl, tier 3 the crinkler, bonus action stop the
-  violence) are off the game for now; see the Backlog.
+  violence) are off the game for now; see the Backlog. A testing push: no What's new release until the
+  owner calls a roll-up (48 went out briefly and was withdrawn, so that one will be 49).
 - **Rank-up jingles, a tune each** (owner, 4 Oct). Every rank's jingle is its own short score
   (`src/stats/ranks.ts` `jingle`, in the notation of `src/audio/score.ts`: notes, rests, chords, slides,
   drums), not an arpeggio moved up or down. They build up the ladder: the lowest ranks are a lone tune, then
