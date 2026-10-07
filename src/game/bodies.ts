@@ -44,6 +44,14 @@ export function otherBodyNear(state: GameState, self: Player, near: (x: number, 
   return null;
 }
 
+/**
+ * A tank body (TankBody) at (x, y) with `hp`: fresh (no burn, soak or toxin) unless `t` brings its own,
+ * as a twin does when it takes over from the main tank. Only the TankBody fields are taken from `t`.
+ */
+export function tankBody(t: Pick<TankBody, 'x' | 'y' | 'hp'> & Partial<TankBody>): TankBody {
+  return { x: t.x, y: t.y, hp: t.hp, burn: t.burn ?? null, soak: t.soak ?? 0, soakColour: t.soakColour ?? '#ffffff', toxin: t.toxin ?? 0, toxinRate: t.toxinRate ?? 0 };
+}
+
 /** y where a tank's hull would rest at x: the highest ground under it, searching down from fromY. */
 export function hullRest(terrain: Terrain, x: number, fromY: number): number {
   let ground = terrain.height;

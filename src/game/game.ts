@@ -6,6 +6,7 @@ import { ignoresAim, kindOf } from '../weapons/registry';
 import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, SETTLE_TIME, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
+import { tankBody } from './bodies';
 import { canDrinkCoffee, coffeeDone, finishCoffee, isCoffee, stepCoffee } from './coffee';
 import { canSuckYolk, resolveHolograms, stepPhaseFx, suckYolk, yolkTier } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
@@ -85,9 +86,7 @@ export function createGame(cfg: GameConfig): GameState {
       id: i,
       name: p.name,
       colour: p.colour,
-      x,
-      y: terrain.surfaceY(x),
-      hp: character.maxHp ?? MAX_HP,
+      ...tankBody({ x, y: terrain.surfaceY(x), hp: character.maxHp ?? MAX_HP }),
       maxHp: character.maxHp ?? MAX_HP,
       angle: x < width / 2 ? 45 : 135,
       power: 60,
@@ -96,9 +95,6 @@ export function createGame(cfg: GameConfig): GameState {
       loadout: [...character.loadout],
       ammo: character.loadout.map((_, tier) => AMMO_PER_TIER[tier] ?? 1),
       selectedTier: 0,
-      burn: null,
-      soak: 0,
-      soakColour: '#ffffff',
       cooked: null,
       tattoo: null,
       pinned: null,
@@ -107,8 +103,6 @@ export function createGame(cfg: GameConfig): GameState {
       aimTwin: false,
       twinSpot: null,
       fuel: FUEL_PER_MATCH,
-      toxin: 0,
-      toxinRate: 0,
       scam: null,
       coffee: null,
       extraTurn: false,

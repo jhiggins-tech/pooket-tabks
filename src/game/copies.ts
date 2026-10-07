@@ -1,6 +1,7 @@
 import { randRange } from '../core/rng';
 import { getWeapon, kindOf, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
+import { tankBody } from './bodies';
 import { GRAVITY, SETTLE_TIME, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { ring, sound, spawnFloater } from './fx';
 import { reselect } from './loadout';
@@ -100,7 +101,7 @@ export function spawnTwin(state: GameState, p: Player): void {
   const { terrain } = state;
   const x = p.twinSpot !== null && twinSpotOk(state, p, p.twinSpot) ? p.twinSpot : suggestTwinSpot(state, p);
   p.twinSpot = null;
-  const twin: Twin = { x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2), burn: null, soak: 0, soakColour: '#ffffff', toxin: 0, toxinRate: 0, age: 0, angle: p.angle, power: p.power };
+  const twin: Twin = { ...tankBody({ x, y: terrain.surfaceY(x), hp: Math.floor(p.hp / 2) }), age: 0, angle: p.angle, power: p.power };
   p.hp -= twin.hp;
   p.twin = twin;
   ring(state, p.x, p.y - TANK_BODY_HEIGHT, p.colour);

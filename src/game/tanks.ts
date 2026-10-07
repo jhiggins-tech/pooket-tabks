@@ -3,7 +3,7 @@ import type { WeaponDef } from '../weapons/types';
 import { RUNNER_BODY, RUNNER_HIT_RADIUS, TANK_BODY_HEIGHT, TANK_HIT_RADIUS } from './constants';
 import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
-import { bodiesOf, currentPlayer, settleTanks } from './bodies';
+import { bodiesOf, currentPlayer, settleTanks, tankBody } from './bodies';
 import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
@@ -259,14 +259,9 @@ export function hurt(state: GameState, p: Player, tank: TankBody, amount: number
     return false;
   }
   state.fx.explosions.push({ x: tank.x, y: tank.y - TANK_BODY_HEIGHT, radius: 22, age: 0, duration: 0.5 });
-  if (tank === p) Object.assign(p, tankBody(p.twin!), { angle: p.twin!.angle, power: p.twin!.power }); // the twin carries on as the player's tank, aim and all
+  if (tank === p) Object.assign(p, tankBody(p.twin!), { angle: p.twin!.angle, power: p.twin!.power }); // the twin's own things (where it is, health, burn, soak, toxin) carry on as the player's tank, aim and all
   p.twin = null;
   return false;
-}
-
-/** A tank's own things (where it is, health, burn, soak, toxin): what a twin hands over when it takes over. */
-function tankBody(t: TankBody): TankBody {
-  return { x: t.x, y: t.y, hp: t.hp, burn: t.burn, soak: t.soak, soakColour: t.soakColour, toxin: t.toxin, toxinRate: t.toxinRate };
 }
 
 /** A player's burns tick (at every turn change, endTurn): the main tank's, then the twin's. */

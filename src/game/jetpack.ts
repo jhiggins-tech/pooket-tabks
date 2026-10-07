@@ -136,20 +136,17 @@ function land(state: GameState, p: Player): void {
   spawnDust(state, p.x, p.y, 1);
 }
 
+/**
+ * A jet about to charge: player `playerId`'s tank, with `weaponId`'s jetpack, drawn heading `heading`
+ * (radians) until it launches; along the player's aim, or along `aim` if it's given.
+ */
+export function newJet(playerId: number, weaponId: string, heading: number, aim?: { angle: number; power: number }): Jet {
+  return { playerId, weaponId, elapsed: 0, launched: false, vx: 0, vy: 0, burnLeft: 0, emitCarry: 0, flightTime: 0, heading, ...aim };
+}
+
 /** ten-2: the tank starts charging, and launches along its aim once charged. */
 export function fireJetpack(state: GameState, p: Player, weapon: WeaponDef): void {
-  state.jets.push({
-    playerId: p.id,
-    weaponId: weapon.id,
-    elapsed: 0,
-    launched: false,
-    vx: 0,
-    vy: 0,
-    burnLeft: 0,
-    emitCarry: 0,
-    flightTime: 0,
-    heading: (p.angle * Math.PI) / 180,
-  });
+  state.jets.push(newJet(p.id, weapon.id, (p.angle * Math.PI) / 180));
 }
 
 export const jetStepper: Stepper = {
