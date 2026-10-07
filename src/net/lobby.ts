@@ -2,6 +2,7 @@ import { errText, netLog } from './log';
 import { followChildren, type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
 import { openSealed, putSealed } from './sealed';
+import { loadSeats } from './seat';
 
 /**
  * The Games list: every public game, on any network, for anyone to join (waiting for a second player)
@@ -161,4 +162,27 @@ export function watchLobby(db: Rtdb, lobby: Sealer, onList: (games: Advert[]) =>
   );
   emit();
   return follow;
+}
+
+/**
+ * Keep a count of the public games, waiting for a player and live (not this phone's own), for the
+ * landing screen. Returns how to stop.
+ */
+export function watchCounts(db: Rtdb, lobbyName: string, onCounts: (waiting: number, live: number) => void): () => void {
+  let stopped = false;
+  let stop = () => {};
+  void lobbySealer(lobbyName).then((lobby) => {
+    const watch = watchLobby(db, lobby, (games) => {
+      const mine = new Set(loadSeats().map((x) => x.code));
+      const others = games.filter((g) => !mine.has(g.room));
+      onCounts(others.filter((g) => !g.playing).length, others.filter((g) => g.playing && !g.over).length);
+    });
+    if (stopped) watch.stop();
+    else stop = watch.stop;
+  });
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    stop();
+  };
 }

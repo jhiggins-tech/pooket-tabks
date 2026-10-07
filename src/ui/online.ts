@@ -1,14 +1,15 @@
 import { getCharacter } from '../characters/roster';
 import { roomLink } from '../net/links';
 import { netLog } from '../net/log';
-import { Listing, lobbySealer, watchLobby } from '../net/lobby';
+import { Listing, lobbySealer, watchCounts, type Advert } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
 import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, RoomError, roomHost, watchSeat, type RoomRef } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
-import { bySeat, findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
+import { bySeat, findSeat, forgetSeat, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
 import { loadReplay, ReplayPlayer, ReplayRecorder, type Replay, type ReplayListing } from '../net/replay';
-import { NetSession, type Outdated, type Pick } from '../net/session';
+import type { Sealer } from '../net/seal';
+import { brief, NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
 import { ViewPublisher, watchRoom } from '../net/view';
 import { announceDevice, notifySeat } from '../net/push';
@@ -135,7 +136,7 @@ export class OnlineScreen {
   host(): void {
     this.reset();
     netLog('ui: Host');
-    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
+    if (!this.requireDb(PLAY_HERE)) return;
     this.pickTank('Hosting a game', 'Host', () => void this.openRoom());
   }
 
@@ -156,10 +157,10 @@ export class OnlineScreen {
 
   /** Open a room for an open game, as the tank just chosen. */
   private async openRoom(): Promise<void> {
-    if (!this.opts.dbUrl) return;
+    const db = this.database();
+    if (!db) return;
     const scope = this.attempt;
     this.show([heading('Host a game'), status('Opening a room…')]);
-    const db = new Rtdb(this.opts.dbUrl);
     const pick = this.pick();
     const listed = listPublicly();
     const [lobby, opened] = await Promise.all([
@@ -173,7 +174,7 @@ export class OnlineScreen {
     const room = opened;
     if (!scope.alive) return room.cancel(); // gone meanwhile: nobody knows its code yet
     saveSeat({ code: room.code, role: 'host', id: room.id, listed });
-    const listing = new Listing(db, lobby, { hostId: room.id, name: pick.name, characterId: pick.characterId, room: room.code, open: true });
+    const listing = listingFor(db, lobby, room.id, pick, room.code, { open: true });
     listing.list(listed);
     netLog(`ui: room ${room.code} open${listing.listed ? ', on the Games list' : ' (private)'}`);
     this.hosting(room, listing, pick);
@@ -181,9 +182,9 @@ export class OnlineScreen {
 
   /** Back to our open game that nobody has joined yet: its host screen again. */
   private async resumeHosting(seat: Seat, offer: OpenRecord['open']): Promise<void> {
-    if (!this.opts.dbUrl) return;
+    const db = this.database();
+    if (!db) return;
     const scope = this.attempt;
-    const db = new Rtdb(this.opts.dbUrl);
     this.show([heading('Host a game'), status('Opening your game…')]);
     let room: HostedRoom;
     try {
@@ -194,7 +195,7 @@ export class OnlineScreen {
     const lobby = await lobbySealer(this.opts.lobby);
     if (!scope.alive) return room.stop(); // gone meanwhile: the game stays open
     saveSeat({ code: seat.code, role: 'host', id: seat.id, listed: offer.listed });
-    const listing = new Listing(db, lobby, { hostId: seat.id, name: offer.host.name, characterId: offer.host.characterId, room: seat.code, open: true });
+    const listing = listingFor(db, lobby, seat.id, offer.host, seat.code, { open: true });
     listing.list(offer.listed);
     this.hosting(room, listing, offer.host);
   }
@@ -270,8 +271,8 @@ export class OnlineScreen {
   async join(code?: string): Promise<void> {
     const scope = this.reset();
     netLog(`ui: ${code ? `Join ${code}` : 'Game browser'}`);
-    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet. Play on this phone for now."));
-    const db = new Rtdb(this.opts.dbUrl);
+    const db = this.requireDb(PLAY_HERE);
+    if (!db) return;
     const typed = normaliseRoomCode(code ?? '');
     if (typed) return this.joinCode(db, typed);
 
@@ -304,7 +305,7 @@ export class OnlineScreen {
   private enter(db: Rtdb, code: string): void {
     const scope = this.attempt;
     netLog(`ui: joining room ${code}`);
-    this.show([heading('Game browser'), status(`Joining ${code}…`, 'online-status'), buttons(cancelButton(() => this.close()))]);
+    this.progress('Game browser', `Joining ${code}…`);
     const id = randomId();
     const room = Promise.all([roomHost(db, code), loadRoomRecord(db, code)]).catch(() => [null, null] as const);
     joinRoom(db, code, this.opts.relay, id).then(
@@ -343,14 +344,7 @@ export class OnlineScreen {
         // On the Games list as live now (the host isn't there to say so).
         const lobby = await lobbySealer(this.opts.lobby);
         if (this.session !== s || s.ended) return; // left meanwhile: nothing to list
-        const listing = new Listing(db, lobby, {
-          hostId: host.id,
-          name: offer.host.name,
-          characterId: offer.host.characterId,
-          room: code,
-          playing: true,
-          opponent: { name: s.localPick.name, characterId: s.localPick.characterId },
-        });
+        const listing = listingFor(db, lobby, host.id, offer.host, code, { playing: true, opponent: brief(s.localPick) });
         listing.list(true);
         this.listing = listing;
       }
@@ -361,19 +355,8 @@ export class OnlineScreen {
 
   /** Keep a count of the public games (waiting for a player, and live) for the landing screen. */
   watchCounts(onCounts: (waiting: number, live: number) => void): () => void {
-    if (!this.opts.dbUrl) return () => {};
-    const db = new Rtdb(this.opts.dbUrl);
-    const scope = new Scope();
-    void lobbySealer(this.opts.lobby).then((lobby) => {
-      scope.onEnd(
-        watchLobby(db, lobby, (games) => {
-          const mine = new Set(loadSeats().map((x) => x.code));
-          const others = games.filter((g) => !mine.has(g.room));
-          onCounts(others.filter((g) => !g.playing).length, others.filter((g) => g.playing && !g.over).length);
-        }).stop,
-      );
-    });
-    return () => scope.end();
+    const db = this.database();
+    return db ? watchCounts(db, this.opts.lobby, onCounts) : () => {};
   }
 
   /**
@@ -398,9 +381,9 @@ export class OnlineScreen {
   async rejoin(seat: Seat): Promise<void> {
     const scope = this.reset();
     netLog(`ui: Rejoin ${seat.code} as ${seat.role}`);
-    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
-    const db = new Rtdb(this.opts.dbUrl);
-    const waiting = (line: string) => this.show([heading(`Rejoining ${seat.code}`), status(line, 'online-status'), buttons(cancelButton(() => this.close(), 'Back'))]);
+    const db = this.requireDb();
+    if (!db) return;
+    const waiting = (line: string) => this.progress(`Rejoining ${seat.code}`, line, 'Back');
     waiting('Getting your seat back…');
     let t: RelayTransport;
     let stored: StoredGame | null;
@@ -438,8 +421,8 @@ export class OnlineScreen {
       const lobby = await lobbySealer(this.opts.lobby);
       s.on('resumed', () => {
         if (this.session !== s || !s.localPick) return;
-        const listing = new Listing(db, lobby, { hostId: seat.id, name: s.localPick.name, characterId: s.localPick.characterId, room: seat.code, playing: true });
-        if (s.remotePick) listing.update({ opponent: { name: s.remotePick.name, characterId: s.remotePick.characterId } });
+        const listing = listingFor(db, lobby, seat.id, s.localPick, seat.code, { playing: true });
+        if (s.remotePick) listing.update({ opponent: brief(s.remotePick) });
         listing.list(true);
         this.listing = listing;
         this.trackOpponent(s);
@@ -486,9 +469,9 @@ export class OnlineScreen {
   async watch(code: string): Promise<void> {
     const scope = this.reset();
     netLog(`ui: Watch ${code}`);
-    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
-    const db = new Rtdb(this.opts.dbUrl);
-    this.show([heading(`Watching ${code}`), status('Tuning in…', 'online-status'), buttons(cancelButton(() => this.close()))]);
+    const db = this.requireDb();
+    if (!db) return;
+    this.progress(`Watching ${code}`, 'Tuning in…');
     const sp = new Spectator();
     this.spectator = sp;
     this.onSpectate(sp);
@@ -501,7 +484,7 @@ export class OnlineScreen {
         scope.onEnd(checkIn(w.room, me, this.pick().name).stop);
         scope.onEnd(this.audience.follow(w.room, me));
       }
-      if (scope.alive && !sp.game) this.show([heading(`Watching ${code}`), status('Waiting for the match to start…', 'online-status'), buttons(cancelButton(() => this.close(), 'Leave'))]);
+      if (scope.alive && !sp.game) this.progress(`Watching ${code}`, 'Waiting for the match to start…', 'Leave');
     } catch (e) {
       if (scope.alive) this.fail(e, () => void this.watch(code));
     }
@@ -512,10 +495,11 @@ export class OnlineScreen {
     const scope = this.reset();
     const title = listing.players.map((p) => p.name).join(' vs ');
     netLog(`ui: Replay ${listing.id.slice(0, 6)}`);
-    if (!this.opts.dbUrl) return this.fail(new Error("Online play isn't switched on yet."));
-    this.show([heading(`Replay: ${title}`), status('Loading the replay…', 'online-status'), buttons(cancelButton(() => this.close()))]);
+    const db = this.requireDb();
+    if (!db) return;
+    this.progress(`Replay: ${title}`, 'Loading the replay…');
     try {
-      const replay = await loadReplay(new Rtdb(this.opts.dbUrl), listing);
+      const replay = await loadReplay(db, listing);
       if (!scope.alive) return;
       if (!replay.shots.length && !replay.end) throw new Error('That replay has gone (they’re kept for two weeks).');
       const player = new ReplayPlayer(replay);
@@ -769,7 +753,7 @@ export class OnlineScreen {
   /** Hosting a listed game: show who's playing against us, once they've said hello. */
   private trackOpponent(s: NetSession): void {
     s.on('lobby', () => {
-      if (s.remotePick) this.listing?.update({ opponent: { name: s.remotePick.name, characterId: s.remotePick.characterId } });
+      if (s.remotePick) this.listing?.update({ opponent: brief(s.remotePick) });
     });
   }
 
@@ -814,6 +798,23 @@ export class OnlineScreen {
     this.awayKey = '';
   }
 
+  /** The database matches go through (null: online play isn't set up). */
+  private database(): Rtdb | null {
+    return this.opts.dbUrl ? new Rtdb(this.opts.dbUrl) : null;
+  }
+
+  /** The database; or, if online play isn't set up, null, having said so (and `more`). */
+  private requireDb(more = ''): Rtdb | null {
+    const db = this.database();
+    if (!db) this.fail(new Error(`Online play isn't switched on yet.${more}`));
+    return db;
+  }
+
+  /** Something under way: what it is, how it's going, and a way out (`cancel`: the button's label). */
+  private progress(title: string, line: string, cancel?: string): void {
+    this.show([heading(title), status(line, 'online-status'), buttons(cancelButton(() => this.close(), cancel))]);
+  }
+
   private fail(e: unknown, retry?: () => void): void {
     netLog(`ui: error shown: ${message(e)}`);
     this.cleanup();
@@ -842,6 +843,14 @@ export class OnlineScreen {
     if (!this.session) this.peer?.close();
     this.peer = null;
   }
+}
+
+/** Said when online play isn't set up, on the ways in that start a game. */
+const PLAY_HERE = ' Play on this phone for now.';
+
+/** This phone's game on the Games list: hosted by `hostId` (playing as `host`) in room `code`, and how it stands. */
+function listingFor(db: Rtdb, lobby: Sealer, hostId: string, host: Pick, code: string, state: { open?: boolean; playing?: boolean; opponent?: Advert['opponent'] }): Listing {
+  return new Listing(db, lobby, { hostId, ...brief(host), room: code, ...state });
 }
 
 /** Joined an open game whose host was here a moment ago: how long to wait for their hello before starting without them. */
