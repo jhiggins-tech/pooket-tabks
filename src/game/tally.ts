@@ -11,8 +11,8 @@ import type { GameState, Player, PlayerTally } from './state';
  * - A shot counts (`shots`, and `hits` if it touched an enemy tank or decoy) when its weapon can do damage:
  *   not Twins, Trollogram or Take a Nap, nor bonus moves and free actions (they aren't shots).
  * - Damage is credited in `hurt` (every hit on a tank goes through it), capped at the health that was
- *   there: to whoever caused it, with which weapon. A burn remembers who lit it (it ticks on the victim's
- *   turn); anything else during a shot is the shooter's (soak and toxin included).
+ *   there: to whoever caused it, with which weapon. A burn remembers who lit it (it ticks between turns,
+ *   whoever's); anything else during a shot is the shooter's (soak and toxin included).
  * - A kill: the hit that put a player out.
  */
 

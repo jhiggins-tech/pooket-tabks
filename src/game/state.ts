@@ -25,7 +25,7 @@ export interface TankBody {
   /** Ground contact y (bottom of the tank). */
   y: number;
   hp: number;
-  /** Hyperfixate's burn on this tank: ticks at the start of its player's next turns. */
+  /** Hyperfixate's burn on this tank: ticks at every turn change, whoever's turn it is (game.ts `endTurn`). */
   burn: Burn | null;
   /** Fractional damage soaked up (water, mud, sludge) but not yet applied (applied in small batches). */
   soak: number;
@@ -64,7 +64,7 @@ export interface Player extends TankBody {
   pinned: { active: boolean } | null;
   /** A frog hop in progress (ciarra's movement). */
   hop: Hop | null;
-  /** A second tank (torikloud's Twins): its own position, health bar and aim; it fires every shot too. */
+  /** A second tank (torikloud's Twins): its own position, health bar and aim; it fires ballistic and sonic shots too (mechanics.ts `FIRE`). */
   twin: Twin | null;
   /** Aiming the twin (its own angle and power) rather than the main tank, while there is one. */
   aimTwin: boolean;
@@ -87,7 +87,7 @@ export interface Burn {
   damagePerTurn: number;
   turnsLeft: number;
   colour: string;
-  /** Who lit it, and with what (for the stats: it ticks on the victim's own turn). -1: not known. */
+  /** Who lit it, and with what (for the stats: it ticks between turns, not during the shooter's shot). -1: not known. */
   by: number;
   weaponId: string;
 }

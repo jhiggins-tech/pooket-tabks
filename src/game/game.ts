@@ -24,8 +24,10 @@ import { clamp, normalizeAngle } from './util';
 /**
  * The match: creating a game, aiming and weapon choice, firing (each weapon kind's mechanics live in
  * their own module), the fixed-step simulation and the turn state machine
- * (aiming → flying → settling → aiming | gameover). Pure logic, no DOM. The public API is re-exported
- * here, so the rest of the game imports from './game'.
+ * (aiming → flying → settling → aiming | gameover; plus stealing, kie's Steal roulette, and coffee, Diced
+ * Coffee's spinner: both back to aiming, or from coffee to settling when it spilt or nothing's left to
+ * fire). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
+ * './game'.
  */
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
