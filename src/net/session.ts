@@ -1,7 +1,7 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
 import type { GameState, Hop, PlayerConfig } from '../game/state';
 import { Emitter } from '../core/emitter';
-import { applyPreview, previewOf, putState, shotResolved, SYNC_GRACE, type Preview } from './follow';
+import { applyPreview, previewOf, putState, ResultBuffer, type Preview } from './follow';
 import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
@@ -77,6 +77,62 @@ export type NetMsg =
 export type ViewMsg =
   | { k: 'state'; why: 'start' | 'fire' | 'sync'; seed: number; players: PlayerConfig[]; snap: Snapshot; terrain: string }
   | Preview;
+
+type SyncMsg = Extract<NetMsg, { k: 'sync' }>;
+
+/**
+ * The match's shots (ResultBuffer: the one playing out and the other phone's result for it), plus what the
+ * record keeps of them: the last shot that played out, and the one in flight.
+ */
+class MatchShots extends ResultBuffer<SyncMsg> {
+  private lastShot: ShotRecord | null = null;
+  private flyingShot: ShotRecord | null = null;
+
+  get last(): ShotRecord | null {
+    return this.lastShot;
+  }
+  get flying(): ShotRecord | null {
+    return this.flyingShot;
+  }
+
+  /** A shot was fired: in flight (with its record, if it has one: a replayed last shot hasn't). */
+  override fired(shot: { turn: number; owner: number }, flying?: ShotRecord): void {
+    super.fired(shot);
+    if (flying) this.flyingShot = flying;
+  }
+
+  /** The other phone's result was applied: the shot in flight (if any) is the last one now. */
+  override applied(): void {
+    super.applied();
+    this.lastShot = this.flyingShot ?? this.lastShot;
+    this.flyingShot = null;
+  }
+
+  /** Our result of the shot is the one: it's the last one now. */
+  override settledHere(): void {
+    super.settledHere();
+    this.lastShot = this.flyingShot;
+    this.flyingShot = null;
+  }
+
+  /** The match ended between shots (resigned, out of time): no shot, no result, nothing in flight. */
+  over(): void {
+    this.cleared();
+    this.flyingShot = null;
+  }
+
+  /** A new game: no shots at all yet. */
+  override reset(): void {
+    super.reset();
+    this.lastShot = null;
+    this.flyingShot = null;
+  }
+
+  /** Picked up from the record: the last shot that played out there. */
+  carryOn(last: ShotRecord | null): void {
+    this.lastShot = last;
+  }
+}
 
 /** How often the player whose turn it is streams their aim and position to the other phone. */
 const PREVIEW_INTERVAL = 1 / 15;
@@ -155,14 +211,8 @@ export class NetSession {
   get matchSetup(): MatchSetup {
     return this.setup;
   }
-  /** The turn a shot was fired in (and whose it was) until its result is synced. */
-  private shot: { turn: number; owner: number } | null = null;
-  private pendingSync: Extract<NetMsg, { k: 'sync' }> | null = null;
-  private waitedForSync = 0;
-  private syncGrace = SYNC_GRACE;
-  /** The last shot that played out, and the one in flight (for the record). */
-  private lastShot: ShotRecord | null = null;
-  private flyingShot: ShotRecord | null = null;
+  /** The turn a shot was fired in (and whose it was) until its result is synced; the record's shots. */
+  private readonly shots = new MatchShots();
   private previewTimer = 0;
   private lastPreview = '';
   /** The other phone rejoined: catch it up once any shot in flight has played out. */
@@ -250,7 +300,8 @@ export class NetSession {
   }
 
   get awaitingSync(): boolean {
-    return this.shot !== null && this.shot.owner !== this.localSeat && this.resolved(this.shot.turn);
+    const { shot } = this.shots;
+    return shot !== null && shot.owner !== this.localSeat && this.shots.resolved(this.game);
   }
 
   /** Fire for the local player: tell the other phone (with the exact pre-shot state), then fire here. */
@@ -261,13 +312,13 @@ export class NetSession {
     const snap = this.sharedSnapshot(s);
     const terrain = encodeSolid(s.terrain);
     if (!fire(s)) return false;
-    this.shot = { turn: snap.turn, owner: this.localSeat };
+    // In the record at once (publish): closing the app mid-shot doesn't undo it.
+    const flying: ShotRecord = { turn: snap.turn, owner: this.localSeat, snap, terrain };
+    this.shots.fired({ turn: snap.turn, owner: this.localSeat }, flying);
     netLog(`session: fired on turn ${snap.turn}`);
     this.transport.send({ k: 'fire', turn: snap.turn, snap } satisfies NetMsg);
-    // In the record at once: closing the app mid-shot doesn't undo it.
-    this.flyingShot = { turn: snap.turn, owner: this.localSeat, snap, terrain };
     this.publish('fire', snap, terrain);
-    this.events.emit('shot', this.flyingShot);
+    this.events.emit('shot', flying);
     return true;
   }
 
@@ -303,18 +354,18 @@ export class NetSession {
 
   /** A shot that has played out: send (or record) our result, or take theirs. */
   private settleShot(s: GameState, dt: number): void {
-    if (!this.shot || !this.resolved(this.shot.turn)) {
+    const { shot } = this.shots;
+    if (!shot || !this.shots.resolved(this.game)) {
       // Still playing out. A result that's already arrived gets a grace period, then wins anyway.
-      if (this.pendingSync) {
-        this.waitedForSync += dt;
-        if (this.waitedForSync >= this.syncGrace) this.applySync(this.pendingSync);
-      }
+      const due = this.shots.due(dt);
+      if (due) this.applySync(due);
       return;
     }
     // Our shot has played out (or theirs has, and they've gone before sending its result): this
     // result is the one that counts.
-    if (this.shot.owner === this.localSeat || (!this.pendingSync && this.peerAway)) this.ownResult(s, this.shot);
-    else if (this.pendingSync) this.applySync(this.pendingSync);
+    const pending = this.shots.pending;
+    if (shot.owner === this.localSeat || (!pending && this.peerAway)) this.ownResult(s, shot);
+    else if (pending) this.applySync(pending);
   }
 
   /** The shot's result as it played out here is the one that counts: send it (our shot), show it and record it. */
@@ -323,9 +374,7 @@ export class NetSession {
     const snap = takeSnapshot(s);
     const terrain = encodeSolid(s.terrain);
     if (shot.owner === this.localSeat) this.transport.send({ k: 'sync', turn: s.turn, snap, terrain } satisfies NetMsg);
-    this.shot = null;
-    this.lastShot = this.flyingShot;
-    this.flyingShot = null;
+    this.shots.settledHere();
     this.publish('sync', snap, terrain);
   }
 
@@ -342,18 +391,14 @@ export class NetSession {
     this.localPick = pickOf(this.localSeat) ?? this.localPick;
     this.remotePick = pickOf(otherSeat(this.localSeat)) ?? this.remotePick;
     const s = this.begin(rec.setup);
-    this.lastShot = rec.last;
+    this.shots.carryOn(rec.last);
     const from = rec.flying ?? (replay ? rec.last : null);
     if (from) {
       putState(s, from.snap, from.terrain);
       this.events.emit('shot', from);
       fire(s);
-      this.shot = { turn: from.turn, owner: from.owner };
-      if (rec.flying) this.flyingShot = rec.flying;
-      else {
-        this.pendingSync = { k: 'sync', turn: rec.snap.turn, snap: rec.snap, terrain: rec.terrain };
-        this.syncGrace = REPLAY_GRACE;
-      }
+      this.shots.fired({ turn: from.turn, owner: from.owner }, rec.flying ?? undefined);
+      if (!rec.flying) this.shots.known({ k: 'sync', turn: rec.snap.turn, snap: rec.snap, terrain: rec.terrain }, REPLAY_GRACE);
     } else {
       putState(s, rec.snap, rec.terrain);
     }
@@ -405,9 +450,7 @@ export class NetSession {
     const s = this.state!;
     const snap = takeSnapshot(s);
     const terrain = encodeSolid(s.terrain);
-    this.shot = null;
-    this.pendingSync = null;
-    this.flyingShot = null;
+    this.shots.over();
     this.publish('sync', snap, terrain);
   }
 
@@ -431,7 +474,7 @@ export class NetSession {
 
   private record(snap: Snapshot, terrain: string): void {
     if (!this.store || !this.state) return;
-    this.store.save({ v: WIRE, rules: RULES, setup: this.setup, snap, terrain, last: this.lastShot, flying: this.flyingShot });
+    this.store.save({ v: WIRE, rules: RULES, setup: this.setup, snap, terrain, last: this.shots.last, flying: this.shots.flying });
   }
 
   /** Carrying on without them (the guest started the match with the host away). */
@@ -452,13 +495,13 @@ export class NetSession {
     const s = this.state;
     if (s && s.phase !== 'aiming' && s.phase !== 'gameover') return;
     this.resumeWanted = false;
-    if (s && this.shot && this.resolved(this.shot.turn)) {
+    const { shot, pending } = this.shots;
+    if (s && shot && this.shots.resolved(this.game)) {
       // Their shot has played out here: their result if it's come, else ours (they dropped out before sending it).
-      if (this.pendingSync) this.applySync(this.pendingSync);
-      else this.ownResult(s, this.shot);
+      if (pending) this.applySync(pending);
+      else this.ownResult(s, shot);
     }
-    this.shot = null;
-    this.pendingSync = null;
+    this.shots.cleared();
     const picks: [Pick | null, Pick | null] = this.isHost ? [this.localPick, this.remotePick] : [this.remotePick, this.localPick];
     const snap = s ? this.sharedSnapshot(s) : null; // (the swap target still a secret)
     netLog(`session: catching the other phone up${s ? ` (turn ${s.turn})` : ' (lobby)'}`);
@@ -478,12 +521,6 @@ export class NetSession {
     this.transport.close();
   }
 
-  /** The turn a shot was fired in is over (the next turn has come up, or the game has ended). */
-  private resolved(turn: number): boolean {
-    const g = this.game;
-    return !!g && shotResolved(g, turn);
-  }
-
   private view(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
     this.events.emit('view', { k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
   }
@@ -492,25 +529,16 @@ export class NetSession {
     this.setup = setup;
     const game = this.onStart(setup.seed, setup.players);
     this.phase = { k: 'match', game };
-    this.shot = null;
-    this.pendingSync = null;
-    this.syncGrace = SYNC_GRACE;
-    this.lastShot = null;
-    this.flyingShot = null;
+    this.shots.reset();
     this.lastPreview = '';
     return game;
   }
 
-  private applySync(msg: Extract<NetMsg, { k: 'sync' }>): void {
+  private applySync(msg: SyncMsg): void {
     const s = this.state!;
     netLog(`session: applying the other phone's result (now turn ${msg.snap.turn})`);
     putState(s, msg.snap, msg.terrain);
-    this.shot = null;
-    this.pendingSync = null;
-    this.waitedForSync = 0;
-    this.syncGrace = SYNC_GRACE;
-    this.lastShot = this.flyingShot ?? this.lastShot;
-    this.flyingShot = null;
+    this.shots.applied();
   }
 
   private receive(msg: NetMsg): void {
@@ -542,18 +570,17 @@ export class NetSession {
         if (!s) return;
         netLog(`session: the other phone fired on turn ${msg.turn}`);
         // Their shot supersedes anything still pending from before.
-        this.pendingSync = null;
+        this.shots.dropResult();
         applySnapshot(s, msg.snap);
-        this.flyingShot = { turn: msg.turn, owner: s.current, snap: msg.snap, terrain: encodeSolid(s.terrain) };
-        this.events.emit('shot', this.flyingShot);
+        const flying: ShotRecord = { turn: msg.turn, owner: s.current, snap: msg.snap, terrain: encodeSolid(s.terrain) };
+        this.events.emit('shot', flying);
         fire(s);
-        this.shot = { turn: msg.turn, owner: s.current };
+        this.shots.fired({ turn: msg.turn, owner: s.current }, flying);
         return;
       }
       case 'sync':
         if (!this.state) return;
-        this.pendingSync = msg;
-        this.waitedForSync = 0;
+        this.shots.resultIn(msg);
         finishDecoyPick(this.state); // they've finished picking a decoy, if they were
         return;
       case 'rejoin':
@@ -592,8 +619,7 @@ export class NetSession {
         if (!s) return;
         netLog('session: the other phone resigned');
         concede(s, otherSeat(this.localSeat), 'resigned');
-        this.shot = null;
-        this.pendingSync = null;
+        this.shots.cleared(); // (the shot in flight, if any, stays in the record: unlike settled)
         return;
       }
     }

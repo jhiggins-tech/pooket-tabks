@@ -3,15 +3,15 @@ import { roomLink } from '../net/links';
 import { netLog } from '../net/log';
 import { Listing, lobbySealer, watchCounts, type Advert } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
-import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, RoomError, roomHost, watchSeat, type RoomRef } from '../net/rooms';
+import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, RoomError, roomHost } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
-import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
-import { bySeat, findSeat, forgetSeat, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
-import { loadReplay, ReplayPlayer, ReplayRecorder, type Replay, type ReplayListing } from '../net/replay';
+import { forfeitDue, loadRoomRecord, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
+import { findSeat, forgetSeat, saveSeat, updateSeat, type Seat } from '../net/seat';
+import { loadReplay, ReplayPlayer, type Replay, type ReplayListing } from '../net/replay';
 import type { Sealer } from '../net/seal';
 import { brief, NetSession, type Outdated, type Pick } from '../net/session';
 import { Spectator } from '../net/spectate';
-import { ViewPublisher, watchRoom } from '../net/view';
+import { watchRoom } from '../net/view';
 import { announceDevice, notifySeat } from '../net/push';
 import { checkIn } from '../net/watchers';
 import type { Transport } from '../net/transport';
@@ -20,10 +20,10 @@ import { loadCharacter, saveCharacter } from './profile';
 import { Audience } from './online/audience';
 import { gameBrowser } from './online/browser';
 import { hostScreen } from './online/hosting';
+import { MatchSlot, type MatchEnd, type MatchLink } from './online/match';
 import { listPublicly } from './online/prefs';
 import { Scope } from './online/scope';
 import { chooseTank } from './online/tank';
-import { endOfGame, reportMatch } from '../net/results';
 import type { Rank } from '../stats/ranks';
 import { insignia } from './insignia';
 import { buttons, cancelButton, heading, linkButton, logsButton, message, status, text } from './online/widgets';
@@ -62,16 +62,15 @@ export interface OnlineOptions {
  * another, connecting, or leaving ends it, which runs what it registered to stop (streams, check-ins,
  * waiting for a guest); its async steps check `scope.alive` when they come back. Not everything it made
  * goes with it: leaving the host screen leaves the open game in the room (and on the Games list), and a
- * connection lives on as the match's session. The screens themselves are in `online/`.
+ * connection lives on as the match: a `MatchLink` (online/match.ts), which owns the session, the seat and
+ * all that goes with them until it ends (one at a time: `match`). The screens themselves are in `online/`.
  */
 export class OnlineScreen {
   private readonly root = el('div', 'overlay online');
   /** The current attempt (see above). */
   private attempt = new Scope();
-  private peer: Transport | null = null;
-  /** This phone's game on the Games list while hosting (kept through the match, for spectators). */
-  private listing: Listing | null = null;
-  session: NetSession | null = null;
+  /** The match this phone is in (see online/match.ts). */
+  private readonly match = new MatchSlot();
   /** Watching someone else's match, live or a replay (view only). */
   spectator: Spectator | ReplayPlayer | null = null;
 
@@ -89,16 +88,8 @@ export class OnlineScreen {
   private awayKey = '';
   /** Who's watching (the 👁 chip and "just started watching"). */
   private readonly audience = new Audience();
-  private seatTimer: ReturnType<typeof setInterval> | null = null;
   /** The match whose results this phone has filed (so it's done once). */
-  private resultsFiled = '';
-  /** Stands this phone aside if the player opens the match on another phone (rooms.ts `watchSeat`). */
-  private seatWatch: { close: () => void } | null = null;
-  /** The seat of the match this phone is in, and its room. */
-  private seat: Omit<Seat, 'ts'> | null = null;
-  private room: RoomRef | null = null;
-  /** For "your turn" notifications: the last turn seen (match and turn) and whose it was. */
-  private turnSeen: { key: string; current: number; told: boolean } | null = null;
+  private readonly resultsFiled = { key: '' };
 
   constructor(private readonly opts: OnlineOptions) {
     this.pick = opts.pick;
@@ -114,6 +105,11 @@ export class OnlineScreen {
     return !this.root.hidden;
   }
 
+  /** The match's session (one that ended by itself stays until the screen's closed: its game is still there to look at). */
+  get session(): NetSession | null {
+    return this.match.link?.session ?? null;
+  }
+
   /** The replay being watched, if it is one. */
   get replay(): ReplayPlayer | null {
     return this.spectator instanceof ReplayPlayer ? this.spectator : null;
@@ -126,7 +122,8 @@ export class OnlineScreen {
 
   /** The topic of the room of the match this phone is in (a notification's `ref`), if it's in one. */
   get roomTopic(): string | null {
-    return this.session && !this.session.ended ? (this.room?.sealer.topic ?? null) : null;
+    const link = this.match.link;
+    return link && !link.session.ended ? (link.room?.sealer.topic ?? null) : null;
   }
 
   /**
@@ -202,7 +199,6 @@ export class OnlineScreen {
 
   /** The host screen for an open room, waiting for someone to join. */
   private hosting(room: HostedRoom, listing: Listing, pick: Pick): void {
-    this.listing = listing;
     announceDevice(room.ref, 'host', room.id); // so we hear when someone starts it
     const waiting = (scope: Scope) => {
       // Leaving the screen (not Cancel) leaves the game open.
@@ -241,20 +237,23 @@ export class OnlineScreen {
         keepOpen();
         listing.update({ playing: true, open: false }); // stays listed, for anyone who wants to watch
         room.stop();
-        const s = this.startSession(t, { code: room.code, role: 'host', id: room.id, listed: listing.listed });
-        this.trackOpponent(s);
+        const link = this.startSession(t, { code: room.code, role: 'host', id: room.id, listed: listing.listed });
+        link.listing = listing;
+        const s = link.session;
+        this.trackOpponent(link);
         // Someone who joins and goes quiet before the match starts was probably never there (a link
         // preview in a messaging app): free the seat and wait for a real player.
         s.on('peerAway', (away) => {
-          if (!away || s.game || s.ended || this.session !== s) return;
+          if (!away || s.game || s.ended || this.match.link !== link) return;
           netLog('ui: the guest went quiet in the lobby: freeing the seat');
-          t.detach();
-          this.session = null;
-          this.peer = null;
+          this.endMatch('drop'); // (the listing stays: it's the host screen's again)
           listing.update({ playing: false, open: true, opponent: undefined });
           const again = this.attempt;
+          // Leaving before it's reopened takes the game off the list.
+          const unlist = again.onEnd(() => listing.stop());
           void room.reopen().then(
             () => {
+              unlist();
               if (again.alive) return waiting(again);
               room.stop(); // left meanwhile: the game stays open
               listing.leave();
@@ -311,11 +310,11 @@ export class OnlineScreen {
     joinRoom(db, code, this.opts.relay, id).then(
       async (t) => {
         if (!scope.alive) return t.close();
-        const s = this.startSession(t, { code, role: 'guest', id });
+        const link = this.startSession(t, { code, role: 'guest', id });
         const [host, rec] = await room;
         if (host && rec && 'offer' in rec) {
           if (rec.compat === 'newer') return this.outdated('us'); // hosted on a newer version
-          this.startIfHostAway(db, s, code, host, rec.offer);
+          this.startIfHostAway(db, link, code, host, rec.offer);
         }
       },
       (e) => {
@@ -331,22 +330,23 @@ export class OnlineScreen {
    * Joined an open game: if its host isn't there (or doesn't say hello soon), start the match ourselves,
    * as the second player; it carries on turn by turn until they're back.
    */
-  private startIfHostAway(db: Rtdb, s: NetSession, code: string, host: { id: string; here: boolean }, offer: OpenRecord['open']): void {
+  private startIfHostAway(db: Rtdb, link: MatchLink, code: string, host: { id: string; here: boolean }, offer: OpenRecord['open']): void {
+    const s = link.session;
     const go = async () => {
-      if (this.session !== s || s.game || s.ended || s.remotePick) return;
+      if (this.match.link !== link || s.game || s.ended || s.remotePick) return;
       netLog(`ui: ${offer.host.name} isn't here: starting the match`);
       s.remotePick = offer.host;
       s.publicReplay = offer.listed;
       this.onHostStart(s);
       s.assumeAway();
-      if (this.room) void notifySeat(this.room, 'host', 'joined');
+      if (link.room) void notifySeat(link.room, 'host', 'joined');
       if (offer.listed && s.localPick) {
         // On the Games list as live now (the host isn't there to say so).
         const lobby = await lobbySealer(this.opts.lobby);
-        if (this.session !== s || s.ended) return; // left meanwhile: nothing to list
+        if (this.match.link !== link || s.ended) return; // left meanwhile: nothing to list
         const listing = listingFor(db, lobby, host.id, offer.host, code, { playing: true, opponent: brief(s.localPick) });
         listing.list(true);
-        this.listing = listing;
+        link.listing = listing;
       }
     };
     if (host.here) setTimeout(() => void go(), JOIN_WAIT_MS);
@@ -409,7 +409,8 @@ export class OnlineScreen {
       return this.fail(e, gone ? undefined : () => void this.rejoin(seat));
     }
     if (!scope.alive) return void t.detach();
-    const s = this.setupSession(t, seat);
+    const link = this.setupSession(t, seat);
+    const s = link.session;
     if (stored) {
       // Nobody's moved for three days: once we're caught up, whoever's turn it is forfeits.
       s.on('resumed', (inMatch) => {
@@ -420,12 +421,12 @@ export class OnlineScreen {
       // Back on the Games list once we know who's playing.
       const lobby = await lobbySealer(this.opts.lobby);
       s.on('resumed', () => {
-        if (this.session !== s || !s.localPick) return;
+        if (this.match.link !== link || !s.localPick) return;
         const listing = listingFor(db, lobby, seat.id, s.localPick, seat.code, { playing: true });
         if (s.remotePick) listing.update({ opponent: brief(s.remotePick) });
         listing.list(true);
-        this.listing = listing;
-        this.trackOpponent(s);
+        link.listing = listing;
+        this.trackOpponent(link);
       });
     }
     waiting(stored ? 'Catching up…' : 'Waiting for the other phone to catch you up…');
@@ -554,8 +555,8 @@ export class OnlineScreen {
   /** The match is over for good: they left before it started, or the room has gone. */
   lost(): void {
     netLog('ui: connection lost');
-    if (this.seat) forgetSeat(this.seat.code);
-    this.endSeat();
+    this.match.link?.end('lost'); // (its session stays, ended: the game's still there to look at)
+    this.hideAway();
     this.cleanup();
     this.show([heading('Connection lost'), text('The other phone left the match.'), cancelButton(() => this.close(), 'Back')]);
   }
@@ -566,10 +567,8 @@ export class OnlineScreen {
    */
   private outdated(who: Outdated): void {
     netLog(`ui: ${who === 'us' ? 'this phone' : 'the other phone'} is on an older version`);
-    if (this.session && !this.session.ended) this.session.away(); // the seat and the room stay as they are
-    this.endSeat();
+    this.endMatch('away'); // the seat and the room stay as they are
     this.cleanup();
-    this.session = null;
     const reload = button('↻ Reload', () => location.reload(), 'big');
     reload.id = 'online-reload';
     this.show(
@@ -588,81 +587,54 @@ export class OnlineScreen {
    * leaving the lobby ends it.
    */
   close(): void {
-    const s = this.session;
-    if (s && this.seat && !s.ended) {
-      if (s.isRejoining) {
-        s.away(); // not caught up yet: the match is still there to go back to
-      } else if (s.game && s.game.phase !== 'gameover') {
-        updateSeat(this.seat.code, { left: true, seen: s.game.turn });
-        s.away();
-      } else if (s.game) {
-        forgetSeat(this.seat.code);
-        s.away();
-      } else {
-        forgetSeat(this.seat.code);
-        s.leave();
-      }
-    }
-    this.endSeat();
+    this.endMatch(); // (match/leaving: by where it is)
     this.cleanup();
-    this.session = null;
     this.spectator = null;
     this.hide();
     this.onClosed();
   }
 
   /** Connected through the room: the attempt has done its job; start the match session and show the lobby. */
-  private startSession(peer: Transport, seat: Omit<Seat, 'ts'>): NetSession {
+  private startSession(peer: Transport, seat: Omit<Seat, 'ts'>): MatchLink {
     netLog(`ui: connected as ${seat.role}`);
     this.attempt.end();
     this.attempt = new Scope();
-    const s = this.setupSession(peer, seat);
-    s.setPick(this.pick());
-    return s;
+    const link = this.setupSession(peer, seat);
+    link.session.setPick(this.pick());
+    return link;
   }
 
-  /** A session on this pipe, remembered as our seat (so this phone can rejoin if it drops out). */
-  private setupSession(peer: Transport, seat: Omit<Seat, 'ts'>): NetSession {
-    this.peer = peer;
-    const s = new NetSession(peer, seat.role);
-    this.session = s;
-    this.seat = { code: seat.code, role: seat.role, id: seat.id, listed: seat.listed };
-    saveSeat(this.seat);
-    if (this.seatTimer) clearInterval(this.seatTimer);
-    this.seatTimer = setInterval(() => {
-      touchSeat(seat.code);
-      if (s.game?.phase === 'aiming') updateSeat(seat.code, { seen: s.game.turn });
-    }, 20_000);
-    if (peer instanceof RelayTransport) {
-      // Publish the spectator feed for anyone watching, and keep the match's record.
-      const pub = new ViewPublisher(peer.room);
-      s.on('view', (v) => pub.push(v));
-      // And a public match's replay (the host's game on the Games list; the guest's, if it starts one).
-      const record = new RecordStore(peer.room);
-      const replay = new ReplayRecorder(peer.room.db, this.opts.lobby);
-      s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
-      s.publicReplay = !!seat.listed;
-      this.room = peer.room;
-      this.audience.follow(this.room);
-      announceDevice(this.room, seat.role, seat.id);
-      // This player opening the match on another phone: that one plays, this one stands aside.
-      const taken = watchSeat(peer.room, seat.role, seat.id, () => {
-        if (this.session === s) this.elsewhere(s);
-      });
-      this.seatWatch = taken;
-    }
-    s.on('lobby', () => this.lobby());
-    s.on('lost', () => this.lost());
-    s.on('outdated', (who) => this.outdated(who));
-    s.on('peerAway', () => this.showAway());
+  /**
+   * The match on this pipe (a MatchLink: remembered as our seat, so this phone can rejoin if it drops out),
+   * ending the one before, if any. The screens follow its session while it's this phone's match.
+   */
+  private setupSession(peer: Transport, seat: Omit<Seat, 'ts'>): MatchLink {
+    if (this.match.link) this.endMatch();
+    const link = this.match.open(peer, seat, {
+      lobby: this.opts.lobby,
+      pick: this.pick,
+      audience: (room) => this.audience.follow(room),
+      taken: (l) => {
+        if (this.match.link === l) this.elsewhere(l);
+      },
+      filed: this.resultsFiled,
+      ranked: this.opts.ranked,
+    });
+    const s = link.session;
+    const here = () => this.match.link === link;
+    s.on('lobby', () => here() && this.lobby());
+    s.on('lost', () => here() && this.lost());
+    s.on('outdated', (who) => here() && this.outdated(who));
+    s.on('peerAway', () => here() && this.showAway());
     s.on('resumed', (inMatch) => {
+      if (!here()) return;
       netLog(`ui: rejoined ${inMatch ? 'the match' : 'the lobby'}`);
       if (inMatch) return; // the game takes over (onStart)
       if (s.localPick) this.lobby();
       else s.setPick(this.pick());
     });
     this.onConnected(s);
-    return s;
+    return link;
   }
 
   private showAway(): void {
@@ -672,8 +644,7 @@ export class OnlineScreen {
 
   /** Call once a frame: keeps the "they're not here" line right as turns come and go. */
   tick(): void {
-    this.tellTheirTurn();
-    this.fileResults();
+    this.match.link?.tick();
     const s = this.session;
     const g = s?.game;
     const show = !!s && s.peerAway && !s.ended && !!g && g.phase === 'aiming';
@@ -691,43 +662,10 @@ export class OnlineScreen {
     );
   }
 
-  /**
-   * The turn has passed from us to them and they're not here: notify them (once a turn; if they only go
-   * quiet later in it, then).
-   */
-  private tellTheirTurn(): void {
-    const s = this.session;
-    const g = s?.game;
-    if (!s || !g || s.ended || !this.room || !this.seat || g.phase !== 'aiming') return;
-    const key = `${this.seat.code}:${g.turn}`;
-    if (this.turnSeen?.key !== key) {
-      const ours = this.turnSeen?.current === s.localSeat && this.turnSeen.key.startsWith(`${this.seat.code}:`);
-      this.turnSeen = { key, current: g.current, told: !ours }; // (only a turn we've just handed over)
-    }
-    if (this.turnSeen.told || g.current === s.localSeat || !s.peerAway) return;
-    this.turnSeen.told = true;
-    void notifySeat(this.room, s.isHost ? 'guest' : 'host', 'your-turn');
-  }
-
-  /** The match has ended here: file this phone's results for the stats (once per match; net/results.ts). */
-  private fileResults(): void {
-    const s = this.session;
-    if (!s || !this.room || s.game?.phase !== 'gameover') return;
-    const key = `${this.room.sealer.topic}:${s.matchSetup.seed}`;
-    if (this.resultsFiled === key) return;
-    this.resultsFiled = key;
-    void reportMatch(this.room.db, this.room.sealer.topic, s.localSeat, s.matchSetup, endOfGame(s.game));
-    // Both players signed in: a rated match (net rank changes and a rank-up are worked out at once).
-    const [mine, theirs] = bySeat(s.matchSetup.players, s.localSeat);
-    if (mine?.key && theirs?.key && mine.key !== theirs.key && mine.key === this.pick().key) {
-      const w = s.game.winner?.id ?? null;
-      this.opts.ranked?.(theirs.key, w === null ? 0.5 : w === s.localSeat ? 1 : 0);
-    }
-  }
-
   /** Nudge: send them the game's link (the phone's share sheet, or copied). */
   private nudgeButton(): HTMLElement {
-    const code = this.seat?.code;
+    const link = this.match.link;
+    const code = link && !link.ended ? link.seat.code : undefined;
     const b = button(
       '📣 Nudge',
       async () => {
@@ -751,30 +689,28 @@ export class OnlineScreen {
   }
 
   /** Hosting a listed game: show who's playing against us, once they've said hello. */
-  private trackOpponent(s: NetSession): void {
+  private trackOpponent(link: MatchLink): void {
+    const s = link.session;
     s.on('lobby', () => {
-      if (s.remotePick) this.listing?.update({ opponent: brief(s.remotePick) });
+      if (s.remotePick) link.listing?.update({ opponent: brief(s.remotePick) });
     });
   }
 
   /** The match on this phone has finished (or a new one started): keeps a listed game's status right. */
   matchFinished(over: boolean): void {
-    this.listing?.update({ over });
+    this.match.link?.listing?.update({ over });
   }
 
   /**
    * The match has been opened on this player's other phone, which has taken the seat: stop here quietly,
    * and offer to take it back (which makes that one stand aside in turn).
    */
-  private elsewhere(s: NetSession): void {
-    const seat = this.seat;
-    if (!seat) return;
+  private elsewhere(link: MatchLink): void {
+    if (link.ended) return;
+    const { seat } = link;
     netLog('ui: this match was opened on another phone');
-    s.standDown();
-    updateSeat(seat.code, { left: true }); // (no rejoining straight away on a reload here)
-    this.endSeat();
+    this.endMatch('stand-down'); // (the seat marked left: no rejoining straight away on a reload here)
     this.cleanup();
-    this.session = null;
     const back = button('Play here instead', () => {
       const mine = findSeat(seat.code);
       if (mine) void this.rejoin(mine);
@@ -784,16 +720,13 @@ export class OnlineScreen {
     this.show([heading('Playing on another phone'), text(`You've opened this match (${seat.code}) on another phone, so it carries on there.`), back, cancelButton(() => this.close(), 'Back')]);
   }
 
-  /** Done with this phone's seat for now (what to remember about it is up to the caller). */
-  private endSeat(): void {
-    this.seatWatch?.close();
-    this.seatWatch = null;
-    if (this.seatTimer) clearInterval(this.seatTimer);
-    this.seatTimer = null;
-    this.seat = null;
-    this.room = null;
-    this.turnSeen = null;
-    this.audience.stop();
+  /** Done with this phone's match (online/match.ts `MatchLink.end`): `how`, or by default as if left from the menu (`leaving`). */
+  private endMatch(how?: MatchEnd): void {
+    this.match.close(how);
+    this.hideAway();
+  }
+
+  private hideAway(): void {
     this.away.hidden = true;
     this.awayKey = '';
   }
@@ -827,21 +760,17 @@ export class OnlineScreen {
     this.root.hidden = false;
   }
 
-  /** A new attempt, from scratch: returns its scope. */
+  /** A new attempt, from scratch (leaving the match this phone is in, if any, as if from the menu): returns its scope. */
   private reset(): Scope {
+    this.endMatch();
     this.cleanup();
-    this.session = null;
     return this.attempt;
   }
 
-  /** End the current attempt (and a connection or listing that no match took over) and start a fresh one. */
+  /** End the current attempt and start a fresh one. */
   private cleanup(): void {
     this.attempt.end();
     this.attempt = new Scope();
-    this.listing?.stop();
-    this.listing = null;
-    if (!this.session) this.peer?.close();
-    this.peer = null;
   }
 }
 

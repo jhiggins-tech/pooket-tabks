@@ -1,8 +1,10 @@
 import { finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
-import { applyPreview, putState, shotResolved, SYNC_GRACE } from './follow';
+import { applyPreview, putState, ResultBuffer } from './follow';
 import { netLog } from './log';
 import type { ViewMsg } from './session';
+
+type StateMsg = Extract<ViewMsg, { k: 'state' }>;
 
 /**
  * Watching a match, view only. Fed the players' spectator feed (ViewMsg): builds the game from the first
@@ -17,9 +19,8 @@ export class Spectator {
 
   private state: GameState | null = null;
   private seed: number | null = null;
-  private shotTurn: number | null = null;
-  private pending: Extract<ViewMsg, { k: 'state' }> | null = null;
-  private waited = 0;
+  /** The shot playing out here (just its turn), and a result that came in while it was. */
+  private readonly shots = new ResultBuffer<StateMsg, { turn: number }>();
 
   get game(): GameState | null {
     return this.state;
@@ -27,7 +28,7 @@ export class Spectator {
 
   receive(v: ViewMsg): void {
     if (v.k === 'preview') {
-      if (this.state && this.shotTurn === null) applyPreview(this.state, v);
+      if (this.state && !this.shots.shot) applyPreview(this.state, v);
       return;
     }
     // A new match (or the first thing we see): build it.
@@ -35,23 +36,19 @@ export class Spectator {
       netLog(`watch: ${this.state ? 'new match' : 'joined'} (${v.players.map((p) => p.name).join(' vs ')})`);
       this.state = this.onStart(v.seed, v.players);
       this.seed = v.seed;
-      this.shotTurn = null;
-      this.pending = null;
       this.apply(v);
       return;
     }
     if (v.why === 'fire') {
-      this.pending = null;
       this.apply(v);
       fire(this.state);
-      this.shotTurn = v.snap.turn;
+      this.shots.fired({ turn: v.snap.turn });
       return;
     }
     // A result (or a fresh start): now if nothing's playing out, else once it has (with a grace period).
-    if (this.shotTurn === null || this.resolved()) this.apply(v);
+    if (!this.shots.shot || this.shots.resolved(this.state)) this.apply(v);
     else {
-      this.pending = v;
-      this.waited = 0;
+      this.shots.resultIn(v);
       finishDecoyPick(this.state); // the shooter has finished picking a decoy, if they were
     }
   }
@@ -59,20 +56,13 @@ export class Spectator {
   /** Call once per frame after stepping the simulation. */
   tick(dt: number): void {
     if (!this.state) return;
-    if (this.pending) {
-      this.waited += dt;
-      if (this.resolved() || this.waited >= SYNC_GRACE) this.apply(this.pending);
-    }
+    const pending = this.shots.pending;
+    if (pending && (this.shots.due(dt) || this.shots.resolved(this.state))) this.apply(pending);
   }
 
-  private resolved(): boolean {
-    return this.shotTurn !== null && shotResolved(this.state!, this.shotTurn);
-  }
-
-  private apply(v: Extract<ViewMsg, { k: 'state' }>): void {
+  /** Snap to a state (a shot fired from it is fired again by the caller). */
+  private apply(v: StateMsg): void {
     putState(this.state!, v.snap, v.terrain);
-    if (v.why !== 'fire') this.shotTurn = null;
-    this.pending = null;
-    this.waited = 0;
+    this.shots.applied();
   }
 }
