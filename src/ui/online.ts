@@ -3,7 +3,7 @@ import { roomLink } from '../net/links';
 import { netLog } from '../net/log';
 import { Listing, lobbySealer, watchLobby } from '../net/lobby';
 import { RelayTransport } from '../net/relay';
-import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, roomHost, watchSeat, type RoomRef } from '../net/rooms';
+import { HostedRoom, joinRoom, normaliseRoomCode, randomId, rejoinRoom, RoomError, roomHost, watchSeat, type RoomRef } from '../net/rooms';
 import { Rtdb } from '../net/rtdb';
 import { forfeitDue, loadRoomRecord, RecordStore, recordCompat, type OpenRecord, type StoredGame } from '../net/record';
 import { findSeat, forgetSeat, loadSeats, saveSeat, touchSeat, updateSeat, type Seat } from '../net/seat';
@@ -320,7 +320,7 @@ export class OnlineScreen {
       (e) => {
         if (!scope.alive) return;
         // Already two players: watch instead.
-        if (/two players/.test(message(e))) void this.watch(code);
+        if (e instanceof RoomError && e.kind === 'full') void this.watch(code);
         else this.fail(e, () => void this.join());
       },
     );
@@ -421,8 +421,9 @@ export class OnlineScreen {
       t = await rejoinRoom(db, seat.code, seat.role, seat.id, this.opts.relay);
     } catch (e) {
       if (!scope.alive) return;
-      if (/ended|taken/.test(message(e))) forgetSeat(seat.code);
-      return this.fail(e, /ended|taken/.test(message(e)) ? undefined : () => void this.rejoin(seat));
+      const gone = e instanceof RoomError && (e.kind === 'ended' || e.kind === 'seat-taken');
+      if (gone) forgetSeat(seat.code);
+      return this.fail(e, gone ? undefined : () => void this.rejoin(seat));
     }
     if (!scope.alive) return void t.detach();
     const s = this.setupSession(t, seat);

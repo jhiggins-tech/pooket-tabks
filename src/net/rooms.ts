@@ -19,6 +19,21 @@ import { sealerFor, type Sealer } from './seal';
  * have no `dev`: nothing to compare, so nobody stands aside.)
  */
 
+/**
+ * Why a room couldn't be opened, joined, rejoined or watched (the message is for showing): the database
+ * couldn't be reached (`offline`) or wouldn't give us a code (`refused`), there's no such game (`no-game`),
+ * it already has two players (`full`), the match has ended (`ended`), or someone else has our seat
+ * (`seat-taken`).
+ */
+export class RoomError extends Error {
+  constructor(
+    readonly kind: 'offline' | 'refused' | 'no-game' | 'full' | 'ended' | 'seat-taken',
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 export const ROOM_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 /** A host that hasn't checked in for this long has gone (or is away from its open game). */
 const HOST_STALE_MS = 90_000;
@@ -96,12 +111,12 @@ export class HostedRoom {
       } catch (e) {
         if (!(e instanceof RtdbError)) {
           netLog(`rooms: couldn't reach the database (${errText(e)})`);
-          throw new Error("Couldn't reach the game server. Is this phone online?");
+          throw new RoomError('offline', "Couldn't reach the game server. Is this phone online?");
         }
         netLog(`rooms: code ${code} refused (${e.message})`);
       }
     }
-    throw new Error("The game server wouldn't open a room. Try again in a moment.");
+    throw new RoomError('refused', "The game server wouldn't open a room. Try again in a moment.");
   }
 
   /** Back to our open game (nobody's joined yet): the host seat again, waiting as before. */
@@ -176,12 +191,12 @@ export async function joinRoom(db: Rtdb, code: string, opts?: RelayOptions, id =
   // An open game can be joined with its host away; otherwise the host has to be there.
   if (!host || (open === null && Date.now() - host.ts > HOST_STALE_MS)) {
     netLog(`rooms: no live host for ${code}${host ? ' (stale)' : ''}`);
-    throw new Error(`No game with code ${code}. Check it, and that the host is still on the Host screen.`);
+    throw new RoomError('no-game', `No game with code ${code}. Check it, and that the host is still on the Host screen.`);
   }
   try {
     await claimSeat(room, 'guest', id, dev);
   } catch (e) {
-    if ((e as { denied?: boolean }).denied) throw new Error('That game already has two players.');
+    if (e instanceof RtdbError && e.denied) throw new RoomError('full', 'That game already has two players.');
     throw e;
   }
   netLog(`rooms: joined ${code}`);
@@ -201,12 +216,12 @@ export async function rejoinRoom(db: Rtdb, code: string, role: 'host' | 'guest',
   const [host, mine] = await Promise.all([db.get<{ id: string }>(`${room.path}/host`), db.get<{ id?: string; dev?: string }>(`${room.path}/${role}`)]);
   if (!host || (role === 'host' && host.id !== id)) {
     netLog(`rooms: ${code} has closed`);
-    throw new Error(`That match (${code}) has ended.`);
+    throw new RoomError('ended', `That match (${code}) has ended.`);
   }
   try {
     await claimSeat(room, role, id, dev);
   } catch (e) {
-    if ((e as { denied?: boolean }).denied) throw new Error('Someone else has taken your seat in that match.');
+    if (e instanceof RtdbError && e.denied) throw new RoomError('seat-taken', 'Someone else has taken your seat in that match.');
     throw e;
   }
   const inbox = `${room.path}/${queuesFor(role).inbox}`;

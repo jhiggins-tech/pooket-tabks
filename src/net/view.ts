@@ -1,6 +1,6 @@
 import { fromB64, toB64 } from './b64';
 import { errText, netLog } from './log';
-import { roomRef, type RoomRef } from './rooms';
+import { RoomError, roomRef, type RoomRef } from './rooms';
 import type { Rtdb } from './rtdb';
 import { seal, unseal } from './seal';
 import type { ViewMsg } from './session';
@@ -49,7 +49,7 @@ export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => 
   const room = await roomRef(db, code);
   const { path, sealer } = room;
   const host = await db.get<{ id: string; ts: number }>(`${path}/host`);
-  if (!host) throw new Error(`No game with code ${code}.`);
+  if (!host) throw new RoomError('no-game', `No game with code ${code}.`);
   netLog(`watch: watching ${code}`);
   let seen = false;
   let ended = false;
