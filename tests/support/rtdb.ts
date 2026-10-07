@@ -11,6 +11,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 export interface FakeRtdb {
   url: string;
   tree: () => Record<string, unknown>;
+  /** What's stored at `path` (null: nothing). */
+  at: (path: string) => unknown;
+  /** How many streams are open on `path` (each has had its first `put`, so writes after this reach them). */
+  streams: (path: string) => number;
   requests: { method: string; path: string }[];
   /** Answer every write this much later (a slow network). */
   latency: number;
@@ -196,6 +200,8 @@ export async function startRtdb(): Promise<FakeRtdb> {
   return Object.assign(fake, {
     url: `http://127.0.0.1:${port}`,
     tree: () => root,
+    at: (path: string) => getAt(segsOf(path)),
+    streams: (path: string) => [...listeners].filter((l) => l.segs.join('/') === segsOf(path).join('/')).length,
     requests,
     close: () =>
       new Promise<void>((r) => {
