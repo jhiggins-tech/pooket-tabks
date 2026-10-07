@@ -4,7 +4,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-(Empty: everything queued has shipped.)
+- **garyoldmancorp: scooter movement** (owner, 7 Oct). His own way of moving, in place of driving: while
+  ◀ ▶ is held the tank turns into a small scooter (the hull swaps for a scooter, back to the tank when he
+  stops) and moves very fast, several times the usual drive speed. But when it runs into terrain it can't
+  cross (where a driving tank would stop: too steep a slope or a wall), it **crashes**: stops dead, a little
+  self-damage, a crash look and sound. Where it goes: `movement: 'scooter'` on his `CharacterDef`
+  (alongside `'drive'` and ciarra's `'hop'`) and its rules in `game/movement.ts` (fuel, speed, what counts as
+  a crash, the damage through `hurt` as self-damage); the scooter drawn in `render/draw/tank.ts`; crash and
+  ride sound cues; the info screen's movement line; online it rides the aim preview like the others; unit
+  tests for speed, crashing and damage, and an e2e step. To settle when it's built: the numbers (speed,
+  fuel, crash damage, ~5 to start) and whether a crash ends his movement for the turn or just stops him
+  where he hit.
 
 ### Backlog (ideas, not yet scheduled)
 
