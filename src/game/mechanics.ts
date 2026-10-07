@@ -1,6 +1,6 @@
 import type { ShotKind, WeaponKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
-import { decoyPickStepper, fireDecoys, hologramBlastStepper, spawnTwin, twinGun } from './copies';
+import { decoyPickStepper, fireDecoys, hologramBlastStepper, originsOf, spawnTwin } from './copies';
 import { fireSpew, puddleStepper, sludgeStepper, spewStepper, toxinStepper } from './gunk';
 import { fireJetpack, jetStepper } from './jetpack';
 import { fireNap, napStepper } from './nap';
@@ -50,12 +50,10 @@ export const FREE_ACTIONS: Record<Exclude<WeaponKind, ShotKind>, FreeActionFn> =
 export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   // A twin fires the same weapon from its own spot, with its own aim and power.
   ballistic: (state, p, weapon) => {
-    fireRounds(state, p, weapon, 'main');
-    if (p.twin) fireRounds(state, p, weapon, 'twin');
+    for (const origin of originsOf(p)) fireRounds(state, p, weapon, origin);
   },
   sonic: (state, p, weapon) => {
-    fireSonic(state, p, weapon, p);
-    if (p.twin) fireSonic(state, p, weapon, twinGun(p));
+    for (const origin of originsOf(p)) fireSonic(state, p, weapon, origin);
   },
   beam: fireBeam,
   rain: fireRain,

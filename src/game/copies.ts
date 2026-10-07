@@ -1,12 +1,12 @@
 import { randRange } from '../core/rng';
 import { getWeapon, kindOf, weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
-import { settleTurn, tankBody } from './bodies';
+import { settleTurn, tankBody, type Gun } from './bodies';
 import { GRAVITY, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { ring, sound, spawnFloater } from './fx';
 import { canSuckYolk, reselect } from './loadout';
 import type { Stepper } from './mechanics';
-import type { GameState, Hologram, Player, Twin } from './state';
+import type { GameState, Hologram, Origin, Player, Twin } from './state';
 import { currentPlayer, explode, tankBodies } from './tanks';
 import { hash } from './util';
 
@@ -25,10 +25,16 @@ export const DECOY_PICK_TIME = 6;
 
 const HOLOGRAM_MIN_SPACING = 70;
 
-/** The player's twin as a stand-in shooter: the twin's position, and its own aim and power. */
-export function twinGun(p: Player): Player {
+/** The gun a shot from `origin` fires with: that tank's spot, and its own aim and power. */
+export function gunOf(p: Player, origin: Origin): Gun {
+  if (origin === 'main') return p;
   const t = p.twin!;
-  return { ...p, x: t.x, y: t.y, angle: t.angle, power: t.power };
+  return { x: t.x, y: t.y, angle: t.angle, power: t.power };
+}
+
+/** Where a player's shots come from: the main tank, and the twin while it stands (each fires the same weapon). */
+export function originsOf(p: Player): Origin[] {
+  return p.twin ? ['main', 'twin'] : ['main'];
 }
 
 /** A tank's width. The twin can't go within 2 of an enemy tank (or a hologram), nor on top of any tank. */

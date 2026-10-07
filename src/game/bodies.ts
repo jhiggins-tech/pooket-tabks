@@ -19,11 +19,22 @@ export function settleTurn(state: GameState): void {
   state.settleTimer = SETTLE_TIME;
 }
 
-export function tankCentre(p: Player): { x: number; y: number } {
+/**
+ * Where a shot leaves from and how it's aimed: a tank's spot, with its own aim and power. A player is the
+ * main tank's gun; copies.ts `gunOf` gives either tank's (the twin aims on its own).
+ */
+export interface Gun {
+  x: number;
+  y: number;
+  angle: number;
+  power: number;
+}
+
+export function tankCentre(p: { x: number; y: number }): { x: number; y: number } {
   return { x: p.x, y: p.y - TANK_BODY_HEIGHT };
 }
 
-export function muzzle(p: Player): { x: number; y: number } {
+export function muzzle(p: { x: number; y: number; angle: number }): { x: number; y: number } {
   const c = tankCentre(p);
   const a = (p.angle * Math.PI) / 180;
   return { x: c.x + Math.cos(a) * BARREL_LENGTH, y: c.y - Math.sin(a) * BARREL_LENGTH };

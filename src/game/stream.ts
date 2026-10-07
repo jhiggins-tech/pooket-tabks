@@ -6,7 +6,7 @@ import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constan
 import { sound, spawnFloater, spawnSplash } from './fx';
 import type { Stepper } from './mechanics';
 import type { Droplet, GameState, Player, Stream } from './state';
-import { muzzle, noteHit, offence, soakTarget, targetAt, targetOwner, type Target } from './tanks';
+import { applySoak, muzzle, offence, targetAt, type Target } from './tanks';
 import { hash, hexToRgb, tint } from './util';
 
 /**
@@ -199,11 +199,9 @@ export function stepDroplet(state: GameState, d: Droplet, dt: number): boolean {
     const x = d.x + (nx - d.x) * t;
     const y = d.y + (ny - d.y) * t;
     const target = targetAt(state, x, y);
-    if (target) noteHit(state, target, d.ownerId);
-    if (target && !(weapon.friendlyFire === false && targetOwner(target) === d.ownerId)) {
-      // A weak dribble stings much less than the full-pressure jet.
-      const drop = weapon.stream.damagePerDrop * (0.1 + 0.9 * d.pressure ** 2) * offence(state, d.ownerId);
-      soakTarget(target, drop, tint(d.colour, 0.35));
+    // A weak dribble stings much less than the full-pressure jet.
+    const drop = target ? weapon.stream.damagePerDrop * (0.1 + 0.9 * d.pressure ** 2) * offence(state, d.ownerId) : 0;
+    if (target && applySoak(state, target, weapon, d.ownerId, drop, tint(d.colour, 0.35))) {
       // Too close: once it's done enough to the close enemy, it splashes back.
       const st = state.streams.find((s) => s.id === d.streamId);
       if (st && st.splashAt === null && isClose(st, target) && (st.dealt += drop) > SPLASHBACK_DAMAGE) {

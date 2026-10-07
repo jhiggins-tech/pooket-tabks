@@ -306,12 +306,15 @@ export interface Jet {
   power?: number;
 }
 
+/** Which of a player's tanks a shot comes from: the main tank (the player itself), or torikloud's twin. */
+export type Origin = 'main' | 'twin';
+
 /** A series of rounds being fired one after another (Pill Pusher). */
 export interface Burst {
   playerId: number;
   weaponId: string;
   /** Which of the player's tanks it fires from. */
-  origin: 'main' | 'twin';
+  origin: Origin;
   angle: number;
   power: number;
   fired: number;

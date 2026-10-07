@@ -174,6 +174,22 @@ export function applyHit(state: GameState, t: Target, weapon: WeaponDef, shooter
   return standing;
 }
 
+/**
+ * A hit that soaks in rather than landing at once, the way applyHit does for everything else: a stream's
+ * droplet, a toxic puddle (both `soak`, flushed as damage in stepSoak) or a blob of gunk (`dose`, toxin that
+ * drains into soak). Friendly fire and noteHit (the refund, the stats' hits) as applyHit; returns false if
+ * it didn't land (the shooter's own tank, with friendly fire off: the droplet or blob carries on past it).
+ * (No effect flags: none of these kinds carries any, and once per target per shot would need the shot to
+ * remember whom it has touched.)
+ */
+export function applySoak(state: GameState, t: Target, weapon: WeaponDef, shooterId: number, amount: number, colour: string, dose?: { rate: number }): boolean {
+  if (weapon.friendlyFire === false && targetOwner(t) === shooterId) return false;
+  noteHit(state, t, shooterId);
+  if (dose) doseTarget(t, amount, dose.rate, colour);
+  else soakTarget(t, amount, colour);
+  return true;
+}
+
 /** A shot has touched an enemy (or their decoy): its refund-on-miss round isn't coming back. */
 export function noteHit(state: GameState, t: Target, shooterId: number): void {
   if (state.refund?.playerId === shooterId && targetOwner(t) !== shooterId) state.refund.hit = true;
