@@ -485,7 +485,7 @@ function runFrame(now: number): void {
   sfx.tunes.update(dt, paused);
   for (const e of state.sfx.splice(0)) sfx.play(e);
   renderer.draw(state, dt);
-  hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.lost ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
+  hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.ended ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
   document.body.dataset.spectating = String(!!online.spectator);
   if (document.body.dataset.replay !== String(!!replay)) {
     document.body.dataset.replay = String(!!replay);
@@ -493,7 +493,7 @@ function runFrame(now: number): void {
     spectateLeave.setAttribute('aria-label', replay ? 'Stop the replay' : 'Stop watching');
     replaySpeed.textContent = `${replay?.speed ?? 1}×`;
   }
-  document.body.dataset.online = String(!!net && !net.lost);
+  document.body.dataset.online = String(!!net && !net.ended);
   if (state.phase === 'gameover') tape.end(state);
   gameOver.update(replay ? 'replay' : online.spectator ? 'watching' : net ? 'online' : 'hotseat', !!tape.replay);
   hud.update(state);

@@ -197,8 +197,11 @@ export class NetSession {
     return this.phase.k === 'rejoining';
   }
 
-  /** Over for this phone: it left, the versions don't match, or the other phone left or the room went. */
-  get lost(): boolean {
+  /**
+   * Over for this phone, for whatever reason: it left (for good, or for now), stood aside for the player's
+   * other phone, the versions don't match, or the other phone left or the room went.
+   */
+  get ended(): boolean {
     return this.phase.k === 'ended';
   }
 
@@ -379,7 +382,7 @@ export class NetSession {
 
   /** Leave the match for now (it carries on turn by turn): tell the other phone, keep the room. */
   away(): void {
-    if (this.lost) return;
+    if (this.ended) return;
     netLog('session: leaving the match for now');
     this.transport.send({ k: 'away' } satisfies NetMsg);
     this.end('away');
@@ -391,7 +394,7 @@ export class NetSession {
    * stop here without a word (the other phone is the one playing now), leaving the room as it is.
    */
   standDown(): void {
-    if (this.lost) return;
+    if (this.ended) return;
     netLog('session: standing aside for this player’s other phone');
     this.end('away');
     this.letGo();
@@ -469,7 +472,7 @@ export class NetSession {
   }
 
   leave(): void {
-    if (this.lost) return;
+    if (this.ended) return;
     this.transport.send({ k: 'bye' } satisfies NetMsg);
     this.end('left');
     this.transport.close();
@@ -511,7 +514,7 @@ export class NetSession {
   }
 
   private receive(msg: NetMsg): void {
-    if (this.lost) return;
+    if (this.ended) return;
     // Anything from them means they're here (after catching up from the record, we assumed not).
     if (msg.k !== 'away') this.setPeerAway(false);
     // Rejoining: anything from before we're caught up is stale.
@@ -612,7 +615,7 @@ export class NetSession {
   }
 
   private drop(): void {
-    if (this.lost) return;
+    if (this.ended) return;
     this.end('lost');
     this.transport.close();
     this.events.emit('lost');

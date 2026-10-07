@@ -125,7 +125,7 @@ export class OnlineScreen {
 
   /** The topic of the room of the match this phone is in (a notification's `ref`), if it's in one. */
   get roomTopic(): string | null {
-    return this.session && !this.session.lost ? (this.room?.sealer.topic ?? null) : null;
+    return this.session && !this.session.ended ? (this.room?.sealer.topic ?? null) : null;
   }
 
   /**
@@ -245,7 +245,7 @@ export class OnlineScreen {
         // Someone who joins and goes quiet before the match starts was probably never there (a link
         // preview in a messaging app): free the seat and wait for a real player.
         s.on('peerAway', (away) => {
-          if (!away || s.game || s.lost || this.session !== s) return;
+          if (!away || s.game || s.ended || this.session !== s) return;
           netLog('ui: the guest went quiet in the lobby: freeing the seat');
           t.detach();
           this.session = null;
@@ -332,7 +332,7 @@ export class OnlineScreen {
    */
   private startIfHostAway(db: Rtdb, s: NetSession, code: string, host: { id: string; here: boolean }, offer: OpenRecord['open']): void {
     const go = async () => {
-      if (this.session !== s || s.game || s.lost || s.remotePick) return;
+      if (this.session !== s || s.game || s.ended || s.remotePick) return;
       netLog(`ui: ${offer.host.name} isn't here: starting the match`);
       s.remotePick = offer.host;
       s.publicReplay = offer.listed;
@@ -342,7 +342,7 @@ export class OnlineScreen {
       if (offer.listed && s.localPick) {
         // On the Games list as live now (the host isn't there to say so).
         const lobby = await lobbySealer(this.opts.lobby);
-        if (this.session !== s || s.lost) return; // left meanwhile: nothing to list
+        if (this.session !== s || s.ended) return; // left meanwhile: nothing to list
         const listing = new Listing(db, lobby, {
           hostId: host.id,
           name: offer.host.name,
@@ -454,7 +454,7 @@ export class OnlineScreen {
   /** The in-match menu: back to the menu (the match waits), nudge them, or resign. */
   matchMenu(): void {
     const s = this.session;
-    if (!s?.game || s.lost) return;
+    if (!s?.game || s.ended) return;
     const back = button('Back to menu', () => this.close(), 'big');
     back.id = 'menu-leave';
     let sure = false;
@@ -582,7 +582,7 @@ export class OnlineScreen {
    */
   private outdated(who: Outdated): void {
     netLog(`ui: ${who === 'us' ? 'this phone' : 'the other phone'} is on an older version`);
-    if (this.session && !this.session.lost) this.session.away(); // the seat and the room stay as they are
+    if (this.session && !this.session.ended) this.session.away(); // the seat and the room stay as they are
     this.endSeat();
     this.cleanup();
     this.session = null;
@@ -605,7 +605,7 @@ export class OnlineScreen {
    */
   close(): void {
     const s = this.session;
-    if (s && this.seat && !s.lost) {
+    if (s && this.seat && !s.ended) {
       if (s.isRejoining) {
         s.away(); // not caught up yet: the match is still there to go back to
       } else if (s.game && s.game.phase !== 'gameover') {
@@ -692,7 +692,7 @@ export class OnlineScreen {
     this.fileResults();
     const s = this.session;
     const g = s?.game;
-    const show = !!s && s.peerAway && !s.lost && !!g && g.phase === 'aiming';
+    const show = !!s && s.peerAway && !s.ended && !!g && g.phase === 'aiming';
     const mine = !!g && g.current === s?.localSeat;
     const key = show ? `${mine}` : '';
     this.away.hidden = !show;
@@ -714,7 +714,7 @@ export class OnlineScreen {
   private tellTheirTurn(): void {
     const s = this.session;
     const g = s?.game;
-    if (!s || !g || s.lost || !this.room || !this.seat || g.phase !== 'aiming') return;
+    if (!s || !g || s.ended || !this.room || !this.seat || g.phase !== 'aiming') return;
     const key = `${this.seat.code}:${g.turn}`;
     if (this.turnSeen?.key !== key) {
       const ours = this.turnSeen?.current === s.localSeat && this.turnSeen.key.startsWith(`${this.seat.code}:`);
