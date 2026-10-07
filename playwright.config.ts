@@ -24,7 +24,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run build && npx vite preview --port ${port} --strictPort`,
+    // CI has just built dist/ (deploy.yml's `npm run build`, the build that's deployed): serve that one.
+    command: `${process.env.CI ? '' : 'npm run build && '}npx vite preview --port ${port} --strictPort`,
     port,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

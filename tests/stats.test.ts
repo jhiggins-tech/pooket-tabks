@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { PlayerTally } from '../src/game/state';
 import { aggregate, type StatsInput } from '../src/stats/aggregate';
+import { encodeStats, parseStats, STATS_PATH } from '../src/stats/store';
 import { digest, playerKey, type MatchSummary, type Tally } from '../src/stats/summary';
 
 const tally = (o: Partial<Tally> = {}): Tally => ({ shots: {}, hits: {}, dealt: {}, taken: 0, self: 0, kills: 0, ...o });
@@ -79,5 +81,27 @@ describe('adding up the stats', () => {
     expect(out.verified.matches).toBe(0);
     expect(out.all.endings).toEqual({ draw: 1, resigned: 1 });
     expect(out.all.players.find((p) => p.key === 'n:ann')).toMatchObject({ draws: 1, losses: 1, wins: 0 });
+  });
+});
+
+it("a summary's tally has the game's PlayerTally shape", () => {
+  // summary.ts keeps its own copy (it can't import game/state.ts and stay loadable by the stats sender).
+  expectTypeOf<Tally>().toEqualTypeOf<PlayerTally>();
+});
+
+describe('the stored totals', () => {
+  it('round-trip through stats/summary as the sender writes them', async () => {
+    const stats = await aggregate({ matches: {}, results: {}, names: {} }, 123);
+    const stored = encodeStats(stats, 456);
+    expect(STATS_PATH).toBe('stats/summary');
+    expect(stored).toEqual({ m: JSON.stringify(stats), ts: 456 });
+    expect(parseStats(stored)).toEqual(stats);
+  });
+
+  it("reads nothing from an empty slot or a version it doesn't know", () => {
+    expect(parseStats(null)).toBeNull();
+    expect(parseStats({})).toBeNull();
+    expect(parseStats({ m: 'null' })).toBeNull();
+    expect(parseStats({ m: JSON.stringify({ v: 2 }) })).toBeNull();
   });
 });

@@ -5,6 +5,7 @@
  * won't stop a determined attacker; it's to keep casual eyes out of a game lobby, not a bank.)
  */
 
+import { sha256Hex } from '../core/hex';
 import { decodeMsg, encodeMsg } from './wire';
 
 const enc = new TextEncoder();
@@ -17,10 +18,11 @@ export interface Sealer {
 
 export async function sealerFor(purpose: string, secret: string): Promise<Sealer> {
   const subtle = globalThis.crypto.subtle;
-  const t = new Uint8Array(await subtle.digest('SHA-256', enc.encode(`pooket-tabks/topic/${purpose}/${secret}`)));
+  // The topic: the first 12 bytes of its hash, in hex. The key: all of another hash, raw.
+  const topic = (await sha256Hex(`pooket-tabks/topic/${purpose}/${secret}`)).slice(0, 24);
   const k = await subtle.digest('SHA-256', enc.encode(`pooket-tabks/key/${purpose}/${secret}`));
   const key = await subtle.importKey('raw', k, 'AES-GCM', false, ['encrypt', 'decrypt']);
-  return { topic: [...t.subarray(0, 12)].map((b) => b.toString(16).padStart(2, '0')).join(''), key };
+  return { topic, key };
 }
 
 /** Seal a message: in the wire format (wire.ts: JSON that keeps Infinity and NaN), encrypted. */

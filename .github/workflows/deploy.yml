@@ -22,11 +22,18 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            notifier/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+      # The senders (notifier/: run by Node as is, so nothing else type-checks them).
+      - run: npm ci --prefix notifier
+      - run: npx tsc -p notifier
       - run: npm test
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      # Serves the dist/ just built (playwright.config.ts doesn't build again under CI).
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v7
         if: always()

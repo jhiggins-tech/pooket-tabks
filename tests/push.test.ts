@@ -1,10 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Auth } from '../src/net/auth';
 import { accountAddress, announceDevice, clientId, followOutbox, notifySeat, registerPushDevice, useAccount, wantsPush, type OutboxEntry } from '../src/net/push';
 import { Rtdb } from '../src/net/rtdb';
 import { sealerFor } from '../src/net/seal';
 import type { RoomRef } from '../src/net/watchers';
-import { render } from '../src/push/templates';
+import { PUSH_ICON, pushPayload, render, showOptions } from '../src/push/templates';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 import { until } from './support/wait';
 
@@ -124,5 +125,16 @@ describe('notifications, the database side', () => {
     expect(Object.keys(listed() ?? {})).toEqual(['0123abcd-phone']);
     await registerPushDevice(new Rtdb(server.url, () => auth.token()), uid, false);
     expect(listed()).toBeUndefined();
+  });
+});
+
+describe("the service worker's copy of the push format", () => {
+  it('shows a push the way the open page does', () => {
+    const p = pushPayload('e1', render('your-turn', 'a'.repeat(24))!);
+    expect(showOptions(p)).toEqual({ body: p.body, tag: 'evt-e1', icon: './icon.svg', badge: './icon.svg', data: { url: p.url, eventId: 'e1' } });
+    // public/sw.js can't import templates.ts: it keeps copies of these.
+    const sw = readFileSync(new URL('../public/sw.js', import.meta.url), 'utf8');
+    expect(sw).toContain(`const ICON = '${PUSH_ICON}';`);
+    expect(sw).toContain('const options = { body: msg.body, tag: msg.tag, icon: ICON, badge: ICON, data: { url: msg.url, eventId: msg.eventId } };');
   });
 });

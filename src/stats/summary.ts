@@ -1,15 +1,17 @@
 /**
  * A finished online match, as the stats see it: who played as what, how it ended, and each player's tally
  * (game/tally.ts). Shared by the phones (net/results.ts writes these) and the stats sender
- * (`notifier/stats.ts`, run by Node as is: plain TypeScript, no imports), so both read it the same way.
+ * (`notifier/stats.ts`, run by Node as is: plain TypeScript, `.ts` imports only), so both read it the
+ * same way.
  *
  * Stored as a JSON string (Firebase would drop empty objects, which would change the fingerprint).
  * `digest` is the fingerprint a signed-in player's phone files in their own account to vouch for it.
  */
+import { sha256Hex } from '../core/hex.ts';
 
 export const SUMMARY_VERSION = 1;
 
-/** One player's numbers (the same shape as the game's PlayerTally). */
+/** One player's numbers (the same shape as the game's PlayerTally: tests/stats.test.ts checks). */
 export interface Tally {
   shots: Record<string, number>;
   hits: Record<string, number>;
@@ -56,8 +58,7 @@ export function canonical(v: unknown): string {
 
 /** The summary's fingerprint: SHA-256 of its canonical form, in hex. */
 export async function digest(s: MatchSummary): Promise<string> {
-  const bytes = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(s))));
-  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return sha256Hex(canonical(s));
 }
 
 /** A tally with whole numbers (damage is counted in fractions along the way). */
@@ -83,10 +84,9 @@ export function parseSummary(text: unknown): MatchSummary | null {
   }
 }
 
-/** A signed-in player's key in the stats: a hash of their account (never the account itself). */
+/** A signed-in player's key in the stats: a hash of their account (never the account itself), its first 8 bytes. */
 export async function playerKey(uid: string): Promise<string> {
-  const bytes = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(`pooket-tabks/stats/${uid}`)));
-  return `a:${[...bytes.subarray(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('')}`;
+  return `a:${(await sha256Hex(`pooket-tabks/stats/${uid}`)).slice(0, 16)}`;
 }
 
 /** What a player key looks like (a signed-in player's: `playerKey`). */
