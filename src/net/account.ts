@@ -1,6 +1,7 @@
 import type { Auth } from './auth';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import { SERVER_TIME, type Rtdb } from './rtdb';
+import { SerialQueue } from './writer';
 
 /**
  * A signed-in player's profile, kept in the database (`users/<uid>/profile`) so it follows them from
@@ -52,7 +53,7 @@ export interface AccountOptions {
 }
 
 export class Account {
-  private queue: Promise<void> = Promise.resolve();
+  private readonly queue = new SerialQueue();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly store: Store | null;
 
@@ -91,12 +92,7 @@ export class Account {
 
   /** Serialised, so a push never overlaps a sync; failures are only logged. */
   private run(job: () => Promise<unknown>): Promise<void> {
-    const next = this.queue.then(job).then(
-      () => {},
-      (e: unknown) => netLog(`account: ${e instanceof Error ? e.message : e}`),
-    );
-    this.queue = next;
-    return next;
+    return this.queue.run(job, (e) => netLog(`account: ${errText(e)}`));
   }
 
   private async push(uid: string): Promise<void> {

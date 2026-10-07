@@ -1,7 +1,8 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { Rtdb } from './rtdb';
-import { sealerFor, type Sealer } from './seal';
+import { roomRef, type RoomRef } from './rooms';
 import { getSealed, putSealed } from './sealed';
+import { otherSeat } from './seat';
 import type { MatchSetup, Pick } from './session';
 import { compat, RULES, WIRE, type Compat } from './version';
 import { upgradeSnapshot, type Snapshot } from './snapshot';
@@ -70,13 +71,13 @@ export interface GameStore {
 export class RecordStore implements GameStore {
   private readonly writer: LatestWriter<GameRecord>;
 
-  constructor(db: Rtdb, roomPath: string, sealer: Sealer) {
+  constructor(room: RoomRef) {
     this.writer = new LatestWriter(
       async (rec) => {
-        await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
+        await putSealed(room.db, `${room.path}/game`, room.sealer, encodeMsg(rec));
         netLog(`record: saved (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : ''})`);
       },
-      { retry: true, failed: (e) => netLog(`record: couldn't save (${e instanceof Error ? e.message : e})`) },
+      { retry: true, failed: (e) => netLog(`record: couldn't save (${errText(e)})`) },
     );
   }
 
@@ -86,9 +87,9 @@ export class RecordStore implements GameStore {
 }
 
 /** Put up a hosted game's open offer (before anyone has joined). */
-export async function saveOffer(db: Rtdb, roomPath: string, sealer: Sealer, offer: OpenRecord['open']): Promise<void> {
+export async function saveOffer(room: RoomRef, offer: OpenRecord['open']): Promise<void> {
   const rec: OpenRecord = { v: WIRE, rules: RULES, open: offer };
-  await putSealed(db, `${roomPath}/game`, sealer, encodeMsg(rec));
+  await putSealed(room.db, `${room.path}/game`, room.sealer, encodeMsg(rec));
 }
 
 /** Whatever's in a room's record slot: a match, an open offer, or nothing. */
@@ -96,11 +97,12 @@ export async function loadRoomRecord(
   db: Rtdb,
   code: string,
 ): Promise<{ game: StoredGame } | { offer: OpenRecord['open']; compat: Compat; ts: number } | null> {
-  const sealer = await sealerFor('room', code);
-  const raw = await getSealed<unknown>(db, `rooms/${sealer.topic}/game`, sealer);
+  const room = await roomRef(db, code);
+  const raw = await getSealed<unknown>(db, `${room.path}/game`, room.sealer);
   if (!raw || typeof raw.value !== 'string') return null;
   const rec = decodeMsg(raw.value) as GameRecord | OpenRecord;
-  // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches are over by 5 Oct.)
+  // Written before the rules were recorded (1 Oct): wire 7 was rules 7. (Those matches have run out of
+  // time by now, but one is only forfeited when it's opened, and a seat kept fresh can still lead to one.)
   if (rec.v === 7) {
     rec.rules ??= 7;
     if ('setup' in rec) rec.setup.rules ??= 7;
@@ -143,5 +145,5 @@ export function gameStatus(g: StoredGame, seat: number, now = Date.now()): GameS
 
 /** The other player's name in a match (seat 0 is the host). */
 export function opponentName(g: StoredGame, seat: number): string {
-  return g.rec.setup.players[seat === 0 ? 1 : 0]?.name ?? 'them';
+  return g.rec.setup.players[otherSeat(seat)]?.name ?? 'them';
 }

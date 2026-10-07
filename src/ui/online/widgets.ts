@@ -1,12 +1,10 @@
-import { netLogText } from '../../net/log';
+import { errText, netLogText } from '../../net/log';
 import { button, el } from '../dom';
 
 /** The online screens' building blocks: headings, status lines, rows of buttons, the share row, Copy logs. */
 
 /** An error's message, for showing. */
-export function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e);
-}
+export const message = errText;
 
 export function heading(t: string, tag: 'h2' | 'h3' = 'h2'): HTMLElement {
   return el(tag, undefined, t);

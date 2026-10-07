@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 
 /**
  * Sign in with Google, optionally, without the Firebase SDK: Google's button hands us an ID token (a
@@ -115,7 +115,7 @@ export class Auth {
       this.set({ uid: s.uid, idToken: body.id_token, refreshToken: body.refresh_token, expiresAt: this.now() + Number(body.expires_in ?? 3600) * 1000 }, false);
       return body.id_token;
     } catch (e) {
-      netLog(`auth: couldn't refresh (${e instanceof Error ? e.message : e})`);
+      netLog(`auth: couldn't refresh (${errText(e)})`);
       return null;
     }
   }

@@ -1,6 +1,6 @@
 /**
  * A small in-memory log of what the online code does (database calls and streams, rooms, the relay,
- * the match session), for the "Copy logs" button. Addresses are masked so a log is safe to paste into a chat.
+ * the match session), for the "Copy logs" button.
  */
 
 const MAX_LINES = 600;
@@ -27,16 +27,9 @@ export function netLogText(): string {
   return [...head, ...lines].join('\n');
 }
 
-/** Hide most of an address: keep its kind and enough to tell two apart. */
-export function maskAddress(a: string): string {
-  if (a.endsWith('.local')) return `mdns:${a.slice(0, 4)}…`;
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(a)) {
-    const [x, y] = a.split('.');
-    const priv = x === '10' || x === '192' || (x === '172' && +y! >= 16 && +y! <= 31) || x === '100';
-    return `${x}.${y}.x.x${priv ? ' (private)' : ''}`;
-  }
-  if (a.includes(':')) return `${a.split(':').slice(0, 2).join(':')}:…(v6)`;
-  return '?';
+/** An error's message (or whatever was thrown, as text), for a log line or the screen. */
+export function errText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
 }
 
 function safeJson(v: unknown): string {

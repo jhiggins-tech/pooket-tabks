@@ -1,8 +1,17 @@
 import { fromB64, toB64 } from './b64';
-import { netLog } from './log';
-import type { Rtdb, RtdbEvent } from './rtdb';
-import { seal, unseal, type Sealer } from './seal';
+import { errText, netLog } from './log';
+import type { RtdbEvent } from './rtdb';
+import type { RoomRef } from './rooms';
+import { seal, unseal } from './seal';
 import type { Transport } from './transport';
+
+/** A seat's message queues in the room: the one it posts to (`outbox`) and the one it reads (`inbox`). */
+export function queuesFor(side: 'host' | 'guest'): { outbox: 'h2g' | 'g2h'; inbox: 'h2g' | 'g2h' } {
+  return side === 'host' ? { outbox: 'h2g', inbox: 'g2h' } : { outbox: 'g2h', inbox: 'h2g' };
+}
+
+/** How often to ping while the other phone is away (enough to notice each other again after a blip). */
+const QUIET_PING_MS = 30_000;
 
 /**
  * A message pipe through a room: each side posts sealed, numbered batches to its outbox and streams
@@ -13,9 +22,6 @@ import type { Transport } from './transport';
  * Each pipe numbers its batches within an epoch (when it started): a phone that rejoins starts a new
  * epoch at 1, and the other side switches to it and ignores anything left over from the old one.
  */
-/** How often to ping while the other phone is away (enough to notice each other again after a blip). */
-const QUIET_PING_MS = 30_000;
-
 export class RelayTransport implements Transport {
   onMessage: (msg: unknown) => void = () => {};
   onClose: () => void = () => {};
@@ -44,19 +50,19 @@ export class RelayTransport implements Transport {
   private stream: { close: () => void } | null = null;
 
   constructor(
-    readonly db: Rtdb,
-    readonly roomPath: string,
+    /** The room it goes through. */
+    readonly room: RoomRef,
     private readonly side: 'host' | 'guest',
-    readonly sealer: Sealer,
     /** `me`/`peer`: the seat ids of this phone and the other one; batches from anyone else are ignored. */
     private readonly opts: { pingMs?: number; lostMs?: number; me?: string; peer?: string } = {},
   ) {
-    this.outbox = `${roomPath}/${side === 'host' ? 'h2g' : 'g2h'}`;
-    this.inbox = `${roomPath}/${side === 'host' ? 'g2h' : 'h2g'}`;
+    const queues = queuesFor(side);
+    this.outbox = `${room.path}/${queues.outbox}`;
+    this.inbox = `${room.path}/${queues.inbox}`;
   }
 
   start(): this {
-    this.stream = this.db.stream(this.inbox, (e) => this.onEvent(e));
+    this.stream = this.room.db.stream(this.inbox, (e) => this.onEvent(e));
     const ping = this.opts.pingMs ?? 4000;
     const lost = this.opts.lostMs ?? 20_000;
     this.timers.push(
@@ -73,7 +79,7 @@ export class RelayTransport implements Transport {
           // Waiting for them to come back: unless the room has closed.
           if (now - this.lastRoomCheck >= Math.max(ping, 3000)) {
             this.lastRoomCheck = now;
-            void this.db.get(`${this.roomPath}/host`).then(
+            void this.room.db.get(`${this.room.path}/host`).then(
               (h) => {
                 if (h === null && !this.closed) {
                   netLog('relay: the room has closed');
@@ -96,7 +102,10 @@ export class RelayTransport implements Transport {
     void this.flush();
   }
 
-  /** Stop using this pipe but leave the room as it is (the host is about to wait for someone else). */
+  /**
+   * Stop using this pipe but leave the room as it is: the match carries on without this phone (turn by
+   * turn, or on its other phone), or the host frees the guest seat to wait for someone else.
+   */
   detach(): void {
     if (this.closed) return;
     this.stop();
@@ -115,7 +124,7 @@ export class RelayTransport implements Transport {
     if (this.closed) return;
     this.stop();
     // The host closes the room, a moment later so a last goodbye can still get through.
-    if (this.side === 'host') setTimeout(() => void this.db.patch(this.roomPath, ROOM_CLEARED).catch(() => {}), 1500);
+    if (this.side === 'host') setTimeout(() => void this.room.db.patch(this.room.path, ROOM_CLEARED).catch(() => {}), 1500);
   }
 
   private stop(): void {
@@ -142,15 +151,15 @@ export class RelayTransport implements Transport {
       if (!this.queue.length) return;
       const msgs = this.queue.splice(0);
       const seq = ++this.seqOut;
-      batch = { seq, payload: toB64(await seal(this.sealer, { e: this.epoch, seq, m: msgs, from: this.opts.me })) };
+      batch = { seq, payload: toB64(await seal(this.room.sealer, { e: this.epoch, seq, m: msgs, from: this.opts.me })) };
     }
     this.sending = true;
     try {
-      await this.db.post(this.outbox, batch.payload);
+      await this.room.db.post(this.outbox, batch.payload);
       this.lastSent = Date.now();
     } catch (e) {
-      if (this.closed) return netLog(`relay: a last message didn't go (${e instanceof Error ? e.message : e})`);
-      netLog(`relay: send failed (${e instanceof Error ? e.message : e}), retrying`);
+      if (this.closed) return netLog(`relay: a last message didn't go (${errText(e)})`);
+      netLog(`relay: send failed (${errText(e)}), retrying`);
       this.retry.unshift(batch);
       await new Promise((r) => setTimeout(r, 1000));
     } finally {
@@ -172,7 +181,7 @@ export class RelayTransport implements Transport {
     if (this.seen.has(key) || typeof value !== 'string') return;
     this.seen.add(key);
     this.toDelete.push(key);
-    void unseal(this.sealer, fromB64(value)).then((b) => {
+    void unseal(this.room.sealer, fromB64(value)).then((b) => {
       const batch = b as { e?: number; seq: number; m: unknown[]; from?: string } | null;
       if (!batch) return netLog('relay: a message that did not unseal');
       // From someone who's since lost the seat (a ghost the host freed it from): not for us. (An older
@@ -216,7 +225,7 @@ export class RelayTransport implements Transport {
     if (!this.toDelete.length || this.closed) return;
     const keys = this.toDelete;
     this.toDelete = [];
-    void this.db.patch(this.inbox, Object.fromEntries(keys.map((k) => [k, null]))).catch(() => {});
+    void this.room.db.patch(this.inbox, Object.fromEntries(keys.map((k) => [k, null]))).catch(() => {});
   }
 }
 

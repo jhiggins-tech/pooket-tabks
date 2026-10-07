@@ -1,7 +1,7 @@
 import type { GameState } from '../game/state';
 import { digest, matchId, roundTally, SUMMARY_VERSION, type MatchSummary, type Tally } from '../stats/summary';
-import { netLog } from './log';
-import { SERVER_TIME, type Rtdb } from './rtdb';
+import { errText, netLog } from './log';
+import { RtdbError, SERVER_TIME, type Rtdb } from './rtdb';
 import type { MatchSetup } from './session';
 import type { Snapshot } from './snapshot';
 
@@ -69,13 +69,13 @@ export async function reportMatch(db: Rtdb, topic: string, seat: 0 | 1, setup: M
     try {
       await db.put(`stats/matches/${summary.id}/${seat}`, { m: JSON.stringify(summary), ts: SERVER_TIME });
     } catch (e) {
-      if (!(e as { denied?: boolean }).denied) throw e; // already filed (it can only be written once)
+      if (!(e instanceof RtdbError && e.denied)) throw e; // already filed (it can only be written once)
     }
     if (acct) await acct.db.put(`users/${acct.uid}/results/${summary.id}`, { seat, digest: await digest(summary), ts: SERVER_TIME });
     markReported(key);
     netLog(`stats: results filed${acct ? ' and vouched for' : ''}`);
   } catch (e) {
-    netLog(`stats: couldn't file the results (${e instanceof Error ? e.message : e})`);
+    netLog(`stats: couldn't file the results (${errText(e)})`);
   }
 }
 

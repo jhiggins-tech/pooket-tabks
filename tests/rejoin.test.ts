@@ -157,7 +157,7 @@ describe('turn by turn (both phones leave between turns)', { timeout: 60_000 }, 
   /** A session whose record goes to the room, like the app's. */
   const withRecord = async (s: NetSession, code: string) => {
     const sealer = await sealerFor('room', code);
-    s.store = new RecordStore(db, `rooms/${sealer.topic}`, sealer);
+    s.store = new RecordStore({ db, path: `rooms/${sealer.topic}`, sealer });
     return s;
   };
 

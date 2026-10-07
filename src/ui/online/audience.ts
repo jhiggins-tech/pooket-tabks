@@ -1,5 +1,6 @@
 import { netLog } from '../../net/log';
-import { followWatchers, type RoomRef, type Watcher } from '../../net/watchers';
+import type { RoomRef } from '../../net/rooms';
+import { followWatchers, type Watcher } from '../../net/watchers';
 import { byId, el } from '../dom';
 import { hideToast, showToast } from '../toast';
 

@@ -1,7 +1,7 @@
 import { hex } from '../core/hex';
 import { finishDecoyPick, fire } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
-import { netLog } from './log';
+import { errText, netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
@@ -9,6 +9,7 @@ import { putState } from './follow';
 import { upgradeSnapshot, type Snapshot } from './snapshot';
 import { compat, WIRE } from './version';
 import { openSealed, putSealed } from './sealed';
+import { SerialQueue } from './writer';
 
 /**
  * Replays of public matches (ones on the Games list), to watch once they're over: the Game browser's
@@ -70,7 +71,7 @@ export function shotKey(shot: ShotRecord): string {
 export class ReplayRecorder implements GameStore {
   /** What this phone has written (or is writing). */
   private readonly done = new Set<string>();
-  private queue: Promise<void> = Promise.resolve();
+  private readonly queue = new SerialQueue();
 
   constructor(
     private readonly db: Rtdb,
@@ -97,9 +98,9 @@ export class ReplayRecorder implements GameStore {
   private once(key: string, write: () => Promise<void>): void {
     if (this.done.has(key)) return;
     this.done.add(key);
-    this.queue = this.queue.then(write).catch((e: unknown) => {
+    void this.queue.run(write, (e) => {
       this.done.delete(key);
-      netLog(`replay: couldn't save ${key.split('/')[1]} (${e instanceof Error ? e.message : e})`);
+      netLog(`replay: couldn't save ${key.split('/')[1]} (${errText(e)})`);
     });
   }
 

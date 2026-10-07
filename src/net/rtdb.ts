@@ -1,4 +1,4 @@
-import { netLog } from './log';
+import { errText, netLog } from './log';
 
 /**
  * A tiny client for the Firebase Realtime Database REST API (no SDK): read/write JSON at a path, and
@@ -72,7 +72,7 @@ export class Rtdb {
       await this.get('lobby/ping');
       return true;
     } catch (e) {
-      netLog(`db: unreachable (${e instanceof Error ? e.message : e})`);
+      netLog(`db: unreachable (${errText(e)})`);
       return false;
     }
   }
@@ -139,7 +139,7 @@ export class Rtdb {
           }
         } catch (e) {
           if (closed) return;
-          netLog(`db: stream ${short(path)} dropped: ${e instanceof Error ? e.message : e}`);
+          netLog(`db: stream ${short(path)} dropped: ${errText(e)}`);
         }
         if (!closed) await new Promise((r) => setTimeout(r, 1000)); // then reconnect
       }
@@ -151,6 +151,58 @@ export class Rtdb {
         abort.abort();
       },
     };
+  }
+}
+
+/** How often `followChildren` runs its `tick`. */
+const TICK_MS = 5000;
+
+/**
+ * Follow a list of children (keyed by id) at `path`: `all` gets every child whenever the whole value comes
+ * (at first, and again after a reconnect), `child` each one that's put or patched (null: removed). A change
+ * deeper inside a child is read whole again (`deep: 'reread'`) or ignored (`'ignore'`). `tick` runs every
+ * few seconds while following (for entries that go stale with nothing changing). `where` as for `stream`.
+ */
+export function followChildren(
+  db: Rtdb,
+  path: string,
+  on: { all: (children: [string, unknown][]) => void; child: (id: string, value: unknown) => void; tick?: () => void },
+  opts: { deep: 'reread' | 'ignore'; where?: { child: string; value: string } },
+): { stop: () => void } {
+  const stream = db.stream(
+    path,
+    (e) => {
+      if (e.path === '/') return on.all(Object.entries((e.data as Record<string, unknown>) ?? {}));
+      const id = e.path.slice(1).split('/')[0];
+      if (!id) return;
+      if (!e.path.slice(1).includes('/')) on.child(id, e.data);
+      else if (opts.deep === 'reread') void db.get(`${path}/${id}`).then((v) => on.child(id, v));
+    },
+    opts.where,
+  );
+  const timer = on.tick ? setInterval(on.tick, TICK_MS) : null;
+  return {
+    stop: () => {
+      if (timer) clearInterval(timer);
+      stream.close();
+    },
+  };
+}
+
+/** Which of a followed list's children are new: whatever was there in the first whole value is old news. */
+export class Newcomers {
+  private known: Set<string> | null = null;
+
+  /** The first whole value (later ones change nothing). */
+  start(ids: Iterable<string>): void {
+    this.known ??= new Set(ids);
+  }
+
+  /** Whether `id` is new: not seen before, once the first whole value is in. Either way it's known from now on. */
+  take(id: string): boolean {
+    if (!this.known || this.known.has(id)) return false;
+    this.known.add(id);
+    return true;
   }
 }
 

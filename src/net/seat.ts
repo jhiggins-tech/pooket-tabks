@@ -26,6 +26,17 @@ export interface Seat {
   at?: number;
 }
 
+/** A seat's number in a match (the host is seat 0, the guest seat 1). */
+export const seatOf = (role: 'host' | 'guest'): 0 | 1 => (role === 'host' ? 0 : 1);
+
+/** The other player's seat. */
+export const otherSeat = (seat: number): 0 | 1 => (seat === 0 ? 1 : 0);
+
+/** Something listed by seat ([host, guest], like a match's players) as [this seat's, the other's]. */
+export function bySeat<T>(list: readonly T[], seat: number): T[] {
+  return seat === 0 ? [...list] : [...list].reverse();
+}
+
 /** `changed`: a seat was saved, changed or forgotten here (its code), so a signed-in player's account hears. */
 export const seatChanges = new Emitter<{ changed: [code: string] }>();
 

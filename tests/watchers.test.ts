@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Rtdb } from '../src/net/rtdb';
 import { sealerFor } from '../src/net/seal';
 import { putSealed } from '../src/net/sealed';
-import { checkIn, followWatchers, WATCHER_STALE_MS, type RoomRef, type Watcher } from '../src/net/watchers';
+import type { RoomRef } from '../src/net/rooms';
+import { checkIn, followWatchers, WATCHER_STALE_MS, type Watcher } from '../src/net/watchers';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 import { until } from './support/wait';
 

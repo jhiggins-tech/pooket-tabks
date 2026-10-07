@@ -234,7 +234,7 @@ describe('networked match', { timeout: 30_000 }, () => {
       a.on('outdated', (w) => (outdated = w));
       (a as unknown as { receive(m: unknown): void }).receive({ k: 'hello', ...hello, pick: { name: 'B', characterId: 'kie' } });
       expect(outdated).toBe(who);
-      expect(a.lost).toBe(true);
+      expect(a.ended).toBe(true);
       expect(a.remotePick).toBeNull();
       expect(closed).toBe(false); // detached, not closed: the room (and any match in it) stays
     }
@@ -242,9 +242,9 @@ describe('networked match', { timeout: 30_000 }, () => {
 
   it('away: this phone is out of the match (nothing sent or taken in), but the game stays to look at', async () => {
     const { a, b, A } = await connected();
-    expect([a.lost, a.isRejoining, a.canAct()]).toEqual([false, false, true]);
+    expect([a.ended, a.isRejoining, a.canAct()]).toEqual([false, false, true]);
     a.away();
-    expect(a.lost).toBe(true);
+    expect(a.ended).toBe(true);
     expect(a.game).toBe(A);
     expect(a.canAct()).toBe(false);
     expect(a.fire()).toBe(false);

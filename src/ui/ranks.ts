@@ -1,4 +1,4 @@
-import { netLog } from '../net/log';
+import { errText, netLog } from '../net/log';
 import { Rtdb } from '../net/rtdb';
 import type { StatsSummary } from '../stats/aggregate';
 import { elo, rankIndex, rankOf, RANKS, START_RATING, type Rank, type Rating } from '../stats/ranks';
@@ -43,7 +43,7 @@ export class Ratings {
       const stats = parseStats(await new Rtdb(this.dbUrl).get<{ m?: unknown }>(STATS_PATH));
       if (stats) this.take(stats);
     } catch (e) {
-      netLog(`ranks: couldn't load the ratings (${e instanceof Error ? e.message : e})`);
+      netLog(`ranks: couldn't load the ratings (${errText(e)})`);
     }
   }
 
