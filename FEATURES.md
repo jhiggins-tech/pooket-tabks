@@ -4,7 +4,45 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-Nothing queued.
+- **Unlocks: career XP** (owner, 8 Oct). Signed-in players earn XP from online matches and spend it
+  unlocking characters (no cosmetic unlocks: characters only). Items marked *proposed* are suggestions
+  waiting on the owner.
+  - **XP**: only rated online matches count (both players signed in: the same verified matches the ranks
+    use). A loss earns 1×, a win 2×, and an unlock costs 6× (initial tuning: 3 wins or 6 losses an
+    unlock). The tuning lives in one place (e.g. `stats/xp.ts`, shared by the phones and the hourly
+    sender). *Proposed*: a draw earns 1×; 1× shows as 100 XP (+100, +200, 600 an unlock); a match counts
+    only if it lasted at least 4 turns, so quick resignations can't be farmed.
+  - **Where it's kept**: the hourly stats sender works out each verified player's XP into the totals
+    (`stats/summary`, beside their rating). The phone adds a just-finished match's XP straight away (provisional,
+    as `Ratings` does for the rating) until the totals catch up. Unlocks you've chosen go in your account
+    (e.g. `users/<uid>/unlocks/<characterId>`): that's a database rules change, so the owner re-publishes
+    the rules. Tokens to spend = whole unlocks earned − unlocks chosen.
+  - **What's locked** (owner, 8 Oct: as recommended):
+    - **Hotseat**: nothing; every character, betas included.
+    - **Online, not signed in**: everything but the starter set (*proposed*: tones2, kie, kcaj). Signing in
+      is how you progress.
+    - **Online, signed in**: everything but the starter set, what you've unlocked, and any character your
+      account has already played online (kept for existing players).
+    - **Betas** (garyoldmancorp, kiwicore): hotseat only, for everyone, while they're in beta. A
+      character that leaves beta becomes unlockable like the rest. New characters arrive locked.
+    - Choose your tank (and the online character pick) shows locked tanks with a 🔒 and the reason ("Sign
+      in to unlock", "Unlock for 1 token", "Beta: hotseat only"). Host and Join wait for a pick that's
+      open, as with Coming soon. Matches already under way carry on as they are.
+    - The app enforces the locks: picks are sealed in the room and there's no game server. That's fine
+      among friends.
+  - **The XP screen**: at the end of a rated match, after the rank screen (the rank-up celebration, when
+    there is one; otherwise once the game over card is up). It's a progress display, satisfying to watch
+    and hear:
+    - "+200 XP · Win" (or "+100 XP · Loss"), and a bar of six notches filling from where you were, with
+      the XP counting up.
+    - Each notch it passes plays a rising chiptune blip.
+    - A full bar flashes and bursts with a fanfare: "🔓 Unlock ready!". Then it empties and fills on with
+      whatever's left over.
+    - Below it: how far to the next unlock, and the tokens you have. Tap to skip to the end.
+    - With a token to spend: "Choose your unlock" shows the locked characters. Tap one and its padlock
+      breaks open, with a sound and a sparkle.
+    - Tokens can also be spent later: tap a locked tank in Choose your tank.
+  - Players will notice it, so it gets a What's new release.
 
 ### Backlog (ideas, not yet scheduled)
 
