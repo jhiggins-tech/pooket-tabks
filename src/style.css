@@ -1781,12 +1781,28 @@ body[data-online='true'] #net-menu {
   font-size: 18px;
 }
 .tank-lock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
   margin: 4px 0 10px;
   padding: 8px 12px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
   border: 1.5px dashed rgba(255, 255, 255, 0.35);
   font-weight: 800;
+}
+.tank-lock p {
+  margin: 0;
+  flex: 1 1 260px;
+}
+.tank-lock .big {
+  padding: 8px 16px;
+  font-size: 15px;
+}
+.tank-lock-tokens {
+  opacity: 0.75;
+  font-size: 13px;
 }
 .tank-details {
   flex: 1;
@@ -2140,5 +2156,223 @@ body[data-online='true'] #net-menu {
   .insignia::before,
   .insignia::after {
     opacity: 0.8;
+  }
+}
+
+/* ---------- The XP screen and unlocks (ui/xp.ts) ---------- */
+#xp {
+  z-index: 31;
+  background: radial-gradient(circle at 50% 35%, rgba(18, 64, 48, 0.94), rgba(8, 10, 24, 0.97));
+}
+.xp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(560px, 92vw);
+  text-align: center;
+}
+.xp-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.xp-gain {
+  margin: 0;
+  font-size: 44px;
+  font-weight: 900;
+  color: #86efac;
+  text-shadow: 0 0 18px rgba(134, 239, 172, 0.55);
+}
+.xp-why {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+.xp-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+}
+.xp-barwrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+.xp-bar {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  width: 100%;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15);
+  grid-area: 1 / 1;
+}
+.xp-notch {
+  position: relative;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+.xp-fill {
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: linear-gradient(90deg, #22c55e, #a3e635);
+}
+.xp-notch.filling .xp-fill {
+  width: 100%;
+  transition: width 0.38s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.xp-notch.lit .xp-fill {
+  width: 100%;
+}
+.xp-notch.lit {
+  box-shadow: 0 0 12px rgba(163, 230, 53, 0.8);
+  animation: xp-pop 0.25s ease-out;
+}
+.xp-bar.full {
+  animation: xp-flash 0.6s ease-out 2;
+}
+.xp-bar.full .xp-fill {
+  background: linear-gradient(90deg, #f59e0b, #fde68a, #f59e0b);
+}
+.xp-bar.full .xp-notch {
+  box-shadow: 0 0 16px rgba(250, 204, 21, 0.9);
+}
+.xp-total {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.xp-gain.pop,
+.xp-total.pop {
+  animation: xp-pop 0.25s ease-out;
+}
+.xp-next {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 16px;
+  font-weight: 800;
+}
+.xp-next.ready {
+  color: #facc15;
+  animation: xp-pulse 0.7s ease-in-out infinite alternate;
+}
+.xp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+}
+.xp-burst {
+  grid-area: 1 / 1;
+  position: relative;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.xp-burst span {
+  position: absolute;
+  left: -8px;
+  top: -10px;
+  font-size: 18px;
+  color: #fde68a;
+  text-shadow: 0 0 8px #f59e0b;
+  opacity: 0;
+  animation: rankup-spark 1.2s ease-out var(--d, 0s) both;
+}
+.xp-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+.xp-pick {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border-radius: 14px;
+  border: 2px solid var(--c, #f3f5ff);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--c, #f3f5ff);
+  font-size: 18px;
+  font-weight: 900;
+}
+.xp-pick .xp-burst {
+  position: absolute;
+  left: 50%;
+  top: 34%;
+}
+.xp-lock {
+  font-size: 32px;
+  line-height: 1;
+}
+.xp-pick.opening .xp-lock {
+  animation: xp-shake 0.18s linear infinite;
+}
+.xp-pick.opened,
+.xp-pick.opened:disabled {
+  opacity: 1;
+  background: color-mix(in srgb, var(--c, #f3f5ff) 22%, transparent);
+  box-shadow: 0 0 24px var(--c, #f3f5ff);
+}
+.xp-pick.opened .xp-lock {
+  animation: xp-open 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes xp-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+@keyframes xp-flash {
+  0% { box-shadow: inset 0 0 0 2px #fff, 0 0 46px #facc15; }
+  100% { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15); }
+}
+@keyframes xp-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.08); }
+}
+@keyframes xp-shake {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(-16deg); }
+  75% { transform: rotate(16deg); }
+}
+@keyframes xp-open {
+  0% { transform: scale(0.4) rotate(-30deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+/* Unlocks on the first screen: testing (everything open). */
+.unlock-all-note {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0.75;
+}
+.unlock-all-note[hidden] {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .xp-notch.lit,
+  .xp-bar.full,
+  .xp-gain.pop,
+  .xp-total.pop,
+  .xp-next.ready,
+  .xp-burst span,
+  .xp-pick.opening .xp-lock,
+  .xp-pick.opened .xp-lock {
+    animation: none !important;
   }
 }

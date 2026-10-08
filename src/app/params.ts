@@ -23,6 +23,10 @@ export interface Params {
   /** Show the what's-new popup (`?whatsnew`) and the first-visit name prompt (`?askname`) in a test anyway. */
   whatsNew: boolean;
   askName: boolean;
+  /** Testing: `?unlockall` (or `=on`) opens every character online on this phone, `?unlockall=off` stops it (app/unlockall.ts). */
+  unlockAll: 'on' | 'off' | null;
+  /** An automated run has everything unlocked, unless it asks for the locks (`?locks`). */
+  locks: boolean;
 }
 
 export function readParams(search: string, automated: boolean): Params {
@@ -41,5 +45,7 @@ export function readParams(search: string, automated: boolean): Params {
     fakeGoogle: (debug && q.get('db') && q.get('fakegoogle')) || null,
     whatsNew: !automated || q.has('whatsnew'),
     askName: !automated || q.has('askname'),
+    unlockAll: q.has('unlockall') ? (q.get('unlockall') === 'off' ? 'off' : 'on') : null,
+    locks: !automated || q.has('locks'),
   };
 }

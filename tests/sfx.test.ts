@@ -119,3 +119,23 @@ describe('the game queues sound cues', () => {
     expect(g.sfx.length).toBeLessThanOrEqual(64);
   });
 });
+
+describe('the XP screen’s sounds', () => {
+  it('each plays something sane; the notch blips climb', async () => {
+    const { XP_SOUNDS } = await import('../src/audio/xp');
+    for (const play of Object.values(XP_SOUNDS)) {
+      for (const n of [1, 6]) {
+        const r = new Recorder();
+        play(r, n);
+        sane(r);
+      }
+    }
+    const pitch = (n: number) => {
+      const r = new Recorder();
+      XP_SOUNDS.notch(r, n);
+      return r.tones[0]!.from;
+    };
+    expect([1, 2, 3, 4, 5, 6].map(pitch)).toEqual([...[1, 2, 3, 4, 5, 6].map(pitch)].sort((a, b) => a - b));
+    expect(new Set([1, 2, 3, 4, 5, 6].map(pitch)).size).toBe(6);
+  });
+});

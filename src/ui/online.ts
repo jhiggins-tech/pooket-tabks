@@ -23,7 +23,7 @@ import { hostScreen } from './online/hosting';
 import { MatchSlot, type MatchEnd, type MatchLink } from './online/match';
 import { listPublicly } from './online/prefs';
 import { Scope } from './online/scope';
-import { chooseTank } from './online/tank';
+import { chooseTank, type TankUnlocks } from './online/tank';
 import type { Rank } from '../stats/ranks';
 import { insignia } from './insignia';
 import { buttons, cancelButton, heading, linkButton, logsButton, message, status, text } from './online/widgets';
@@ -43,9 +43,11 @@ export interface OnlineOptions {
   rankOf?: (key: string | undefined) => Rank | null;
   /**
    * A rated match has ended here (both players signed in): this phone's player against `opponent` (their
-   * key), and how it went for them (1 won, 0.5 drew, 0 lost).
+   * key), how it went for them (1 won, 0.5 drew, 0 lost), and how many turns it went.
    */
-  ranked?: (opponent: string, score: 1 | 0.5 | 0) => void;
+  ranked?: (opponent: string, score: 1 | 0.5 | 0, turns: number) => void;
+  /** What's open to this phone's player online, and spending unlock tokens (Choose your tank). */
+  unlocks: TankUnlocks;
 }
 
 /**
@@ -143,6 +145,7 @@ export class OnlineScreen {
       note,
       action,
       id: loadCharacter() ?? this.pick().characterId,
+      unlocks: this.opts.unlocks,
       show: (els) => this.show(els, 'browser'),
       go: (id) => {
         saveCharacter(id);

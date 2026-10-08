@@ -6,6 +6,7 @@ import { arp, midi, type Synth } from './chip';
 import type { Rank } from '../stats/ranks';
 import { rankJingle } from './jingle';
 import { TunePlayer } from './tunes';
+import { XP_SOUNDS, type XpCue } from './xp';
 
 /** The rank-up jingle (jingle.ts), played by `SfxPlayer.jingle`. */
 export { rankJingle };
@@ -389,6 +390,12 @@ export class SfxPlayer {
   /** A rank-up's jingle (not a game event: it plays when the celebration shows). */
   jingle(rank: Pick<Rank, 'jingle' | 'sparkle'>): void {
     rankJingle(this.synth, rank);
+    this.played++;
+  }
+
+  /** One of the XP screen's sounds (audio/xp.ts; `n`: which notch, for those that climb). */
+  xp(cue: XpCue, n = 1): void {
+    XP_SOUNDS[cue](this.synth, n);
     this.played++;
   }
 

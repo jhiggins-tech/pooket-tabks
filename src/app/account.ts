@@ -26,6 +26,8 @@ export interface AccountSetup {
   auth: Auth;
   /** A signed-in player's matches from their account (null: no sign-in here). */
   seatSync: SeatSync | null;
+  /** The database as the signed-in player (null: no sign-in here): their account's own paths (`users/<uid>/…`). */
+  userDb: Rtdb | null;
 }
 
 export function setupAccount(o: {
@@ -89,5 +91,5 @@ export function setupAccount(o: {
   }
   followAccount();
   auth.onChange(followAccount);
-  return { auth, seatSync };
+  return { auth, seatSync, userDb };
 }

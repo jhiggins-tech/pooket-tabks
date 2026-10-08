@@ -37,6 +37,167 @@ async function pickTank(page: Page, characterId?: string) {
  * The Game browser's rows: `mine` (this phone's matches), `open` (waiting for a player), `live` (under way or
  * finished), `replay` (past matches, ticked).
  */
+test('unlocks: what’s locked online (a guest has the starter set; betas are hotseat only), and testing with everything unlocked', async ({ browser }) => {
+  const { host: page, q, errors, close } = await phones(browser, 'locks');
+  // (Automated runs have everything unlocked unless they ask for the locks.)
+  await page.goto(`./?${q}&locks`);
+  await setName(page, 'Kit');
+  await expect(page.locator('#unlock-all')).toBeHidden();
+  await page.locator('#open-browser').tap();
+  await page.locator('#online-host').tap();
+  await expect(page.locator('#tank-go')).toHaveText('Host with tones2');
+  const option = (id: string) => page.getByLabel('Your tank').locator(`option[value="${id}"]`);
+  await expect(option('kie')).toHaveText('kie');
+  await expect(option('torikloud')).toHaveText('🔒 torikloud');
+  await expect(option('kiwicore')).toHaveText('🔒 kiwicore (beta, hotseat only)');
+  // Not signed in: no XP, so the rest wait for signing in.
+  await page.getByLabel('Your tank').selectOption('torikloud');
+  await expect(page.locator('.tank-details .tank-lock')).toContainText('Sign in (on the first screen) to earn XP in online matches and unlock torikloud.');
+  await expect(page.locator('#tank-go')).toHaveText('🔒 Sign in to unlock');
+  await expect(page.locator('#tank-go')).toBeDisabled();
+  await page.screenshot({ path: 'test-results/tank-locked-guest.png' });
+  // A beta is hotseat only, for everyone.
+  await page.getByLabel('Your tank').selectOption('kiwicore');
+  await expect(page.locator('.tank-details .tank-lock')).toHaveText('🔒 kiwicore is in beta: play them in Local hotseat for now.');
+  await expect(page.locator('#tank-go')).toHaveText('🔒 Beta: hotseat only');
+  await expect(page.locator('#tank-go')).toBeDisabled();
+  await page.screenshot({ path: 'test-results/beta-tank-locked.png' });
+
+  // Testing: ?unlockall opens everything (remembered on this phone, and said on the first screen) …
+  await page.goto(`./?${q}&locks&unlockall`);
+  await expect(page.locator('#unlock-all')).toHaveText('🧪 Testing: every character unlocked online');
+  await page.goto(`./?${q}&locks`);
+  await expect(page.locator('#unlock-all')).toBeVisible();
+  await page.locator('#open-browser').tap();
+  await page.locator('#online-host').tap();
+  await expect(page.getByLabel('Your tank').locator('option[value="kiwicore"]')).toHaveText('kiwicore (beta)');
+  await page.getByLabel('Your tank').selectOption('kiwicore');
+  await expect(page.locator('#tank-go')).toHaveText('Host with kiwicore');
+  // … until ?unlockall=off.
+  await page.goto(`./?${q}&locks&unlockall=off`);
+  await expect(page.locator('#unlock-all')).toBeHidden();
+  expect(errors).toEqual([]);
+  await close();
+});
+
+test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full one is an unlock to spend, and the padlock breaks open', async ({ browser }) => {
+  test.setTimeout(180_000);
+  // Ivy has 10×: an unlock token not spent yet, and two-thirds of the way to the next. Jo has none yet.
+  const ivy = await playerKey('uid-ivy');
+  const view = { matches: 0, turns: 0, endings: {}, players: [], characters: {}, weapons: {} };
+  const totals = { v: 1, updatedAt: Date.now() - 60_000, all: view, verified: view, ratings: {}, xp: { [ivy]: 10 } };
+  await fetch(`${db.url}/stats/summary.json`, { method: 'PUT', body: JSON.stringify({ m: JSON.stringify(totals), ts: Date.now() }) });
+
+  const { host: a, guest: b, q, errors, close } = await phones(browser, 'xp');
+  await a.goto(`./?${q}&locks&fakegoogle=ivy`);
+  await setName(a, 'Ivy');
+  await a.locator('#sign-in').tap();
+  await expect(a.locator('#account')).toContainText('Signed in', { timeout: 10_000 });
+  await b.goto(`./?${q}&locks&fakegoogle=jo`);
+  await setName(b, 'Jo');
+  await b.locator('#sign-in').tap();
+  await expect(b.locator('#account')).toContainText('Signed in', { timeout: 10_000 });
+
+  // Signed in, nothing unlocked yet; Jo has no tokens, Ivy has one (she keeps it for now).
+  await b.locator('#open-browser').tap();
+  await b.locator('#online-host').tap();
+  await b.getByLabel('Your tank').selectOption('torikloud');
+  await expect(b.locator('.tank-details .tank-lock')).toContainText('Unlock torikloud with an unlock token: you earn one every 600 XP');
+  await expect(b.locator('.tank-lock-tokens')).toHaveText('No unlock tokens yet: win online matches to earn them.');
+  await expect(b.locator('#tank-go')).toHaveText('🔒 Locked');
+  await a.locator('#open-browser').tap();
+  await a.locator('#online-host').tap();
+  await a.getByLabel('Your tank').selectOption('torikloud');
+  await expect(a.locator('#tank-unlock')).toHaveText('🔓 Unlock torikloud (your unlock token)');
+  await a.getByLabel('Your tank').selectOption('tones');
+  await pickTank(a);
+  const code = (await a.locator('#online-room-code').textContent({ timeout: 10_000 }))!;
+  await b.goto(`./?${q}&locks&fakegoogle=jo&via=link#room=${code}`);
+  await b.locator('#online-accept').tap();
+  await pickTank(b);
+  await expect(a.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
+  await a.locator('#online-start').tap();
+  for (const p of [a, b]) await expect(p.locator('#online')).toBeHidden({ timeout: 15_000 });
+
+  // Four turns (a match has to get to turn 4 to count), shooting off the edge of the map, away from each other …
+  const away = (p: Page) =>
+    p.evaluate(() => {
+      const s = window.__pooket.state;
+      const me = s.players[s.current]!;
+      const them = s.players.find((o) => o !== me)!;
+      Object.assign(me, { angle: me.x < them.x ? 170 : 10, power: 100 });
+    });
+  for (const [shooter, next] of [[a, b], [b, a], [a, b], [b, a]] as const) {
+    await away(shooter);
+    await shooter.locator('#fire').tap();
+    await expect.poll(() => canAct(next), { timeout: 30_000 }).toBe(true);
+  }
+  // … then Jo resigns: a win for Ivy (+200 XP), a loss for Jo (+100).
+  await b.locator('#net-menu').tap();
+  await b.locator('#menu-resign').tap();
+  await b.locator('#menu-resign').tap();
+
+  // Their first rated match: each is ranked first (the rank screen), then the XP screen.
+  for (const p of [a, b]) {
+    await expect(p.locator('#rankup')).toBeVisible({ timeout: 20_000 });
+    await p.locator('#rankup-ok').tap();
+  }
+  await expect(a.locator('#xp')).toBeVisible({ timeout: 5_000 });
+  await expect(a.locator('#xp .xp-why')).toHaveText('Win');
+  await expect(a.locator('#xp')).toHaveAttribute('data-state', 'filling');
+  await a.waitForTimeout(1300);
+  await a.screenshot({ path: 'test-results/xp-filling.png' });
+  // The bar fills to the end of its six notches: an unlock.
+  await expect(a.locator('#xp')).toHaveAttribute('data-state', 'done', { timeout: 10_000 });
+  await expect(a.locator('#xp .xp-gain')).toHaveText('+200 XP');
+  await expect(a.locator('#xp .xp-total')).toHaveText('1,200 XP');
+  await expect(a.locator('#xp .xp-notch.lit')).toHaveCount(6);
+  await expect(a.locator('#xp .xp-next')).toHaveText('🔓 2 unlocks to spend!');
+  await a.screenshot({ path: 'test-results/xp-unlock-ready.png' });
+  // Jo's: a loss, one notch.
+  await expect(b.locator('#xp')).toHaveAttribute('data-state', 'done', { timeout: 20_000 });
+  await expect(b.locator('#xp .xp-gain')).toHaveText('+100 XP');
+  await expect(b.locator('#xp .xp-notch.lit')).toHaveCount(1);
+  await expect(b.locator('#xp .xp-next')).toHaveText('500 XP to your next unlock');
+  await expect(b.locator('#xp-choose')).toHaveCount(0);
+  await b.locator('#xp-ok').tap();
+  await expect(b.locator('#xp')).toBeHidden();
+
+  // Ivy chooses torikloud: the padlock breaks open, and it's hers.
+  await a.locator('#xp-choose').tap();
+  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒torikloud', '🔒ciarra', '🔒larinovsky']);
+  await a.screenshot({ path: 'test-results/xp-choose.png' });
+  await a.locator('#xp .xp-pick[data-character="torikloud"]').tap();
+  await expect(a.locator('#xp')).toHaveAttribute('data-state', 'unlocked', { timeout: 10_000 });
+  await expect(a.locator('#xp .xp-next')).toHaveText('🔓 torikloud unlocked! Yours to play online.');
+  await a.waitForTimeout(400);
+  await a.screenshot({ path: 'test-results/xp-unlocked.png' });
+  expect(await db.at(`users/uid-ivy/unlocks/torikloud`)).toEqual({ ts: expect.any(Number) });
+  // A token left: the choice again, without torikloud; she keeps it for later.
+  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒ciarra', '🔒larinovsky'], { timeout: 10_000 });
+  await a.locator('#xp-ok').tap();
+  await expect(a.locator('#xp')).toBeHidden();
+
+  // From now on she can host as torikloud, and spends her last token on ciarra right there.
+  await a.locator('#gameover-leave').tap();
+  await a.locator('#open-browser').tap();
+  await a.locator('#online-host').tap();
+  await expect(a.getByLabel('Your tank').locator('option[value="torikloud"]')).toHaveText('torikloud');
+  await a.getByLabel('Your tank').selectOption('torikloud');
+  await expect(a.locator('#tank-go')).toHaveText('Host with torikloud');
+  await a.getByLabel('Your tank').selectOption('ciarra');
+  await a.locator('#tank-unlock').tap();
+  await expect(a.locator('#xp')).toHaveAttribute('data-state', 'unlocked', { timeout: 10_000 });
+  await expect(a.locator('#xp .xp-title')).toHaveText('Unlocked!');
+  await a.locator('#xp-ok').tap();
+  await expect(a.locator('#xp')).toBeHidden();
+  await expect(a.locator('#tank-go')).toHaveText('Host with ciarra');
+  await a.getByLabel('Your tank').selectOption('larinovsky');
+  await expect(a.locator('.tank-lock-tokens')).toHaveText('No unlock tokens yet: win online matches to earn them.');
+  expect(errors).toEqual([]);
+  await close();
+});
+
 const rows = (page: Page, kind: 'mine' | 'open' | 'live' | 'replay') => page.locator(`#online-games .games-row[data-kind="${kind}"]`);
 
 /** Game server unreachable. */
@@ -608,13 +769,6 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await expect(guest.locator('.tank-details .coming-soon-banner')).toHaveText('Coming soon');
   await expect(guest.locator('#tank-go')).toBeDisabled();
   await guest.screenshot({ path: 'test-results/coming-soon-tank.png' });
-  // A beta is hotseat only: looked at, with why, not picked.
-  await expect(guest.getByLabel('Your tank').locator('option[value="kiwicore"]')).toHaveText('🔒 kiwicore (beta, hotseat only)');
-  await guest.getByLabel('Your tank').selectOption('kiwicore');
-  await expect(guest.locator('.tank-details .tank-lock')).toHaveText('🔒 kiwicore is in beta: play them in Local hotseat for now.');
-  await expect(guest.locator('#tank-go')).toHaveText('🔒 Beta: hotseat only');
-  await expect(guest.locator('#tank-go')).toBeDisabled();
-  await guest.screenshot({ path: 'test-results/beta-tank-locked.png' });
   await guest.getByLabel('Your tank').selectOption('larinovsky');
   await expect(guest.locator('#online .info-card h3')).toHaveText(['Pill Pusher', 'the Rizzler', 'Take a Nap', 'Women in Scam']);
   await expect(guest.locator('#tank-go')).toHaveText('Join with larinovsky');
@@ -958,6 +1112,12 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await expect(a.locator('#winner .insignia')).toHaveCount(1);
   await a.locator('#rankup-ok').tap();
   await expect(a.locator('#rankup')).toBeHidden();
+  // Then the XP it earned: nothing, this time (a resignation on the first turn is too quick to count).
+  await expect(a.locator('#xp')).toBeVisible();
+  await expect(a.locator('#xp .xp-gain')).toHaveText('+0 XP');
+  await expect(a.locator('#xp .xp-next')).toHaveText('Too quick to count: matches count from turn 4.');
+  await a.locator('#xp-ok').tap();
+  await expect(a.locator('#xp')).toBeHidden();
   // Hal lost to a lower rank: down to Silver, and nothing to celebrate (once his phone has looked at his new rank).
   const seenRank = () => b.evaluate(() => (JSON.parse(localStorage.getItem('pooket.rankSeen') ?? '{}') as { id?: string }).id);
   await expect.poll(seenRank, { timeout: 10_000 }).toBe('silver');

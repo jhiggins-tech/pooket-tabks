@@ -68,8 +68,8 @@ export interface MatchLinkOptions {
   taken?: (link: MatchLink) => void;
   /** The match whose results this phone has filed (once per match, whichever link it was in). */
   filed?: { key: string };
-  /** A rated match has ended here: against `opponent` (their key), and how it went (1 won, 0.5 drew, 0 lost). */
-  ranked?: (opponent: string, score: 1 | 0.5 | 0) => void;
+  /** A rated match has ended here: against `opponent` (their key), how it went (1 won, 0.5 drew, 0 lost), and how many turns it went. */
+  ranked?: (opponent: string, score: 1 | 0.5 | 0, turns: number) => void;
 }
 
 /** How often a match being played checks in on its seat (still playing, and the turn seen). */
@@ -182,7 +182,7 @@ export class MatchLink {
     const [mine, theirs] = bySeat(s.matchSetup.players, s.localSeat);
     if (mine?.key && theirs?.key && mine.key !== theirs.key && mine.key === this.opts.pick().key) {
       const w = s.game.winner?.id ?? null;
-      this.opts.ranked?.(theirs.key, w === null ? 0.5 : w === s.localSeat ? 1 : 0);
+      this.opts.ranked?.(theirs.key, w === null ? 0.5 : w === s.localSeat ? 1 : 0, s.game.turn);
     }
   }
 }

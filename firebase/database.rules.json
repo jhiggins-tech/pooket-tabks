@@ -140,6 +140,13 @@
             "$other": { ".validate": false }
           }
         },
+        "unlocks": {
+          "$character": {
+            ".validate": "$character.matches(/^[a-z0-9]{1,32}$/) && newData.hasChildren(['ts']) && newData.child('ts').val() === now",
+            "ts": { ".validate": true },
+            "$other": { ".validate": false }
+          }
+        },
         "games": {
           "$code": {
             ".validate": "$code.matches(/^[A-Z]{4}$/) && newData.hasChildren(['at', 'ts']) && (newData.child('gone').val() === true || newData.hasChildren(['role', 'id']))",

@@ -43,7 +43,7 @@ what it's for; weapons are documented where they're defined.
 |---|---|
 | `src/core/` | seeded RNG (`Rng.state` is serialisable), `Terrain` (per-pixel solid mask + RGBA with dirty rects), terrain generation, `emitter.ts`, `storage.ts` (best-effort localStorage: `readStore` / `writeStore` / `readJson`), `hex.ts` (hex and SHA-256: stored keys depend on it, pinned by tests) |
 | `src/characters/kits/<name>.ts` | a character **and** their three weapons (`kit()`); `kits/index.ts` lists them in setup order |
-| `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1, `fullAmmo`), colours (`assignColours`, `matchPlayers`); `upcoming.ts`: Coming soon characters (shown, never playable; a new one's ready: give it a kit and take it off this list); `access.ts`: who can play which character online (betas: hotseat only) |
+| `src/characters/roster.ts` | `ROSTER` (from the kits), ammo per tier (5 / 3 / 1, `fullAmmo`), colours (`assignColours`, `matchPlayers`); `upcoming.ts`: Coming soon characters (shown, never playable; a new one's ready: give it a kit and take it off this list); `access.ts`: who can play which character online (the starter set, unlocks, betas: hotseat only) |
 | `src/weapons/` | `kinds.ts` (`KINDS`: a row per kind of weapon: aimed?, shot / free / bonus, and the columns below), `types.ts` (`WeaponDef`: what every weapon has, plus its kind's spec, as a union by kind; `SpriteId`), `registry.ts` (`getWeapon`, `weaponOf(id, kind)`, `jetSpec`, `ignoresAim`, `isBonus`, `blastOf`, the plain `shell`) |
 | `src/game/` | the match, pure and DOM-free (below) |
 | `src/render/` | `canvas.ts` (`Renderer`: viewport, terrain image, draw order), `draw/<mechanic>.ts` (mirrors `src/game/`; `context.ts` is what they draw with), `hud.ts` (the DOM HUD: `Hud`, over one module per part in `hud/`, each redrawn only when its key changes: `hud/part.ts`; the hint line is a table in `hud/hint.ts`), `sprites.ts` (`spriteReady`) |
@@ -52,8 +52,8 @@ what it's for; weapons are documented where they're defined.
 | `src/net/` | online play, sign-in and the account (below) |
 | `src/push/` + `notifier/` + `public/sw.js` | push notifications (below) |
 | `src/stats/` + `notifier/stats.ts` | stats and ranks: `summary.ts` (a finished match's summary, its fingerprint), `aggregate.ts` (adding up), `ranks.ts` (the ladder and rating rule), `xp.ts` (career XP: what a match earns, the unlock tuning), `store.ts` (`stats/summary`'s stored format); plain TypeScript shared with the hourly sender |
-| `src/ui/` | `dom.ts` (`el`, `byId`, `query`, `button`, `dialog`, `tabBar`, `closeButton`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), `info.ts` (ⓘ), `whatsnew.ts`, `status-looks.ts` (every status effect's icon, badge and info line), `gameover.ts` (`GameOverCard`), `viewing.ts` (watching/replay buttons and body flags), `stats.ts`, `ranks.ts` / `insignia.ts` / `rankup.ts`, `online.ts` and `online/` (below) |
-| `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle; `tape.ts`: the match being played, recorded for ▶ Watch replay; `account.ts`: sign-in, push and account setup; `battlefield.ts`: taps on the battlefield; `localprofile.ts`); `?debug` exposes `window.__pooket` |
+| `src/ui/` | `dom.ts` (`el`, `byId`, `query`, `button`, `dialog`, `tabBar`, `closeButton`: use these, not raw `createElement`), `landing.ts` (the first screen), `setup.ts` (Local hotseat), `profile.ts` (the username, asked for on a first visit, and your online character), `info.ts` (ⓘ), `whatsnew.ts`, `status-looks.ts` (every status effect's icon, badge and info line), `gameover.ts` (`GameOverCard`), `viewing.ts` (watching/replay buttons and body flags), `stats.ts`, `ranks.ts` / `insignia.ts` / `rankup.ts`, `progress.ts` / `xp.ts` (career XP and unlocks: below), `online.ts` and `online/` (below) |
+| `src/main.ts` | fixed-timestep loop (`FIXED_DT`) wiring it together, one `startMatch`; `src/app/` its helpers (`params.ts`: the query string, read once; `sound.ts`: the sound toggle; `tape.ts`: the match being played, recorded for ▶ Watch replay; `account.ts`: sign-in, push and account setup; `battlefield.ts`: taps on the battlefield; `localprofile.ts`; `unlockall.ts`: testing with every character open); `?debug` exposes `window.__pooket` |
 | `tests/` | Vitest; `support/game.ts` (match builders and steppers), `support/net.ts` (`connectedPair`, `runPhones`, `expectSameMatch`), `support/rtdb.ts` (local Firebase stand-in), `support/wait.ts` (`flush`, `until`, `untilAsync`, `settled`) |
 | `e2e/` | `smoke.spec.ts` (every character's kit and the UI), `online.spec.ts` (multi-phone flows, replays), `support.ts` (the typed `window.__pooket`, `startHotseat`, a `test` that fails on any page error) |
 
@@ -155,6 +155,14 @@ see its header), `ui/ranks.ts` (`Ratings`: anyone's rank by key, this phone's ow
 rated match until the totals catch up, `noteSeen` so a rank-up is celebrated once), `ui/insignia.ts`,
 `ui/rankup.ts`.
 
+**XP and unlocks** (signed in): `stats/xp.ts` (what a rated match earns, 1× a loss, 2× a win, 6× an unlock:
+the tuning), worked out into the hourly totals (`StatsSummary.xp`) and, for a match just finished, at once
+on the phone (`ui/progress.ts` `Progress`: XP, the characters that are theirs online, unlock tokens and
+spending them, `users/<uid>/unlocks`). `characters/access.ts` says what's open online (`onlineLock`: the
+starter set, unlocks, betas hotseat only; hotseat is all open). `ui/xp.ts` is the XP screen after a rated
+match (after the rank-up, main.ts `celebrateMatch`) and the padlock-breaking unlock; sounds in `audio/xp.ts`.
+Testing: `?unlockall` (or a `VITE_UNLOCK_ALL=1` build) opens everything (`app/unlockall.ts`).
+
 ### Push notifications
 `net/push.ts` (each phone's `clientId`; `announceDevice` in each room; `notifySeat` adds an `outbox` entry
 for the other seat, addressed to their account `u:<uid>` when signed in), `push/templates.ts` (the words and
@@ -250,5 +258,6 @@ see above).
 - Unit tests for game logic (build matches with `testGame` and move them along with `whileFlying`,
   `untilAiming`, `untilNextTurn`, `stepUntil`, `passTurn`, `hold` from `tests/support/game.ts`); extend
   `e2e/smoke.spec.ts` for new UI flows (`startHotseat` and the error-checking `test` from `e2e/support.ts`).
-  Automated runs (`navigator.webdriver`) start with player 1 and skip the what's-new popup and the
-  first-visit name prompt unless `?first=` / `?whatsnew` / `?askname`.
+  Automated runs (`navigator.webdriver`) start with player 1, skip the what's-new popup and the
+  first-visit name prompt, and have every character unlocked online, unless `?first=` / `?whatsnew` /
+  `?askname` / `?locks`.

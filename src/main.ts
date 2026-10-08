@@ -39,6 +39,9 @@ import { RANKS } from './stats/ranks';
 import { Ratings } from './ui/ranks';
 import { RankUp } from './ui/rankup';
 import { openOnline } from './characters/access';
+import { unlockAll } from './app/unlockall';
+import { Progress, type Gain } from './ui/progress';
+import { XpScreen } from './ui/xp';
 import { GameOverCard } from './ui/gameover';
 import { byId } from './ui/dom';
 import { ViewingBar } from './ui/viewing';
@@ -50,6 +53,8 @@ const gameOver = new GameOverCard();
 const hud = new Hud(gameOver);
 
 const params = readParams(location.search, navigator.webdriver);
+/** Testing: every character open online (`?unlockall`, a `VITE_UNLOCK_ALL=1` build, automated runs). */
+const unlocking = unlockAll(params);
 /** The online database: a test's (`?db=`), else the real one (null: none, so no online play). */
 const dbUrl = params.db || FIREBASE_DATABASE_URL || null;
 let nextSeed = params.seed ?? randomSeed();
@@ -147,6 +152,16 @@ function celebrateRankUp(): void {
   rankUp.show(seen.rank, seen.first, ratings.rating(myStatsKey));
   sfx.jingle(seen.rank);
 }
+/** A rated match has just ended here: a rank-up (if it's gone up), then what the match earned (ui/xp.ts). */
+function celebrateMatch(gain: Gain | null): void {
+  const seen = ratings.noteSeen();
+  const xp = () => {
+    if (gain) xpScreen.show(gain);
+  };
+  if (!seen?.up) return xp();
+  rankUp.show(seen.rank, seen.first, ratings.rating(myStatsKey), xp);
+  sfx.jingle(seen.rank);
+}
 /** On the menus (not in an online match): a rank-up that turns up in the totals is celebrated at once. */
 function celebrateOnMenus(): void {
   if (landing.isOpen && !online.session) celebrateRankUp();
@@ -156,18 +171,22 @@ let myStatsKey: string | null = null;
 // ---- Online: two phones, one each, through a Firebase room (`online.session`: null in a local, hotseat, game). ----
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online.
-  // (Never one that can't be played online, such as a beta: characters/access.ts.)
-  pick: () => ({ name: yourName(), characterId: openOnline(loadCharacter() ?? setup.players()[0]!.characterId), ...(myStatsKey ? { key: myStatsKey } : {}) }),
+  // (Never one that's locked online, such as a beta or one not unlocked: characters/access.ts.)
+  pick: () => ({ name: yourName(), characterId: openOnline(loadCharacter() ?? setup.players()[0]!.characterId, progress.access()), ...(myStatsKey ? { key: myStatsKey } : {}) }),
   dbUrl,
   lobby: params.lobby || PUBLIC_LOBBY,
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
   syncSeats: () => account.seatSync?.sync() ?? Promise.resolve(),
   rankOf: (key) => ratings.rank(key),
-  // A rated match just ended here: the rating moves now, and a rank-up is celebrated over the game over card.
-  ranked: (opponent, score) => {
+  // A rated match just ended here: the rating and XP move now; over the game over card, a rank-up is
+  // celebrated, then the XP it earned fills the bar towards the next unlock.
+  ranked: (opponent, score, turns) => {
     ratings.played(opponent, score);
-    setTimeout(celebrateRankUp, 1800);
+    const gain = progress.played(score, turns);
+    setTimeout(() => celebrateMatch(gain), 1800);
   },
+  // What's open online, and a token spent from Choose your tank (its padlock breaking open).
+  unlocks: { access: () => progress.access(), tokens: () => progress.tokens(), unlock: (id) => xpScreen.unlockNow(id) },
 });
 /** An online match (or one being watched) starts: off the menus and into it. */
 function startOnline(seed: number, chosen: PlayerConfig[], played = false): GameState {
@@ -236,6 +255,11 @@ const account = setupAccount({
   alerts: { open: (ref: string) => void openMatch(ref), here: (ref: string) => online.roomTopic === ref },
 });
 const { auth } = account;
+// ---- Career XP and unlocks (signed in): ui/progress.ts, the XP screen (ui/xp.ts), characters/access.ts. ----
+const progress = new Progress(() => (auth.uid && myStatsKey && account.userDb ? { uid: auth.uid, key: myStatsKey, db: account.userDb } : null), unlocking.on);
+ratings.onTotals((s) => progress.take(s));
+const xpScreen = new XpScreen(progress, (cue, n) => sfx.xp(cue, n));
+byId('unlock-all').hidden = !unlocking.shown;
 /** A notification was tapped: into that match (one of this phone's), else the Game browser. */
 async function openMatch(ref: string): Promise<void> {
   netLog('ui: opened from a notification');
@@ -250,6 +274,7 @@ async function refreshStatsKey(): Promise<void> {
   myStatsKey = auth.uid ? await playerKey(auth.uid) : null;
   landing.setRank(ratings.rank(myStatsKey));
   celebrateOnMenus();
+  void progress.load(); // (their unlocks)
 }
 auth.onChange(() => void refreshStatsKey());
 ratings.onChange(() => {

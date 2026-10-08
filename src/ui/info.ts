@@ -1,4 +1,5 @@
-import { onlineLock } from '../characters/access';
+import { onlineLock, STARTERS, type Access } from '../characters/access';
+import { XP, xpShown } from '../stats/xp';
 import { AMMO_PER_TIER, fullAmmo, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
 import { upcoming, UPCOMING, type Upcoming } from '../characters/upcoming';
 import { kindRow } from '../weapons/kinds';
@@ -32,7 +33,11 @@ export function weaponTags(w: WeaponDef, tier: number): string[] {
 
 /** The characters with a bonus move as well as their three weapons, by name: "a and b" (or "a, b and c"). */
 function bonusCharacters(): string {
-  const names = ROSTER.filter((c) => c.loadout.slice(3).some((id) => isBonus(getWeapon(id)))).map((c) => c.name);
+  return andList(ROSTER.filter((c) => c.loadout.slice(3).some((id) => isBonus(getWeapon(id)))).map((c) => c.name));
+}
+
+/** "a and b", or "a, b and c". */
+function andList(names: string[]): string {
   return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : (names[0] ?? '');
 }
 
@@ -45,6 +50,10 @@ function controls(): [string, string][] {
     ['Weapons', `Pick a tier on the right. Each character has ${tiers.join(' / ')} rounds of their tier ${tiers.map((_, i) => i + 1).join(' / ')} weapon${bonus ? ` (${bonus} also have a bonus move)` : ''}.`],
     ['Move', 'Hold ◀ ▶ before you fire. The fuel is one tank for the whole match, so spend it wisely.'],
     ['Fire', 'FIRE ends your turn (except a bonus move). Last tank standing wins; if everyone runs out of ammo, most HP wins.'],
+    [
+      'Unlocks',
+      `In Local hotseat every character is yours. Online, ${andList(STARTERS.map((id) => getCharacter(id).name))} are everyone's; sign in to earn XP in online matches against other signed-in players (+${xpShown(XP.win)} a win, +${xpShown(XP.loss)} a loss) and unlock the rest, one every ${xpShown(XP.unlock)} XP.`,
+    ],
   ];
 }
 
@@ -135,13 +144,14 @@ export function comingSoon(u: Upcoming): HTMLElement[] {
 
 /**
  * A character picker's options: everyone playable, then (in a "Coming soon" group) the upcoming ones,
- * which can be picked to look at but not played. `online`: the online tank picker, where those that can't
- * be played online (characters/access.ts) say so.
+ * which can be picked to look at but not played. `online`: what's open to this phone's player online
+ * (the online tank picker), where those that are locked (characters/access.ts) say so.
  */
-export function addCharacterOptions(select: HTMLSelectElement, selected: string, online = false): void {
+export function addCharacterOptions(select: HTMLSelectElement, selected: string, online?: Access): void {
   for (const c of ROSTER) {
-    const label = c.beta ? `${c.name} (beta${online ? ', hotseat only' : ''})` : c.name;
-    select.add(new Option(online && onlineLock(c.id) ? `🔒 ${label}` : label, c.id, false, c.id === selected));
+    const lock = online ? onlineLock(c.id, online) : null;
+    const label = c.beta ? `${c.name} (beta${lock === 'beta' ? ', hotseat only' : ''})` : c.name;
+    select.add(new Option(lock ? `🔒 ${label}` : label, c.id, false, c.id === selected));
   }
   const group = el('optgroup');
   group.label = 'Coming soon';

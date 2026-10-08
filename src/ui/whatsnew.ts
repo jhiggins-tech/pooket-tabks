@@ -20,6 +20,15 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 50,
+    title: '🔓 XP and unlocks',
+    items: [
+      'Online, tones2, kie and kcaj are everyone’s, and the rest are unlocked with XP. Sign in (on the first screen) and play online against other signed-in players: +200 XP for a win, +100 for a loss (a match counts once it gets to turn 4).',
+      'After a match, the XP screen fills your bar. Every 600 XP is an unlock: choose which character it goes on (or tap a locked one in Choose your tank) and break its padlock open.',
+      'Characters you’ve already played online, signed in against someone signed in, stay yours. Local hotseat is as it was: every character, for everyone.',
+    ],
+  },
+  {
     version: 49,
     title: 'Fixes',
     items: [

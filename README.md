@@ -91,6 +91,19 @@ Service API (the database doesn't use it). A new place the game is served from n
 is refused there ("Requests from referer … are blocked").
 Tests use a stand-in for Google and Firebase Auth inside `tests/support/rtdb.ts` (`?debug&db=…&fakegoogle=NAME`).
 
+## XP and unlocks
+Online, tones2, kie and kcaj are everyone's; signed-in players unlock the rest with XP from online matches
+against other signed-in players (+200 a win, +100 a loss; an unlock every 600: `src/stats/xp.ts` has the
+tuning). The hourly stats job adds up everyone's XP; the phone shows a match's at once (the XP screen) and
+keeps the characters an account has unlocked in `users/<uid>/unlocks` (publish the rules). Local hotseat has
+every character. Betas are hotseat only.
+
+**Testing with everything unlocked**: open the game with `?unlockall` (e.g.
+`https://jhiggins-tech.github.io/pooket-tabks/?unlockall`): every character is open online on that phone,
+betas included, and it stays that way there (the first screen says so) until `?unlockall=off`. For a local
+build, `VITE_UNLOCK_ALL=1 npm run dev` does the same. Automated tests have everything open unless they add
+`?locks`.
+
 ## Stats
 📊 Stats on the landing screen adds up finished online matches: each phone files what it saw when a match
 ends, signed-in players vouch for it in their own account, and `.github/workflows/stats.yml` (hourly;

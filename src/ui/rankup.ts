@@ -14,6 +14,7 @@ export class RankUp {
   private readonly name = el('p', 'rankup-name');
   private readonly note = el('p', 'rankup-note');
   private readonly line = el('p', 'rankup-line');
+  private then: (() => void) | null = null;
 
   constructor() {
     const ok = button('Nice!', () => this.close(), 'big');
@@ -27,8 +28,9 @@ export class RankUp {
     return !this.root.hidden;
   }
 
-  /** `first`: newly ranked (their first rated match); `rating`: where they stand now. */
-  show(rank: Rank, first: boolean, rating: number | null): void {
+  /** `first`: newly ranked (their first rated match); `rating`: where they stand now; `then`: once it's closed. */
+  show(rank: Rank, first: boolean, rating: number | null, then?: () => void): void {
+    this.then = then ?? null;
     const badge = insignia(rank, 'lg');
     const burst = el('div', 'rankup-burst');
     for (let i = 0; i < 12; i++) {
@@ -55,5 +57,8 @@ export class RankUp {
 
   close(): void {
     this.root.hidden = true;
+    const then = this.then;
+    this.then = null;
+    then?.();
   }
 }

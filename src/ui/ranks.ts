@@ -28,9 +28,12 @@ interface Provisional {
   at: number;
 }
 
+/** The totals as loaded (or handed over by the stats viewer): the ratings, and maybe the rest. */
+type Totals = Pick<StatsSummary, 'ratings' | 'updatedAt'> & Partial<StatsSummary>;
+
 export class Ratings {
   private totals: Pick<StatsSummary, 'ratings' | 'updatedAt'> | null = null;
-  private readonly changes = new Emitter<{ changed: [] }>();
+  private readonly changes = new Emitter<{ changed: []; totals: [Totals] }>();
 
   constructor(
     private readonly dbUrl: string | null,
@@ -50,9 +53,15 @@ export class Ratings {
   }
 
   /** Totals loaded elsewhere (the stats viewer). */
-  take(s: Pick<StatsSummary, 'ratings' | 'updatedAt'>): void {
+  take(s: Totals): void {
     this.totals = { ratings: s.ratings ?? {}, updatedAt: s.updatedAt };
     this.changes.emit('changed');
+    this.changes.emit('totals', s);
+  }
+
+  /** Call `fn` with the totals each time they're loaded (the XP and unlocks go by them too: ui/progress.ts). */
+  onTotals(fn: (s: Totals) => void): () => void {
+    return this.changes.on('totals', fn);
   }
 
   /** Call `fn` whenever a rating may have moved; returns the function that stops it. */
