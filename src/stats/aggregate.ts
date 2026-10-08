@@ -1,5 +1,6 @@
 import { newRating, playRated, type Rating } from './ranks.ts';
 import { digest, nameKey, parseSummary, playerKey, type MatchSummary } from './summary.ts';
+import { xpEarned } from './xp.ts';
 
 /**
  * Adding up the stats (run by the stats sender, `notifier/stats.ts`, on a schedule; plain TypeScript Node
@@ -12,6 +13,7 @@ import { digest, nameKey, parseSummary, playerKey, type MatchSummary } from './s
  * name, and marked verified); anyone else under their name, marked unverified.
  *
  * Ratings (stats/ranks.ts): Elo over the verified matches, in the order they were filed, by player key.
+ * XP (stats/xp.ts): what each verified player has earned from the verified matches, by player key.
  */
 
 export interface Counts {
@@ -58,6 +60,8 @@ export interface StatsSummary {
   verified: StatsView;
   /** Verified players' ratings, by player key (stats/ranks.ts). */
   ratings: Record<string, Rating>;
+  /** Verified players' XP (units), by player key (stats/xp.ts). Missing in totals from before XP. */
+  xp?: Record<string, number>;
 }
 
 export interface StatsInput {
@@ -84,8 +88,8 @@ export async function aggregate(input: StatsInput, now = Date.now()): Promise<St
   }
   const all = new Tally();
   const verified = new Tally();
-  /** Verified matches, for the ratings: when, who (seat 0, seat 1) and who won. */
-  const rated: { ts: number; id: string; keys: [string, string]; winner: number | null }[] = [];
+  /** Verified matches, for the ratings and XP: when, who (seat 0, seat 1), who won, and how many turns it took. */
+  const rated: { ts: number; id: string; keys: [string, string]; winner: number | null; turns: number }[] = [];
   for (const [id, filed] of Object.entries(input.matches ?? {})) {
     const summaries = Object.values(filed ?? {})
       .map((f) => parseSummary(f?.m))
@@ -113,7 +117,7 @@ export async function aggregate(input: StatsInput, now = Date.now()): Promise<St
     if (agreed >= 0) {
       verified.add(summary, keys);
       const times = Object.values(filed ?? {}).map((f) => (typeof f?.ts === 'number' ? f.ts : Infinity));
-      rated.push({ ts: Math.min(...times), id, keys: [keys[0]!.key, keys[1]!.key], winner: summary.winner });
+      rated.push({ ts: Math.min(...times), id, keys: [keys[0]!.key, keys[1]!.key], winner: summary.winner, turns: summary.turns });
     }
   }
   const ratings: Record<string, Rating> = {};
@@ -126,7 +130,13 @@ export async function aggregate(input: StatsInput, now = Date.now()): Promise<St
     r.rating = Math.round(r.rating * 10) / 10;
     r.peak = Math.round(r.peak * 10) / 10;
   }
-  return { v: 1, updatedAt: now, all: all.view(), verified: verified.view(), ratings };
+  const xp: Record<string, number> = {};
+  for (const m of rated) {
+    m.keys.forEach((k, seat) => {
+      xp[k] = (xp[k] ?? 0) + xpEarned(m.winner === null ? 0.5 : m.winner === seat ? 1 : 0, m.turns);
+    });
+  }
+  return { v: 1, updatedAt: now, all: all.view(), verified: verified.view(), ratings, xp };
 }
 
 /** One view's running totals. */

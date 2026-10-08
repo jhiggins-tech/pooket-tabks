@@ -12,7 +12,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
     unlock). The tuning lives in one place (e.g. `stats/xp.ts`, shared by the phones and the hourly
     sender). *Proposed*: a draw earns 1×; 1× shows as 100 XP (+100, +200, 600 an unlock); a match counts
     only if it lasted at least 4 turns, so quick resignations can't be farmed.
-  - **Where it's kept**: the hourly stats sender works out each verified player's XP into the totals
+  - **Where it's kept** (the XP part done, 8 Oct: `stats/xp.ts`, `StatsSummary.xp`): the hourly stats
+    sender works out each verified player's XP into the totals
     (`stats/summary`, beside their rating). The phone adds a just-finished match's XP straight away (provisional,
     as `Ratings` does for the rating) until the totals catch up. Unlocks you've chosen go in your account
     (e.g. `users/<uid>/unlocks/<characterId>`): that's a database rules change, so the owner re-publishes
