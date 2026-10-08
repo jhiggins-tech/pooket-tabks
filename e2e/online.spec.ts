@@ -608,6 +608,13 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await expect(guest.locator('.tank-details .coming-soon-banner')).toHaveText('Coming soon');
   await expect(guest.locator('#tank-go')).toBeDisabled();
   await guest.screenshot({ path: 'test-results/coming-soon-tank.png' });
+  // A beta is hotseat only: looked at, with why, not picked.
+  await expect(guest.getByLabel('Your tank').locator('option[value="kiwicore"]')).toHaveText('🔒 kiwicore (beta, hotseat only)');
+  await guest.getByLabel('Your tank').selectOption('kiwicore');
+  await expect(guest.locator('.tank-details .tank-lock')).toHaveText('🔒 kiwicore is in beta: play them in Local hotseat for now.');
+  await expect(guest.locator('#tank-go')).toHaveText('🔒 Beta: hotseat only');
+  await expect(guest.locator('#tank-go')).toBeDisabled();
+  await guest.screenshot({ path: 'test-results/beta-tank-locked.png' });
   await guest.getByLabel('Your tank').selectOption('larinovsky');
   await expect(guest.locator('#online .info-card h3')).toHaveText(['Pill Pusher', 'the Rizzler', 'Take a Nap', 'Women in Scam']);
   await expect(guest.locator('#tank-go')).toHaveText('Join with larinovsky');

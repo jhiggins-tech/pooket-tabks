@@ -1,3 +1,4 @@
+import { onlineLock } from '../characters/access';
 import { AMMO_PER_TIER, fullAmmo, getCharacter, ROSTER, type CharacterDef } from '../characters/roster';
 import { upcoming, UPCOMING, type Upcoming } from '../characters/upcoming';
 import { kindRow } from '../weapons/kinds';
@@ -134,10 +135,14 @@ export function comingSoon(u: Upcoming): HTMLElement[] {
 
 /**
  * A character picker's options: everyone playable, then (in a "Coming soon" group) the upcoming ones,
- * which can be picked to look at but not played.
+ * which can be picked to look at but not played. `online`: the online tank picker, where those that can't
+ * be played online (characters/access.ts) say so.
  */
-export function addCharacterOptions(select: HTMLSelectElement, selected: string): void {
-  for (const c of ROSTER) select.add(new Option(c.beta ? `${c.name} (beta)` : c.name, c.id, false, c.id === selected));
+export function addCharacterOptions(select: HTMLSelectElement, selected: string, online = false): void {
+  for (const c of ROSTER) {
+    const label = c.beta ? `${c.name} (beta${online ? ', hotseat only' : ''})` : c.name;
+    select.add(new Option(online && onlineLock(c.id) ? `🔒 ${label}` : label, c.id, false, c.id === selected));
+  }
   const group = el('optgroup');
   group.label = 'Coming soon';
   for (const u of UPCOMING) group.append(new Option(`${u.name} (soon)`, u.id, false, u.id === selected));

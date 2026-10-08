@@ -38,6 +38,7 @@ import { StatsScreen } from './ui/stats';
 import { RANKS } from './stats/ranks';
 import { Ratings } from './ui/ranks';
 import { RankUp } from './ui/rankup';
+import { openOnline } from './characters/access';
 import { GameOverCard } from './ui/gameover';
 import { byId } from './ui/dom';
 import { ViewingBar } from './ui/viewing';
@@ -155,7 +156,8 @@ let myStatsKey: string | null = null;
 // ---- Online: two phones, one each, through a Firebase room (`online.session`: null in a local, hotseat, game). ----
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online.
-  pick: () => ({ name: yourName(), characterId: loadCharacter() ?? setup.players()[0]!.characterId, ...(myStatsKey ? { key: myStatsKey } : {}) }),
+  // (Never one that can't be played online, such as a beta: characters/access.ts.)
+  pick: () => ({ name: yourName(), characterId: openOnline(loadCharacter() ?? setup.players()[0]!.characterId), ...(myStatsKey ? { key: myStatsKey } : {}) }),
   dbUrl,
   lobby: params.lobby || PUBLIC_LOBBY,
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,

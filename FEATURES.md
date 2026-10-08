@@ -23,8 +23,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
       is how you progress.
     - **Online, signed in**: everything but the starter set, what you've unlocked, and any character your
       account has already played online (kept for existing players).
-    - **Betas** (garyoldmancorp, kiwicore): hotseat only, for everyone, while they're in beta. A
-      character that leaves beta becomes unlockable like the rest. New characters arrive locked.
+    - **Betas** (garyoldmancorp, kiwicore): hotseat only, for everyone, while they're in beta (shipped
+      already, 8 Oct: see Shipped). A character that leaves beta becomes unlockable like the rest. New
+      characters arrive locked.
     - Choose your tank (and the online character pick) shows locked tanks with a 🔒 and the reason ("Sign
       in to unlock", "Unlock for 1 token", "Beta: hotseat only"). Host and Join wait for a pick that's
       open, as with Coming soon. Matches already under way carry on as they are.
@@ -221,6 +222,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Betas are hotseat only** (owner, 8 Oct; ahead of the unlocks in the Queue). garyoldmancorp and
+  kiwicore can't be picked online any more: Choose your tank shows them with a 🔒 ("kiwicore (beta,
+  hotseat only)"), says why, and its button reads "🔒 Beta: hotseat only". The online pick never falls back
+  to one (`characters/access.ts`: `onlineLock`, `openOnline`). In Local hotseat they're as before. Matches
+  already started with one carry on.
 - **kiwicore's Band Aid** (owner, 7 Oct; rules 23; beta, a testing push). His tier 2 (replacing the
   stand-in Beta Mortar, and the "throwdown" teaser): a Dance Dance Revolution style rhythm minigame
   (`game/drums.ts`, kind `drum`). FIRE starts it: a drum kit appears round his tank (snare left, floor tom
