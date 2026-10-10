@@ -183,6 +183,12 @@ Nothing queued.
   that burns enemies touching it at 10 HP/s for the rest of the turn.
 
 ### Core
+- **Fix: torikloud's twin drives** (owner, 10 Oct; rules 24; What's new 51). Only the main tank could move.
+  Now ◀ ▶ drive whichever tank is being aimed (the 🎯 switch, or a drag from a tank), on the player's one
+  tank of fuel (shared, so Twins doesn't double the driving); the twin drives like any tank (bumping into its
+  own main tank and everyone else's, stopped when pinned). The 🎯 switch shows whatever's selected (it picks
+  the tank to drive, even with a weapon that doesn't aim). Online, the aim previews carry where the twin is,
+  so the other phone sees it drive.
 - **XP and unlocks** (owner, 8 Oct; What's new 50). Signed-in players earn career XP from online matches and
   spend it unlocking characters (characters only: no cosmetic unlocks).
   - **XP** (`stats/xp.ts`, the tuning in one place): only rated matches count (both players signed in: the

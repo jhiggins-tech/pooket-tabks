@@ -9,7 +9,8 @@ import type { GameState, Projectile } from '../src/game/state';
 import { DICTIONARIES } from '../src/weapons/dictionaries';
 import { debate, hyperfixate, sonicBoom, tattooGun, theRizzler } from '../src/characters/kits';
 import { shell } from '../src/weapons/registry';
-import { passTurn, testGame, untilAiming, untilNextTurn, whileFlying } from './support/game';
+import { applyPreview, previewOf } from '../src/net/follow';
+import { hold, passTurn, testGame, untilAiming, untilNextTurn, whileFlying } from './support/game';
 
 const players = [
   { name: 'torikloud', colour: '#a78bfa', characterId: 'torikloud' },
@@ -127,6 +128,69 @@ describe('Twins', () => {
     expect(tori.twin!.x).toBe(600);
     expect(tori.twinSpot).toBeNull();
     expect(pendingTwinSpot(g)).toBeNull();
+  });
+
+  it('drives too: ◀ ▶ move whichever tank is being aimed (🎯), both on the one tank of fuel', () => {
+    const g = game(); // flat ground: torikloud at 200, the twin at 450, kie at 800
+    withTwin(g);
+    const tori = g.players[0]!;
+    const twin = tori.twin!;
+    const fuel = tori.fuel;
+    hold(g, 1, 0.5); // the main tank
+    const went = tori.x - 200;
+    expect(went).toBeGreaterThan(10);
+    expect(twin.x).toBe(450);
+    aimTwin(g, true);
+    hold(g, -1, 0.5); // now the twin, as fast
+    expect(twin.x).toBeCloseTo(450 - went, 5);
+    expect(tori.x).toBe(200 + went);
+    expect(twin.y).toBe(g.terrain.surfaceY(twin.x)); // along the ground
+    expect(tori.fuel).toBeCloseTo(fuel - 2 * went, 5);
+    // The other phone sees it drive (the aim previews carry where the twin is).
+    const other = game();
+    withTwin(other);
+    applyPreview(other, previewOf(g));
+    expect([other.players[0]!.twin!.x, other.players[0]!.twin!.y]).toEqual([twin.x, twin.y]);
+    // Back to the main tank.
+    aimTwin(g, false);
+    hold(g, 1, 0.25);
+    expect(tori.x).toBeGreaterThan(200 + went);
+    expect(twin.x).toBeCloseTo(450 - went, 5);
+  });
+
+  it('the twin bumps into its own main tank and enemies alike, runs out with the fuel, and stays put when pinned', () => {
+    const g = game();
+    withTwin(g);
+    const tori = g.players[0]!;
+    const twin = tori.twin!;
+    tori.fuel = 1000; // (plenty, for now)
+    aimTwin(g, true);
+    hold(g, -1, 20); // towards the main tank at 200
+    expect(twin.x).toBeGreaterThanOrEqual(200 + TANK_HALF_WIDTH * 2 - 1);
+    expect(twin.x).toBeLessThan(200 + TANK_HALF_WIDTH * 2 + 2);
+    const kie = g.players[1]!;
+    kie.x = 320;
+    hold(g, 1, 20); // and back, into kie
+    expect(twin.x).toBeLessThanOrEqual(320 - TANK_HALF_WIDTH * 2 + 1);
+    expect(twin.x).toBeGreaterThan(320 - TANK_HALF_WIDTH * 2 - 2);
+    kie.x = 800;
+    tori.fuel = 100;
+    const from = twin.x;
+    hold(g, 1, 30); // as far as the fuel goes
+    expect(twin.x - from).toBeCloseTo(100, 5);
+    expect(tori.fuel).toBeCloseTo(0, 5);
+    const at = twin.x;
+    hold(g, 1, 1);
+    expect(twin.x).toBe(at);
+    // Pinned (Sew): neither tank moves.
+    const h = game();
+    withTwin(h);
+    h.players[0]!.pinned = { active: true };
+    aimTwin(h, true);
+    hold(h, -1, 1);
+    aimTwin(h, false);
+    hold(h, 1, 1);
+    expect([h.players[0]!.x, h.players[0]!.twin!.x]).toEqual([200, 450]);
   });
 
   it('the twin aims on its own: it starts with the main tank’s aim, then each tank keeps its own', () => {

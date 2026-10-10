@@ -652,6 +652,22 @@ test("torikloud's Twins and Debate", async ({ page }) => {
   expect(after.angle).toBe(before.angle); // the main tank's aim is its own
   await expect(page.locator('#angle')).toHaveText(new RegExp(`${after.twin!.angle > 90 ? 180 - after.twin!.angle : after.twin!.angle}`));
   await page.screenshot({ path: 'test-results/twin-aiming.png' });
+  // ◀ ▶ drive the tank being aimed: the twin now, on the same fuel.
+  await expect(page.locator('#hint')).toHaveText('Drag from a tank to aim it · 🎯 switches tank (◀ ▶ drive it)');
+  const drove = async (button: 'Drive left' | 'Drive right') => {
+    const box = (await page.getByRole('button', { name: button }).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(400);
+    await page.mouse.up();
+  };
+  const parked = await tori();
+  const side = parked.twin!.x < parked.x ? 'Drive left' : 'Drive right'; // away from the main tank
+  await drove(side);
+  const driven = await tori();
+  expect(Math.abs(driven.twin!.x - parked.twin!.x)).toBeGreaterThan(5);
+  expect(driven.x).toBe(parked.x);
+  expect(driven.fuel).toBeLessThan(parked.fuel);
   await page.locator('#fire').tap();
   await page.waitForTimeout(700);
   await page.screenshot({ path: 'test-results/debate-twins.png' });

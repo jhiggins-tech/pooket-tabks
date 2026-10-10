@@ -93,7 +93,7 @@ describe('the hint line', () => {
     expect(hint(g)).toBe('No aiming needed. Just FIRE');
   });
 
-  it('with a twin out: either tank aims', () => {
+  it('with a twin out: either tank aims (and drives)', () => {
     const g = match('torikloud');
     selectTier(g, 2);
     fire(g);
@@ -101,7 +101,7 @@ describe('the hint line', () => {
     untilAiming(g, 3);
     passTurn(g); // kcaj
     selectTier(g, 0);
-    expect(hint(g)).toBe('Drag from a tank to aim it · 🎯 switches tank');
+    expect(hint(g)).toBe('Drag from a tank to aim it · 🎯 switches tank (◀ ▶ drive it)');
   });
 
   it('with decoys out: tap one to swap after firing', () => {

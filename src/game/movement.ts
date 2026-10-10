@@ -1,7 +1,7 @@
 import { getCharacter } from '../characters/roster';
 import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust, spawnFloater } from './fx';
-import type { GameState, Hop, Player } from './state';
+import type { GameState, Hop, Player, TankBody } from './state';
 import { canMove } from './statuses';
 import { currentPlayer, hullRest, otherBodyNear } from './bodies';
 import { hurt } from './tanks';
@@ -9,7 +9,9 @@ import { clamp, hash } from './util';
 
 /**
  * Driving (◀ ▶, one tank of fuel per match), ciarra's frog hops and garyoldmancorp's scooter (driving, faster
- * and further, but terrain that would stop a tank is a crash); tanks settling onto the ground.
+ * and further, but terrain that would stop a tank is a crash); tanks settling onto the ground. With a twin
+ * (torikloud's Twins), ◀ ▶ drive whichever tank is being aimed (the 🎯 switch: `Player.aimTwin`), both on
+ * the one tank of fuel; a twin just drives (no hops or scooter of its own).
  */
 
 /**
@@ -21,6 +23,7 @@ import { clamp, hash } from './util';
 export function drive(state: GameState, dir: number, dt: number): number {
   if (state.phase !== 'aiming') return 0;
   const p = currentPlayer(state);
+  if (p.aimTwin && p.twin) return driveTwin(state, p, p.twin, dir, dt);
   const movement = getCharacter(p.characterId).movement;
   if (movement === 'hop') return hopDrive(state, p, dir, dt);
   if (dir === 0 || !canMove(p)) return 0;
@@ -28,22 +31,7 @@ export function drive(state: GameState, dir: number, dt: number): number {
   // Still up against what the scooter crashed into: it takes a fresh run (moving off first) to crash again.
   if (scooter && Math.sign(dir) === p.scooterCrash) return 0;
   const perPx = scooter ? SCOOTER_FUEL : 1;
-  let budget = Math.min(p.fuel / perPx, (scooter ? SCOOTER_SPEED : DRIVE_SPEED) * dt);
-  let moved = 0;
-  let stopped: 'terrain' | 'other' | null = null;
-  while (budget > 0) {
-    const stepX = Math.min(1, budget);
-    const nx = p.x + Math.sign(dir) * stepX;
-    const ground = driveTo(state, p, nx, Math.sign(dir));
-    if (typeof ground !== 'number') {
-      stopped = ground;
-      break;
-    }
-    p.x = nx;
-    p.y = ground;
-    budget -= stepX;
-    moved += stepX;
-  }
+  const { moved, stopped } = roll(state, p, Math.sign(dir), Math.min(p.fuel / perPx, (scooter ? SCOOTER_SPEED : DRIVE_SPEED) * dt));
   p.fuel = Math.max(0, p.fuel - moved * perPx);
   if (moved > 0) p.scooterCrash = 0;
   if (moved > 0 && hash(state.fxSeq * 0.37 + p.x) < (scooter ? 0.6 : 0.25)) spawnDust(state, p.x - Math.sign(dir) * 9, p.y, scooter ? 0.3 : 0.15);
@@ -52,11 +40,39 @@ export function drive(state: GameState, dir: number, dt: number): number {
   return moved;
 }
 
+/** Drive `p`'s twin (the tank being aimed) like any tank, on `p`'s fuel. Returns the distance moved. */
+function driveTwin(state: GameState, p: Player, twin: TankBody, dir: number, dt: number): number {
+  if (dir === 0 || !canMove(p)) return 0;
+  const { moved } = roll(state, twin, Math.sign(dir), Math.min(p.fuel, DRIVE_SPEED * dt));
+  p.fuel = Math.max(0, p.fuel - moved);
+  if (moved > 0 && hash(state.fxSeq * 0.37 + twin.x) < 0.25) spawnDust(state, twin.x - Math.sign(dir) * 9, twin.y, 0.15);
+  return moved;
+}
+
+/**
+ * Move `body` along the ground up to `budget` px in direction `dir` (±1), a pixel at a time, until
+ * something stops it: returns how far it went, and what stopped it (terrain, another tank or the edge).
+ */
+function roll(state: GameState, body: TankBody, dir: number, budget: number): { moved: number; stopped: 'terrain' | 'other' | null } {
+  let moved = 0;
+  while (budget > 0) {
+    const stepX = Math.min(1, budget);
+    const nx = body.x + dir * stepX;
+    const ground = driveTo(state, body, nx, dir);
+    if (typeof ground !== 'number') return { moved, stopped: ground };
+    body.x = nx;
+    body.y = ground;
+    budget -= stepX;
+    moved += stepX;
+  }
+  return { moved, stopped: null };
+}
+
 /**
  * Where the hull would rest one step on, at `nx` (moving `dir`), or why it can't go there: the map edge or
  * another tank or decoy in the way ('other'), or terrain it can't cross: a wall or a steep hill ('terrain').
  */
-function driveTo(state: GameState, p: Player, nx: number, dir: number): number | 'terrain' | 'other' {
+function driveTo(state: GameState, p: TankBody, nx: number, dir: number): number | 'terrain' | 'other' {
   const { terrain } = state;
   if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) return 'other';
   // Another tank (or a decoy) we'd be driving into.

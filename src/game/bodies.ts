@@ -46,17 +46,18 @@ export function bodiesOf(p: Player): TankBody[] {
 }
 
 /**
- * Is another body in the way of `self`'s main tank as it moves? Tries `near(x, y)` (where each body's hull
- * rests) on every living tank but `self`'s main tank itself (its own twin counts), player by player, main
- * tank then twin; then, with `holograms`, on every hologram. Returns the x of the first it holds for, or
- * null. Driving and hopping bump into holograms (`holograms: true`); a jetpacking tank doesn't (false): it
- * flies past them, and can land beside one. No allocations: it runs for every pixel of a drive or a flight.
+ * Is another body in the way of `self` (a main tank, or a twin) as it moves? Tries `near(x, y)` (where each
+ * body's hull rests) on every living tank but `self` itself (its other half counts: a twin and its main
+ * tank bump into each other), player by player, main tank then twin; then, with `holograms`, on every
+ * hologram. Returns the x of the first it holds for, or null. Driving and hopping bump into holograms
+ * (`holograms: true`); a jetpacking tank doesn't (false): it flies past them, and can land beside one. No
+ * allocations: it runs for every pixel of a drive or a flight.
  */
-export function otherBodyNear(state: GameState, self: Player, near: (x: number, y: number) => boolean, opts: { holograms: boolean }): number | null {
+export function otherBodyNear(state: GameState, self: TankBody, near: (x: number, y: number) => boolean, opts: { holograms: boolean }): number | null {
   for (const p of state.players) {
     if (!p.alive) continue;
     if (p !== self && near(p.x, p.y)) return p.x;
-    if (p.twin && near(p.twin.x, p.twin.y)) return p.twin.x;
+    if (p.twin && p.twin !== self && near(p.twin.x, p.twin.y)) return p.twin.x;
   }
   if (opts.holograms) for (const h of state.holograms) if (near(h.x, h.y)) return h.x;
   return null;

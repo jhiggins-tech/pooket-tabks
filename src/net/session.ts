@@ -51,8 +51,8 @@ export type NetMsg =
       power: number;
       tier: number;
       hop: Hop | null;
-      /** torikloud: the twin's own aim (if there's a twin), which tank is being aimed, and where a twin being placed will go. */
-      twin?: { angle: number; power: number } | null;
+      /** torikloud: the twin's own aim and where it is (it drives too), which tank is being aimed, and where a twin being placed will go. */
+      twin?: { angle: number; power: number; x?: number; y?: number } | null;
       aimTwin?: boolean;
       twinSpot?: number | null;
       /** Health, which can change while aiming (garyoldmancorp's scooter crashes, kiwicore's Band Aid). */

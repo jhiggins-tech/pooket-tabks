@@ -20,6 +20,11 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 51,
+    title: 'Fixes',
+    items: ['torikloud’s twin can drive now: ◀ ▶ move whichever tank 🎯 is aiming (drag from a tank, or tap 🎯 to switch). Both share the one tank of fuel.'],
+  },
+  {
     version: 50,
     title: '🔓 XP and unlocks',
     items: [

@@ -42,7 +42,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   [(c) => isDrum(c.p, c.p.selectedTier), () => 'Band Aid: FIRE, then tap anywhere on the beat to heal'],
   [(c) => pendingTwinSpot(c.state) !== null, () => 'Tap the ground to place your twin, then FIRE'],
   [(c) => isAimless(c.state), () => 'No aiming needed. Just FIRE'],
-  [(c) => !!c.p.twin, () => 'Drag from a tank to aim it · 🎯 switches tank'],
+  [(c) => !!c.p.twin, () => 'Drag from a tank to aim it · 🎯 switches tank (◀ ▶ drive it)'],
   [(c) => hologramsOf(c.state, c.p.id).length > 0 && c.state.swapTargetId !== null, () => 'Swapping to that decoy after you fire'],
   [(c) => hologramsOf(c.state, c.p.id).length > 0, () => 'Drag to aim · tap a decoy to swap after firing'],
   [() => true, () => 'Drag & pull back to aim'],

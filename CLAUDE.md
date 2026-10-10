@@ -101,7 +101,8 @@ what it's for; weapons are documented where they're defined.
 - **Movement** (`movement.ts`): one tank of fuel per match (`FUEL_PER_MATCH`), driving before firing;
   tanks roll over small lips, stop at slopes > 45° unless the climb is short or they're in a hollow (so
   craters are always escapable). `CharacterDef.movement`: ciarra hops, garyoldmancorp rides a scooter (fast,
-  far, and terrain that would stop a tank is a crash: see the module). Pinned tanks can't move. Who goes
+  far, and terrain that would stop a tank is a crash: see the module). With a twin, ◀ ▶ drive whichever tank
+  is being aimed (`Player.aimTwin`), on the same fuel. Pinned tanks can't move. Who goes
   first: `GameConfig.first` (`'random'` in `main.ts`, from the seed).
 
 ### Online (`src/net/`, `src/ui/online.ts`, `src/ui/online/`)

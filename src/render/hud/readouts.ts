@@ -1,7 +1,7 @@
 /** The HUD's readouts: angle, power, fuel and the twin's aim switch. They move while you aim and drive, so they're just text and a width. */
 import { getCharacter } from '../../characters/roster';
 import { FUEL_PER_MATCH } from '../../game/constants';
-import { aimedTank, isAimless } from '../../game/game';
+import { aimedTank } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { byId, query } from '../../ui/dom';
 import { keyed, type Part } from './part';
@@ -13,8 +13,9 @@ export function readouts(): Part {
   const fuelEl = byId('fuel-fill');
   const fuelLabel = query('.fuel small');
   const driveEl = query('.drive');
-  // torikloud with a twin: the readouts are for whichever tank is being aimed, and the switch picks which.
-  const twinSwitch = (state: GameState, p: Player, remote: boolean) => !!p.twin && state.phase === 'aiming' && !remote && !isAimless(state);
+  // torikloud with a twin: the readouts are for whichever tank is being aimed, and the switch picks which
+  // (the one ◀ ▶ drive, too: so it's there even with a weapon that doesn't aim).
+  const twinSwitch = (state: GameState, p: Player, remote: boolean) => !!p.twin && state.phase === 'aiming' && !remote;
   return keyed(
     (state, { p, remote }) => {
       const aim = aimedTank(p);
