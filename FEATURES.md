@@ -4,7 +4,16 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Queue
 
-Nothing queued.
+- **kiwicore: Shower Beers** (owner, 14 Oct). A bonus move for kiwicore's kit (a 4th slot, like
+  larinovsky's and garyoldmancorp's), **once a match**: **restores 50% of his health**.
+  - The look: a mini shower head and a curtain appear around his tank and steam rises off it, while a can
+    of XXXX Gold appears in the sky above (like Sonic Boom's kookaburra).
+  - A new kind of bonus move (a heal, at once). Sounds: the shower hissing on, then a can cracking open
+    ("psssht") and a glug. A testing push while he's in beta: no What's new release.
+  - *Proposed*, to confirm:
+    - 50% of his **full** health, capped at full (not "back up to half").
+    - Like the other bonus moves, it doesn't use the turn: shower, then aim and fire as usual.
+    - Greyed out at full health (nothing to restore), so the one use isn't wasted.
 
 ### Backlog (ideas, not yet scheduled)
 
