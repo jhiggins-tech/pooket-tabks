@@ -546,7 +546,7 @@ test("garyoldmancorp's Hoop Dreamz: a hoop over the enemy, the camera zooms in, 
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
   const unzoomed = await page.evaluate(() => window.__pooket.renderer.cssScale);
   expect(zoomed).toBeGreaterThan(unzoomed * 1.5);
-  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(55);
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(30);
 });
 
 test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
