@@ -4,6 +4,7 @@ import { boomerangStepper, throwBoomerang } from './boomerang';
 import { drumStepper, playDrums } from './drums';
 import { decoyPickStepper, fireDecoys, hologramBlastStepper, originsOf, spawnTwin } from './copies';
 import { fireSpew, puddleStepper, sludgeStepper, spewStepper, toxinStepper } from './gunk';
+import { ballStepper, shootHoop } from './hoop';
 import { fireJetpack, jetStepper } from './jetpack';
 import { fireNap, napStepper } from './nap';
 import { beamStepper, burstStepper, fireBeam, fireRain, fireRounds, projectileStepper } from './projectiles';
@@ -64,6 +65,7 @@ export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   twin: (state, p) => spawnTwin(state, p),
   sew: fireSew,
   boomerang: throwBoomerang,
+  hoop: shootHoop,
   drum: playDrums,
   runner: fireRunner,
   spew: fireSpew,
@@ -83,6 +85,7 @@ export const STEPPERS: Stepper[] = [
   burstStepper,
   stitchStepper,
   boomerangStepper,
+  ballStepper,
   drumStepper,
   runnerStepper,
   napStepper,

@@ -150,9 +150,11 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     pew(s, 0, 1600, 300, 0.15);
     s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });
   },
-  'beta-mortar': (s) => {
-    pew(s, 0, 1100, 160, 0.18);
-    s.noise({ dur: 0.12, rate: 0.45, vol: 0.16 });
+  // Hoop Dreamz: a sneaker squeak, and the ball thrown up with a hopeful "whoo".
+  'hoop-dreamz': (s) => {
+    s.tone({ dur: 0.07, from: 2600, to: 3200, duty: 0.125, vol: 0.07 });
+    s.tone({ at: 0.08, dur: 0.06, from: 3000, to: 2400, duty: 0.125, vol: 0.06 });
+    s.tone({ at: 0.12, dur: 0.3, from: 400, to: 900, wave: 'triangle', vol: 0.12 });
   },
   'beta-bomb': (s) => {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
@@ -272,6 +274,22 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.05, rate: 1.4, vol: 0.12 });
     arp(s, [79, 84], 0.09, { at: 0.06, duty: 0.25, vol: 0.12, dur: 0.14 });
   },
+  // ---- Hoop Dreamz (game/hoop.ts). ----
+  // Nothing but net: a soft swish, then the crowd's "ohhh!" rising into the slam.
+  swish: (s) => {
+    s.noise({ dur: 0.18, rate: 1.6, to: 0.8, vol: 0.12 });
+    s.tone({ at: 0.1, dur: 0.35, from: 300, to: 1100, duty: 0.5, steps: 10, vol: 0.12 });
+  },
+  // Off the rim (or the backboard): a hollow metal clank and its ring.
+  clank: (s) => {
+    s.tone({ dur: 0.05, from: 1300, to: 900, duty: 0.5, vol: 0.12 });
+    s.tone({ at: 0.03, dur: 0.3, from: 1650, wave: 'triangle', vibrato: [22, 20], vol: 0.07, env: [[0.1, 1], [1, 0]] });
+  },
+  // A bounce: a rubbery thud, louder the faster it's going.
+  dribble: (s, e) => {
+    const k = Math.min(1, (e.size ?? 200) / 400);
+    s.tone({ dur: 0.08, from: 150 + 60 * k, to: 70, duty: 0.5, steps: 4, vol: 0.06 + 0.1 * k });
+  },
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),
   // ---- Steal (game/steal.ts). ----
@@ -372,7 +390,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
 };
 
 /** Minimum seconds between two plays of the same sound, so a pill storm doesn't turn into mush. */
-const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11 };
+const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, dribble: 0.06 };
 
 /** Plays queued cues on a synth, throttling rapid repeats. */
 export class SfxPlayer {

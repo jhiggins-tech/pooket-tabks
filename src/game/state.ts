@@ -159,6 +159,33 @@ export interface Boomerang {
   hits: string[];
 }
 
+/** Where Hoop Dreamz's hoop hangs: the middle of the rim, and which side its backboard is on (−1 / +1). */
+export interface Hoop {
+  x: number;
+  y: number;
+  side: number;
+}
+
+/** A basketball in play (garyoldmancorp's Hoop Dreamz): flying and bouncing, or slammed down through the hoop. */
+export interface Basketball {
+  ownerId: number;
+  weaponId: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  /** The hoop it's shot at (null: no enemy to hang it over). */
+  hoop: Hoop | null;
+  /** Seconds in play. */
+  age: number;
+  /** Ground bounces so far. */
+  bounces: number;
+  /** Through the hoop: seconds since (a moment on the rim, then the slam), null before. */
+  dunk: number | null;
+  /** It's bounced onto an enemy already (a loose ball only hurts once). */
+  hit: boolean;
+}
+
 /** A note's verdict in Band Aid: not yet, perfect, close, or missed. */
 export type Beat = 0 | 1 | 2 | 3;
 
@@ -506,6 +533,9 @@ export type SfxCue =
   | 'scoot'
   | 'crash'
   | 'catch'
+  | 'swish'
+  | 'clank'
+  | 'dribble'
   | 'drum'
   | 'whiff'
   | 'gameover';
@@ -611,6 +641,7 @@ export interface GameState {
   spews: Spew[];
   stitches: Stitch[];
   boomerangs: Boomerang[];
+  basketballs: Basketball[];
   runners: Runner[];
   bursts: Burst[];
   naps: Nap[];

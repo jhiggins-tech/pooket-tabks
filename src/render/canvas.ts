@@ -14,6 +14,7 @@ import { drawStitches } from './draw/sew';
 import { drawApparitions } from './draw/sky';
 import { drawBooms } from './draw/sonic';
 import { drawHeist } from './draw/steal';
+import { drawBasketballs, drawHoopBack, drawHoopFront } from './draw/hoop';
 import { drawLiquid } from './draw/stream';
 import { drawAim, drawTanks } from './draw/tank';
 import { loadSprites } from './sprites';
@@ -23,6 +24,13 @@ const MAX_DPR = 2; // Cap backing-store size so older phones keep 60fps.
 const DRUM_ZOOM = 2.2;
 /** How much of the way to the middle of the screen the zoomed-in tank is brought. */
 const ZOOM_CENTRE = 0.35;
+/**
+ * Hoop Dreamz: how far the view zooms in on the hoop as the ball gets close (from `HOOP_REACH` px away,
+ * all the way in at the rim, and held through a slam), and how much of the way to the middle it's brought.
+ */
+const HOOP_ZOOM = 2;
+const HOOP_REACH = 240;
+const HOOP_CENTRE = 0.6;
 
 /** Something drawn every frame from the game state, in world coordinates. */
 type Layer = (d: Draw, state: GameState) => void;
@@ -39,8 +47,11 @@ const LAYERS: Layer[] = [
   drawCoffee,
   drawNapCats,
   drawGhosts,
+  drawHoopBack,
   drawAim,
   drawProjectiles,
+  drawBasketballs,
+  drawHoopFront,
   drawStitches,
   drawBoomerangs,
   drawRunners,
@@ -74,6 +85,9 @@ export class Renderer {
   /** The camera: zoom (1: the whole world), on a world point (cosmetic, eased frame to frame). */
   private zoom = 1;
   private focus = { x: 0, y: 0 };
+  /** What's being zoomed in on: how far in it goes, and how much of the way to the middle it's brought by then. */
+  private peak = DRUM_ZOOM;
+  private centre = ZOOM_CENTRE;
   /** World → backing-store pixels this frame: x' = x × k + ox (zoom included). */
   private view = { k: 1, ox: 0, oy: 0 };
 
@@ -83,7 +97,7 @@ export class Renderer {
     private readonly worldH: number,
   ) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
-    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map() };
+    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), hoop: null };
     this.terrainCanvas.width = worldW;
     this.terrainCanvas.height = worldH;
     this.terrainCtx = this.terrainCanvas.getContext('2d')!;
@@ -126,14 +140,31 @@ export class Renderer {
   }
 
   /**
-   * Ease the camera towards where it should be: on kiwicore's tank while he drums (Band Aid), else the
-   * whole world. Zoomed in, the tank is drawn where it was, brought part of the way to the middle.
+   * Ease the camera towards where it should be: on kiwicore's tank while he drums (Band Aid), on the hoop
+   * as a Hoop Dreamz ball gets close to it (and down with a slam), else the whole world. Zoomed in, what
+   * it's on is drawn where it was, brought part of the way to the middle.
    */
   private follow(state: GameState, dt: number): void {
     const k = state.drums;
     const p = k && state.players[k.playerId];
-    const want = p && k.outro === null ? DRUM_ZOOM : 1;
-    if (p) this.focus = { x: p.x, y: p.y - 50 }; // the tank, and the notes' stream above it
+    let want = 1;
+    if (p) {
+      want = k.outro === null ? DRUM_ZOOM : 1;
+      this.focus = { x: p.x, y: p.y - 50 }; // the tank, and the notes' stream above it
+      [this.peak, this.centre] = [DRUM_ZOOM, ZOOM_CENTRE];
+    } else {
+      const ball = state.basketballs.find((b) => b.hoop);
+      const h = ball?.hoop;
+      if (ball && h) {
+        // Closer and closer, then held on the slam, following the ball down.
+        const near = ball.dunk !== null ? 1 : Math.max(0, 1 - Math.hypot(ball.x - h.x, ball.y - h.y) / HOOP_REACH);
+        want = 1 + (HOOP_ZOOM - 1) * near * near * (3 - 2 * near);
+        const at = ball.dunk !== null ? { x: h.x, y: (h.y + ball.y) / 2 + 10 } : { x: h.x + (ball.x - h.x) * 0.3, y: h.y + (ball.y - h.y) * 0.3 + 10 };
+        const ease = Math.min(1, dt * 8);
+        this.focus = { x: this.focus.x + (at.x - this.focus.x) * ease, y: this.focus.y + (at.y - this.focus.y) * ease };
+        [this.peak, this.centre] = [HOOP_ZOOM, HOOP_CENTRE];
+      }
+    }
     this.zoom += (want - this.zoom) * Math.min(1, dt * 6);
     if (Math.abs(this.zoom - want) < 0.002) this.zoom = want;
     this.aim();
@@ -146,7 +177,7 @@ export class Renderer {
     // Where the focus is on the unzoomed screen, and where it's drawn zoomed (part way to the middle).
     const fx = this.focus.x * this.scale + this.offsetX;
     const fy = this.focus.y * this.scale + this.offsetY;
-    const pull = (ZOOM_CENTRE * (z - 1)) / (DRUM_ZOOM - 1);
+    const pull = this.centre * Math.min(1, (z - 1) / (this.peak - 1));
     const sx = fx + (this.canvas.width / 2 - fx) * pull;
     const sy = fy + (this.canvas.height / 2 - fy) * pull;
     this.view = { k, ox: sx - this.focus.x * k, oy: sy - this.focus.y * k };

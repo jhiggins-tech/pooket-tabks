@@ -527,6 +527,28 @@ test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash"
   await page.screenshot({ path: 'test-results/scooter-crash.png' });
 });
 
+test("garyoldmancorp's Hoop Dreamz: a hoop over the enemy, the camera zooms in, and a make is a slam dunk", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
+  await page.locator('#weapons .weapon').nth(1).tap();
+  await expect(page.locator('#hint')).toHaveText('Shoot it through the middle of the hoop for a slam dunk');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: 'test-results/hoop-dreamz-aiming.png' });
+  // Fire, then put the ball just above the rim, dropping: it goes in.
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.basketballs.length === 1);
+  await page.evaluate(() => {
+    const b = window.__pooket.state.basketballs[0]!;
+    Object.assign(b, { x: b.hoop!.x - 82, y: b.hoop!.y - 60, vx: 150, vy: 0 });
+  });
+  await page.waitForFunction(() => window.__pooket.state.basketballs[0]?.dunk !== null && window.__pooket.state.basketballs.length > 0, null, { timeout: 5_000 });
+  await page.screenshot({ path: 'test-results/hoop-dreamz-dunk.png' });
+  const zoomed = await page.evaluate(() => window.__pooket.renderer.cssScale);
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  const unzoomed = await page.evaluate(() => window.__pooket.renderer.cssScale);
+  expect(zoomed).toBeGreaterThan(unzoomed * 1.5);
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(55);
+});
+
 test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
   test.setTimeout(60_000);
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
@@ -780,7 +802,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   // garyoldmancorp is playable now, in beta.
   await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Mortar', 'Beta Bomb', 'Diced Coffee']);
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Hoop Dreamz', 'Beta Bomb', 'Diced Coffee']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   // So is kiwicore.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();

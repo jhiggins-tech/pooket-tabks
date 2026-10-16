@@ -31,6 +31,7 @@ import { clamp, normalizeAngle } from './util';
  * './game'.
  */
 export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
+export { BALL_RADIUS, BOARD_HEIGHT, hoopFor, isHoop } from './hoop';
 export { DRUM_OUTRO, drumClock, drumsReady, drumTap, followDrums, isDrum, noteSide, noteTimes, startDrums, trackEnd } from './drums';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
@@ -141,6 +142,7 @@ export function createGame(cfg: GameConfig): GameState {
     spews: [],
     stitches: [],
     boomerangs: [],
+    basketballs: [],
     runners: [],
     bursts: [],
     naps: [],

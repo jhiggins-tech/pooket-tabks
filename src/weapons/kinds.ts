@@ -35,6 +35,8 @@ export const KINDS = {
   twin: { aims: false, turn: 'shot', harmless: true },
   /** A needle and thread stitching along the aim through terrain. */
   sew: { aims: true, turn: 'shot' },
+  /** A basketball shot at a hoop over the enemy: through the middle, it's slammed down onto them (game/hoop.ts). */
+  hoop: { aims: true, turn: 'shot' },
   /** Thrown out along the aim, curling round and back to the thrower, through terrain (kiwicore's flat cap). */
   boomerang: { aims: true, turn: 'shot' },
   /**
