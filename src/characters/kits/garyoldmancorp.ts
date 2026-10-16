@@ -18,7 +18,7 @@ export const betaShot = {
 
 /**
  * Tier 2: a basketball hoop hangs over the enemy (game/hoop.ts). Through the middle of the rim it's a slam
- * dunk, straight down onto them for the blast (45, from the middle of the tank); off the rim it's a loose
+ * dunk, straight down onto them for the blast (70, from the middle of the tank); off the rim it's a loose
  * ball, bouncing about, 15 to the first enemy it lands on.
  */
 export const hoopDreamz = {
@@ -26,11 +26,11 @@ export const hoopDreamz = {
   name: 'Hoop Dreamz',
   shortName: 'Hoop Dreamz',
   info:
-    'A basketball hoop appears above the enemy. Shoot the ball through it (aim and power as usual): through the middle of the rim it’s a slam dunk, smashed straight down onto them for 45 damage and a crater. Off the rim, the backboard or the ground it just bounces about, and if it bounces onto an enemy it does 15.',
+    'A basketball hoop appears above the enemy. Shoot the ball through it (aim and power as usual): through the middle of the rim it’s a slam dunk, smashed straight down onto them for 70 damage and a crater. Off the rim, the backboard or the ground it just bounces about, and if it bounces onto an enemy it does 15.',
   kind: 'hoop',
   hoop: { height: 110, rimHalf: 13, swish: 8, looseDamage: 15, restitution: 0.62 },
   blastRadius: 24,
-  damage: 45,
+  damage: 70,
   colour: '#f97316',
 } satisfies WeaponDef;
 

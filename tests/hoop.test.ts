@@ -44,7 +44,7 @@ describe("garyoldmancorp's Hoop Dreamz", () => {
     expect(hoopFor(g, kcaj, hoopDreamz)).toEqual({ x: gary.x, y: FLAT_Y - TANK_BODY_HEIGHT - spec.height, side: -1 });
   });
 
-  it('through the middle of the rim: a slam dunk, straight down onto them for the full 45 and a crater', () => {
+  it('through the middle of the rim: a slam dunk, straight down onto them for the full 70 and a crater', () => {
     const g = game();
     const kcaj = g.players[1]!;
     const before = solid(g);
