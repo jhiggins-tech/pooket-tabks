@@ -1,5 +1,5 @@
 /** The HUD's status: the page's state flags (data attributes on body, the player's colour), the hint line and FIRE / DONE. */
-import { canUseSlot, hologramsOf, isAimless } from '../../game/game';
+import { canUseSlot, hologramsOf, isAimless, sneakLeft } from '../../game/game';
 import { byId } from '../../ui/dom';
 import { hintText, jetCountdown } from './hint';
 import { keyed, type Part } from './part';
@@ -16,6 +16,7 @@ export function status(): Part {
         picking === null ? '' : Math.ceil(picking),
         state.swapTargetId,
         jetCountdown(state),
+        sneakLeft(state),
         hologramsOf(state, p.id).length,
         p.selectedTier,
         p.ammo[p.selectedTier],
@@ -40,7 +41,9 @@ export function status(): Part {
       const done = picking !== null && !remote;
       fireEl.textContent = done ? 'DONE' : 'FIRE';
       // (Not canFire: that also waits out a hop, which this key doesn't follow, so FIRE could stay greyed after landing.)
-      fireEl.disabled = !done && (state.phase !== 'aiming' || !canUseSlot(state, p, p.selectedTier));
+      // (Sneaking off under Sly, FIRE finishes it sooner.)
+      const live = state.phase === 'aiming' || state.phase === 'sneaking';
+      fireEl.disabled = !done && (!live || !canUseSlot(state, p, p.selectedTier));
     },
   );
 }

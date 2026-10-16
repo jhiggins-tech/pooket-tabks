@@ -17,6 +17,7 @@ import { startCoffee } from './coffee';
 import { startHeist } from './steal';
 import { dropletStepper, fireStream, streamStepper } from './stream';
 import { soakStepper } from './tanks';
+import { fireSly } from './sly';
 
 /**
  * The weapon mechanics, in one place: how each kind goes off (`FIRE` for shots, `FREE_ACTIONS` for the rest:
@@ -67,6 +68,7 @@ export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   boomerang: throwBoomerang,
   hoop: shootHoop,
   drum: playDrums,
+  sly: fireSly,
   runner: fireRunner,
   spew: fireSpew,
   jetpack: fireJetpack,

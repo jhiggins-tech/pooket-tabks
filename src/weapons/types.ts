@@ -250,6 +250,14 @@ export interface DrumSpec {
 }
 
 /**
+ * Sly: a smokescreen, the fuel tank filled up, and `time` s to drive off out of sight. The firer stays
+ * hidden from the other players until their next turn starts, or something hits them.
+ */
+export interface SlySpec {
+  time: number;
+}
+
+/**
  * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any hill;
  * on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
  */
@@ -285,6 +293,7 @@ export type WeaponDef = WeaponBase &
     /** The hoop and the loose ball; the dunk's blast. */
     | ({ kind: 'hoop'; hoop: HoopSpec } & BlastSpec)
     | { kind: 'drum'; drum: DrumSpec }
+    | { kind: 'sly'; sly: SlySpec }
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }

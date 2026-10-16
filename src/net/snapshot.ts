@@ -75,6 +75,9 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   snap.drums ??= null;
   // Rules 25: garyoldmancorp's Hoop Dreamz.
   snap.basketballs ??= [];
+  // Rules 27: doctorfox's Sly.
+  snap.sneak ??= null;
+  for (const p of (snap.players as { hidden?: boolean }[] | undefined) ?? []) p.hidden ??= false;
   return snap;
 }
 

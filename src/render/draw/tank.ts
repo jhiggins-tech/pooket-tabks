@@ -1,12 +1,13 @@
 import { getCharacter } from '../../characters/roster';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
-import { canPickDecoy, capSpot, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre, wearsCap } from '../../game/game';
+import { canDriveNow, canPickDecoy, capSpot, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre, wearsCap } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
 import { drawFlatCap } from './boomerang';
 import { drumStick } from './drums';
 import { drawJet } from './jetpack';
+import { tankShown } from './sly';
 
 /**
  * Tanks (and their hologram, twin and ghost copies; kiwicore's flat cap: boomerang.ts), garyoldmancorp's scooter, the spew gush, the swap
@@ -250,7 +251,7 @@ export function drawAimGuide(d: Draw, p: Player, faint = false): void {
 /**
  * Every player's tanks: holograms (drawn exactly like the real tank, so there's no tell: the shared shimmer
  * glitches every copy, real one included, at the same moment), the twin (phasing in when it appears), the
- * tank itself (with a jetpack's charge and flame) and a spew's gush.
+ * tank itself (with a jetpack's charge and flame) and a spew's gush. A tank hidden by Sly: draw/sly.ts.
  */
 export function drawTanks(d: Draw, state: GameState): void {
   for (const p of state.players) {
@@ -265,10 +266,16 @@ export function drawTanks(d: Draw, state: GameState): void {
       const phaseIn = Math.min(1, p.twin.age / HOLOGRAM_PHASE_IN);
       drawGlitchedTank(d, p, state, p.twin, 1 - phaseIn, phaseIn, 1);
     }
+    // Hidden by Sly: not there at all for the others, a ghost for himself (sly.ts).
+    const shown = tankShown(d, state, p);
+    if (shown <= 0) continue;
+    d.ctx.save();
+    d.ctx.globalAlpha *= shown;
     const ride = scooterRide(d, p, state);
     if (ride) drawScooter(d, p, state, ride);
     else drawJet(d, p, state, () => drawGlitchedTank(d, p, state, undefined, shimmerAmt, 1, 1));
     if (isSpewing(state, p.id)) drawSpewGush(d, p);
+    d.ctx.restore();
   }
 }
 
@@ -310,10 +317,10 @@ function scooterRide(d: Draw, p: Player, state: GameState): { dir: number } | nu
   const last = d.rides.get(p.id);
   const dx = last ? p.x - last.x : 0;
   // Only driving along the ground while aiming (not a jetpack, nor a jump to a new match or snapshot).
-  const riding = state.phase === 'aiming' && !p.hop && Math.abs(dx) > 0.05 && Math.abs(dx) < 30;
+  const riding = canDriveNow(state) && !p.hop && Math.abs(dx) > 0.05 && Math.abs(dx) < 30;
   const r = { x: p.x, until: riding ? d.time + 0.25 : (last?.until ?? 0), dir: riding ? Math.sign(dx) : (last?.dir ?? 1) };
   d.rides.set(p.id, r);
-  return p.alive && state.phase === 'aiming' && d.time < r.until ? { dir: r.dir } : null;
+  return p.alive && canDriveNow(state) && d.time < r.until ? { dir: r.dir } : null;
 }
 
 /** The scooter: two little wheels, a deck in the rider's colour, the stem and bars, and his dome riding on it. */

@@ -60,6 +60,8 @@ export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
 export function canFire(state: GameState): boolean {
   // Band Aid is fired when the drumming's over (game/drums.ts).
   if (state.phase === 'drumming') return !!state.drums?.done;
+  // Sly is fired when time's up, or sooner with FIRE (game/sly.ts): not mid-hop.
+  if (state.phase === 'sneaking') return !currentPlayer(state).hop;
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
   return !p.hop && canUseSlot(state, p, p.selectedTier);

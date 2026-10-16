@@ -15,6 +15,7 @@ import { drawApparitions } from './draw/sky';
 import { drawBooms } from './draw/sonic';
 import { drawHeist } from './draw/steal';
 import { drawBasketballs, drawHoopBack, drawHoopFront } from './draw/hoop';
+import { drawSmokes, drawStealthUp } from './draw/sly';
 import { drawLiquid } from './draw/stream';
 import { drawAim, drawTanks } from './draw/tank';
 import { loadSprites } from './sprites';
@@ -43,6 +44,7 @@ const LAYERS: Layer[] = [
   drawPuddles,
   drawSludge, // behind the tanks so the jet flame stays visible
   drawTanks,
+  drawSmokes,
   drawDrums,
   drawCoffee,
   drawNapCats,
@@ -62,6 +64,7 @@ const LAYERS: Layer[] = [
   drawHologramBlasts,
   drawHeist,
   drawFloaters,
+  drawStealthUp,
 ];
 
 /**
@@ -97,7 +100,7 @@ export class Renderer {
     private readonly worldH: number,
   ) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
-    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), hoop: null };
+    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), hoop: null, viewer: null };
     this.terrainCanvas.width = worldW;
     this.terrainCanvas.height = worldH;
     this.terrainCtx = this.terrainCanvas.getContext('2d')!;
@@ -120,6 +123,11 @@ export class Renderer {
     this.sky.addColorStop(0, '#1b2440');
     this.sky.addColorStop(0.6, '#3d5a8a');
     this.sky.addColorStop(1, '#8fb3d9');
+  }
+
+  /** Who's looking (draw/context.ts `viewer`): set every frame, before `draw`. */
+  set viewer(v: number | null) {
+    this.d.viewer = v;
   }
 
   /** Converts a screen (CSS pixel) position to world coordinates. */

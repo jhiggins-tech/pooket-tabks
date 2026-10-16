@@ -5,9 +5,9 @@ import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the eight selectable characters (garyoldmancorp and kiwicore in beta)', () => {
-    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp', 'kiwicore']);
+  it('has the nine selectable characters (garyoldmancorp, kiwicore and doctorfox in beta)', () => {
+    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp', 'kiwicore', 'doctorfox']);
   });
 
   it("kiwicore's beta loadout: the béretta M2, Band Aid and a stand-in shot; he wears a flat cap", () => {
@@ -16,6 +16,11 @@ describe('roster', () => {
     expect(getWeapon('band-aid').kind).toBe('drum');
     expect(getWeapon('kiwi-bomb').kind ?? 'ballistic').toBe('ballistic');
     expect(getCharacter('kiwicore').hat).toBe('flat-cap');
+  });
+
+  it("doctorfox's beta loadout: Sly between two stand-in shots", () => {
+    expect(getCharacter('doctorfox').loadout).toEqual(['fox-shot', 'sly', 'fox-bomb']);
+    expect(['fox-shot', 'sly', 'fox-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'ballistic']);
   });
 
   it("garyoldmancorp's beta loadout: two stand-in shots, Hoop Dreamz and Diced Coffee", () => {
@@ -32,7 +37,7 @@ describe('roster', () => {
   });
 
   it('upcoming characters are shown but never playable (not in the roster, nor a valid pick anywhere)', () => {
-    expect(UPCOMING.map((u) => u.name)).toEqual(['shotdownboyz', 'odsey', 'lankcity', 'doctorfox']);
+    expect(UPCOMING.map((u) => u.name)).toEqual(['shotdownboyz', 'odsey', 'lankcity']);
     for (const u of UPCOMING) {
       expect(isCharacterId(u.id)).toBe(false);
       expect(() => getCharacter(u.id)).toThrow();
@@ -42,6 +47,7 @@ describe('roster', () => {
     // Teased moves (work in progress), by slot.
     expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now (beta)
     expect(upcoming('kiwicore')).toBeUndefined(); // likewise
+    expect(upcoming('doctorfox')).toBeUndefined(); // likewise
     expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
     expect(upcoming('shotdownboyz')!.teasers!.map((t) => t.name)).toEqual(['summon digger', 'neurodiverge', 'tank build']);
     expect(upcoming('odsey')!.teasers).toBeUndefined();

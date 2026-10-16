@@ -1,4 +1,5 @@
 import { ciarra } from './ciarra';
+import { doctorfox } from './doctorfox';
 import { garyoldmancorp } from './garyoldmancorp';
 import { kcaj } from './kcaj';
 import { kie } from './kie';
@@ -8,6 +9,7 @@ import { tones } from './tones';
 import { torikloud } from './torikloud';
 
 export * from './ciarra';
+export * from './doctorfox';
 export * from './garyoldmancorp';
 export * from './kcaj';
 export * from './kie';
@@ -17,4 +19,4 @@ export * from './tones';
 export * from './torikloud';
 
 /** Every character's kit (the character and their three weapons), in the order the setup screen lists them. */
-export const KITS = [tones, kie, kcaj, torikloud, ciarra, larinovsky, garyoldmancorp, kiwicore] as const;
+export const KITS = [tones, kie, kcaj, torikloud, ciarra, larinovsky, garyoldmancorp, kiwicore, doctorfox] as const;

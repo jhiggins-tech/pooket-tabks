@@ -1,7 +1,7 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
-import type { DrumSet, GameState, Hop, PlayerConfig } from '../game/state';
+import type { DrumSet, GameState, Hop, PlayerConfig, Sneak } from '../game/state';
 import { Emitter } from '../core/emitter';
-import { applyPreview, previewOf, putState, ResultBuffer, type Preview } from './follow';
+import { applyPreview, LIVE, previewOf, putState, ResultBuffer, type Preview } from './follow';
 import { netLog } from './log';
 import type { GameRecord, GameStore, ShotRecord } from './record';
 import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
@@ -59,6 +59,8 @@ export type NetMsg =
       hp?: number;
       /** kiwicore's Band Aid while he drums (the `drumming` phase is his phone's input, like aiming). */
       drums?: DrumSet | null;
+      /** doctorfox's Sly while he sneaks off (the `sneaking` phase is his phone's input too). */
+      sneak?: Sneak | null;
     }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
@@ -339,7 +341,7 @@ export class NetSession {
 
   /** Stream the aim while it's our turn to aim. */
   private streamAim(s: GameState, dt: number): void {
-    if (this.canAct() && (s.phase === 'aiming' || s.phase === 'drumming')) {
+    if (this.canAct() && LIVE.has(s.phase)) {
       this.previewTimer -= dt;
       if (this.previewTimer <= 0) {
         this.previewTimer = PREVIEW_INTERVAL;

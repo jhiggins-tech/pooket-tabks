@@ -7,7 +7,7 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, selectTier, setAim, step } from './game/game';
+import { adjustAim, aimTwin, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, selectTier, setAim, sneakClock, sneakReady, step } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -424,12 +424,15 @@ function runFrame(now: number): void {
     if (localCanAct()) {
       drive(state, driveDir, FIXED_DT);
       drumClock(state, FIXED_DT);
+      sneakClock(state, FIXED_DT);
     }
     step(state, FIXED_DT);
     acc -= FIXED_DT;
   }
   // Band Aid's over: fire it (the round, and how it went, go to the other phone like any shot).
   if (drumsReady(state) && localCanAct()) fireNow();
+  // Sly's time is up: fire it (his turn is over), the same way.
+  if (sneakReady(state) && localCanAct()) fireNow();
   document.body.classList.toggle('drumming', state.phase === 'drumming');
   net?.tick(dt);
   if (net) online.matchFinished(state.phase === 'gameover');
@@ -437,6 +440,8 @@ function runFrame(now: number): void {
   online.spectator?.tick(dt);
   sfx.tunes.update(dt, paused);
   for (const e of state.sfx.splice(0)) sfx.play(e);
+  // Who's looking, for what's hidden (Sly): online, this phone's seat; a spectator, nobody's; else everyone's.
+  renderer.viewer = online.spectator ? -1 : net && !net.ended ? net.localSeat : null;
   renderer.draw(state, dt);
   hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.ended ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
   viewing.update({ spectating: !!online.spectator, replay, online: !!net && !net.ended });

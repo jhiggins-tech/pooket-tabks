@@ -37,7 +37,6 @@ export const UPCOMING: readonly Upcoming[] = [
       { slot: 'Movement', name: 'lizard walk' },
     ],
   },
-  { id: 'doctorfox', name: 'doctorfox', colour: '#fb923c' },
 ];
 
 const byId = new Map(UPCOMING.map((u) => [u.id, u]));

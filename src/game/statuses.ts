@@ -15,6 +15,7 @@ import type { GameState, Player, TankBody } from './state';
  * | cooked (the Rizzler) | `debuff` | the player | their next turn (everything they fire × `offenceMultiplier`) |
  * | tattoo (Tattoo Gun) | `tattoo` | the player | their next `tattoo.turns` turns (takes × `multiplier` damage) |
  * | pinned (Sew) | `pin` | the player | their next turn (no driving or hopping) |
+ * | hidden (Sly) | (the move itself: sly.ts) | the player | until their next turn starts, or a hit (`reveal`) |
  *
  * (Women in Scam is a bonus move's own business: scam.ts. Soak and toxin are damage on its way: tanks.ts.)
  * How they look is render/draw/tank.ts (on the tank) and ui/status-looks.ts (badges by the name, info lines).
@@ -63,8 +64,9 @@ export function turnEnding(ending: Player): void {
   if (ending.tattoo && --ending.tattoo.turnsLeft <= 0) ending.tattoo = null;
 }
 
-/** `up`'s turn starts: a pending cook or pin takes hold for it. (Their burns ticked as it came up.) */
+/** `up`'s turn starts: a pending cook or pin takes hold for it, and Sly's cover is gone. (Their burns ticked as it came up.) */
 export function turnStarting(up: Player): void {
+  up.hidden = false;
   if (up.cooked) up.cooked.active = true;
   if (up.pinned) up.pinned.active = true;
 }

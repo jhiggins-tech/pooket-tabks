@@ -30,7 +30,7 @@ function closeEnemy(state: GameState, p: Player): Stream['close'] {
   let best: Stream['close'] = null;
   let bestD = SPLASHBACK_RANGE;
   for (const q of state.players) {
-    if (q === p || !q.alive) continue;
+    if (q === p || !q.alive || q.hidden) continue; // (not one hidden by Sly: it'd give him away)
     for (const tank of bodiesOf(q)) {
       const d = Math.hypot(tank.x - p.x, tank.y - p.y);
       if (d < bestD) {

@@ -44,6 +44,11 @@ export const KINDS = {
    * fired for real when it's over, and its hits heal.
    */
   drum: { aims: false, turn: 'shot', harmless: true },
+  /**
+   * A smokescreen (doctorfox's Sly): FIRE starts it (the `sneaking` phase: game/sly.ts), a full tank and a
+   * few seconds to drive off unseen; it's fired for real when time's up, and the turn is over.
+   */
+  sly: { aims: false, turn: 'shot', harmless: true },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

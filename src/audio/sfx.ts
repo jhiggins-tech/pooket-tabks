@@ -179,6 +179,19 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
     s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
   },
+  // doctorfox's stand-in shots (beta): plain pews, as garyoldmancorp's.
+  'fox-shot': (s) => {
+    pew(s, 0, 1600, 300, 0.15);
+    s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });
+  },
+  'fox-bomb': (s) => {
+    s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
+    s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
+  },
+  // Sly is fired when the sneaking's over: tiptoes fading away.
+  sly: (s) => {
+    arp(s, [72, 74, 72, 74], 0.12, { duty: 0.125, vol: 0.06, dur: 0.05 });
+  },
   // Diced Coffee: ice rattling in the cup as the spinner starts.
   'diced-coffee': (s) => {
     for (let i = 0; i < 7; i++) s.tone({ at: i * 0.05, dur: 0.03, from: 2200 + ((i * 557) % 900), wave: 'triangle', vol: 0.08 });
@@ -289,6 +302,22 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   dribble: (s, e) => {
     const k = Math.min(1, (e.size ?? 200) / 400);
     s.tone({ dur: 0.08, from: 150 + 60 * k, to: 70, duty: 0.5, steps: 4, vol: 0.06 + 0.1 * k });
+  },
+  // ---- Sly (game/sly.ts). ----
+  // The smoke bomb: a pop, a long hiss of smoke, and a sly little "hm-hm" down the scale.
+  smoke: (s) => {
+    s.tone({ dur: 0.06, from: 700, to: 160, duty: 0.5, vol: 0.14 });
+    s.noise({ dur: 1.3, rate: 1.1, vol: 0.13, env: [[0.05, 1], [0.4, 0.7], [1, 0]] });
+    arp(s, [67, 63, 60], 0.14, { at: 0.35, duty: 0.125, vol: 0.09, dur: 0.1 });
+  },
+  // Stealth powerup activated: a rising video-game power-up arpeggio, quiet (it's sneaky).
+  stealth: (s) => {
+    arp(s, [60, 64, 67, 72, 76, 79, 84], 0.045, { duty: 0.25, vol: 0.08, dur: 0.06 });
+  },
+  // Spotted! A startled "boing" up and a cartoon alarm.
+  spotted: (s) => {
+    s.tone({ dur: 0.18, from: 300, to: 1400, wave: 'triangle', vol: 0.14 });
+    arp(s, [84, 79, 84, 79], 0.07, { at: 0.18, duty: 0.25, vol: 0.09, dur: 0.06 });
   },
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),
