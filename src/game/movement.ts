@@ -272,12 +272,14 @@ function arwingDrive(state: GameState, p: Player, dir: number, dt: number): numb
 }
 
 /**
- * Sly's time is up with the Arwing still in the air: it comes down anyway (Sly is fired once it's landed:
- * sly.ts `sneakReady`). Returns 0 (no driving).
+ * Sly's time is up with a hop or the Arwing still in the air: it comes down anyway (Sly is fired once
+ * it's down: sly.ts `sneakReady`, loadout.ts `canFire`). Returns 0 (no driving).
  */
 function settleFlight(state: GameState, dt: number): number {
   const p = currentPlayer(state);
-  if (state.phase === 'sneaking' && p.flight) arwingDrive(state, p, 0, dt);
+  if (state.phase !== 'sneaking') return 0;
+  if (p.flight) arwingDrive(state, p, 0, dt);
+  else if (p.hop) hopDrive(state, p, 0, dt);
   return 0;
 }
 
