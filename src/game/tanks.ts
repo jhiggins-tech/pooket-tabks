@@ -8,6 +8,7 @@ import { noteScamHit } from './scam';
 import type { GameState, Hologram, Player, TankBody } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
 import { afflict, scaled, vulnerable } from './statuses';
+import { reveal } from './sly';
 
 /**
  * Tanks and targets: where a tank is, what a shot at (x, y) hits (a player's tank, or a hologram), and
@@ -119,20 +120,21 @@ export function allTargets(state: GameState): Target[] {
 /**
  * Every target on the field (main tanks, twins, then holograms: allTargets's order), without building a
  * list: `visit` gets where each one's hull rests and whose it is; returning true stops. For the scans that
- * run every tick or every pixel (walkers, runners, homing).
+ * run every tick or every pixel (walkers, runners, homing). `seen`: only what can be seen, for weapons that
+ * seek out an enemy (a player hidden by Sly isn't sought out: sly.ts).
  */
-export function forEachTargetPos(state: GameState, visit: (x: number, y: number, ownerId: number) => boolean | void): void {
-  for (const p of state.players) if (p.alive && visit(p.x, p.y, p.id)) return;
-  for (const p of state.players) if (p.alive && p.twin && visit(p.twin.x, p.twin.y, p.id)) return;
+export function forEachTargetPos(state: GameState, visit: (x: number, y: number, ownerId: number) => boolean | void, seen = false): void {
+  for (const p of state.players) if (p.alive && !(seen && p.hidden) && visit(p.x, p.y, p.id)) return;
+  for (const p of state.players) if (p.alive && p.twin && !(seen && p.hidden) && visit(p.twin.x, p.twin.y, p.id)) return;
   for (const h of state.holograms) if (state.players[h.ownerId]?.alive && visit(h.x, h.y, h.ownerId)) return;
 }
 
-/** The x of the enemy target (tank, twin or decoy) nearest to `x` along the ground, if there is one. */
+/** The x of the enemy target (tank, twin or decoy) nearest to `x` along the ground that can be seen, if there is one. */
 export function nearestEnemyX(state: GameState, x: number, ownerId: number): number | null {
   let best: number | null = null;
   forEachTargetPos(state, (tx, _ty, owner) => {
     if (owner !== ownerId && (best === null || Math.abs(tx - x) < Math.abs(best - x))) best = tx;
-  });
+  }, true);
   return best;
 }
 
@@ -263,6 +265,7 @@ export function hurt(state: GameState, p: Player, tank: TankBody, amount: number
   tallyDamage(state, p, had - tank.hp, source ?? defaultSource(state), tank.hp <= 0 && tank === p && !p.twin);
   spawnFloater(state, tank.x, tank.y - TANK_BODY_HEIGHT, `-${amount}`, colour);
   sound(state, 'hit', undefined, amount);
+  if (tank === p) reveal(state, p); // hidden by Sly: a hit gives him away
   if (tank.hp > 0) return true;
   if (tank === p && !p.twin) {
     p.alive = false;

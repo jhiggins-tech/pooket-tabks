@@ -19,8 +19,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp (beta)', 'kiwicore (beta)']);
-  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(4);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp (beta)', 'kiwicore (beta)', 'doctorfox (beta)']);
+  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(3);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
   await expect(p1Name).toHaveValue('tones2');
@@ -549,6 +549,41 @@ test("garyoldmancorp's Hoop Dreamz: a hoop over the enemy, the camera zooms in, 
   expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(30);
 });
 
+test("doctorfox's Sly: a smokescreen, a full tank to sneak off on, and he's hidden until his next turn", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
+  const fox = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
+  await page.evaluate(() => (window.__pooket.state.players[0]!.fuel = 40));
+  await page.locator('#weapons .weapon').nth(1).tap();
+  await expect(page.locator('#hint')).toHaveText('Sly: FIRE for a smokescreen, then sneak off unseen');
+  const start = await fox();
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.phase === 'sneaking');
+  await expect(page.locator('#hint')).toContainText('Sneak off with ◀ ▶');
+  expect((await fox()).hidden).toBe(true);
+  expect((await fox()).fuel).toBe(250); // filled right up
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'test-results/sly-smoke.png' });
+  // Drive off under the smoke, then FIRE to finish sooner.
+  const left = page.getByRole('button', { name: 'Drive left' });
+  const box = (await left.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(500);
+  // Moving off under the smoke: STEALTH POWERUP ACTIVATED, over his ghost.
+  expect(await page.evaluate(() => window.__pooket.state.sneak!.movedAt)).not.toBeNull();
+  await page.screenshot({ path: 'test-results/sly-stealth.png' });
+  await page.waitForTimeout(300);
+  await page.mouse.up();
+  expect((await fox()).x).toBeLessThan(start.x - 10);
+  await page.locator('#fire').tap();
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[1])).toBe(2);
+  // kcaj's turn: fox is nowhere to be seen (but has his 🌫 badge).
+  expect((await fox()).hidden).toBe(true);
+  await expect(page.locator('#hud .sly')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/sly-hidden.png' });
+});
+
 test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
   test.setTimeout(60_000);
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
@@ -772,7 +807,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await page.locator('#open-hotseat').tap();
   const p2 = page.getByLabel('Player 2 character');
   const before = await p2.inputValue();
-  await p2.selectOption('doctorfox');
+  await p2.selectOption('odsey');
   const card = page.locator('.seat-card').nth(1);
   await expect(card.locator('.coming-soon-banner')).toHaveText('Coming soon');
   await expect(page.locator('#start')).toBeDisabled();
@@ -785,7 +820,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
 
   // The info screen: a tab each, with the banner.
   await page.locator('#hotseat-info').tap();
-  for (const name of ['shotdownboyz', 'odsey', 'lankcity', 'doctorfox']) {
+  for (const name of ['shotdownboyz', 'odsey', 'lankcity']) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.coming-soon h2')).toHaveText(name);
     await expect(page.locator('.coming-soon .coming-soon-banner')).toHaveText('Coming soon');
@@ -808,6 +843,10 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Band Aid', 'Beta Bomb']);
+  // And doctorfox.
+  await page.getByRole('tab', { name: 'doctorfox', exact: true }).tap();
+  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Sly', 'Beta Bomb']);
 });
 
 test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {

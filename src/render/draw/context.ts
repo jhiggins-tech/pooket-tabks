@@ -12,6 +12,8 @@ export interface Draw {
   rides: Map<number, ScooterRide>;
   /** Hoop Dreamz's hoop as last drawn: where, since when (`time`) it's been showing, and when it was last there (draw/hoop.ts). */
   hoop: { h: Hoop; since: number; last: number } | null;
+  /** Who's looking, for what's hidden from whom (Sly: draw/sly.ts): a player id (online, this phone's seat), -1 nobody's (a spectator), null everyone's (a shared phone). */
+  viewer: number | null;
 }
 
 /** A scooter rider as last drawn: where, until when they count as riding, and which way (±1). */

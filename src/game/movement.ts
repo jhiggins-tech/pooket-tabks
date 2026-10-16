@@ -3,6 +3,7 @@ import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SC
 import { sound, spawnDust, spawnFloater } from './fx';
 import type { GameState, Hop, Player, TankBody } from './state';
 import { canMove } from './statuses';
+import { sneakMoved } from './sly';
 import { currentPlayer, hullRest, otherBodyNear } from './bodies';
 import { hurt } from './tanks';
 import { clamp, hash } from './util';
@@ -15,13 +16,28 @@ import { clamp, hash } from './util';
  */
 
 /**
+ * Whether the current player may move now: while aiming (before firing), and while sneaking off under
+ * Sly's smoke (game/sly.ts) until time's up. Every kind of movement (drive, hops, scooter) goes by this.
+ */
+export function canDriveNow(state: GameState): boolean {
+  return state.phase === 'aiming' || (state.phase === 'sneaking' && !state.sneak?.done);
+}
+
+/**
  * Drive the current player's tank along the ground for dt seconds in direction `dir` (−1 / +1),
  * spending fuel per pixel from a tank that has to last the whole match. It rolls over bumps and lips up to DRIVE_CLIMB px and climbs slopes up to
- * DRIVE_MAX_SLOPE (steeper only when the climb is short, like a crater wall: see shortClimb), rolls down slopes and drops off ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing.
+ * DRIVE_MAX_SLOPE (steeper only when the climb is short, like a crater wall: see shortClimb), rolls down slopes and drops off ledges; walls, other tanks (and holograms), and the map edges stop it. Only before firing (or sneaking off under Sly's smoke).
  * Returns the distance moved.
  */
 export function drive(state: GameState, dir: number, dt: number): number {
-  if (state.phase !== 'aiming') return 0;
+  if (!canDriveNow(state)) return 0;
+  const moved = move(state, dir, dt);
+  if (moved > 0) sneakMoved(state);
+  return moved;
+}
+
+/** Move the current player's tank (drive, hop or scooter, whichever is theirs): see `drive`. */
+function move(state: GameState, dir: number, dt: number): number {
   const p = currentPlayer(state);
   if (p.aimTwin && p.twin) return driveTwin(state, p, p.twin, dir, dt);
   const movement = getCharacter(p.characterId).movement;

@@ -1,7 +1,7 @@
 /** The HUD's readouts: angle, power, fuel and the twin's aim switch. They move while you aim and drive, so they're just text and a width. */
 import { getCharacter } from '../../characters/roster';
 import { FUEL_PER_MATCH } from '../../game/constants';
-import { aimedTank } from '../../game/game';
+import { aimedTank, canDriveNow } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { byId, query } from '../../ui/dom';
 import { keyed, type Part } from './part';
@@ -32,7 +32,8 @@ export function readouts(): Part {
       fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
       const empty = p.fuel <= 0.5;
       driveEl.dataset.empty = String(empty);
-      for (const b of driveEl.querySelectorAll('button')) b.disabled = state.phase !== 'aiming' || empty;
+      // (Driving's before firing, and while sneaking off under Sly.)
+      for (const b of driveEl.querySelectorAll('button')) b.disabled = !canDriveNow(state) || empty;
     },
   );
 }

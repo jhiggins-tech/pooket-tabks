@@ -9,6 +9,7 @@ import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './con
 import { settleTurn, tankBody } from './bodies';
 import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
 import { startDrums } from './drums';
+import { startSneak, stepSmokes } from './sly';
 import { resolveHolograms, stepPhaseFx, suckYolk } from './copies';
 import { sound, spawnFloater, stepFloaters, stepSplashes, summonApparition } from './fx';
 import { FREE_ACTIONS, fireShot, STEPPERS } from './mechanics';
@@ -27,18 +28,19 @@ import { clamp, normalizeAngle } from './util';
  * their own module), the fixed-step simulation and the turn state machine
  * (aiming → flying → settling → aiming | gameover; plus stealing, kie's Steal roulette, and coffee, Diced
  * Coffee's spinner: both back to aiming, or from coffee to settling when it spilt or nothing's left to
- * fire). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
+ * fire; and drumming, Band Aid, and sneaking, Sly: both between FIRE and the shot). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
  * './game'.
  */
 export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
 export { BALL_RADIUS, BOARD_HEIGHT, hoopFor, isHoop } from './hoop';
 export { DRUM_OUTRO, drumClock, drumsReady, drumTap, followDrums, isDrum, noteSide, noteTimes, startDrums, trackEnd } from './drums';
+export { SMOKE_TIME, followSneak, isSly, sneakClock, sneakLeft, sneakReady, startSneak } from './sly';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
 export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, WALKER_BODY } from './constants';
-export { drive } from './movement';
+export { canDriveNow, drive } from './movement';
 export { traceBeam, volleyOffsets } from './projectiles';
 export { stitchPoint } from './sew';
 export { PHASE_FOCUS, PHASE_RANGE, boomPhaseArcs, boomRadii } from './sonic';
@@ -113,6 +115,7 @@ export function createGame(cfg: GameConfig): GameState {
       coffee: null,
       extraTurn: false,
       scooterCrash: 0,
+      hidden: false,
     };
   });
 
@@ -126,6 +129,7 @@ export function createGame(cfg: GameConfig): GameState {
     heist: null,
     coffee: null,
     drums: null,
+    sneak: null,
     sfx: [],
     tunes: [],
     refund: null,
@@ -154,7 +158,7 @@ export function createGame(cfg: GameConfig): GameState {
     rng,
     nextId: 0,
     fxSeq: 0,
-    fx: { explosions: [], floaters: [], splashes: [], shimmers: [], ghosts: [], holoBlasts: [], apparitions: [] },
+    fx: { explosions: [], floaters: [], splashes: [], shimmers: [], ghosts: [], holoBlasts: [], apparitions: [], smokes: [] },
     settleTimer: 0,
     winner: null,
     endReason: null,
@@ -232,6 +236,11 @@ export function fire(state: GameState): boolean {
     startDrums(state);
     return false;
   }
+  // Sly: FIRE puts the smoke up and he sneaks off; it's fired for real when time's up (or FIRE again).
+  if (kind === 'sly' && state.phase === 'aiming') {
+    startSneak(state);
+    return false;
+  }
   // Not a shot (Steal, a bonus move): it does its thing, and the turn carries on.
   if (!isShotKind(kind)) return FREE_ACTIONS[kind](state, p, tier);
   p.ammo[tier]!--;
@@ -258,6 +267,7 @@ export function step(state: GameState, dt: number): void {
   state.fx.apparitions = state.fx.apparitions.filter((a) => a.age < a.duration);
 
   stepSplashes(state, dt);
+  stepSmokes(state, dt);
 
   if (state.phase === 'flying') {
     if (!runSteppers(state, dt)) {

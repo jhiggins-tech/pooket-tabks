@@ -55,7 +55,7 @@ export function isHoop(p: Player, tier: number): boolean {
 
 /**
  * Where `p`'s Hoop Dreamz hoop hangs: over the enemy target nearest them along the ground (a decoy counts,
- * so it gives nothing away), `height` px above it, and the backboard on the side away from `p`.
+ * so it gives nothing away; an enemy hidden by Sly doesn't, nor does it give him away), `height` px above it, and the backboard on the side away from `p`.
  */
 export function hoopFor(state: GameState, p: Player, weapon: WeaponOf<'hoop'>): Hoop | null {
   let bx = 0;
@@ -64,7 +64,7 @@ export function hoopFor(state: GameState, p: Player, weapon: WeaponOf<'hoop'>): 
   forEachTargetPos(state, (x, y, owner) => {
     if (owner === p.id || Math.abs(x - p.x) >= best) return;
     [bx, by, best] = [x, y, Math.abs(x - p.x)];
-  });
+  }, true);
   if (best === Infinity) return null;
   const edge = weapon.hoop.rimHalf + BOARD_GAP + 2;
   const x = Math.min(state.terrain.width - edge, Math.max(edge, bx));

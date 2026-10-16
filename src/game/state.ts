@@ -80,6 +80,8 @@ export interface Player extends TankBody {
   extraTurn: boolean;
   /** garyoldmancorp's scooter crashed going this way (−1 / +1) and hasn't moved since (0: no crash to remember). */
   scooterCrash: number;
+  /** doctorfox's Sly: out of sight of the other players until his next turn starts, or a hit (game/sly.ts). */
+  hidden: boolean;
 }
 
 /** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
@@ -210,6 +212,21 @@ export interface DrumSet {
   done: boolean;
   /** Seconds into packing away (once fired), null before. */
   outro: number | null;
+}
+
+/** doctorfox's Sly in play: the smokescreen's gone up, and he has `weapon.sly.time` s to sneak off. */
+export interface Sneak {
+  playerId: number;
+  weaponId: string;
+  /** Seconds since the smoke went up. */
+  t: number;
+  /** Where the smoke went up (the tank, as it was). */
+  x: number;
+  y: number;
+  /** When (`t`) he first moved under the smoke ("STEALTH POWERUP ACTIVATED", for his eyes only), null: not yet. */
+  movedAt: number | null;
+  /** Time's up (or FIRE ended it early): it's fired, and the turn is over. */
+  done: boolean;
 }
 
 /** A marathon runner, jogging a leg at a time towards the nearest enemy, across turns. */
@@ -538,6 +555,9 @@ export type SfxCue =
   | 'dribble'
   | 'drum'
   | 'whiff'
+  | 'smoke'
+  | 'spotted'
+  | 'stealth'
   | 'gameover';
 
 export interface Sfx {
@@ -552,9 +572,10 @@ export interface Sfx {
  * `stealing`: kie's Steal roulette is spinning; `coffee`: the Diced Coffee spinner is spinning, then
  * the drink (or the spill) plays out. Either way the turn carries on (back to `aiming`) afterwards.
  * `drumming`: kiwicore is playing Band Aid (like aiming, it's this phone's input, streamed in previews);
- * when it's over it's fired, and the shot (`flying`) is the kit packing away.
+ * when it's over it's fired, and the shot (`flying`) is the kit packing away. `sneaking`: doctorfox's Sly,
+ * driving off unseen (his phone's input too, like aiming); when time's up it's fired, and his turn is over.
  */
-export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'flying' | 'settling' | 'gameover';
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'flying' | 'settling' | 'gameover';
 
 /**
  * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
@@ -602,6 +623,16 @@ export interface Fx {
   ghosts: HologramGhost[];
   holoBlasts: HologramBlast[];
   apparitions: Apparition[];
+  /** Sly's smokescreens, billowing up where doctorfox was and thinning out. */
+  smokes: Smoke[];
+}
+
+/** A smokescreen (cosmetic): where, how old and how long it lasts (s). */
+export interface Smoke {
+  x: number;
+  y: number;
+  age: number;
+  duration: number;
 }
 
 export interface GameState {
@@ -617,6 +648,8 @@ export interface GameState {
   coffee: CoffeeSpin | null;
   /** kiwicore's Band Aid, while he drums and while the kit packs away after. */
   drums: DrumSet | null;
+  /** doctorfox's Sly, while he sneaks off. */
+  sneak: Sneak | null;
   /** Sound cues since the audio layer last drained them (capped). */
   sfx: Sfx[];
   /** Weapons whose walker chiptune is playing (cosmetic). */

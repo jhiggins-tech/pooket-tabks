@@ -203,7 +203,7 @@ function bounce(state: GameState, pr: Projectile, weapon: Projectiles, hitX: num
   pr.bounces++;
 }
 
-/** Homing: lock on to the nearest enemy within range, then turn towards it (keeping up speed). */
+/** Homing: lock on to the nearest enemy within range (that can be seen: not one hidden by Sly), then turn towards it (keeping up speed). */
 function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<Projectiles['homing']>, dt: number): void {
   let found = false;
   let bestX = 0;
@@ -216,7 +216,7 @@ function steerHoming(state: GameState, pr: Projectile, spec: NonNullable<Project
     if (d < bestD) {
       [found, bestX, bestY, bestD] = [true, x, cy, d];
     }
-  });
+  }, true);
   if (!found) return; // (locked on, but there's nobody left to chase: carry straight on)
   if (!pr.homing) {
     pr.homing = true;

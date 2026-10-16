@@ -305,7 +305,7 @@ select option {
   background: linear-gradient(90deg, #f59e0b, #fde047);
   transition: width 0.1s linear;
 }
-body:not([data-phase='aiming']) .drive,
+body:not([data-phase='aiming']):not([data-phase='sneaking']) .drive,
 .drive[data-empty='true'] button {
   opacity: 0.35;
 }
@@ -320,12 +320,16 @@ body:not([data-phase='aiming']) .drive,
   font-size: 12px;
   opacity: 0.55;
 }
-body:not([data-phase='aiming']) .hint,
+body:not([data-phase='aiming']):not([data-phase='sneaking']) .hint,
 body:not([data-phase='aiming']) .pad {
   opacity: 0.35;
 }
 body[data-picking='true'] .hint,
 body[data-picking='true'] .pad.right {
+  opacity: 1;
+}
+/* Sneaking off under Sly: FIRE finishes it sooner. */
+body[data-phase='sneaking'] .pad.right {
   opacity: 1;
 }
 body[data-charging='true'] .hint {
