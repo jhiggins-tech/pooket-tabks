@@ -2,7 +2,7 @@
  * The hint line under the controls: what to do now. `HINTS` is an ordered table of [when, text]: the first
  * row that applies wins. Pure and DOM-free (tests/hud-hint.test.ts).
  */
-import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isCoffee, isDrum, jetCharge, pendingTwinSpot, slotAt } from '../../game/game';
+import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isCoffee, isDrum, isHoop, jetCharge, pendingTwinSpot, slotAt } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { jetSpec } from '../../weapons/registry';
 
@@ -45,6 +45,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   [(c) => !!c.p.twin, () => 'Drag from a tank to aim it · 🎯 switches tank (◀ ▶ drive it)'],
   [(c) => hologramsOf(c.state, c.p.id).length > 0 && c.state.swapTargetId !== null, () => 'Swapping to that decoy after you fire'],
   [(c) => hologramsOf(c.state, c.p.id).length > 0, () => 'Drag to aim · tap a decoy to swap after firing'],
+  [(c) => isHoop(c.p, c.p.selectedTier), () => 'Shoot it through the middle of the hoop for a slam dunk'],
   [() => true, () => 'Drag & pull back to aim'],
 ];
 

@@ -73,6 +73,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   snap.boomerangs ??= [];
   // Rules 23: his Band Aid.
   snap.drums ??= null;
+  // Rules 25: garyoldmancorp's Hoop Dreamz.
+  snap.basketballs ??= [];
   return snap;
 }
 

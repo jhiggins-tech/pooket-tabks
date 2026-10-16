@@ -18,9 +18,9 @@ describe('roster', () => {
     expect(getCharacter('kiwicore').hat).toBe('flat-cap');
   });
 
-  it("garyoldmancorp's beta loadout: three stand-in shots and Diced Coffee", () => {
-    expect(getCharacter('garyoldmancorp').loadout).toEqual(['beta-shot', 'beta-mortar', 'beta-bomb', 'diced-coffee']);
-    expect(['beta-shot', 'beta-mortar', 'beta-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'ballistic', 'ballistic']);
+  it("garyoldmancorp's beta loadout: two stand-in shots, Hoop Dreamz and Diced Coffee", () => {
+    expect(getCharacter('garyoldmancorp').loadout).toEqual(['beta-shot', 'hoop-dreamz', 'beta-bomb', 'diced-coffee']);
+    expect(['beta-shot', 'hoop-dreamz', 'beta-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'hoop', 'ballistic']);
   });
 
   it('torikloud, larinovsky and ciarra have their own kits', () => {

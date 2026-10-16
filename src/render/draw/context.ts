@@ -1,3 +1,4 @@
+import type { Hoop } from '../../game/state';
 import type { SpriteId } from '../../weapons/types';
 import type { LoadedSprite } from '../sprites';
 
@@ -9,6 +10,8 @@ export interface Draw {
   sprites: Record<SpriteId, LoadedSprite>;
   /** Scooter riders, by player id: where each was last drawn, and until when (`time`) they count as riding, which way (draw/tank.ts). */
   rides: Map<number, ScooterRide>;
+  /** Hoop Dreamz's hoop as last drawn: where, since when (`time`) it's been showing, and when it was last there (draw/hoop.ts). */
+  hoop: { h: Hoop; since: number; last: number } | null;
 }
 
 /** A scooter rider as last drawn: where, until when they count as riding, and which way (±1). */

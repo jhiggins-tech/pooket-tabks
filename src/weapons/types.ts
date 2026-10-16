@@ -217,6 +217,21 @@ export interface BoomerangSpec {
 }
 
 /**
+ * Hoop: a hoop hangs `height` px above the enemy nearest the shooter (its rim `rimHalf` px either side of
+ * the middle, a backboard on the far side). The ball flies like a shell; dropping through the rim within
+ * `swish` px of the middle is a make, slammed straight down onto whatever's below for the weapon's blast.
+ * Otherwise it bounces (rim, backboard, ground: `restitution`), and the first enemy it bounces onto takes
+ * `looseDamage`.
+ */
+export interface HoopSpec {
+  height: number;
+  rimHalf: number;
+  swish: number;
+  looseDamage: number;
+  restitution: number;
+}
+
+/**
  * Drum: a rhythm minigame over a chiptune (`tune`): after `countIn` beats at `bpm`, a note comes at each
  * of `notes` (in eighth notes from the end of the count-in), alternately on the left and right drum. A tap
  * within `perfect` s of a note is a perfect hit, within `close` a close one (half as good); a note let go
@@ -267,6 +282,8 @@ export type WeaponDef = WeaponBase &
     | { kind: 'twin' }
     | { kind: 'sew'; sew: SewSpec }
     | { kind: 'boomerang'; boomerang: BoomerangSpec }
+    /** The hoop and the loose ball; the dunk's blast. */
+    | ({ kind: 'hoop'; hoop: HoopSpec } & BlastSpec)
     | { kind: 'drum'; drum: DrumSpec }
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }

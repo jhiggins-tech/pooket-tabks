@@ -2,8 +2,8 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * garyoldmancorp, in beta: Diced Coffee is his real bonus move; the three shots are stand-ins (plain
- * ballistic shells, small, medium and big) until his own moves are ready.
+ * garyoldmancorp, in beta: Hoop Dreamz (tier 2) and Diced Coffee (the bonus move) are his real moves;
+ * tiers 1 and 3 are stand-ins (plain ballistic shells, small and big) until his own are ready.
  */
 
 /** Tier 1 stand-in: a small shell. */
@@ -16,14 +16,22 @@ export const betaShot = {
   damage: 30,
 } satisfies WeaponDef;
 
-/** Tier 2 stand-in: a medium shell. */
-export const betaMortar = {
-  id: 'beta-mortar',
-  name: 'Beta Mortar',
-  shortName: 'Beta Mortar',
-  info: 'A stand-in while garyoldmancorp is in beta: a medium shell, up to 45 damage.',
-  blastRadius: 26,
+/**
+ * Tier 2: a basketball hoop hangs over the enemy (game/hoop.ts). Through the middle of the rim it's a slam
+ * dunk, straight down onto them for the blast (45, from the middle of the tank); off the rim it's a loose
+ * ball, bouncing about, 15 to the first enemy it lands on.
+ */
+export const hoopDreamz = {
+  id: 'hoop-dreamz',
+  name: 'Hoop Dreamz',
+  shortName: 'Hoop Dreamz',
+  info:
+    'A basketball hoop appears above the enemy. Shoot the ball through it (aim and power as usual): through the middle of the rim it’s a slam dunk, smashed straight down onto them for 45 damage and a crater. Off the rim, the backboard or the ground it just bounces about, and if it bounces onto an enemy it does 15.',
+  kind: 'hoop',
+  hoop: { height: 110, rimHalf: 13, swish: 8, looseDamage: 15, restitution: 0.62 },
+  blastRadius: 24,
   damage: 45,
+  colour: '#f97316',
 } satisfies WeaponDef;
 
 /** Tier 3 stand-in: a big shell. */
@@ -69,10 +77,10 @@ export const garyoldmancorp = kit(
   {
     id: 'garyoldmancorp',
     name: 'garyoldmancorp',
-    blurb: 'Beta: Diced Coffee for two turns in a row, and stand-in shots for now.',
+    blurb: 'Beta: Hoop Dreamz, a slam dunk onto the enemy; Diced Coffee for two turns in a row; and stand-in shots for now.',
     colours: ['#cbd5e1', '#a5b4fc', '#fcd34d'],
     movement: 'scooter',
     beta: true,
   },
-  [betaShot, betaMortar, betaBomb, dicedCoffee],
+  [betaShot, hoopDreamz, betaBomb, dicedCoffee],
 );

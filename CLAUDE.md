@@ -79,7 +79,7 @@ what it's for; weapons are documented where they're defined.
 - **Mechanics** (`mechanics.ts`): `FIRE` maps each shot kind to how it goes off (the type insists on one
   per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of the
   simulation). Each mechanic's module (`stream`, `jetpack`, `gunk`, `walkers`, `sonic`, `sew`, `boomerang`,
-  `drums`, `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules, and
+  `drums`, `hoop`, `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules, and
   says what it does in its header.
 - **Tanks and damage** (`tanks.ts`, `bodies.ts`): hit-testing goes through `targetAt()` / `Target` (a tank,
   a twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than switching
