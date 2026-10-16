@@ -2,7 +2,7 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * doctorfox, in beta: Sly (tier 2) is his real move; tiers 1 and 3 are stand-ins (plain ballistic
+ * doctorfox, in beta: Sly (tier 2) and his movement, an Arwing (game/movement.ts), are his own; tiers 1 and 3 are stand-ins (plain ballistic
  * shells, small and big) until his own are ready.
  */
 
@@ -45,8 +45,9 @@ export const doctorfox = kit(
   {
     id: 'doctorfox',
     name: 'doctorfox',
-    blurb: 'Beta: Sly, a smokescreen to sneak off unseen on a full tank; and stand-in shots for now.',
+    blurb: 'Beta: flies an Arwing over anything; Sly, a smokescreen to fly off unseen on a full tank; and stand-in shots for now.',
     colours: ['#fb923c', '#fdba74', '#ea580c'],
+    movement: 'arwing',
     beta: true,
   },
   [foxShot, sly, foxBomb],

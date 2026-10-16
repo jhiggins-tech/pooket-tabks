@@ -21,6 +21,7 @@ describe('roster', () => {
   it("doctorfox's beta loadout: Sly between two stand-in shots", () => {
     expect(getCharacter('doctorfox').loadout).toEqual(['fox-shot', 'sly', 'fox-bomb']);
     expect(['fox-shot', 'sly', 'fox-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'ballistic']);
+    expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 
   it("garyoldmancorp's beta loadout: two stand-in shots, Hoop Dreamz and Diced Coffee", () => {

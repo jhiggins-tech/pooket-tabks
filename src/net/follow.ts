@@ -21,7 +21,7 @@ export function previewOf(s: GameState): Preview {
   const twin = p.twin ? { angle: p.twin.angle, power: p.twin.power, x: p.twin.x, y: p.twin.y } : null;
   const drums = s.phase === 'drumming' ? s.drums : null;
   const sneak = s.phase === 'sneaking' ? s.sneak : null;
-  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums, sneak };
+  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, flight: p.flight, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums, sneak };
 }
 
 /** Show the current player aiming (or drumming Band Aid, or sneaking off under Sly) as the preview says (if it's for this turn, before they fire). */
@@ -30,7 +30,7 @@ export function applyPreview(s: GameState, v: Preview): void {
   if (v.drums) followDrums(s, v.drums);
   if (v.sneak) followSneak(s, v.sneak);
   const p = currentPlayer(s);
-  Object.assign(p, { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop, aimTwin: v.aimTwin ?? false, twinSpot: v.twinSpot ?? null });
+  Object.assign(p, { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop, flight: v.flight ?? null, aimTwin: v.aimTwin ?? false, twinSpot: v.twinSpot ?? null });
   if (p.twin && v.twin) {
     Object.assign(p.twin, { angle: v.twin.angle, power: v.twin.power });
     if (typeof v.twin.x === 'number' && typeof v.twin.y === 'number') Object.assign(p.twin, { x: v.twin.x, y: v.twin.y });

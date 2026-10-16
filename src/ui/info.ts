@@ -20,6 +20,12 @@ export function movementInfo(c: CharacterDef): { label: string; text: string } {
       text: 'Rides a little scooter: 4× as fast as a tank, and 3× as far on the same tank of fuel. But steep hills and walls are a crash: it stops dead and he takes 5 damage (never his last bit of health).',
     };
   }
+  if (c.movement === 'arwing') {
+    return {
+      label: 'Arwing',
+      text: 'Hold ◀ ▶ and the tank launches into the air and turns into an Arwing, then flies along over the ground: hills, walls and craters are no trouble. 3× as fast as a tank, and twice as far on the same tank of fuel. Let go and it lands where it is, back to a tank, ready to fire.',
+    };
+  }
   return { label: 'Drives', text: 'Rolls over small bumps; steep hills and walls stop it.' };
 }
 

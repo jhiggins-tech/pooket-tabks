@@ -54,17 +54,17 @@ export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
 
 /**
  * Whether the current player can fire now: whenever this is false, game.ts `fire` refuses. Their turn to
- * aim, not in the middle of a hop, and the selected slot usable (canUseSlot). (Even then Steal can come to
+ * aim, not in the middle of a hop or a flight, and the selected slot usable (canUseSlot). (Even then Steal can come to
  * nothing, with no enemy rounds to take: it says so, and the turn carries on.)
  */
 export function canFire(state: GameState): boolean {
   // Band Aid is fired when the drumming's over (game/drums.ts).
   if (state.phase === 'drumming') return !!state.drums?.done;
-  // Sly is fired when time's up, or sooner with FIRE (game/sly.ts): not mid-hop.
-  if (state.phase === 'sneaking') return !currentPlayer(state).hop;
+  // Sly is fired when time's up, or sooner with FIRE (game/sly.ts): not mid-hop or mid-flight.
+  if (state.phase === 'sneaking') return !currentPlayer(state).hop && !currentPlayer(state).flight;
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
-  return !p.hop && canUseSlot(state, p, p.selectedTier);
+  return !p.hop && !p.flight && canUseSlot(state, p, p.selectedTier);
 }
 
 /**

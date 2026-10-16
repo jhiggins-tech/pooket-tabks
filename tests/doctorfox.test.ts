@@ -21,10 +21,10 @@ function game(): GameState {
   return g;
 }
 
-/** Run Sly's clock (his phone's) for `seconds`. */
+/** Run Sly's clock (his phone's) for `seconds`, holding ◀ / ▶ (`dir`) or not (as main.ts drives every tick). */
 function sneakFor(g: GameState, seconds: number, dir = 0): void {
   for (let t = 0; t < seconds; t += FIXED_DT) {
-    if (dir) hold(g, dir, FIXED_DT);
+    hold(g, dir, FIXED_DT);
     sneakClock(g, FIXED_DT);
   }
 }

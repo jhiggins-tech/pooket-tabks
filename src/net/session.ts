@@ -1,5 +1,5 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
-import type { DrumSet, GameState, Hop, PlayerConfig, Sneak } from '../game/state';
+import type { DrumSet, Flight, GameState, Hop, PlayerConfig, Sneak } from '../game/state';
 import { Emitter } from '../core/emitter';
 import { applyPreview, LIVE, previewOf, putState, ResultBuffer, type Preview } from './follow';
 import { netLog } from './log';
@@ -51,6 +51,8 @@ export type NetMsg =
       power: number;
       tier: number;
       hop: Hop | null;
+      /** doctorfox's Arwing in the air. */
+      flight?: Flight | null;
       /** torikloud: the twin's own aim and where it is (it drives too), which tank is being aimed, and where a twin being placed will go. */
       twin?: { angle: number; power: number; x?: number; y?: number } | null;
       aimTwin?: boolean;

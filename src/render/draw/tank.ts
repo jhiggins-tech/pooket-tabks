@@ -8,9 +8,10 @@ import { drawFlatCap } from './boomerang';
 import { drumStick } from './drums';
 import { drawJet } from './jetpack';
 import { tankShown } from './sly';
+import { drawArwingFlight } from './arwing';
 
 /**
- * Tanks (and their hologram, twin and ghost copies; kiwicore's flat cap: boomerang.ts), garyoldmancorp's scooter, the spew gush, the swap
+ * Tanks (and their hologram, twin and ghost copies; kiwicore's flat cap: boomerang.ts; doctorfox's Arwing: arwing.ts), garyoldmancorp's scooter, the spew gush, the swap
  * marker and the aim guide (the jetpack's charge and flame: jetpack.ts).
  */
 
@@ -273,6 +274,7 @@ export function drawTanks(d: Draw, state: GameState): void {
     d.ctx.globalAlpha *= shown;
     const ride = scooterRide(d, p, state);
     if (ride) drawScooter(d, p, state, ride);
+    else if (p.flight && p.alive) drawArwingFlight(d, p, state, (alpha) => drawGlitchedTank(d, p, state, undefined, shimmerAmt, 1, alpha * shown));
     else drawJet(d, p, state, () => drawGlitchedTank(d, p, state, undefined, shimmerAmt, 1, 1));
     if (isSpewing(state, p.id)) drawSpewGush(d, p);
     d.ctx.restore();
@@ -287,7 +289,7 @@ export function drawAim(d: Draw, state: GameState): void {
   const p = currentPlayer(state);
   const spot = pendingTwinSpot(state);
   if (spot !== null) drawTwinGhost(d, state, p, spot);
-  if (state.phase !== 'aiming' || isAimless(state)) return;
+  if (state.phase !== 'aiming' || isAimless(state) || p.flight) return;
   if (p.twin) drawAimGuide(d, { ...p, x: p.twin.x, y: p.twin.y, angle: p.twin.angle, power: p.twin.power }, !p.aimTwin);
   drawAimGuide(d, p, !!p.twin && p.aimTwin);
 }
