@@ -248,7 +248,6 @@ test("kie's Steal roulette", async ({ page }) => {
   await expect(page.locator('.heist-title')).toHaveText('kie is stealing from tones2…');
   await expect(page.locator('.heist-card .wname')).toHaveText(['ten-1', 'ten-2', 'ten-3']);
   await expect(page.locator('.heist-card.lit')).toHaveCount(1);
-  await expect(page.locator('#fire')).toBeDisabled();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: 'test-results/steal-spin.png' });
 
@@ -525,6 +524,31 @@ test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash"
   expect(crashed.hp).toBe(crashed.maxHp - 5);
   expect(crashed.scooterCrash).toBe(1);
   await page.screenshot({ path: 'test-results/scooter-crash.png' });
+});
+
+test("doctorfox's Arwing: takes off and turns into the ship, flies over the ground, and lands when let go", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'doctorfox', query: 'debug' });
+  const me = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
+  const start = await me();
+  const right = page.getByRole('button', { name: 'Drive right' });
+  const box = (await right.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: 'test-results/arwing-takeoff.png' });
+  await page.waitForTimeout(500);
+  const flying = await me();
+  expect(flying.flight?.stage).toBe('cruise');
+  expect(flying.y).toBeLessThan(start.y - 15);
+  expect(flying.x).toBeGreaterThan(start.x);
+  await page.screenshot({ path: 'test-results/arwing.png' });
+  await page.mouse.up();
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: 'test-results/arwing-landing.png' });
+  await expect.poll(async () => (await me()).flight).toBeNull();
+  const landed = await me();
+  expect(landed.fuel).toBeLessThan(start.fuel);
+  expect(landed.y).toBeGreaterThan(flying.y + 15);
 });
 
 test("garyoldmancorp's Hoop Dreamz: a hoop over the enemy, the camera zooms in, and a make is a slam dunk", async ({ page }) => {

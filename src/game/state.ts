@@ -64,6 +64,8 @@ export interface Player extends TankBody {
   pinned: { active: boolean } | null;
   /** A frog hop in progress (ciarra's movement). */
   hop: Hop | null;
+  /** doctorfox's Arwing in the air (his movement): taking off, flying or landing. */
+  flight: Flight | null;
   /** A second tank (torikloud's Twins): its own position, health bar and aim; it fires ballistic and sonic shots too (mechanics.ts `FIRE`). */
   twin: Twin | null;
   /** Aiming the twin (its own angle and power) rather than the main tank, while there is one. */
@@ -117,6 +119,19 @@ export interface Hop {
   y1: number;
   /** 0 → 1 through the hop. */
   t: number;
+}
+
+/**
+ * doctorfox's Arwing (game/movement.ts): `takeoff` lifts the tank from y0 to y1 as it turns into the ship,
+ * `cruise` flies it over the ground while ◀ / ▶ is held, `landing` sets it down from y0 to y1 and turns it
+ * back into a tank. `t` goes 0 → 1 through a takeoff or a landing; `dir` is the way it faces (±1).
+ */
+export interface Flight {
+  stage: 'takeoff' | 'cruise' | 'landing';
+  t: number;
+  dir: number;
+  y0: number;
+  y1: number;
 }
 
 /** Sew in progress: a needle zig-zagging along a line, trailing thread. */
@@ -549,6 +564,9 @@ export type SfxCue =
   | 'spill'
   | 'scoot'
   | 'crash'
+  | 'arwing-up'
+  | 'arwing'
+  | 'arwing-down'
   | 'catch'
   | 'swish'
   | 'clank'

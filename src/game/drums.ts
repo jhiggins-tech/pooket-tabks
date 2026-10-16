@@ -49,7 +49,7 @@ export function isDrum(p: Player, tier: number): boolean {
 /** FIRE on Band Aid: the kit appears and the track starts (the round is spent when it's fired, at the end). */
 export function startDrums(state: GameState): boolean {
   const p = currentPlayer(state);
-  if (state.phase !== 'aiming' || p.hop || !isDrum(p, p.selectedTier) || !canUseSlot(state, p, p.selectedTier)) return false;
+  if (state.phase !== 'aiming' || p.hop || p.flight || !isDrum(p, p.selectedTier) || !canUseSlot(state, p, p.selectedTier)) return false;
   const w = weaponOf(p.loadout[p.selectedTier]!, 'drum');
   state.drums = {
     playerId: p.id,

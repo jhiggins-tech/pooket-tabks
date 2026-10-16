@@ -78,6 +78,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   // Rules 27: doctorfox's Sly.
   snap.sneak ??= null;
   for (const p of (snap.players as { hidden?: boolean }[] | undefined) ?? []) p.hidden ??= false;
+  // Rules 28: doctorfox's Arwing.
+  for (const p of (snap.players as { flight?: unknown }[] | undefined) ?? []) p.flight ??= null;
   return snap;
 }
 

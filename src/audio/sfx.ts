@@ -251,7 +251,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.08, from: 1600, to: 500, duty: 0.5, vol: 0.14 });
     s.tone({ at: 0.09, dur: 0.06, from: 700, duty: 0.125, vol: 0.1 });
   },
-  // ---- Getting about (game/movement.ts): ciarra's hops, garyoldmancorp's scooter. ----
+  // ---- Getting about (game/movement.ts): ciarra's hops, garyoldmancorp's scooter, doctorfox's Arwing. ----
   // Boing (frog hop).
   hop: (s) => {
     s.tone({ dur: 0.11, from: 240, to: 760, duty: 0.25, vol: 0.1 });
@@ -267,6 +267,23 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.25, rate: 0.7, to: 0.2, vol: 0.18 });
     s.tone({ dur: 0.18, from: 900, to: 300, duty: 0.5, steps: 6, vol: 0.12 });
     s.tone({ at: 0.2, dur: 0.25, from: midi(88), wave: 'triangle', vibrato: [12, 30], vol: 0.08 });
+  },
+  // Arwing takeoff: a rising jet whoosh and a "transform!" chirp up the scale.
+  'arwing-up': (s) => {
+    s.noise({ dur: 0.4, rate: 0.3, to: 1.2, vol: 0.1 });
+    s.tone({ dur: 0.35, from: 180, to: 900, duty: 0.25, vol: 0.06 });
+    arp(s, [72, 76, 79, 84], 0.05, { at: 0.12, duty: 0.125, vol: 0.07 });
+  },
+  // The Arwing flying: a thin jet whine (one cue a frame, spaced out by MIN_GAP).
+  arwing: (s) => {
+    s.tone({ dur: 0.1, from: 1180, to: 1240, duty: 0.125, vol: 0.025 });
+    s.noise({ dur: 0.08, rate: 1.4, vol: 0.02 });
+  },
+  // Landing: the whoosh winding down and the chirp back down the scale, then a soft thud.
+  'arwing-down': (s) => {
+    s.noise({ dur: 0.4, rate: 1.2, to: 0.3, vol: 0.09 });
+    arp(s, [84, 79, 76, 72], 0.05, { duty: 0.125, vol: 0.07 });
+    s.tone({ at: 0.4, dur: 0.08, from: 140, to: 60, duty: 0.5, vol: 0.12 });
   },
   // ---- Band Aid (game/drums.ts). ----
   // A hit: the left drum's a snare (crack), the right a floor tom (doom).
@@ -419,7 +436,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
 };
 
 /** Minimum seconds between two plays of the same sound, so a pill storm doesn't turn into mush. */
-const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, dribble: 0.06 };
+const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, arwing: 0.09, dribble: 0.06 };
 
 /** Plays queued cues on a synth, throttling rapid repeats. */
 export class SfxPlayer {

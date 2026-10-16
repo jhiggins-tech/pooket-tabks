@@ -31,6 +31,17 @@ export const SCOOTER_FUEL = 1 / 3;
 /** What a scooter crash costs its rider (never the last of their health). */
 export const SCOOTER_CRASH = 5;
 /**
+ * doctorfox's Arwing: it flies ARWING_ALTITUDE px over the ground (looking ARWING_LOOKAHEAD px ahead for
+ * hills to climb, at up to ARWING_CLIMB px/s), 3× drive speed and twice as far on the same tank of fuel.
+ * Taking off (turning into the ship) and landing (back into a tank) take ARWING_MORPH seconds each.
+ */
+export const ARWING_SPEED = DRIVE_SPEED * 3;
+export const ARWING_FUEL = 0.5;
+export const ARWING_ALTITUDE = 30;
+export const ARWING_LOOKAHEAD = 40;
+export const ARWING_CLIMB = 170;
+export const ARWING_MORPH = 0.45;
+/**
  * ciarra's frog hops: how far one hop goes, how high it jumps (well over the DRIVE_SCRAMBLE a driving tank
  * manages), and how long it takes.
  */

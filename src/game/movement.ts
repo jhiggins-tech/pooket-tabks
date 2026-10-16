@@ -1,7 +1,7 @@
 import { getCharacter } from '../characters/roster';
-import { DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
+import { ARWING_ALTITUDE, ARWING_CLIMB, ARWING_FUEL, ARWING_LOOKAHEAD, ARWING_MORPH, ARWING_SPEED, DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust, spawnFloater } from './fx';
-import type { GameState, Hop, Player, TankBody } from './state';
+import type { Flight, GameState, Hop, Player, TankBody } from './state';
 import { canMove } from './statuses';
 import { sneakMoved } from './sly';
 import { currentPlayer, hullRest, otherBodyNear } from './bodies';
@@ -9,8 +9,9 @@ import { hurt } from './tanks';
 import { clamp, hash } from './util';
 
 /**
- * Driving (◀ ▶, one tank of fuel per match), ciarra's frog hops and garyoldmancorp's scooter (driving, faster
- * and further, but terrain that would stop a tank is a crash); tanks settling onto the ground. With a twin
+ * Driving (◀ ▶, one tank of fuel per match), ciarra's frog hops, garyoldmancorp's scooter (driving, faster
+ * and further, but terrain that would stop a tank is a crash) and doctorfox's Arwing (takes off, flies over
+ * the ground, hills and walls included, while ◀ ▶ is held, and lands when it's let go); tanks settling onto the ground. With a twin
  * (torikloud's Twins), ◀ ▶ drive whichever tank is being aimed (the 🎯 switch: `Player.aimTwin`), both on
  * the one tank of fuel; a twin just drives (no hops or scooter of its own).
  */
@@ -30,9 +31,9 @@ export function canDriveNow(state: GameState): boolean {
  * Returns the distance moved.
  */
 export function drive(state: GameState, dir: number, dt: number): number {
-  if (!canDriveNow(state)) return 0;
+  if (!canDriveNow(state)) return settleFlight(state, dt);
   const moved = move(state, dir, dt);
-  if (moved > 0) sneakMoved(state);
+  if (moved > 0 || currentPlayer(state).flight) sneakMoved(state); // (taking off counts)
   return moved;
 }
 
@@ -42,6 +43,7 @@ function move(state: GameState, dir: number, dt: number): number {
   if (p.aimTwin && p.twin) return driveTwin(state, p, p.twin, dir, dt);
   const movement = getCharacter(p.characterId).movement;
   if (movement === 'hop') return hopDrive(state, p, dir, dt);
+  if (movement === 'arwing') return arwingDrive(state, p, dir, dt);
   if (dir === 0 || !canMove(p)) return 0;
   const scooter = movement === 'scooter';
   // Still up against what the scooter crashed into: it takes a fresh run (moving off first) to crash again.
@@ -212,6 +214,107 @@ function planHop(state: GameState, p: Player, dir: number): Hop | null {
     return { x0: p.x, y0: p.y, x1, y1, t: 0 };
   }
   return null;
+}
+
+/**
+ * doctorfox's Arwing, a step at a time (called every tick while aiming, held or not). Holding ◀ / ▶ on the
+ * ground takes off (ARWING_MORPH s: it rises and turns into the ship, no fuel); then it flies while held,
+ * ARWING_ALTITUDE px over the ground ahead, over hills, walls and craters, at ARWING_FUEL per px; other tanks
+ * and the map edges stop it, as they would a tank. Let go (or out of fuel, or pinned) and it lands where it
+ * is, turning back into a tank. It can't fire until it's down. Returns px moved this step.
+ */
+function arwingDrive(state: GameState, p: Player, dir: number, dt: number): number {
+  const f = p.flight;
+  if (!f) {
+    if (dir === 0 || !canMove(p) || p.fuel < 1) return 0;
+    p.flight = { stage: 'takeoff', t: 0, dir: Math.sign(dir), y0: p.y, y1: cruiseY(state, p.x, Math.sign(dir), p.y) };
+    sound(state, 'arwing-up');
+    spawnDust(state, p.x, p.y, 0.6);
+    return 0;
+  }
+  if (f.stage !== 'cruise') {
+    f.t = Math.min(1, f.t + dt / ARWING_MORPH);
+    const e = f.t * f.t * (3 - 2 * f.t); // smoothstep
+    p.y = f.y0 + (f.y1 - f.y0) * e;
+    if (f.t < 1) return 0;
+    if (f.stage === 'takeoff') {
+      f.stage = 'cruise';
+      return 0;
+    }
+    p.y = f.y1;
+    p.flight = null;
+    spawnDust(state, p.x, p.y, 0.5);
+    return 0;
+  }
+  if (dir === 0 || !canMove(p) || p.fuel <= 0) {
+    land(state, p, f);
+    return 0;
+  }
+  f.dir = Math.sign(dir);
+  let budget = Math.min(p.fuel / ARWING_FUEL, ARWING_SPEED * dt);
+  let moved = 0;
+  while (budget > 0) {
+    const stepX = Math.min(1, budget);
+    const nx = p.x + f.dir * stepX;
+    if (!canFlyTo(state, p, nx)) break;
+    p.x = nx;
+    budget -= stepX;
+    moved += stepX;
+  }
+  p.fuel = Math.max(0, p.fuel - moved * ARWING_FUEL);
+  // Follow the ground: climb (or sink) towards the cruising height, never into the ground below.
+  const target = cruiseY(state, p.x, f.dir, p.y);
+  const rate = ARWING_CLIMB * dt;
+  p.y = Math.min(hullRest(state.terrain, p.x, p.y - TANK_BODY_HEIGHT) - 1, p.y + clamp(target - p.y, -rate, rate));
+  // The jet's whine, every 10 px or so.
+  if (Math.floor(p.x / 10) !== Math.floor((p.x - f.dir * moved) / 10)) sound(state, 'arwing');
+  return moved;
+}
+
+/**
+ * Sly's time is up with the Arwing still in the air: it comes down anyway (Sly is fired once it's landed:
+ * sly.ts `sneakReady`). Returns 0 (no driving).
+ */
+function settleFlight(state: GameState, dt: number): number {
+  const p = currentPlayer(state);
+  if (state.phase === 'sneaking' && p.flight) arwingDrive(state, p, 0, dt);
+  return 0;
+}
+
+/** Start the Arwing's landing: straight down onto the ground under it. */
+function land(state: GameState, p: Player, f: Flight): void {
+  f.stage = 'landing';
+  f.t = 0;
+  f.y0 = p.y;
+  f.y1 = hullRest(state.terrain, p.x, p.y);
+  sound(state, 'arwing-down');
+}
+
+/**
+ * The height the Arwing cruises at over x, facing `dir`: ARWING_ALTITUDE over the highest ground under it
+ * and ARWING_LOOKAHEAD px ahead (searching down from just above `fromY`, so an overhang high above doesn't
+ * count, but a hill rising ahead does), and never off the top of the world.
+ */
+function cruiseY(state: GameState, x: number, dir: number, fromY: number): number {
+  const { terrain } = state;
+  const top = Math.max(0, fromY - ARWING_ALTITUDE * 3);
+  let ground = terrain.height;
+  for (let dx = -TANK_HALF_WIDTH; dx <= TANK_HALF_WIDTH + ARWING_LOOKAHEAD; dx += 2) {
+    const gx = clamp(x + dir * dx, 0, terrain.width - 1);
+    ground = Math.min(ground, terrain.groundBelow(gx, top));
+  }
+  return Math.max(TANK_BODY_HEIGHT * 3, ground - ARWING_ALTITUDE);
+}
+
+/** Whether the Arwing can fly on to nx: inside the map, not into another tank or decoy, nor into the ground. */
+function canFlyTo(state: GameState, p: Player, nx: number): boolean {
+  const { terrain } = state;
+  if (nx < TANK_HALF_WIDTH || nx > terrain.width - TANK_HALF_WIDTH) return false;
+  const inTheWay = (qx: number) => Math.abs(qx - nx) < TANK_HALF_WIDTH * 2 && Math.abs(qx - nx) < Math.abs(qx - p.x);
+  if (otherBodyNear(state, p, inTheWay, { holograms: true }) !== null) return false;
+  const lead = nx + Math.sign(nx - p.x) * TANK_HALF_WIDTH;
+  for (let dy = 1; dy <= TANK_BODY_HEIGHT * 2; dy += 3) if (terrain.isSolid(lead, p.y - dy)) return false;
+  return true;
 }
 
 /**

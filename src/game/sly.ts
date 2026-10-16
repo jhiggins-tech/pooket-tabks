@@ -59,9 +59,9 @@ export function sneakMoved(state: GameState): void {
   sound(state, 'stealth', k.weaponId);
 }
 
-/** Time's up, and waiting for his phone to fire it. */
+/** Time's up (and his Arwing's landed: movement.ts), and waiting for his phone to fire it. */
 export function sneakReady(state: GameState): boolean {
-  return state.phase === 'sneaking' && !!state.sneak?.done;
+  return state.phase === 'sneaking' && !!state.sneak?.done && !currentPlayer(state).flight;
 }
 
 /** Whole seconds left to sneak off (null: not sneaking). */

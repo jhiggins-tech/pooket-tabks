@@ -107,6 +107,7 @@ export function createGame(cfg: GameConfig): GameState {
       tattoo: null,
       pinned: null,
       hop: null,
+      flight: null,
       twin: null,
       aimTwin: false,
       twinSpot: null,

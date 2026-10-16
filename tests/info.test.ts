@@ -21,5 +21,6 @@ describe('info screen content', () => {
   it('describes how each character moves', () => {
     expect(movementInfo(getCharacter('ciarra')).label).toBe('Frog hops');
     expect(movementInfo(getCharacter('tones')).label).toBe('Drives');
+    expect(movementInfo(getCharacter('doctorfox')).label).toBe('Arwing');
   });
 });

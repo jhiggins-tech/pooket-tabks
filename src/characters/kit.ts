@@ -11,8 +11,8 @@ export interface CharacterDef {
   colours: readonly string[];
   /** Weapon ids by tier. */
   loadout: Loadout;
-  /** How the ◀ ▶ buttons move this character: roll along the ground, frog hops, or a fast scooter that crashes. Default drive. */
-  movement?: 'drive' | 'hop' | 'scooter';
+  /** How the ◀ ▶ buttons move this character: roll along the ground, frog hops, a fast scooter that crashes, or an Arwing that flies over the ground. Default drive. */
+  movement?: 'drive' | 'hop' | 'scooter' | 'arwing';
   /** Something worn on the tank's dome (kiwicore's flat cap, which his béretta M2 throws). */
   hat?: 'flat-cap';
   /** Starting (and full) health, if not the usual MAX_HP. */
