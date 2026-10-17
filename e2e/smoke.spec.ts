@@ -20,7 +20,7 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp (beta)', 'kiwicore (beta)', 'doctorfox (beta)']);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore (beta)', 'doctorfox (beta)']);
   await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(3);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
@@ -923,12 +923,12 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
   await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['summon digger', 'neurodiverge', 'tank build']);
   await page.screenshot({ path: 'test-results/coming-soon-teasers.png' });
-  // garyoldmancorp is playable now, in beta.
+  // garyoldmancorp is out of beta: no banner.
   await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
-  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
+  await expect(page.locator('.info-character .beta-banner')).toHaveCount(0);
   await expect(page.locator('.info-card h3')).toHaveText(['Mr Bean', 'Hoop Dreamz', '007', 'Diced Coffee']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
-  // So is kiwicore.
+  // kiwicore is playable, in beta.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Band Aid', 'Beta Bomb']);

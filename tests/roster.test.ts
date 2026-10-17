@@ -5,9 +5,9 @@ import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the nine selectable characters (garyoldmancorp, kiwicore and doctorfox in beta)', () => {
+  it('has the nine selectable characters (kiwicore and doctorfox in beta)', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['garyoldmancorp', 'kiwicore', 'doctorfox']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore', 'doctorfox']);
   });
 
   it("kiwicore's beta loadout: the béretta M2, Band Aid and a stand-in shot; he wears a flat cap", () => {
@@ -24,7 +24,7 @@ describe('roster', () => {
     expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 
-  it("garyoldmancorp's loadout: Mr Bean, Hoop Dreamz, 007 and Diced Coffee", () => {
+  it("garyoldmancorp's loadout (out of beta): Mr Bean, Hoop Dreamz, 007 and Diced Coffee", () => {
     expect(getCharacter('garyoldmancorp').loadout).toEqual(['mr-bean', 'hoop-dreamz', 'double-o-seven', 'diced-coffee']);
     expect(['mr-bean', 'hoop-dreamz', 'double-o-seven'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'hoop', 'bond']);
   });

@@ -177,12 +177,12 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.noise({ dur: 1.1, rate: 1.7, to: 0.4, vol: 0.16, env: [[0, 1], [1, 0]] });
     for (const n of [52, 59, 64]) s.tone({ dur: 0.7, from: midi(n), duty: 0.125, vibrato: [7, 6], vol: 0.07, env: [[0, 1], [0.6, 0.6], [1, 0]] });
   },
-  // kiwicore's stand-in shot (beta): a plain pew, as garyoldmancorp's.
+  // kiwicore's stand-in shot (beta): a big plain boom.
   'kiwi-bomb': (s) => {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
     s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
   },
-  // doctorfox's stand-in shots (beta): plain pews, as garyoldmancorp's.
+  // doctorfox's stand-in shots (beta): plain pews, bigger for the higher tier.
   'fox-shot': (s) => {
     pew(s, 0, 1600, 300, 0.15);
     s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });

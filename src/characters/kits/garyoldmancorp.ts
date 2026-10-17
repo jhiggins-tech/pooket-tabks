@@ -1,10 +1,7 @@
 import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
-/**
- * garyoldmancorp, in beta: Mr Bean (tier 1), Hoop Dreamz (tier 2), 007 (tier 3) and Diced Coffee (the
- * bonus move).
- */
+/** garyoldmancorp: Mr Bean (tier 1), Hoop Dreamz (tier 2), 007 (tier 3) and Diced Coffee (the bonus move); he rides a scooter. */
 
 /**
  * Tier 1: ten coffee beans rapid-fired along the aim (a burst, lobbed like any shell, a few degrees of
@@ -99,7 +96,6 @@ export const garyoldmancorp = kit(
     blurb: 'Mr Bean, a burst of homing coffee beans; Hoop Dreamz, a slam dunk onto the enemy; 007, Bond trivia that takes 77% of their health; and Diced Coffee for two turns in a row.',
     colours: ['#cbd5e1', '#a5b4fc', '#fcd34d'],
     movement: 'scooter',
-    beta: true,
   },
   [mrBean, hoopDreamz, doubleOSeven, dicedCoffee],
 );
