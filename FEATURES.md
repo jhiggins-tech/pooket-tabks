@@ -240,6 +240,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
   `Player.flight` (`game/movement.ts`, drawn by `render/draw/arwing.ts`, sent in the aim previews); new
   movement `'arwing'`. Works under **Sly** (hidden as the tank is); if Sly's time runs out in the air he
   lands first, then it's fired. Sounds: a whoosh and a rising chirp to take off, a jet whine, the reverse to land.
+- **007: 80 more questions** (owner, 17 Oct; rules 30; beta, a testing push). 100 Bond questions now (were 20), across all
+  six actors (Connery 21, Lazenby 9, Moore 21, Dalton 13, Brosnan 17, Craig 19). Rules 30, so a phone without
+  the new questions is told to reload.
 - **garyoldmancorp's 007** (owner, 17 Oct; rules 29; beta, a testing push). His tier 3 (replacing the
   stand-in Beta Bomb; `game/bond.ts`, a new kind, `bond`). FIRE and a **James Bond trivia question** pops up
   (a new phase, `quizzing`, his phone's input like aiming, streamed in the previews), with the six Bond

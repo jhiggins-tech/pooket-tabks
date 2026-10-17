@@ -42,9 +42,9 @@ function run(g: GameState, seconds: number): void {
 const cues = (g: GameState) => g.sfx.map((e) => e.cue);
 
 describe("garyoldmancorp's 007", () => {
-  it('has 20 questions, every one answered by one of the six Bond actors, and every actor answers some', () => {
-    expect(BOND_TRIVIA).toHaveLength(20);
-    expect(new Set(BOND_TRIVIA.map((t) => t.q)).size).toBe(20);
+  it('has 100 questions, every one answered by one of the six Bond actors, and every actor answers some', () => {
+    expect(BOND_TRIVIA).toHaveLength(100);
+    expect(new Set(BOND_TRIVIA.map((t) => t.q)).size).toBe(100);
     for (const t of BOND_TRIVIA) expect(BOND_ACTORS).toContain(t.answer);
     expect(new Set(BOND_TRIVIA.map((t) => t.answer)).size).toBe(BOND_ACTORS.length);
   });
