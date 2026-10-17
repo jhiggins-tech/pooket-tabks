@@ -17,9 +17,10 @@ spectators).
   garyoldmancorp's) get no release: the owner calls a roll-up release when there's a batch, and it lists
   them then. (48 was withdrawn: the numbers skip it.)
 - **Hidden ranks**: 25 of the 33 ranks (everything but Bronze, Silver, Gold, Platinum, Diamond, Master,
-  Grandmaster, Champion) are meant to be *discovered*: never name them (or describe their looks) in
-  `whatsnew.ts`, FEATURES.md, README, CLAUDE.md, comments outside `src/stats/ranks.ts`, tests or commit
-  messages, until the owner says otherwise. They appear in the game only when a player holds one.
+  Grandmaster, Champion) are meant to be *discovered* by players: never name them (or describe their looks)
+  in text players read, such as `whatsnew.ts` and the game's screens. They appear in the game only when a
+  player holds one. It's about spoilers for players (the owner, 17 Oct), so they're fine in code, tests,
+  FEATURES.md, CLAUDE.md, docs and commit messages.
 - If `firebase/database.rules.json` changes, ask the owner to re-publish it (Firebase console → Rules).
   The code assumes the latest rules; no fallbacks for old ones.
 
