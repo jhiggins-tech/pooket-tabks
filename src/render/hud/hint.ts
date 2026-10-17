@@ -2,7 +2,7 @@
  * The hint line under the controls: what to do now. `HINTS` is an ordered table of [when, text]: the first
  * row that applies wins. Pure and DOM-free (tests/hud-hint.test.ts).
  */
-import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isCoffee, isDrum, isHoop, isSly, jetCharge, pendingTwinSpot, slotAt, sneakLeft } from '../../game/game';
+import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isBond, isCoffee, isDrum, isHoop, isSly, jetCharge, pendingTwinSpot, slotAt, sneakLeft } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { jetSpec } from '../../weapons/registry';
 
@@ -23,7 +23,7 @@ interface HintCase extends HintView {
 }
 
 /** What the other phone's player is doing, as the hint says it (online): by phase, else firing. */
-const DOING: Partial<Record<GameState['phase'], string>> = { aiming: 'aiming', drumming: 'drumming', sneaking: 'sneaking off' };
+const DOING: Partial<Record<GameState['phase'], string>> = { aiming: 'aiming', drumming: 'drumming', sneaking: 'sneaking off', quizzing: 'answering a Bond question' };
 
 /** [when, text], in order: the first row whose `when` holds gives the hint. */
 const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] = [
@@ -34,8 +34,8 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   [(c) => c.state.phase === 'drumming', (c) => (c.state.drums?.done ? '' : `🥁 Tap anywhere on the beat! ${'✖'.repeat(c.state.drums?.misses ?? 0)}`)],
   // Sly: sneaking off.
   [(c) => c.state.phase === 'sneaking', (c) => (c.state.sneak?.done ? '' : `🦊 Sneak off with ◀ ▶ · ${sneakLeft(c.state)}s · FIRE when you’re done`)],
-  // The steal roulette and the coffee spinner say it all themselves.
-  [(c) => c.state.phase === 'stealing' || c.state.phase === 'coffee', () => ''],
+  // The steal roulette, the coffee spinner and 007's question say it all themselves.
+  [(c) => c.state.phase === 'stealing' || c.state.phase === 'coffee' || c.state.phase === 'quizzing', () => ''],
   [(c) => isCoffee(c.p, c.p.selectedTier), (c) => `Diced Coffee: ${Math.round(coffeeFailChance(c.p, c.p.selectedTier) * 100)}% full cream (ends your turn) · FIRE to spin`],
   // Just cast Trollogram: picking a decoy to swap into.
   [
@@ -46,6 +46,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   [(c) => isBonusSlot(c.p), () => 'Bonus move: FIRE it, then take your turn'],
   [(c) => isDrum(c.p, c.p.selectedTier), () => 'Band Aid: FIRE, then tap anywhere on the beat to heal'],
   [(c) => isSly(c.p, c.p.selectedTier), () => 'Sly: FIRE for a smokescreen, then sneak off unseen'],
+  [(c) => isBond(c.p, c.p.selectedTier), () => '007: FIRE, then name the Bond actor'],
   [(c) => pendingTwinSpot(c.state) !== null, () => 'Tap the ground to place your twin, then FIRE'],
   [(c) => isAimless(c.state), () => 'No aiming needed. Just FIRE'],
   [(c) => !!c.p.twin, () => 'Drag from a tank to aim it · 🎯 switches tank (◀ ▶ drive it)'],

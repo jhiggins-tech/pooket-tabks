@@ -62,6 +62,8 @@ export function canFire(state: GameState): boolean {
   if (state.phase === 'drumming') return !!state.drums?.done;
   // Sly is fired when time's up, or sooner with FIRE (game/sly.ts): not mid-hop or mid-flight.
   if (state.phase === 'sneaking') return !currentPlayer(state).hop && !currentPlayer(state).flight;
+  // 007 is fired once the question's answered (or time's up: game/bond.ts).
+  if (state.phase === 'quizzing') return !!state.quiz?.done;
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
   return !p.hop && !p.flight && canUseSlot(state, p, p.selectedTier);

@@ -7,7 +7,7 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, selectTier, setAim, sneakClock, sneakReady, step } from './game/game';
+import { adjustAim, aimTwin, answerQuiz, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -343,6 +343,8 @@ bindControls(canvas, {
   // When the finger came down, on the simulation's clock (the time since its last tick: what's left over in
   // `acc`, and since this frame began), less how late the music is heard.
   drum: (at) => drumTap(state, Math.min(0.1, Math.max(-0.2, acc + (at - last) / 1000 - chip.latency))),
+  canAnswer: () => state.phase === 'quizzing' && localCanAct(),
+  answer: (i) => answerQuiz(state, i),
 });
 
 /** Fire for whoever's turn it is on this phone (online, through the session, which tells the other phone). */
@@ -425,6 +427,7 @@ function runFrame(now: number): void {
       drive(state, driveDir, FIXED_DT);
       drumClock(state, FIXED_DT);
       sneakClock(state, FIXED_DT);
+      quizClock(state, FIXED_DT);
     }
     step(state, FIXED_DT);
     acc -= FIXED_DT;
@@ -433,6 +436,8 @@ function runFrame(now: number): void {
   if (drumsReady(state) && localCanAct()) fireNow();
   // Sly's time is up: fire it (his turn is over), the same way.
   if (sneakReady(state) && localCanAct()) fireNow();
+  // 007's answered (or time's up): fire it, the same way.
+  if (quizReady(state) && localCanAct()) fireNow();
   document.body.classList.toggle('drumming', state.phase === 'drumming');
   net?.tick(dt);
   if (net) online.matchFinished(state.phase === 'gameover');

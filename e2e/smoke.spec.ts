@@ -1,3 +1,4 @@
+import { BOND_ACTORS, BOND_TRIVIA } from '../src/weapons/trivia';
 import { expect, startHotseat, test } from './support';
 
 test('sets up players and plays a turn on a landscape phone', async ({ page }) => {
@@ -573,6 +574,49 @@ test("garyoldmancorp's Hoop Dreamz: a hoop over the enemy, the camera zooms in, 
   expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(30);
 });
 
+test("garyoldmancorp's 007: a Bond question, and a right answer is the gun barrel on the enemy and 77% of their health", async ({ page }) => {
+  test.setTimeout(45_000);
+  await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('007: FIRE, then name the Bond actor');
+  await page.locator('#fire').tap();
+  await expect(page.locator('#quiz')).toBeVisible();
+  await expect(page.locator('.quiz-answer')).toHaveText([...BOND_ACTORS]);
+  await expect(page.locator('.quiz-question')).toContainText('Which');
+  await page.screenshot({ path: 'test-results/007-question.png' });
+  // The right answer, tapped.
+  const q = await page.evaluate(() => window.__pooket.state.quiz!.question);
+  await page.locator('.quiz-answer').nth(BOND_ACTORS.indexOf(BOND_TRIVIA[q]!.answer)).tap();
+  await expect(page.locator('.quiz-result')).toHaveText('Correct! 🔫');
+  await page.screenshot({ path: 'test-results/007-correct.png' });
+  // The gun barrel: the dot, then open on kcaj, silhouetted, the camera in close.
+  await page.waitForFunction(() => (window.__pooket.state.barrel?.t ?? 0) > 2.6);
+  await page.screenshot({ path: 'test-results/007-gun-barrel.png' });
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(100);
+  await page.waitForFunction(() => window.__pooket.state.barrel?.hit === true, null, { timeout: 10_000 });
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: 'test-results/007-shot.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(23);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[2])).toBe(0);
+  await expect(page.locator('#quiz')).toBeHidden();
+});
+
+test("garyoldmancorp's 007: a wrong answer does nothing", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await page.locator('#fire').tap();
+  const q = await page.evaluate(() => window.__pooket.state.quiz!.question);
+  const right = BOND_ACTORS.indexOf(BOND_TRIVIA[q]!.answer);
+  await page.locator('.quiz-answer').nth((right + 1) % 6).tap();
+  await expect(page.locator('.quiz-result')).toHaveText(`Wrong! It was ${BOND_ACTORS[right]}`);
+  await expect(page.locator('.quiz-answer.right')).toHaveText(BOND_ACTORS[right]!);
+  await expect(page.locator('.quiz-answer.wrong')).toHaveCount(1);
+  await page.screenshot({ path: 'test-results/007-wrong.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(100);
+});
+
 test("doctorfox's Sly: a smokescreen, a full tank to sneak off on, and he's hidden until his next turn", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
   const fox = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
@@ -861,7 +905,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   // garyoldmancorp is playable now, in beta.
   await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Hoop Dreamz', 'Beta Bomb', 'Diced Coffee']);
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Hoop Dreamz', '007', 'Diced Coffee']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   // So is kiwicore.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();

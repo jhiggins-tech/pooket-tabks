@@ -2,8 +2,8 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * garyoldmancorp, in beta: Hoop Dreamz (tier 2) and Diced Coffee (the bonus move) are his real moves;
- * tiers 1 and 3 are stand-ins (plain ballistic shells, small and big) until his own are ready.
+ * garyoldmancorp, in beta: Hoop Dreamz (tier 2), 007 (tier 3) and Diced Coffee (the bonus move) are his
+ * real moves; tier 1 is a stand-in (a plain ballistic shell) until his own is ready.
  */
 
 /** Tier 1 stand-in: a small shell. */
@@ -34,14 +34,20 @@ export const hoopDreamz = {
   colour: '#f97316',
 } satisfies WeaponDef;
 
-/** Tier 3 stand-in: a big shell. */
-export const betaBomb = {
-  id: 'beta-bomb',
-  name: 'Beta Bomb',
-  shortName: 'Beta Bomb',
-  info: 'A stand-in while garyoldmancorp is in beta: one big shell, up to 70 damage and a big crater.',
-  blastRadius: 40,
-  damage: 70,
+/**
+ * Tier 3: Bond trivia (game/bond.ts, the questions in weapons/trivia.ts). Name the right Bond actor and the
+ * gun barrel opens on the enemy nearest him, a little spy sting plays, and they lose 77% of the health they
+ * have left. Wrong (or no answer in 20 s): nothing.
+ */
+export const doubleOSeven = {
+  id: 'double-o-seven',
+  name: '007',
+  shortName: '007',
+  info:
+    'A James Bond trivia question pops up, and the answer is always one of the Bond actors, Sean Connery to Daniel Craig. You have 20 seconds. Get it right and the gun barrel opens on the nearest enemy, a little spy sting plays, and they lose 77% of the health they have left. Get it wrong and nothing happens.',
+  kind: 'bond',
+  bond: { time: 20, share: 0.77 },
+  colour: '#fde047',
 } satisfies WeaponDef;
 
 /**
@@ -77,10 +83,10 @@ export const garyoldmancorp = kit(
   {
     id: 'garyoldmancorp',
     name: 'garyoldmancorp',
-    blurb: 'Beta: Hoop Dreamz, a slam dunk onto the enemy; Diced Coffee for two turns in a row; and stand-in shots for now.',
+    blurb: 'Beta: Hoop Dreamz, a slam dunk onto the enemy; 007, Bond trivia that takes 77% of their health; Diced Coffee for two turns in a row; and a stand-in shot for now.',
     colours: ['#cbd5e1', '#a5b4fc', '#fcd34d'],
     movement: 'scooter',
     beta: true,
   },
-  [betaShot, hoopDreamz, betaBomb, dicedCoffee],
+  [betaShot, hoopDreamz, doubleOSeven, dicedCoffee],
 );
