@@ -80,6 +80,9 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   for (const p of (snap.players as { hidden?: boolean }[] | undefined) ?? []) p.hidden ??= false;
   // Rules 28: doctorfox's Arwing.
   for (const p of (snap.players as { flight?: unknown }[] | undefined) ?? []) p.flight ??= null;
+  // Rules 29: garyoldmancorp's 007.
+  snap.quiz ??= null;
+  snap.barrel ??= null;
   return snap;
 }
 

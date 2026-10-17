@@ -22,6 +22,10 @@ export interface ControlHandlers {
   canDrum(): boolean;
   /** A drum hit: a finger came down at `timeStamp` (the event's, in performance.now() time). */
   drum(timeStamp: number): void;
+  /** Whether this phone answers 007's question right now. */
+  canAnswer(): boolean;
+  /** 007: actor `i` picked (weapons/trivia.ts `BOND_ACTORS`). */
+  answer(i: number): void;
 }
 
 const DRAG_DEADZONE_PX = 10;
@@ -60,6 +64,7 @@ export function fullPowerDragPx(viewportW: number, viewportH: number): number {
  * - Weapon tier buttons.
  * - A big FIRE button (release never fires, so hotseat mis-taps are harmless).
  * - Band Aid: a touch anywhere is a drum hit.
+ * - 007: the answer buttons.
  */
 export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): void {
   let drag: { id: number; x: number; y: number; moved: boolean } | null = null;
@@ -134,6 +139,12 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
   byId('weapons').addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-tier]');
     if (btn && !btn.disabled && h.canAim()) h.selectTier(Number(btn.dataset.tier));
+  });
+
+  // 007's answers are drawn by the HUD (render/hud/quiz.ts), so listen on their container.
+  byId('quiz').addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-answer]');
+    if (btn && !btn.disabled && h.canAnswer()) h.answer(Number(btn.dataset.answer));
   });
 
   byId('aim-switch').addEventListener('click', () => {

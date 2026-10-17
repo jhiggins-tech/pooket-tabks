@@ -258,6 +258,16 @@ export interface SlySpec {
 }
 
 /**
+ * Bond: a Bond trivia question (weapons/trivia.ts), `time` s to answer it. Right, and the enemy nearest the
+ * firer takes `share` of the health they have left, after the gun barrel cutscene; wrong (or out of
+ * time), nothing.
+ */
+export interface BondSpec {
+  time: number;
+  share: number;
+}
+
+/**
  * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any hill;
  * on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
  */
@@ -294,6 +304,7 @@ export type WeaponDef = WeaponBase &
     | ({ kind: 'hoop'; hoop: HoopSpec } & BlastSpec)
     | { kind: 'drum'; drum: DrumSpec }
     | { kind: 'sly'; sly: SlySpec }
+    | { kind: 'bond'; bond: BondSpec }
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }

@@ -1,6 +1,8 @@
 import type { Terrain } from '../core/terrain';
+import { BARREL } from '../game/game';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
+import { drawBarrel } from './draw/bond';
 import { drawBoomerangs } from './draw/boomerang';
 import { drawCoffee } from './draw/coffee';
 import { drawDrums } from './draw/drums';
@@ -32,6 +34,9 @@ const ZOOM_CENTRE = 0.35;
 const HOOP_ZOOM = 2;
 const HOOP_REACH = 240;
 const HOOP_CENTRE = 0.6;
+/** 007's gun barrel: how far the view zooms in on its target, and how much of the way to the middle it's brought. */
+const BARREL_ZOOM = 2.2;
+const BARREL_CENTRE = 0.7;
 
 /** Something drawn every frame from the game state, in world coordinates. */
 type Layer = (d: Draw, state: GameState) => void;
@@ -63,6 +68,7 @@ const LAYERS: Layer[] = [
   drawExplosions,
   drawHologramBlasts,
   drawHeist,
+  drawBarrel, // the dark over everything, bar the numbers it ends on
   drawFloaters,
   drawStealthUp,
 ];
@@ -149,14 +155,20 @@ export class Renderer {
 
   /**
    * Ease the camera towards where it should be: on kiwicore's tank while he drums (Band Aid), on the hoop
-   * as a Hoop Dreamz ball gets close to it (and down with a slam), else the whole world. Zoomed in, what
+   * as a Hoop Dreamz ball gets close to it (and down with a slam), on 007's target while the gun barrel's
+   * on them, else the whole world. Zoomed in, what
    * it's on is drawn where it was, brought part of the way to the middle.
    */
   private follow(state: GameState, dt: number): void {
     const k = state.drums;
     const p = k && state.players[k.playerId];
+    const b = state.barrel;
     let want = 1;
-    if (p) {
+    if (b && b.t >= BARREL.dots) {
+      want = b.t < BARREL.shot + 0.3 ? BARREL_ZOOM : 1;
+      this.focus = { x: b.x, y: b.y - 10 };
+      [this.peak, this.centre] = [BARREL_ZOOM, BARREL_CENTRE];
+    } else if (p) {
       want = k.outro === null ? DRUM_ZOOM : 1;
       this.focus = { x: p.x, y: p.y - 50 }; // the tank, and the notes' stream above it
       [this.peak, this.centre] = [DRUM_ZOOM, ZOOM_CENTRE];

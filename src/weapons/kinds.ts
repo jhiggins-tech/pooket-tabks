@@ -49,6 +49,11 @@ export const KINDS = {
    * few seconds to drive off unseen; it's fired for real when time's up, and the turn is over.
    */
   sly: { aims: false, turn: 'shot', harmless: true },
+  /**
+   * Bond trivia (garyoldmancorp's 007): FIRE puts a question up (the `quizzing` phase: game/bond.ts), it's
+   * fired once it's answered, and a right answer is the gun barrel on the enemy and a share of their health.
+   */
+  bond: { aims: false, turn: 'shot' },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

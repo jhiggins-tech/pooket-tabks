@@ -244,6 +244,39 @@ export interface Sneak {
   done: boolean;
 }
 
+/** garyoldmancorp's 007 in play: the Bond question up on the screen, and how it's going. */
+export interface Quiz {
+  playerId: number;
+  weaponId: string;
+  /** Which question (weapons/trivia.ts `BOND_TRIVIA`). */
+  question: number;
+  /** Seconds since it went up. */
+  t: number;
+  /** The actor picked (`BOND_ACTORS`), null: none yet (or out of time). */
+  picked: number | null;
+  /** Answered, or out of time: it's fired. */
+  done: boolean;
+  /** Seconds since it was fired (the answer shown), null before. */
+  outro: number | null;
+}
+
+/** Who 007's gun barrel is on: one of a player's tanks (the main one, or the twin), or a decoy. */
+export type BondMark = { kind: 'tank'; playerId: number; twin: boolean } | { kind: 'hologram'; id: number };
+
+/** A right answer to 007: the gun barrel cutscene on the enemy, then their share of health (game/bond.ts). */
+export interface GunBarrel {
+  ownerId: number;
+  weaponId: string;
+  mark: BondMark;
+  /** Where the mark's hull rests (where the barrel's drawn). */
+  x: number;
+  y: number;
+  /** Seconds since it was fired (the cutscene's clock: bond.ts `BARREL`). */
+  t: number;
+  /** The shot's been fired and the damage done. */
+  hit: boolean;
+}
+
 /** A marathon runner, jogging a leg at a time towards the nearest enemy, across turns. */
 export interface Runner {
   ownerId: number;
@@ -576,6 +609,12 @@ export type SfxCue =
   | 'smoke'
   | 'spotted'
   | 'stealth'
+  | 'quiz'
+  | 'quiz-right'
+  | 'quiz-wrong'
+  | 'gun-barrel'
+  | 'bond-sting'
+  | 'bond-shot'
   | 'gameover';
 
 export interface Sfx {
@@ -592,8 +631,10 @@ export interface Sfx {
  * `drumming`: kiwicore is playing Band Aid (like aiming, it's this phone's input, streamed in previews);
  * when it's over it's fired, and the shot (`flying`) is the kit packing away. `sneaking`: doctorfox's Sly,
  * driving off unseen (his phone's input too, like aiming); when time's up it's fired, and his turn is over.
+ * `quizzing`: garyoldmancorp's 007, a Bond question to answer (his phone's input too); answered, it's
+ * fired, and the shot is the gun barrel cutscene (or nothing, for a wrong answer).
  */
-export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'flying' | 'settling' | 'gameover';
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'flying' | 'settling' | 'gameover';
 
 /**
  * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
@@ -668,6 +709,10 @@ export interface GameState {
   drums: DrumSet | null;
   /** doctorfox's Sly, while he sneaks off. */
   sneak: Sneak | null;
+  /** garyoldmancorp's 007: the question, while it's up and while the answer shows after. */
+  quiz: Quiz | null;
+  /** garyoldmancorp's 007, answered right: the gun barrel cutscene. */
+  barrel: GunBarrel | null;
   /** Sound cues since the audio layer last drained them (capped). */
   sfx: Sfx[];
   /** Weapons whose walker chiptune is playing (cosmetic). */

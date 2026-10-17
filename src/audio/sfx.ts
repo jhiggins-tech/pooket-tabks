@@ -3,7 +3,7 @@ import { boomerangFlight, boomerangReach } from '../game/boomerang';
 import { findWeapon, isProjectileWeapon, kindOf, weaponOf } from '../weapons/registry';
 import type { TuneId } from '../weapons/types';
 import { arp, midi, type Synth } from './chip';
-import type { Rank } from '../stats/ranks';
+import type { Jingle, Rank } from '../stats/ranks';
 import { rankJingle } from './jingle';
 import { TunePlayer } from './tunes';
 import { XP_SOUNDS, type XpCue } from './xp';
@@ -156,9 +156,12 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.tone({ at: 0.08, dur: 0.06, from: 3000, to: 2400, duty: 0.125, vol: 0.06 });
     s.tone({ at: 0.12, dur: 0.3, from: 400, to: 900, wave: 'triangle', vol: 0.12 });
   },
-  'beta-bomb': (s) => {
-    s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
-    s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
+  // 007, answered: a pistol cocked, click-clack (the right or wrong answer has its own sound).
+  'double-o-seven': (s) => {
+    s.noise({ dur: 0.025, rate: 1.8, vol: 0.14 });
+    s.tone({ dur: 0.02, from: 2400, duty: 0.125, vol: 0.06 });
+    s.noise({ at: 0.12, dur: 0.035, rate: 1.4, vol: 0.16 });
+    s.tone({ at: 0.12, dur: 0.03, from: 1600, duty: 0.125, vol: 0.07 });
   },
   // kiwicore's béretta M2: the cap whup-whup-whupping round its loop (loud near him, faint far out), for as long as it flies.
   'beretta-m2': (s, e) => {
@@ -197,6 +200,22 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     for (let i = 0; i < 7; i++) s.tone({ at: i * 0.05, dur: 0.03, from: 2200 + ((i * 557) % 900), wave: 'triangle', vol: 0.08 });
     s.tone({ at: 0.35, dur: 0.25, from: 300, to: 900, duty: 0.125, vol: 0.08 });
   },
+};
+
+/**
+ * 007's spy sting (an original, not any film's theme), played in the rank-up jingles' notation (score.ts):
+ * a brassy call climbing over an octave-jumping bass vamp in E minor, sliding down chromatically, and
+ * landing on the spy chord, E minor with a major seventh, held under a long F# (the ninth). Two bars at
+ * 150 bpm: 3.2 s, the time the gun barrel stays open (game/bond.ts `BARREL`).
+ */
+export const BOND_STING: Jingle = {
+  bpm: 150,
+  voice: 'reed',
+  lead: 'r:4 b4:2 e5:1 g5:3 b5:2 a#5:2 a5:4 g5:2 f#5:12',
+  bass: 'e2:2 e3 e2 e3 c2 c3 b1 b2 e2:16',
+  harmony: 'r:16 e4+g4+b4+d#5:16',
+  drums: 'k:2 h s h k h s:1 s s s c:16',
+  minor: true,
 };
 
 /** Per-round blips for burst weapons. */
@@ -335,6 +354,35 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   spotted: (s) => {
     s.tone({ dur: 0.18, from: 300, to: 1400, wave: 'triangle', vol: 0.14 });
     arp(s, [84, 79, 84, 79], 0.07, { at: 0.18, duty: 0.25, vol: 0.09, dur: 0.06 });
+  },
+  // ---- 007 (game/bond.ts). ----
+  // The question goes up: a quiz show's "dun-dun-DUNNN", minor and tense.
+  quiz: (s) => {
+    arp(s, [52, 55], 0.16, { duty: 0.25, vol: 0.13, dur: 0.12 });
+    s.tone({ at: 0.32, dur: 0.6, from: midi(51), duty: 0.25, vibrato: [6, 4], vol: 0.13 });
+    s.tone({ at: 0.32, dur: 0.6, from: midi(39), wave: 'triangle', vol: 0.2 });
+  },
+  // Right: a bright two-note ding.
+  'quiz-right': (s) => arp(s, [88, 96], 0.1, { at: 0.18, duty: 0.25, vol: 0.13, dur: 0.3 }),
+  // Wrong (or out of time): a flat game-show buzzer.
+  'quiz-wrong': (s) => {
+    s.tone({ at: 0.18, dur: 0.22, from: 110, duty: 0.5, vol: 0.14 });
+    s.tone({ at: 0.45, dur: 0.45, from: 104, duty: 0.5, vol: 0.14 });
+  },
+  // The white dots sliding across the dark: four soft pings, the last one opening into the barrel.
+  'gun-barrel': (s) => {
+    for (let i = 0; i < 4; i++) s.tone({ at: i * 0.2, dur: 0.12, from: midi(83 + (i === 3 ? 5 : 0)), wave: 'triangle', vol: 0.09 + i * 0.02 });
+    s.noise({ at: 0.75, dur: 0.3, rate: 1.4, to: 0.6, vol: 0.06 });
+  },
+  // The spy sting while the barrel's open (an original one: see BOND_STING).
+  'bond-sting': (s) => {
+    rankJingle(s, { jingle: BOND_STING, sparkle: 1 });
+  },
+  // The shot: a crack, and its echo off the hills.
+  'bond-shot': (s) => {
+    s.noise({ dur: 0.18, rate: 1.2, to: 0.3, vol: 0.3 });
+    s.tone({ dur: 0.08, from: 900, to: 120, duty: 0.5, vol: 0.14 });
+    s.noise({ at: 0.22, dur: 0.25, rate: 0.7, to: 0.3, vol: 0.08 });
   },
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),

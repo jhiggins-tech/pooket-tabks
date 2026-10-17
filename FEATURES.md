@@ -22,8 +22,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
-- garyoldmancorp's real moves, to replace the beta stand-ins: the teasers were tier 3 the crinkler and a
-  bonus action, stop the violence (Diced Coffee took the bonus slot, Hoop Dreamz tier 2; owner to decide).
+- garyoldmancorp's real tier 1, to replace the beta stand-in (Hoop Dreamz is tier 2, 007 tier 3, Diced
+  Coffee the bonus slot; owner to decide).
 
 ## Shipped
 
@@ -240,6 +240,17 @@ The running features list and work queue. Newest shipped items first; the **Queu
   `Player.flight` (`game/movement.ts`, drawn by `render/draw/arwing.ts`, sent in the aim previews); new
   movement `'arwing'`. Works under **Sly** (hidden as the tank is); if Sly's time runs out in the air he
   lands first, then it's fired. Sounds: a whoosh and a rising chirp to take off, a jet whine, the reverse to land.
+- **garyoldmancorp's 007** (owner, 17 Oct; rules 29; beta, a testing push). His tier 3 (replacing the
+  stand-in Beta Bomb; `game/bond.ts`, a new kind, `bond`). FIRE and a **James Bond trivia question** pops up
+  (a new phase, `quizzing`, his phone's input like aiming, streamed in the previews), with the six Bond
+  actors to pick from, Sean Connery to Daniel Craig, and **20 s** to answer. 20 questions to start with
+  (`weapons/trivia.ts`, every answer an actor, every actor an answer). **Right**: the white dot slides across
+  the dark to the enemy nearest him (a decoy counts, so it's no tell; a tank hidden by Sly doesn't), the **gun
+  barrel** opens on them with their tank **silhouetted** inside, the camera in close, over an original spy
+  sting (3.2 s, a brassy call over an E minor bass vamp ending on the minor-major chord, in the rank-up
+  jingles' notation); then the shot, red runs down the barrel, and they lose **77% of the health they have
+  left**. **Wrong**, or out of time: nothing (the right answer is shown). Sounds: a quiz show "dun-dun-DUNNN",
+  a ding or a buzzer, pings for the dots, the sting, the shot.
 - **doctorfox, in beta, with Sly** (owner, 16 Oct; rules 27; a testing push). Playable (off the Coming soon
   list), hotseat only like the other betas; tiers 1 and 3 are stand-ins (Beta Shot 30, Beta Bomb 70). His
   tier 2, **Sly** (`game/sly.ts`, a new kind, `sly`): FIRE and a **smokescreen** goes up round him, he
@@ -548,7 +559,7 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
-| **garyoldmancorp** (beta; rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Beta Shot: stand-in shell, 30 | Hoop Dreamz 🏀: shoot through a hoop over the enemy; a slam dunk is 70 straight down, a loose ball bouncing onto them 15 | Beta Bomb: stand-in shell, 70. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
+| **garyoldmancorp** (beta; rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Beta Shot: stand-in shell, 30 | Hoop Dreamz 🏀: shoot through a hoop over the enemy; a slam dunk is 70 straight down, a loose ball bouncing onto them 15 | 007 🍸: a Bond trivia question (20 s, the six actors to pick from); right, and the gun barrel opens on the nearest enemy, a spy sting, then they lose 77% of the health they have left; wrong, nothing. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
 | **doctorfox** (beta; flies an Arwing: takes off, flies over anything at 3× speed, 2× range, lands when let go) | Beta Shot: stand-in shell, 30 | Sly 🌫: a smokescreen, fuel filled up and 10 s to move; hidden from the enemy until his next turn (a hit gives him away) | Beta Bomb: stand-in shell, 70 |
 | **kiwicore** (beta; wears a flat cap) | béretta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Band Aid: a rhythm minigame over a 4-bar chiptune thrasher, tap anywhere on the beat (24 notes), the turret swings a drumstick from drum to drum; perfect and close hits heal, up to 40% of full health; 3 misses end it | Beta Bomb: stand-in shell, 70 |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

@@ -1,5 +1,5 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
-import type { DrumSet, Flight, GameState, Hop, PlayerConfig, Sneak } from '../game/state';
+import type { DrumSet, Flight, GameState, Hop, PlayerConfig, Quiz, Sneak } from '../game/state';
 import { Emitter } from '../core/emitter';
 import { applyPreview, LIVE, previewOf, putState, ResultBuffer, type Preview } from './follow';
 import { netLog } from './log';
@@ -63,6 +63,8 @@ export type NetMsg =
       drums?: DrumSet | null;
       /** doctorfox's Sly while he sneaks off (the `sneaking` phase is his phone's input too). */
       sneak?: Sneak | null;
+      /** garyoldmancorp's 007 while he answers (the `quizzing` phase is his phone's input too). */
+      quiz?: Quiz | null;
     }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
