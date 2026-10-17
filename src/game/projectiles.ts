@@ -172,7 +172,8 @@ export function stepBurst(state: GameState, b: Burst, dt: number): boolean {
   b.elapsed += dt;
   while (b.fired < count && b.elapsed >= b.fired * spec.interval) {
     const m = muzzle({ ...gun, angle: b.angle });
-    const a = ((b.angle + randRange(state.rng, -1, 1)) * Math.PI) / 180;
+    const jitter = spec.aimJitterDeg ?? 1;
+    const a = ((b.angle + randRange(state.rng, -jitter, jitter)) * Math.PI) / 180;
     const speed = (b.power / 100) * MAX_SPEED * (1 + randRange(state.rng, -spec.powerJitter, spec.powerJitter));
     spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed, b.fired);
     sound(state, 'round', weapon.id);

@@ -145,10 +145,10 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   steal: (s) => {
     arp(s, [71, 70, 69, 68, 67], 0.1, { duty: 0.125, vol: 0.13, dur: 0.05 });
   },
-  // garyoldmancorp's stand-in shots (beta): plain pews, bigger for the higher tiers.
-  'beta-shot': (s) => {
-    pew(s, 0, 1600, 300, 0.15);
-    s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });
+  // Mr Bean: a burr grinder whirring up (the beans rattle out per round).
+  'mr-bean': (s) => {
+    s.noise({ dur: 0.3, rate: 0.9, to: 1.5, vol: 0.09 });
+    s.tone({ dur: 0.3, from: 160, to: 260, duty: 0.125, vibrato: [40, 30], vol: 0.07 });
   },
   // Hoop Dreamz: a sneaker squeak, and the ball thrown up with a hopeful "whoo".
   'hoop-dreamz': (s) => {
@@ -228,6 +228,11 @@ export const ROUND_SOUNDS: Record<string, Recipe> = {
   },
   // Bzzt.
   'tattoo-gun': (s) => s.tone({ dur: 0.045, from: 118, duty: 0.125, vol: 0.14 }),
+  // A bean rattling out: a dry little tick.
+  'mr-bean': (s) => {
+    s.noise({ dur: 0.02, rate: 1.5, vol: 0.1 });
+    s.tone({ dur: 0.02, from: 1900, to: 1400, duty: 0.125, vol: 0.05 });
+  },
 };
 
 export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Recipe> = {
@@ -471,8 +476,11 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.06, rate: 1.8, vol: 0.12 });
   },
   // ---- Projectiles (game/projectiles.ts). ----
-  // The Rizzler has spotted someone: a little "ooh-la-la" trill.
-  'lock-on': (s) => arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 }),
+  // The Rizzler has spotted someone: a little "ooh-la-la" trill. Mr Bean's beans (ten at once): a quick blip each.
+  'lock-on': (s, e) => {
+    if (e.weaponId === 'mr-bean') s.tone({ dur: 0.04, from: midi(88), to: midi(95), duty: 0.25, vol: 0.05 });
+    else arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 });
+  },
   // ---- The sonic boom's bird (game/fx.ts). ----
   // Koo-koo-kaa-kaa-kaa.
   kookaburra: (s) => {

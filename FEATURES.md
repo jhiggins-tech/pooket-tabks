@@ -22,8 +22,6 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - Music.
 - Wind.
 - More than 2 players per match (the engine already supports it; setup is fixed at 2).
-- garyoldmancorp's real tier 1, to replace the beta stand-in (Hoop Dreamz is tier 2, 007 tier 3, Diced
-  Coffee the bonus slot; owner to decide).
 
 ## Shipped
 
@@ -240,6 +238,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
   `Player.flight` (`game/movement.ts`, drawn by `render/draw/arwing.ts`, sent in the aim previews); new
   movement `'arwing'`. Works under **Sly** (hidden as the tank is); if Sly's time runs out in the air he
   lands first, then it's fired. Sounds: a whoosh and a rising chirp to take off, a jet whine, the reverse to land.
+- **garyoldmancorp's Mr Bean** (owner, 17 Oct; rules 31; beta, a testing push). His tier 1 (replacing the
+  stand-in Beta Shot), the last of his stand-ins. **Rapid fire: 10 coffee beans** lobbed along the aim
+  (a burst, 0.07 s apart, power ±6% and a slight spread, ±4° of the aim: the burst's new `aimJitterDeg`,
+  1° for the others as before), **2 damage each** (`flat`, a new blast option: the full 2 anywhere in the
+  little blast, as falloff would round it down to 1), 20 if all ten land. They **home in like the Rizzler,
+  but harder**: from 170 px (the Rizzler 100), turning 1440°/s (720) at 320 px/s or more (240), so most of
+  a near miss still lands. Drawn as spinning roasted beans (`coffee-bean.svg`). Sounds: a grinder whirring
+  up, a dry tick per bean, a quick blip as each one locks on (not the Rizzler's trill ten times).
 - **007: 80 more questions** (owner, 17 Oct; rules 30; beta, a testing push). 100 Bond questions now (were 20), across all
   six actors (Connery 21, Lazenby 9, Moore 21, Dalton 13, Brosnan 17, Craig 19). Rules 30, so a phone without
   the new questions is told to reload.
@@ -562,7 +568,7 @@ between visits.
 | **kcaj** | Double Park: twin ice cream cones | Hyperfixate: straight laser, burns for 3 turns | Unmedicated: pill storm across the stage, bounces twice |
 | **torikloud** | Debate: a random legal word lobbed one letter at a time (longer word = more damage) | Sonic Boom: sound arcs through terrain, weaker with distance, kookaburra in the sky; with a twin, crossing waves phase for ×1.5 damage and range | Twins: a second tank with half his HP and its own bar; it mirrors every shot (Debate from a social-work dictionary). Once fired, the slot is Yolk Sucker: a bonus move that evens out the two tanks' health. He starts with 150 health (everyone else 100) |
 | **ciarra** (moves in big frog hops: over 64px cliffs, twice a tank's range) | Tattoo Gun: a burst of 12 ink needles; enemies hit are tattooed and take +25% damage from everything until the end of their next 2 turns | Sew: a needle and thread stitch straight through terrain (power = length, no crater), 20 damage and pins the enemy so they can't move on their next turn | Marathon: a short runner (tan skin, rose ponytail) jogs one leg towards the nearest enemy every time anyone fires, over any hill, and explodes for 50 at the finish; a blast near them is a DNF |
-| **garyoldmancorp** (beta; rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Beta Shot: stand-in shell, 30 | Hoop Dreamz 🏀: shoot through a hoop over the enemy; a slam dunk is 70 straight down, a loose ball bouncing onto them 15 | 007 🍸: a Bond trivia question (20 s, the six actors to pick from); right, and the gun barrel opens on the nearest enemy, a spy sting, then they lose 77% of the health they have left; wrong, nothing. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
+| **garyoldmancorp** (beta; rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Mr Bean ☕: rapid fire, 10 lobbed coffee beans with a slight spread, 2 each; they home in on an enemy within 170px, harder than the Rizzler | Hoop Dreamz 🏀: shoot through a hoop over the enemy; a slam dunk is 70 straight down, a loose ball bouncing onto them 15 | 007 🍸: a Bond trivia question (20 s, the six actors to pick from); right, and the gun barrel opens on the nearest enemy, a spy sting, then they lose 77% of the health they have left; wrong, nothing. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
 | **doctorfox** (beta; flies an Arwing: takes off, flies over anything at 3× speed, 2× range, lands when let go) | Beta Shot: stand-in shell, 30 | Sly 🌫: a smokescreen, fuel filled up and 10 s to move; hidden from the enemy until his next turn (a hit gives him away) | Beta Bomb: stand-in shell, 70 |
 | **kiwicore** (beta; wears a flat cap) | béretta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Band Aid: a rhythm minigame over a 4-bar chiptune thrasher, tap anywhere on the beat (24 notes), the turret swings a drumstick from drum to drum; perfect and close hits heal, up to 40% of full health; 3 misses end it | Beta Bomb: stand-in shell, 70 |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

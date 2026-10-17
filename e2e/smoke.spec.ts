@@ -552,6 +552,27 @@ test("doctorfox's Arwing: takes off and turns into the ship, flies over the grou
   expect(landed.y).toBeGreaterThan(flying.y + 15);
 });
 
+test("garyoldmancorp's Mr Bean: ten coffee beans, rapid fire, for one round", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
+  const weapons = page.locator('#weapons .weapon');
+  await expect(weapons.nth(0)).toHaveAttribute('aria-label', 'Mr Bean, 5 left');
+  await weapons.nth(0).tap();
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.projectiles.length >= 6, undefined, { timeout: 5_000, polling: 16 });
+  const beans = await page.evaluate(() => {
+    const d = window.__pooket;
+    return d.state.projectiles.map((p) => d.renderer.worldToScreen(p.x, p.y));
+  });
+  const xs = beans.map((p) => p.x);
+  const ys = beans.map((p) => p.y);
+  await page.screenshot({
+    path: 'test-results/mr-bean-beans.png',
+    clip: { x: Math.max(0, Math.min(...xs) - 40), y: Math.max(0, Math.min(...ys) - 40), width: Math.max(...xs) - Math.min(...xs) + 80, height: Math.max(...ys) - Math.min(...ys) + 80 },
+  });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[0])).toBe(4);
+});
+
 test("garyoldmancorp's Hoop Dreamz: a hoop over the enemy, the camera zooms in, and a make is a slam dunk", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
   await page.locator('#weapons .weapon').nth(1).tap();
@@ -905,7 +926,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   // garyoldmancorp is playable now, in beta.
   await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Hoop Dreamz', '007', 'Diced Coffee']);
+  await expect(page.locator('.info-card h3')).toHaveText(['Mr Bean', 'Hoop Dreamz', '007', 'Diced Coffee']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   // So is kiwicore.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();

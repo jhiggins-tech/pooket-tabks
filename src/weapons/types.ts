@@ -2,7 +2,7 @@ import type { DictionaryId } from './dictionaries';
 import type { WeaponKind } from './kinds';
 
 /** Sprites a projectile can be drawn with (see src/render/sprites.ts). */
-export type SpriteId = 'iced-coffee' | 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle' | 'cat-ginger' | 'cat-grey';
+export type SpriteId = 'iced-coffee' | 'ice-cream-cone' | 'pill' | 'pill-red' | 'pill-blue' | 'pill-round' | 'pill-oval' | 'weasel' | 'kookaburra' | 'rizz' | 'ink-needle' | 'cat-ginger' | 'cat-grey' | 'coffee-bean';
 
 /** How a weapon is delivered: see the table in kinds.ts. */
 export type { WeaponKind } from './kinds';
@@ -141,6 +141,8 @@ export interface BlastSpec {
   blastRadius: number;
   /** Damage at the centre of each blast, falling off linearly to the edge (for a beam: direct-hit damage). */
   damage: number;
+  /** The full `damage` to anything in the blast, with no falloff (for tiny rounds, where falloff would round it away). */
+  flat?: boolean;
 }
 
 /** Projectile weapons (ballistic and rain): how the rounds fly, behave and look. */
@@ -152,9 +154,10 @@ export interface ProjectileSpec extends BlastSpec {
   volley?: { count: number; spreadDeg: number };
   /**
    * A series of rounds: `count` shots `interval` s apart along the aim, each with its power varied by up
-   * to ±`powerJitter` (a fraction), so they walk across the target area.
+   * to ±`powerJitter` (a fraction) and its angle by up to ±`aimJitterDeg` (default 1°), so they walk
+   * across the target area.
    */
-  burst?: { count: number; interval: number; powerJitter: number };
+  burst?: { count: number; interval: number; powerJitter: number; aimJitterDeg?: number };
   /**
    * Word fire (with `burst`): pick a random word from the dictionary and fire it one letter per round,
    * so the round count is the word's length. A twin fires from its own dictionary.

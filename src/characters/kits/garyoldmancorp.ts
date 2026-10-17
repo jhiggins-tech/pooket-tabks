@@ -2,18 +2,31 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * garyoldmancorp, in beta: Hoop Dreamz (tier 2), 007 (tier 3) and Diced Coffee (the bonus move) are his
- * real moves; tier 1 is a stand-in (a plain ballistic shell) until his own is ready.
+ * garyoldmancorp, in beta: Mr Bean (tier 1), Hoop Dreamz (tier 2), 007 (tier 3) and Diced Coffee (the
+ * bonus move).
  */
 
-/** Tier 1 stand-in: a small shell. */
-export const betaShot = {
-  id: 'beta-shot',
-  name: 'Beta Shot',
-  shortName: 'Beta Shot',
-  info: 'A stand-in while garyoldmancorp is in beta: a small shell, up to 30 damage.',
-  blastRadius: 18,
-  damage: 30,
+/**
+ * Tier 1: ten coffee beans rapid-fired along the aim (a burst, lobbed like any shell, a few degrees of
+ * spread), 2 each. They home in hard once they're near an enemy: further out and tighter turning than the
+ * Rizzler (radius 100, 720°/s), so most of a close miss still lands. `flat`, so a bean that hits does its
+ * 2 (falloff would round a 2 down to 1).
+ */
+export const mrBean = {
+  id: 'mr-bean',
+  name: 'Mr Bean',
+  shortName: 'Mr Bean',
+  info:
+    'Rapid fire: 10 coffee beans lobbed along your aim, spreading a little. Get them within about 170px of an enemy and they home straight in, hard. 2 damage each.',
+  blastRadius: 5,
+  damage: 2,
+  flat: true,
+  burst: { count: 10, interval: 0.07, powerJitter: 0.06, aimJitterDeg: 4 },
+  homing: { radius: 170, turnRate: 1440, minSpeed: 320 },
+  sprite: 'coffee-bean',
+  spin: 9,
+  trail: false,
+  colour: '#7c4a24',
 } satisfies WeaponDef;
 
 /**
@@ -83,10 +96,10 @@ export const garyoldmancorp = kit(
   {
     id: 'garyoldmancorp',
     name: 'garyoldmancorp',
-    blurb: 'Beta: Hoop Dreamz, a slam dunk onto the enemy; 007, Bond trivia that takes 77% of their health; Diced Coffee for two turns in a row; and a stand-in shot for now.',
+    blurb: 'Mr Bean, a burst of homing coffee beans; Hoop Dreamz, a slam dunk onto the enemy; 007, Bond trivia that takes 77% of their health; and Diced Coffee for two turns in a row.',
     colours: ['#cbd5e1', '#a5b4fc', '#fcd34d'],
     movement: 'scooter',
     beta: true,
   },
-  [betaShot, hoopDreamz, doubleOSeven, dicedCoffee],
+  [mrBean, hoopDreamz, doubleOSeven, dicedCoffee],
 );
