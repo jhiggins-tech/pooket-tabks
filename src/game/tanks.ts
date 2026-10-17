@@ -227,6 +227,7 @@ export function explode(
   blast: { radius: number; damage: number } = blastOf(weapon),
 ): void {
   const r = blast.radius;
+  const flat = 'flat' in weapon && weapon.flat === true;
   state.terrain.carveCircle(x, y, r);
   state.fx.explosions.push({ x, y, radius: r, age: 0, duration: r < 15 ? 0.35 : 0.5 });
   sound(state, 'boom', weapon.id, r);
@@ -237,7 +238,7 @@ export function explode(
     const reach = r + TANK_HIT_RADIUS;
     const d = Math.hypot(pos.x - x, pos.y - TANK_BODY_HEIGHT - y);
     if (d >= reach) continue;
-    applyHit(state, t, weapon, shooterId, scaled(state, shooterId, blast.damage * (1 - d / reach)));
+    applyHit(state, t, weapon, shooterId, scaled(state, shooterId, flat ? blast.damage : blast.damage * (1 - d / reach)));
   }
   // Any blast knocks out a marathon runner caught in it ("did not finish").
   for (const rn of state.runners) {

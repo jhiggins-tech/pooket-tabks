@@ -20,6 +20,18 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 52,
+    title: '🛴 garyoldmancorp is here',
+    items: [
+      'garyoldmancorp is out of beta, with all his own moves, and he rides a scooter: much faster and further than driving, but a wall is a crash.',
+      'Mr Bean: rapid fire, 10 coffee beans lobbed along your aim, 2 damage each. Get them near an enemy and they home in, harder than the Rizzler.',
+      'Hoop Dreamz: a basketball hoop appears over the enemy. Swish it through the middle for a slam dunk, 70 damage straight down.',
+      '007: a James Bond trivia question. Name the right Bond and the gun barrel opens on the nearest enemy: they lose 77% of the health they have left.',
+      'Diced Coffee (bonus move, once a turn): spin the wheel. Lactose free and you go twice in a row; full cream and you’re jetpacked into the sky, your turn’s over and the coffee’s gone for the match.',
+      'Play him online too: unlock him with XP like the others.',
+    ],
+  },
+  {
     version: 51,
     title: 'Fixes',
     items: ['torikloud’s twin can drive now: ◀ ▶ move whichever tank 🎯 is aiming (drag from a tank, or tap 🎯 to switch). Both share the one tank of fuel.'],

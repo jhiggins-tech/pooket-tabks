@@ -18,14 +18,15 @@ describe('who can play which character online', () => {
   it('signed in: the starter set and what they own (unlocked, or played in rated matches before); betas still hotseat only', () => {
     expect(open(signedIn())).toEqual(['tones', 'kie', 'kcaj']);
     expect(onlineLock('ciarra', signedIn())).toBe('locked');
-    expect(open(signedIn('ciarra', 'garyoldmancorp'))).toEqual(['tones', 'kie', 'kcaj', 'ciarra']);
-    expect(onlineLock('garyoldmancorp', signedIn('garyoldmancorp'))).toBe('beta');
+    expect(open(signedIn('ciarra', 'garyoldmancorp', 'kiwicore'))).toEqual(['tones', 'kie', 'kcaj', 'ciarra', 'garyoldmancorp']);
+    expect(onlineLock('kiwicore', signedIn('kiwicore'))).toBe('beta');
+    expect(onlineLock('garyoldmancorp', signedIn())).toBe('locked'); // out of beta: unlocked like the rest
     expect(LOCK_TEXT.locked.long('ciarra')).toBe('Unlock ciarra with an unlock token: you earn one every 600 XP from online matches (+200 a win, +100 a loss).');
   });
 
   it('what a token could unlock: the locked ones, not betas, not what they have', () => {
-    expect(unlockable(signedIn())).toEqual(['torikloud', 'ciarra', 'larinovsky']);
-    expect(unlockable(signedIn('ciarra'))).toEqual(['torikloud', 'larinovsky']);
+    expect(unlockable(signedIn())).toEqual(['torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp']);
+    expect(unlockable(signedIn('ciarra'))).toEqual(['torikloud', 'larinovsky', 'garyoldmancorp']);
     expect(unlockable(GUEST)).toEqual([]);
   });
 

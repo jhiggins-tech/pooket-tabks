@@ -10,6 +10,7 @@ import rizzUrl from '../assets/sprites/rizz.svg';
 import inkNeedleUrl from '../assets/sprites/ink-needle.svg';
 import catGingerUrl from '../assets/sprites/cat-ginger.svg';
 import catGreyUrl from '../assets/sprites/cat-grey.svg';
+import coffeeBeanUrl from '../assets/sprites/coffee-bean.svg';
 import type { SpriteId } from '../weapons/types';
 
 /** Weapon sprites: SVGs from src/assets/sprites/, each with its drawn size (a new one needs its id in SpriteId too). */
@@ -33,6 +34,7 @@ const SPRITES: Record<SpriteId, SpriteDef> = {
   kookaburra: { url: kookaburraUrl, width: 46, height: 40 },
   rizz: { url: rizzUrl, width: 20, height: 18 },
   'ink-needle': { url: inkNeedleUrl, width: 16, height: 5 },
+  'coffee-bean': { url: coffeeBeanUrl, width: 9, height: 7 },
   // Take a Nap's cats (not a weapon, but drawn the same way).
   'cat-ginger': { url: catGingerUrl, width: 20, height: 12 },
   'cat-grey': { url: catGreyUrl, width: 20, height: 12 },
