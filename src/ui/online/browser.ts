@@ -65,11 +65,15 @@ export function gameBrowser(db: Rtdb, lobby: Sealer, lobbyName: string, scope: S
     if (counts !== lastCounts) netLog(`ui: Game browser shows ${counts}`);
     lastCounts = counts;
     const rows = [
-      ...mine.map((m) =>
-        gameRow('mine', m.seat.code, m.status === 'open' ? '↩ Your game' : `↩ You vs ${m.opponent}`, m.detail, MINE_LABEL[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () =>
+      ...mine.map((m) => {
+        const title =
+          m.status === 'open'
+            ? `↩ ${adverts.find((g) => g.room === m.seat.code)?.gameName || 'Your game'} [your game]`
+            : `↩ You vs ${m.opponent}`;
+        return gameRow('mine', m.seat.code, title, m.detail, MINE_LABEL[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () =>
           go.rejoin(m.seat),
-        ),
-      ),
+        );
+      }),
       ...waiting.map((g) => gameRow('open', g.room, g.gameName || `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => go.join(g.room, g.name))),
       ...playing.map((g) =>
         gameRow(

@@ -752,6 +752,7 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await host.locator('#online-host-leave').tap();
   await expect(host.locator('#setup')).toBeVisible();
   await host.locator('#open-browser').tap();
+  await expect(rows(host, 'mine').locator('.games-name')).toContainText('↩ The Jack Attack [your game]');
   await expect(rows(host, 'mine')).toContainText('Waiting for a player');
   await host.goto('about:blank'); // and the host closes the game altogether
 
