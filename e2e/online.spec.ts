@@ -1113,6 +1113,10 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await expect(a.locator('#rankup')).toBeVisible({ timeout: 20_000 });
   await expect(a.locator('#rankup')).toContainText('RANK UP!');
   await expect(a.locator('#rankup .rankup-name')).toHaveText('Gold');
+  const bar = a.locator('.rankup-progress-fill');
+  const before = await bar.evaluate((fill) => fill.getBoundingClientRect().width);
+  await a.waitForTimeout(300);
+  expect(await bar.evaluate((fill) => fill.getBoundingClientRect().width)).not.toBe(before);
   await a.waitForTimeout(900);
   await a.screenshot({ path: 'test-results/rank-up.png' });
   await expect(a.locator('#winner .insignia')).toHaveCount(1);

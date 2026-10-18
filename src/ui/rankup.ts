@@ -102,7 +102,7 @@ export class RankUp {
         return;
       }
       this.progressFill.style.width = movement > 0 ? '100%' : '0%';
-      this.later(1300, () => {
+      this.later(970, () => {
         this.progressFill.classList.add('resetting');
         this.progressFill.style.width = movement > 0 ? '0%' : '100%';
         void this.progressFill.offsetWidth;
