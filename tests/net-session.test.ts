@@ -3,7 +3,7 @@ import { FIXED_DT, MAX_HP } from '../src/game/constants';
 import { createGame, currentPlayer, drive, finishDecoyPick, hologramsOf, selectTier, setAim, step, toggleSwapTarget } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { NetSession } from '../src/net/session';
-import { loopback } from '../src/net/transport';
+import { loopback, type Transport } from '../src/net/transport';
 import { RULES, WIRE } from '../src/net/version';
 import { connectedPair, expectSameMatch } from './support/net';
 import { flush } from './support/wait';
@@ -35,6 +35,45 @@ async function playOut(a: NetSession, b: NetSession, A: GameState, B: GameState,
 const same = (A: GameState, B: GameState) => expectSameMatch(A, B, { ignoreHologramAge: true });
 
 describe('networked match', { timeout: 30_000 }, () => {
+  it("repeats this phone's hello when the other phone's hello arrives first", async () => {
+    const [hostPipe, guestPipe] = loopback();
+    let dropFirstGuestHello = true;
+    const guestTransport: Transport = {
+      get onMessage() {
+        return guestPipe.onMessage;
+      },
+      set onMessage(fn) {
+        guestPipe.onMessage = fn;
+      },
+      get onClose() {
+        return guestPipe.onClose;
+      },
+      set onClose(fn) {
+        guestPipe.onClose = fn;
+      },
+      send(msg) {
+        if (dropFirstGuestHello && (msg as { k?: string }).k === 'hello') {
+          dropFirstGuestHello = false;
+          return;
+        }
+        guestPipe.send(msg);
+      },
+      close: () => guestPipe.close(),
+    };
+    const host = new NetSession(hostPipe, 'host');
+    const guest = new NetSession(guestTransport, 'guest');
+    host.setPick({ name: 'A', characterId: 'tones' });
+    guest.setPick({ name: 'B', characterId: 'kie' });
+
+    await flush();
+
+    expect(host.ready && guest.ready).toBe(true);
+    expect(host.remotePick?.name).toBe('B');
+    expect(guest.remotePick?.name).toBe('A');
+    host.leave();
+    guest.leave();
+  });
+
   it('both phones start from the same game, host first', async () => {
     const { a, b, A, B } = await connected();
     same(A, B);

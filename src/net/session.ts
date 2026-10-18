@@ -559,7 +559,11 @@ export class NetSession {
       case 'hello':
         netLog(`session: hello from the other phone (${msg.pick.characterId})`);
         if (this.mismatched(msg)) return;
+        const firstHello = this.remotePick === null;
         this.remotePick = msg.pick;
+        if (firstHello && this.localPick) {
+          this.transport.send({ k: 'hello', v: WIRE, rules: RULES, pick: this.localPick } satisfies NetMsg);
+        }
         this.events.emit('lobby');
         return;
       case 'start': {
