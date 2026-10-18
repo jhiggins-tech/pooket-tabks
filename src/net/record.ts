@@ -50,7 +50,7 @@ export interface GameRecord {
 export interface OpenRecord {
   v: number;
   rules: number;
-  open: { host: Pick; listed: boolean };
+  open: { host: Pick; listed: boolean; gameName?: string };
 }
 
 /** A record as stored: `ts` is the server time of the last write (the last move). */

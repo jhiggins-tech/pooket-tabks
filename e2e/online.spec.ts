@@ -745,6 +745,8 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await host.locator('#online-host').tap();
   await pickTank(host, 'kie');
   await expect(host.locator('#online-room-code')).toHaveText(/^[A-Z]{4}$/, { timeout: 10_000 });
+  await host.getByLabel('Game name').fill('The Jack Attack');
+  await host.locator('#online-room-code').tap();
   await host.screenshot({ path: 'test-results/host-open.png' });
   // Back to the menu: the game stays open, and it's in the host's own games.
   await host.locator('#online-host-leave').tap();
@@ -758,7 +760,7 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await setName(guest, 'Bo');
   await guest.locator('#open-browser').tap();
   const game = rows(guest, 'open');
-  await expect(game).toContainText("Jack's game", { timeout: 10_000 });
+  await expect(game).toContainText('The Jack Attack', { timeout: 10_000 });
   await expect(game).toContainText('kie');
   await game.getByRole('button', { name: 'Join' }).tap();
   // Choose a tank first: what each does, and the join only goes ahead once one's picked.

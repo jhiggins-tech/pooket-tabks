@@ -20,6 +20,11 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 53,
+    title: 'Name your game',
+    items: ['When you host an online game, edit its name before anyone joins. Players see it in the Games browser.'],
+  },
+  {
     version: 52,
     title: '🛴 garyoldmancorp is here',
     items: [

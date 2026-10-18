@@ -25,6 +25,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **Name your online game.** Hosts can edit the public Games browser title while setting up a match; it
+  stays with the open game if the host leaves and comes back.
+
 ### Refactoring (feature freeze, Oct)
 - **Phase 5: tidy.** Dead CSS gone (`.online-paste`, `.setup-row`); the online screens' default button
   size has no specificity (`:where(#online button:not(.big))`), so class rules win without `!important`

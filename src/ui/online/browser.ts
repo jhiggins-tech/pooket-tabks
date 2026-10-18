@@ -70,7 +70,7 @@ export function gameBrowser(db: Rtdb, lobby: Sealer, lobbyName: string, scope: S
           go.rejoin(m.seat),
         ),
       ),
-      ...waiting.map((g) => gameRow('open', g.room, `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => go.join(g.room, g.name))),
+      ...waiting.map((g) => gameRow('open', g.room, g.gameName || `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => go.join(g.room, g.name))),
       ...playing.map((g) =>
         gameRow(
           'live',

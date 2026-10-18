@@ -163,9 +163,11 @@ export class OnlineScreen {
     this.show([heading('Host a game'), status('Opening a room…')]);
     const pick = this.pick();
     const listed = listPublicly();
+    const gameName = `${pick.name}'s game`;
+    const offer = { host: pick, listed, gameName };
     const [lobby, opened] = await Promise.all([
       lobbySealer(this.opts.lobby),
-      HostedRoom.open(db, { host: pick, listed }).catch((e: unknown) => e as Error),
+      HostedRoom.open(db, offer).catch((e: unknown) => e as Error),
     ]);
     if (opened instanceof Error) {
       netLog(`ui: couldn't open a room: ${opened.message}`);
@@ -174,10 +176,10 @@ export class OnlineScreen {
     const room = opened;
     if (!scope.alive) return room.cancel(); // gone meanwhile: nobody knows its code yet
     saveSeat({ code: room.code, role: 'host', id: room.id, listed });
-    const listing = listingFor(db, lobby, room.id, pick, room.code, { open: true });
+    const listing = listingFor(db, lobby, room.id, pick, room.code, { open: true, gameName });
     listing.list(listed);
     netLog(`ui: room ${room.code} open${listing.listed ? ', on the Games list' : ' (private)'}`);
-    this.hosting(room, listing, pick);
+    this.hosting(room, listing, pick, gameName);
   }
 
   /** Back to our open game that nobody has joined yet: its host screen again. */
@@ -195,13 +197,15 @@ export class OnlineScreen {
     const lobby = await lobbySealer(this.opts.lobby);
     if (!scope.alive) return room.stop(); // gone meanwhile: the game stays open
     saveSeat({ code: seat.code, role: 'host', id: seat.id, listed: offer.listed });
-    const listing = listingFor(db, lobby, seat.id, offer.host, seat.code, { open: true });
+    const gameName = offer.gameName ?? `${offer.host.name}'s game`;
+    const listing = listingFor(db, lobby, seat.id, offer.host, seat.code, { open: true, gameName });
     listing.list(offer.listed);
-    this.hosting(room, listing, offer.host);
+    this.hosting(room, listing, offer.host, gameName);
   }
 
   /** The host screen for an open room, waiting for someone to join. */
-  private hosting(room: HostedRoom, listing: Listing, pick: Pick): void {
+  private hosting(room: HostedRoom, listing: Listing, pick: Pick, initialGameName: string): void {
+    let gameName = initialGameName;
     announceDevice(room.ref, 'host', room.id); // so we hear when someone starts it
     const waiting = (scope: Scope) => {
       // Leaving the screen (not Cancel) leaves the game open.
@@ -211,12 +215,22 @@ export class OnlineScreen {
       });
       const render = () =>
         this.show(
-          hostScreen(room.code, listing.listed, {
+          hostScreen(room.code, listing.listed, gameName, {
+            rename: (name) => {
+              if (!scope.alive) return;
+              gameName = name;
+              listing.update({ gameName });
+              void room.offer({ host: pick, listed: listing.listed, gameName }).catch((e: unknown) => {
+                if (scope.alive) this.fail(e);
+              });
+            },
             toggleListed: () => {
               listing.list(!listing.listed);
               listPublicly(listing.listed);
               updateSeat(room.code, { listed: listing.listed });
-              void room.offer({ host: pick, listed: listing.listed }).catch(() => {});
+              void room.offer({ host: pick, listed: listing.listed, gameName }).catch((e: unknown) => {
+                if (scope.alive) this.fail(e);
+              });
               render();
             },
             leave: () => {
@@ -781,7 +795,14 @@ export class OnlineScreen {
 const PLAY_HERE = ' Play on this phone for now.';
 
 /** This phone's game on the Games list: hosted by `hostId` (playing as `host`) in room `code`, and how it stands. */
-function listingFor(db: Rtdb, lobby: Sealer, hostId: string, host: Pick, code: string, state: { open?: boolean; playing?: boolean; opponent?: Advert['opponent'] }): Listing {
+function listingFor(
+  db: Rtdb,
+  lobby: Sealer,
+  hostId: string,
+  host: Pick,
+  code: string,
+  state: { open?: boolean; playing?: boolean; gameName?: string; opponent?: Advert['opponent'] },
+): Listing {
   return new Listing(db, lobby, { hostId, ...brief(host), room: code, ...state });
 }
 

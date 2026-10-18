@@ -26,6 +26,7 @@ export const OPEN_ADVERT_MS = 3 * 24 * 60 * 60_000;
 export interface Advert {
   hostId: string;
   name: string;
+  gameName?: string;
   characterId: string;
   room: string;
   ts: number;

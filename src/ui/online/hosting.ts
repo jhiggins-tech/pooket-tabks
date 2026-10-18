@@ -2,10 +2,31 @@ import { roomLink } from '../../net/links';
 import { button, el } from '../dom';
 import { buttons, col, heading, row, shareRow, status, text } from './widgets';
 
-/** The host screen for an open game: its code and link, Listed / Private, and leaving (open) or cancelling it. */
-export function hostScreen(code: string, listed: boolean, go: { toggleListed: () => void; leave: () => void; cancel: () => void }): HTMLElement[] {
+/** The host screen for an open game: its name, code and link, Listed / Private, and leaving or cancelling it. */
+export function hostScreen(
+  code: string,
+  listed: boolean,
+  gameName: string,
+  go: { rename: (name: string) => void; toggleListed: () => void; leave: () => void; cancel: () => void },
+): HTMLElement[] {
   const big = el('div', 'online-code', code);
   big.id = 'online-room-code';
+  const nameInput = el('input', 'online-game-name');
+  nameInput.type = 'text';
+  nameInput.value = gameName;
+  nameInput.maxLength = 40;
+  nameInput.setAttribute('aria-label', 'Game name');
+  nameInput.addEventListener('change', () => {
+    const name = nameInput.value.trim();
+    if (!name) {
+      nameInput.value = gameName;
+      return;
+    }
+    nameInput.value = name;
+    go.rename(name);
+  });
+  const nameLabel = el('label', 'online-game-name-label', 'Game name');
+  nameLabel.append(nameInput);
   const toggle = button(listed ? '🌐 Listed in Games' : '🔒 Private', go.toggleListed, 'online-listed');
   toggle.id = 'online-listed';
   toggle.setAttribute('aria-pressed', String(listed));
@@ -19,6 +40,7 @@ export function hostScreen(code: string, listed: boolean, go: { toggleListed: ()
       col(
         heading('Room code', 'h3'),
         big,
+        nameLabel,
         text(listed ? 'Your game is in the Game browser: anyone can pick it. Or they can type this code.' : 'Private: they type this code, or open the link you send them.'),
       ),
       col(heading('Or send them the link', 'h3'), shareRow(roomLink(code), 'Join my Pooket Tabks game'), toggle),

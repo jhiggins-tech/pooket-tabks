@@ -1163,6 +1163,28 @@ body[data-remote='true'] .drive button {
   -webkit-user-select: text;
   touch-action: manipulation;
 }
+.online-game-name-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: min(100%, 280px);
+  font-size: 13px;
+  text-align: left;
+}
+.online-game-name {
+  box-sizing: border-box;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  font: 600 16px system-ui, -apple-system, sans-serif;
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
 /* The online screens' buttons, unless a class says otherwise (no specificity: any class rule wins). */
 :where(#online button:not(.big)),
 .online-share button,
