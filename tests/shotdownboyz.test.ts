@@ -55,7 +55,7 @@ describe("ShotDownBoyz's beta movement", () => {
     hold(blocked, 1, 2);
     expect(blocked.players[1]!.x - digger.x).toBeGreaterThanOrEqual(22);
     expect(blocked.players[1]!.x - digger.x).toBeLessThan(23);
-    expect(blocked.sfx.some((e) => e.cue === 'digger')).toBe(false);
+    expect(blocked.sfx.some((e) => e.cue === 'digger')).toBe(true);
   });
 
   it('cannot drive while pinned', () => {
@@ -68,6 +68,7 @@ describe("ShotDownBoyz's beta movement", () => {
     hold(g, 1, 1);
     expect(canMove(p)).toBe(false);
     expect(p.x).toBe(x);
+    expect(g.sfx.some((e) => e.cue === 'digger')).toBe(false);
   });
 
   it('refills one empty fuel tank at the start of the next turn, once', () => {
