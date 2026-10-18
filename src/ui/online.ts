@@ -639,7 +639,7 @@ export class OnlineScreen {
     });
     const s = link.session;
     const here = () => this.match.link === link;
-    s.on('lobby', () => here() && this.lobby());
+    s.on('lobby', () => here() && !s.game && this.lobby());
     s.on('lost', () => here() && this.lost());
     s.on('outdated', (who) => here() && this.outdated(who));
     s.on('peerAway', () => here() && this.showAway());

@@ -291,6 +291,9 @@ test('the Games list: a hosted game shows up for any phone, one tap to join (thr
   }
   console.log(log);
   await playFromLobby(host, guest);
+  await guest.evaluate(() => window.__pooket.net!.setPick(window.__pooket.net!.localPick!));
+  await expect(host.locator('#online')).toBeHidden();
+  await expect(guest.locator('#online')).toBeHidden();
   expect(errors).toEqual([]);
   await close();
 });
