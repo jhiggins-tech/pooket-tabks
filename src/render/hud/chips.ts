@@ -1,9 +1,10 @@
 /**
- * The HUD's name chips: a chip per player with their name, rank insignia, status badges, and one health
- * bar (two once Twins has split it). Built when the players or their number of bars change, then kept and
+ * The HUD's name chips: a chip per player with their name, rank insignia, status badges, the tank they
+ * picked under it, and one health bar (two once Twins has split it). Built when the players or their number of bars change, then kept and
  * patched, so the health bars animate.
  */
 import type { GameState, Player } from '../../game/state';
+import { characterName } from '../../characters/roster';
 import { byId, el } from '../../ui/dom';
 import { insignia } from '../../ui/insignia';
 import { badgeKey, badgesOf } from '../../ui/status-looks';
@@ -33,6 +34,7 @@ export function chips(): Part {
       if (rank) name.append(insignia(rank));
       const badges = el('span');
       name.append(badges);
+      const tank = el('span', 'tank', characterName(pl.characterId));
       const bar = el('span', 'bars');
       const fills = (pl.twin ? [0, 1] : [0]).map(() => {
         const track = el('span', 'hp');
@@ -41,7 +43,7 @@ export function chips(): Part {
         bar.append(track);
         return fill;
       });
-      chip.append(name, bar);
+      chip.append(name, tank, bar);
       return { el: chip, fills, badges, badgeKey: '' };
     });
     playersEl.replaceChildren(...chips.map((c) => c.el));
@@ -65,7 +67,7 @@ export function chips(): Part {
 
   return {
     update(state, ctx) {
-      if (shape.changed(state.players.map((pl, i) => `${pl.name}|${pl.colour}|${pl.twin ? 2 : 1}|${ctx.ranks[i]?.id ?? ''}`).join('/'))) build(state, ctx);
+      if (shape.changed(state.players.map((pl, i) => `${pl.name}|${pl.characterId}|${pl.colour}|${pl.twin ? 2 : 1}|${ctx.ranks[i]?.id ?? ''}`).join('/'))) build(state, ctx);
       const current = ctx.p;
       const key = state.players
         .map((pl) => `${pl.hp}/${pl.twin?.hp}/${pl.maxHp}/${pl.alive}/${pl === current && state.phase !== 'gameover'}/${badgeKey(pl)}`)

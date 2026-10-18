@@ -20,6 +20,11 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 56,
+    title: 'Know who’s who',
+    items: ['In a match, each player’s tank now shows under their name, so you can see who picked what.'],
+  },
+  {
     version: 55,
     title: 'See your progress glow',
     items: ['Your rank progress bar now glows in your rank’s colours as it moves up or down.'],

@@ -95,6 +95,11 @@ select option {
 .chip .name {
   color: var(--c);
 }
+.chip .tank {
+  margin-top: -3px;
+  font-size: 11px;
+  opacity: 0.75;
+}
 .chip .burn {
   font-size: 12px;
   animation: burn-pulse 0.8s ease-in-out infinite alternate;

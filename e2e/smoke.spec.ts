@@ -49,6 +49,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   await expect(page.locator('#players .chip')).toHaveCount(2);
   await expect(page.locator('.chip.active .name')).toHaveText('Jack');
   await expect(page.locator('#players .chip .name').nth(1)).toHaveText('kcaj');
+  // Each player's tank, under their name.
+  await expect(page.locator('#players .chip .tank')).toHaveText(['kie', 'kcaj']);
   await expect(page.locator('body')).toHaveAttribute('data-turn', '1');
 
   const weapons = page.locator('#weapons .weapon');
