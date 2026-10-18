@@ -1,5 +1,6 @@
-import { STRIKE, horizonOf, shipAt } from '../../game/game';
+import { STRIKE, horizonOf, shipAt, strikeClock } from '../../game/game';
 import { TANK_BODY_HEIGHT } from '../../game/constants';
+import type { StrikeClock } from '../../game/airstrike';
 import type { AirStrike, GameState } from '../../game/state';
 import type { Draw } from './context';
 import { drawArwing } from './arwing';
@@ -15,13 +16,14 @@ import { drawArwing } from './arwing';
 const BOLT_LIFE = 0.16;
 const BOLT_STREAK = 46;
 /** The bomb's blast as drawn: how long it lasts (s), how big it gets (px). */
-const BLAST_LIFE = STRIKE.end - STRIKE.bomb;
+const BLAST_LIFE = STRIKE.end;
 const BLAST_SIZE = 62;
 
 export function drawAirStrike(d: Draw, state: GameState): void {
   const s = state.airstrike;
   if (!s) return;
   const colour = state.players[s.ownerId]?.colour ?? '#fb923c';
+  const c = strikeClock(s);
   if (s.t < STRIKE.ping + 0.2) drawPing(d, s);
   for (let i = 2; i >= 0; i--) {
     const ship = shipAt(s, i, s.t);
@@ -32,14 +34,14 @@ export function drawAirStrike(d: Draw, state: GameState): void {
     const k = 1.25 * ship.scale;
     ctx.scale(s.dir * k, k);
     // Banking down into the run, level across it, nose up away.
-    ctx.rotate(s.t < STRIKE.strafe ? 0.18 : s.t < STRIKE.drop ? 0.05 : -0.45);
+    ctx.rotate(s.t < c.dive ? 0.08 : s.t < c.strafe ? 0.22 : s.t < c.drop ? 0.05 : -0.45);
     ctx.globalAlpha = Math.min(1, ship.scale * 3);
     drawArwing(d, colour);
     ctx.restore();
   }
   drawBolts(d, s);
-  if (s.t >= STRIKE.drop && s.t < STRIKE.bomb) drawBomb(d, s);
-  if (s.t >= STRIKE.bomb) drawBlast(d, s, (s.t - STRIKE.bomb) / BLAST_LIFE);
+  if (s.t >= c.drop && s.t < c.bomb) drawBomb(d, s, c);
+  if (s.t >= c.bomb) drawBlast(d, s, (s.t - c.bomb) / BLAST_LIFE);
 }
 
 /** Kira! A four-pointed glint on the horizon, flaring then shrinking into the ships coming out of it. */
@@ -119,10 +121,10 @@ function drawBolts(d: Draw, s: AirStrike): void {
 }
 
 /** The bomb: a glowing red orb falling from where the lead ship let it go, onto the target. */
-function drawBomb(d: Draw, s: AirStrike): void {
+function drawBomb(d: Draw, s: AirStrike, c: StrikeClock): void {
   const { ctx } = d;
-  const from = shipAt(s, 0, STRIKE.drop)!;
-  const k = (s.t - STRIKE.drop) / (STRIKE.bomb - STRIKE.drop);
+  const from = shipAt(s, 0, c.drop)!;
+  const k = (s.t - c.drop) / STRIKE.bomb;
   const ty = s.y - TANK_BODY_HEIGHT / 2;
   const x = from.x + (s.x - from.x) * k;
   const y = from.y + (ty - from.y) * k * k;

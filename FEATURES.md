@@ -36,6 +36,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
   bomb (a white-hot red sphere, spinning wireframe triangles and hexagons). About 50 a strike, in line with
   the Marathon's 50 (a sure thing, no skill). `game/airstrike.ts` (`STRIKE`'s clock), `render/draw/airstrike.ts`,
   `render/draw/comm.ts`; new kind `airstrike`, `GameState.airstrike` (snapshot fill-in).
+  - **Bigger comm, and the strike waits for it** (owner, 18 Oct; rules 36). The comm box is restyled after
+    SF64's: a 96 px portrait in a pink frame, a yellow name tag over a navy box, white monospace lettering.
+    The cadence is now ping, ships on approach (holding back, bobbing), the comm (it types out and stays
+    up 1.2 s to be read), and only once it switches off do they dive in and strafe (`strikeClock`: the run
+    starts after the comm, however long its line).
 - **ShotDownBoyz, in beta** (owner, 18 Oct; rules 32; a testing push). Three stand-in shots; his
   once-per-turn bonus activates horizontal bulldozer movement that tunnels through terrain. When he
   spends all his fuel, a second diesel tank refills it at the start of his next turn, once per match.

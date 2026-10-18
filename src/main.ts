@@ -7,7 +7,7 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, answerQuiz, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step } from './game/game';
+import { adjustAim, aimTwin, answerQuiz, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -379,7 +379,7 @@ gameOver.leave.addEventListener('click', () => {
 
 // `?debug` exposes the live game to automated tests (read it, don't write it).
 if (params.debug) {
-  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return online.session; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText, rankUp, RANKS } });
+  Object.assign(window, { __pooket: { get state() { return state; }, get net() { return online.session; }, get spectator() { return online.spectator; }, renderer, sfx, chip, log: netLogText, rankUp, RANKS, strikeClock } });
 }
 
 /** Best effort: Android Chrome supports both; iOS Safari ignores them (use Add to Home Screen). */

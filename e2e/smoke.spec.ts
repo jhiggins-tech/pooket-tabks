@@ -684,12 +684,15 @@ test("doctorfox's Air Strike: a ping, three Arwings, a comm from the Star Fox te
   const at = (t: number) => page.waitForFunction((t) => (window.__pooket.state.airstrike?.t ?? 0) >= t, t);
   await at(0.3);
   await page.screenshot({ path: 'test-results/air-strike-ping.png' });
-  await at(1.3);
-  await page.screenshot({ path: 'test-results/air-strike-arwings.png' });
-  await at(2.3);
+  // The ships on approach while the comm plays, and nothing fired yet.
+  await at(2.4);
+  expect(await page.evaluate(() => window.__pooket.state.airstrike!.bolts.length)).toBe(0);
+  await page.screenshot({ path: 'test-results/air-strike-comm.png' });
+  const clock = await page.evaluate(() => window.__pooket.strikeClock(window.__pooket.state.airstrike!));
+  await at(clock.strafe + 0.7);
   expect(await page.evaluate(() => window.__pooket.state.airstrike!.bolts.length)).toBeGreaterThan(3);
   await page.screenshot({ path: 'test-results/air-strike-lasers.png' });
-  await at(3.6);
+  await at(clock.bomb + 0.15);
   await page.screenshot({ path: 'test-results/air-strike-bomb.png' });
   await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
   expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBeLessThan(hp);

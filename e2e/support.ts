@@ -5,6 +5,7 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import type { Chip } from '../src/audio/chip';
 import type { SfxPlayer } from '../src/audio/sfx';
+import type { strikeClock } from '../src/game/airstrike';
 import type { GameState } from '../src/game/state';
 import type { ReplayPlayer } from '../src/net/replay';
 import type { NetSession } from '../src/net/session';
@@ -28,6 +29,8 @@ export interface PooketDebug {
   log: () => string;
   rankUp: RankUp;
   RANKS: readonly Rank[];
+  /** When each part of an Air Strike happens (game/airstrike.ts). */
+  strikeClock: typeof strikeClock;
 }
 
 declare global {

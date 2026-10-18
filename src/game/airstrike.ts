@@ -1,5 +1,5 @@
 import { randRange } from '../core/rng';
-import { COMMS } from '../weapons/comms';
+import { COMMS, TYPE_RATE } from '../weapons/comms';
 import { weaponOf } from '../weapons/registry';
 import type { WeaponOf } from '../weapons/types';
 import { TANK_BODY_HEIGHT } from './constants';
@@ -16,16 +16,41 @@ import { applyHit, explode, markFor, scaled, tankCentre, targetAt, targetOf, tar
  * drawn by render/draw/comm.ts). They strafe the target with blue lasers, each bolt aimed somewhere across
  * it (`aims`, picked when it's called in) and stopping at the first ground or tank in its way, then the
  * lead ship drops a bomb on it: the weapon's blast. The run follows the target if it moves (a crater
- * under it), and carries on where it was if it's destroyed. All on `STRIKE`'s clock, in `strikeStepper`.
+ * under it), and carries on where it was if it's destroyed. The ships hold back on approach while the
+ * comm plays, and only make their run once it's over. All on `strikeClock`, in `strikeStepper`.
  */
 
 /**
- * The run's clock (s from FIRE): the ping on the horizon until `ping`; the ships come in from `arrive`
- * and are over the target by `strafe`; the first laser at `laser`, then one every `gap`; the bomb drops at
- * `drop` (as the ships pull up and away, gone by `away`) and goes off at `bomb`; the comm is up from
- * `comm` to `commEnd`; it's all over at `end`.
+ * The run's opening (s from FIRE): the ping on the horizon until `ping`; the ships come out of it from
+ * `arrive` and are on approach, holding back, by `hold`; the comm switches on at `comm`. The rest waits
+ * for the comm to finish (`strikeClock`): it switches on and off in `switch`, types its line out at
+ * TYPE_RATE and stays up `read` s once it has; then the ships take `dive` s to dive in, `strafe` s over
+ * the target (the first laser `laser` s in, then one every `gap`), drop the bomb, which goes off `bomb`
+ * s later, are gone `away` s after the drop, and it's over `end` s after the bomb.
  */
-export const STRIKE = { ping: 0.7, arrive: 0.5, strafe: 1.5, laser: 1.6, gap: 0.16, drop: 3.0, bomb: 3.45, away: 4.0, comm: 0.9, commEnd: 4.5, end: 4.7 } as const;
+export const STRIKE = { ping: 0.7, arrive: 0.5, hold: 1.5, comm: 1.0, switch: 0.16, read: 1.2, dive: 0.6, strafe: 1.5, laser: 0.1, gap: 0.16, bomb: 0.45, away: 1.0, end: 1.25 } as const;
+
+/** When each part of strike `s` happens (s from FIRE), after its comm. */
+export interface StrikeClock {
+  commEnd: number;
+  dive: number;
+  strafe: number;
+  drop: number;
+  bomb: number;
+  away: number;
+  end: number;
+}
+
+/** Strike `s`'s clock: the run starts once its comm (however long its line is) is over. */
+export function strikeClock(s: AirStrike): StrikeClock {
+  const line = COMMS[s.pilot]?.line.length ?? 0;
+  const commEnd = STRIKE.comm + STRIKE.switch * 2 + line / TYPE_RATE + STRIKE.read;
+  const dive = commEnd + 0.1;
+  const strafe = dive + STRIKE.dive;
+  const drop = strafe + STRIKE.strafe;
+  const bomb = drop + STRIKE.bomb;
+  return { commEnd, dive, strafe, drop, bomb, away: drop + STRIKE.away, end: bomb + STRIKE.end };
+}
 
 /** How high over the target the ships strafe (px above its hull, kept on screen). */
 const CRUISE = 170;
@@ -47,38 +72,50 @@ export function horizonOf(s: AirStrike): { x: number; y: number } {
 /** Where ship `i` (0 the lead, 1 and 2 the wingmen) is at `t`, how big it's drawn (1: full size, far off: smaller), or null before it's in. */
 export function shipAt(s: AirStrike, i: number, t: number): { x: number; y: number; scale: number } | null {
   if (t < STRIKE.arrive) return null;
+  const c = strikeClock(s);
   const cruiseY = Math.max(36, s.y - CRUISE);
   const start = { x: s.x - s.dir * RUN, y: cruiseY };
-  let x: number;
-  let y: number;
+  const h = horizonOf(s);
+  /** A point `k` of the way from the horizon to the start of the run. */
+  const along = (k: number) => ({ x: h.x + (start.x - h.x) * k, y: h.y + (start.y - h.y) * k });
+  let at: { x: number; y: number };
   let scale = 1;
-  if (t < STRIKE.strafe) {
-    // Coming in from the horizon, growing as they close.
-    const k = (t - STRIKE.arrive) / (STRIKE.strafe - STRIKE.arrive);
-    const e = 1 - (1 - k) ** 2;
-    const h = horizonOf(s);
-    x = h.x + (start.x - h.x) * e;
-    y = h.y + (start.y - h.y) * e;
-    scale = 0.06 + 0.94 * k * k;
-  } else if (t < STRIKE.drop) {
+  if (t < STRIKE.hold) {
+    // Out of the ping on the horizon, onto their approach.
+    const k = (t - STRIKE.arrive) / (STRIKE.hold - STRIKE.arrive);
+    at = along(0.4 * (1 - (1 - k) ** 2));
+    scale = 0.06 + 0.44 * k;
+  } else if (t < c.dive) {
+    // On approach while the comm plays: closing slowly, bobbing in formation.
+    const k = Math.min(1, (t - STRIKE.hold) / Math.max(0.01, c.dive - STRIKE.hold));
+    at = along(0.4 + 0.1 * k);
+    at.y += Math.sin((t - STRIKE.hold) * 2.4) * 4;
+    scale = 0.5 + 0.1 * k;
+  } else if (t < c.strafe) {
+    // Diving in to the start of the run.
+    const k = (t - c.dive) / STRIKE.dive;
+    const e = k * k * (3 - 2 * k);
+    const from = along(0.5);
+    at = { x: from.x + (start.x - from.x) * e, y: from.y + Math.sin((t - STRIKE.hold) * 2.4) * 4 * (1 - e) + (start.y - from.y) * e };
+    scale = 0.6 + 0.4 * e;
+  } else if (t < c.drop) {
     // The strafing run, across the target.
-    const k = (t - STRIKE.strafe) / (STRIKE.drop - STRIKE.strafe);
-    x = start.x + s.dir * 2 * RUN * k;
-    y = cruiseY + Math.sin(k * Math.PI) * 14;
+    const k = (t - c.strafe) / STRIKE.strafe;
+    at = { x: start.x + s.dir * 2 * RUN * k, y: cruiseY + Math.sin(k * Math.PI) * 14 };
   } else {
     // Pulling up and away.
-    const k = (t - STRIKE.drop) / (STRIKE.away - STRIKE.drop);
-    x = s.x + s.dir * (RUN + 260 * k);
-    y = cruiseY - 300 * k * k;
+    const k = (t - c.drop) / STRIKE.away;
+    at = { x: s.x + s.dir * (RUN + 260 * k), y: cruiseY - 300 * k * k };
     scale = 1 + 0.3 * k;
   }
+  const { x, y } = at;
   const w = WINGS[i]!;
   return { x: x - s.dir * w.back * scale, y: y - w.up * scale, scale };
 }
 
-/** When laser `i` goes off (s from FIRE); ship `i % 3` fires it. */
-export function laserTime(i: number): number {
-  return STRIKE.laser + i * STRIKE.gap;
+/** When laser `i` of strike `s` goes off (s from FIRE); ship `i % 3` fires it. */
+export function laserTime(s: AirStrike, i: number): number {
+  return strikeClock(s).strafe + STRIKE.laser + i * STRIKE.gap;
 }
 
 /** Fired: three Arwings called in on the enemy nearest doctorfox (nothing, if there's nobody to see). */
@@ -143,14 +180,16 @@ export const strikeStepper: Stepper = {
     if (was < STRIKE.arrive && s.t >= STRIKE.arrive) sound(state, 'arwings', s.weaponId);
     if (was < STRIKE.comm && s.t >= STRIKE.comm) sound(state, 'comm', s.weaponId, COMMS[s.pilot]!.line.length);
     s.aims.forEach((_, i) => {
-      if (was < laserTime(i) && s.t >= laserTime(i)) fireLaser(state, s, i);
+      if (was < laserTime(s, i) && s.t >= laserTime(s, i)) fireLaser(state, s, i);
     });
-    if (!s.bombed && s.t >= STRIKE.bomb) {
+    const c = strikeClock(s);
+    if (was < c.dive && s.t >= c.dive) sound(state, 'arwings', s.weaponId);
+    if (!s.bombed && s.t >= c.bomb) {
       s.bombed = true;
       sound(state, 'smart-bomb', s.weaponId);
       explode(state, s.x, s.y - TANK_BODY_HEIGHT / 2, weaponOf(s.weaponId, 'airstrike'), s.ownerId);
     }
-    if (s.t >= STRIKE.end) state.airstrike = null;
+    if (s.t >= c.end) state.airstrike = null;
   },
   busy: (state) => state.airstrike !== null,
 };

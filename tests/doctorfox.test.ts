@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { airStrike, hoopDreamz, sly } from '../src/characters/kits';
 import { FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
-import { STRIKE, canFire, explode, fire, hoopFor, isAimless, isSly, shipAt, selectTier, sneakClock, sneakLeft, sneakReady } from '../src/game/game';
+import { STRIKE, canFire, explode, fire, hoopFor, isAimless, isSly, shipAt, strikeClock, selectTier, sneakClock, sneakLeft, sneakReady } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { nearestEnemyX } from '../src/game/tanks';
-import { COMMS, PILOTS } from '../src/weapons/comms';
+import { COMMS, PILOTS, TYPE_RATE } from '../src/weapons/comms';
 import { applyPreview, previewOf } from '../src/net/follow';
-import { hold, passTurn, testGame, untilNextTurn } from './support/game';
+import { hold, passTurn, stepUntil, testGame, untilNextTurn } from './support/game';
 
 const players = [
   { name: 'fox', colour: '#fb923c', characterId: 'doctorfox' },
@@ -144,7 +144,13 @@ describe("doctorfox's Air Strike", () => {
     // The ships come out of the ping on the horizon, small, and are full size over the target.
     expect(shipAt(s, 0, 0.1)).toBeNull();
     expect(shipAt(s, 0, STRIKE.arrive + 0.01)!.scale).toBeLessThan(0.2);
-    expect(shipAt(s, 0, STRIKE.strafe)!.scale).toBe(1);
+    const c = strikeClock(s);
+    expect(shipAt(s, 0, c.strafe)!.scale).toBe(1);
+    // Nothing fires until the comm is over: the ping, the approach and the comm come first.
+    expect(c.commEnd).toBeGreaterThan(STRIKE.comm + COMMS[s.pilot]!.line.length / TYPE_RATE);
+    stepUntil(g, () => g.airstrike!.t >= c.commEnd, 10);
+    expect(g.airstrike!.bolts).toHaveLength(0);
+    expect(gary.hp).toBe(gary.maxHp);
     untilNextTurn(g);
     expect(g.airstrike).toBeNull();
     expect(g.current).toBe(1);
