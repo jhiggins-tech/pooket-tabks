@@ -23,6 +23,7 @@ import { turnEnding, turnStarting } from './statuses';
 import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
 import { newTally, tallyShot } from './tally';
 import { clamp, normalizeAngle } from './util';
+import { refillDiesel } from './digger';
 
 /**
  * The match: creating a game, aiming and weapon choice, firing (each weapon kind's mechanics live in
@@ -43,6 +44,7 @@ export { isSpewing } from './gunk';
 export { jetCharge } from './jetpack';
 export { HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, WALKER_BODY } from './constants';
 export { canDriveNow, drive } from './movement';
+export { isDigger } from './digger';
 export { traceBeam, volleyOffsets } from './projectiles';
 export { stitchPoint } from './sew';
 export { PHASE_FOCUS, PHASE_RANGE, boomPhaseArcs, boomRadii } from './sonic';
@@ -114,6 +116,10 @@ export function createGame(cfg: GameConfig): GameState {
       aimTwin: false,
       twinSpot: null,
       fuel: FUEL_PER_MATCH,
+      diggerActive: false,
+      diggerTurn: -1,
+      dieselAvailable: character.id === 'shotdownboyz',
+      dieselCanTime: 0,
       scam: null,
       coffee: null,
       extraTurn: false,
@@ -278,6 +284,7 @@ export function step(state: GameState, dt: number): void {
 
   stepSplashes(state, dt);
   stepSmokes(state, dt);
+  for (const p of state.players) p.dieselCanTime = Math.max(0, p.dieselCanTime - dt);
 
   if (state.phase === 'flying') {
     if (!runSteppers(state, dt)) {
@@ -320,6 +327,7 @@ function endTurn(state: GameState): void {
   const again = ending.extraTurn;
   ending.extraTurn = false;
   turnEnding(ending);
+  ending.diggerActive = false;
   endScams(state);
   state.lastShot = null; // burns ticking below aren't this turn's attack
   state.tallyShot = null;
@@ -362,4 +370,5 @@ function endTurn(state: GameState): void {
   state.turn++;
   state.phase = 'aiming';
   turnStarting(state.players[next]!);
+  refillDiesel(state, state.players[next]!);
 }

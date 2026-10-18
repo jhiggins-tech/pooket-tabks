@@ -57,6 +57,17 @@ describe('Terrain', () => {
     expect(t.takeDirty()).toEqual([]);
   });
 
+  it('carves a rectangular tunnel and keeps pixel alpha in sync', () => {
+    const t = flat(100, 60, 20);
+    t.takeDirty();
+    expect(t.carveRect(40, 18, 10, 8)).toBe(80);
+    expect(t.isSolid(44, 20)).toBe(false);
+    expect(t.isSolid(44, 27)).toBe(false);
+    expect(t.isSolid(44, 28)).toBe(true);
+    expect(t.takeDirty()).toEqual([{ x: 40, y: 18, w: 10, h: 8 }]);
+    for (let i = 0; i < t.solid.length; i++) expect(t.pixels[i * 4 + 3]).toBe(t.solid[i] ? 255 : 0);
+  });
+
   it('keeps changes far apart as separate dirty rects (and merges ones that touch)', () => {
     const t = flat(400, 60, 20);
     t.takeDirty();

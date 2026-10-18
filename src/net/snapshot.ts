@@ -78,6 +78,13 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   // Rules 27: doctorfox's Sly.
   snap.sneak ??= null;
   for (const p of (snap.players as { hidden?: boolean }[] | undefined) ?? []) p.hidden ??= false;
+  // Rules 32: ShotDownBoyz's turn-limited digger and one reserve diesel tank.
+  for (const p of (snap.players as { diggerActive?: boolean; diggerTurn?: number; dieselAvailable?: boolean; dieselCanTime?: number }[] | undefined) ?? []) {
+    p.diggerActive ??= false;
+    p.diggerTurn ??= -1;
+    p.dieselAvailable ??= false;
+    p.dieselCanTime ??= 0;
+  }
   // Rules 28: doctorfox's Arwing.
   for (const p of (snap.players as { flight?: unknown }[] | undefined) ?? []) p.flight ??= null;
   // Rules 29: garyoldmancorp's 007.

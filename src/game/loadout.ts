@@ -41,7 +41,7 @@ export function canSuckYolk(p: Player): boolean {
 /**
  * Whether `p` can use slot `tier` now (select it, and fire it on their turn): Yolk Sucker while there's
  * health to even out; anything else while it has a round, and a once-a-turn bonus move (Diced Coffee) only
- * if it hasn't had one this turn (`Player.coffee.turn`).
+ * if it hasn't had one this turn (`Player.coffee.turn` or `Player.diggerTurn`).
  */
 export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
   if (slotAt(p, tier) === 'yolk') return canSuckYolk(p);
@@ -49,7 +49,9 @@ export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
   const id = p.loadout[tier];
   if (id === undefined) return true;
   const row = kindRow(kindOf(getWeapon(id)));
-  return !(row.turn === 'bonus' && row.per === 'turn' && p.coffee?.turn === state.turn);
+  if (row.turn !== 'bonus' || row.per !== 'turn') return true;
+  if (kindOf(getWeapon(id)) === 'digger') return p.diggerTurn !== state.turn;
+  return p.coffee?.turn !== state.turn;
 }
 
 /**

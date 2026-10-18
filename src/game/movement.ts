@@ -7,6 +7,7 @@ import { sneakMoved } from './sly';
 import { currentPlayer, hullRest, otherBodyNear } from './bodies';
 import { hurt } from './tanks';
 import { clamp, hash } from './util';
+import { diggerDrive } from './digger';
 
 /**
  * Driving (◀ ▶, one tank of fuel per match), ciarra's frog hops, garyoldmancorp's scooter (driving, faster
@@ -41,6 +42,7 @@ export function drive(state: GameState, dir: number, dt: number): number {
 function move(state: GameState, dir: number, dt: number): number {
   const p = currentPlayer(state);
   if (p.aimTwin && p.twin) return driveTwin(state, p, p.twin, dir, dt);
+  if (p.diggerActive) return diggerDrive(state, p, dir, dt);
   const movement = getCharacter(p.characterId).movement;
   if (movement === 'hop') return hopDrive(state, p, dir, dt);
   if (movement === 'arwing') return arwingDrive(state, p, dir, dt);

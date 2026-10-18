@@ -19,6 +19,7 @@ import { startHeist } from './steal';
 import { dropletStepper, fireStream, streamStepper } from './stream';
 import { soakStepper } from './tanks';
 import { fireSly } from './sly';
+import { activateDigger } from './digger';
 
 /**
  * The weapon mechanics, in one place: how each kind goes off (`FIRE` for shots, `FREE_ACTIONS` for the rest:
@@ -48,6 +49,7 @@ export type FreeActionFn = (state: GameState, p: Player, tier: number) => boolea
 export const FREE_ACTIONS: Record<Exclude<WeaponKind, ShotKind>, FreeActionFn> = {
   steal: startHeist,
   scam: armScam,
+  digger: activateDigger,
   coffee: startCoffee,
 };
 

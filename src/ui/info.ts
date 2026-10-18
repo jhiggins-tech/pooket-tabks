@@ -13,6 +13,12 @@ const BASICS = 'basics';
 
 /** How each character gets around with the ◀ ▶ buttons. */
 export function movementInfo(c: CharacterDef): { label: string; text: string } {
+  if (c.id === 'shotdownboyz') {
+    return {
+      label: 'Bulldozer',
+      text: 'Activate Digger as a bonus move to drive straight horizontally through any terrain, carving a tunnel for the rest of that turn. It uses fuel; when his fuel runs out, his second diesel tank refills it at the start of his next turn.',
+    };
+  }
   if (c.movement === 'hop') return { label: 'Frog hops', text: 'Big frog leaps instead of driving: clears walls and cliffs no tank can climb, and goes twice as far on the same one tank of fuel.' };
   if (c.movement === 'scooter') {
     return {

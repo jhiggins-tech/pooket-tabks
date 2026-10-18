@@ -5,9 +5,9 @@ import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the nine selectable characters (kiwicore and doctorfox in beta)', () => {
-    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore', 'doctorfox']);
+  it('has the ten selectable characters (kiwicore, doctorfox and ShotDownBoyz in beta)', () => {
+    expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox', 'shotdownboyz']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore', 'doctorfox', 'shotdownboyz']);
   });
 
   it("kiwicore's beta loadout: the béretta M2, Band Aid and a stand-in shot; he wears a flat cap", () => {
@@ -24,6 +24,13 @@ describe('roster', () => {
     expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 
+  it("ShotDownBoyz's beta loadout has three stand-in shots and an unlimited once-a-turn digger bonus", () => {
+    const boyz = getCharacter('shotdownboyz');
+    expect(boyz.loadout).toEqual(['digger-shot', 'digger-bomb', 'digger-blast', 'activate-digger']);
+    expect(boyz.beta).toBe(true);
+    expect(getWeapon('activate-digger').kind).toBe('digger');
+  });
+
   it("garyoldmancorp's loadout (out of beta): Mr Bean, Hoop Dreamz, 007 and Diced Coffee", () => {
     expect(getCharacter('garyoldmancorp').loadout).toEqual(['mr-bean', 'hoop-dreamz', 'double-o-seven', 'diced-coffee']);
     expect(['mr-bean', 'hoop-dreamz', 'double-o-seven'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'hoop', 'bond']);
@@ -38,7 +45,7 @@ describe('roster', () => {
   });
 
   it('upcoming characters are shown but never playable (not in the roster, nor a valid pick anywhere)', () => {
-    expect(UPCOMING.map((u) => u.name)).toEqual(['shotdownboyz', 'odsey', 'lankcity']);
+    expect(UPCOMING.map((u) => u.name)).toEqual(['odsey', 'lankcity']);
     for (const u of UPCOMING) {
       expect(isCharacterId(u.id)).toBe(false);
       expect(() => getCharacter(u.id)).toThrow();
@@ -46,11 +53,11 @@ describe('roster', () => {
     }
     expect(upcoming('tones')).toBeUndefined();
     // Teased moves (work in progress), by slot.
-    expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now (beta)
-    expect(upcoming('kiwicore')).toBeUndefined(); // likewise
-    expect(upcoming('doctorfox')).toBeUndefined(); // likewise
+    expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now
+    expect(upcoming('kiwicore')).toBeUndefined(); // playable in beta
+    expect(upcoming('doctorfox')).toBeUndefined(); // playable in beta
+    expect(upcoming('shotdownboyz')).toBeUndefined(); // playable in beta
     expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
-    expect(upcoming('shotdownboyz')!.teasers!.map((t) => t.name)).toEqual(['summon digger', 'neurodiverge', 'tank build']);
     expect(upcoming('odsey')!.teasers).toBeUndefined();
   });
 

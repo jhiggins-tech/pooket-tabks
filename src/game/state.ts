@@ -74,6 +74,14 @@ export interface Player extends TankBody {
   twinSpot: number | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
+  /** ShotDownBoyz: whether this turn's driving is horizontal, tunnelling digger movement. */
+  diggerActive: boolean;
+  /** ShotDownBoyz: global turn when Activate Digger was last used. */
+  diggerTurn: number;
+  /** ShotDownBoyz: the once-per-match reserve diesel tank is still available. */
+  dieselAvailable: boolean;
+  /** ShotDownBoyz: seconds the refuelling jerry can remains visible. */
+  dieselCanTime: number;
   /** Women in Scam in play: until the end of the next enemy turn; `loot` is the weapon of the first enemy hit on this tank. */
   scam: { loot: string | null } | null;
   /** Diced Coffee: the chance it fails next time, and the turn it was last drunk (it's once a turn). Null: never drunk. */
@@ -595,6 +603,7 @@ export type SfxCue =
   | 'yolk'
   | 'slurp'
   | 'spill'
+  | 'refuel'
   | 'scoot'
   | 'crash'
   | 'arwing-up'

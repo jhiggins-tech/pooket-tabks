@@ -20,8 +20,8 @@ test('sets up players and plays a turn on a landscape phone', async ({ page }) =
   const p2Char = page.getByLabel('Player 2 character');
   const p1Name = page.getByLabel('Player 1 name');
   const p2Name = page.getByLabel('Player 2 name');
-  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore (beta)', 'doctorfox (beta)']);
-  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(3);
+  await expect(p1Char.locator(':scope > option')).toHaveText(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore (beta)', 'doctorfox (beta)', 'shotdownboyz (beta)']);
+  await expect(p1Char.locator('optgroup[label="Coming soon"] option')).toHaveCount(2);
   await expect(p1Char).toHaveValue('tones');
   await expect(p2Char).toHaveValue('kie');
   await expect(p1Name).toHaveValue('tones2');
@@ -879,7 +879,7 @@ test('info screen explains every character and weapon', async ({ page }) => {
   expect(frozen).not.toBe('[]');
   await page.waitForTimeout(400);
   expect(await shots()).toBe(frozen);
-  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, the eight, and four coming soon
+  await expect(page.getByRole('tab')).toHaveCount(13); // how to play, ten playable, and two coming soon
   for (const [name, weapon] of [['tones2', 'ten-2'], ['kie', 'Trollogram'], ['kcaj', 'Hyperfixate'], ['torikloud', 'Twins'], ['larinovsky', 'Take a Nap']]) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.info-card h3').filter({ hasText: weapon })).toBeVisible();
@@ -909,7 +909,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
 
   // The info screen: a tab each, with the banner.
   await page.locator('#hotseat-info').tap();
-  for (const name of ['shotdownboyz', 'odsey', 'lankcity']) {
+  for (const name of ['odsey', 'lankcity']) {
     await page.getByRole('tab', { name, exact: true }).tap();
     await expect(page.locator('.coming-soon h2')).toHaveText(name);
     await expect(page.locator('.coming-soon .coming-soon-banner')).toHaveText('Coming soon');
@@ -920,9 +920,6 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['HARD disk drive', 'lizard walk']);
   await expect(page.locator('.coming-soon-cards .info-tags')).toHaveText(['Tier 2', 'Movement']);
   await expect(page.locator('.coming-soon-wip')).toContainText('subject to change');
-  await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
-  await expect(page.locator('.coming-soon-cards .info-card h3')).toHaveText(['summon digger', 'neurodiverge', 'tank build']);
-  await page.screenshot({ path: 'test-results/coming-soon-teasers.png' });
   // garyoldmancorp is out of beta: no banner.
   await page.getByRole('tab', { name: 'garyoldmancorp', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveCount(0);
@@ -936,6 +933,10 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await page.getByRole('tab', { name: 'doctorfox', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Sly', 'Beta Bomb']);
+  await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
+  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Bomb', 'Beta Blast', 'Activate Digger']);
+  await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
 });
 
 test('8-bit sound effects play, and the sound toggle is remembered', async ({ page }) => {
@@ -960,6 +961,50 @@ test('8-bit sound effects play, and the sound toggle is remembered', async ({ pa
   await page.locator('#open-hotseat').tap();
   await page.locator('#start').tap();
   await expect(page.locator('#sound-toggle')).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('ShotDownBoyz activates the digger and gets one second-diesel refill', async ({ page }) => {
+  await startHotseat(page, { seed: 77, p1: 'shotdownboyz', p2: 'kie', query: 'debug' });
+  await page.evaluate(() => {
+    const p = window.__pooket.state.players[0]!;
+    p.x = 300;
+    p.y = window.__pooket.state.terrain.surfaceY(p.x);
+    p.fuel = 35;
+    window.__pooket.state.terrain.addDirt(332, p.y - 8, 18, [92, 62, 36]);
+  });
+
+  await page.locator('#weapons .weapon').nth(3).tap();
+  await page.locator('#fire').tap();
+  await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.diggerActive)).toBe(true);
+
+  const right = page.getByRole('button', { name: 'Drive right' });
+  const box = await right.boundingBox();
+  if (!box) throw new Error('Drive right button is not visible');
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(1500);
+  await page.mouse.up();
+
+  const tunnel = await page.evaluate(() => {
+    const p = window.__pooket.state.players[0]!;
+    return { x: p.x, fuel: p.fuel, solid: window.__pooket.state.terrain.isSolid(332, p.y - 5) };
+  });
+  expect(tunnel.x).toBeGreaterThan(330);
+  expect(tunnel.fuel).toBe(0);
+  expect(tunnel.solid).toBe(false);
+
+  const endTurn = async (turn: number) => {
+    await page.evaluate(() => {
+      window.__pooket.state.phase = 'settling';
+      window.__pooket.state.settleTimer = 0;
+    });
+    await expect(page.locator('body')).toHaveAttribute('data-turn', String(turn), { timeout: 5_000 });
+  };
+  await endTurn(2);
+  await endTurn(3);
+  await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.fuel)).toBe(250);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselAvailable)).toBe(false);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselCanTime)).toBeGreaterThan(0);
 });
 
 test('remembers the last setup', async ({ page }) => {

@@ -311,6 +311,7 @@ export type WeaponDef = WeaponBase &
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }
+    | { kind: 'digger' }
     /** The spinner's odds, and the little jetpack (and its gunk) of a spill. */
     | { kind: 'coffee'; coffee: CoffeeSpec; jetpack: JetpackSpec; gunk: GunkSpec }
   );

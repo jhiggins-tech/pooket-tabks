@@ -25,6 +25,9 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **ShotDownBoyz, in beta** (owner, 18 Oct; rules 32; a testing push). Three stand-in shots; his
+  once-per-turn bonus activates horizontal bulldozer movement that tunnels through terrain. When he
+  spends all his fuel, a second diesel tank refills it at the start of his next turn, once per match.
 - **Rank progress after every rated match.** A rank screen shows the rating change and animates progress up
   or down, including across a rank boundary.
 - **Name your online game.** Hosts can edit the public Games browser title while setting up a match; it
@@ -430,14 +433,13 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - **tones is now tones2** (owner, 2 Oct): the name players see everywhere; the id stays `tones`, so saved
   picks, matches in progress and replays carry on. A hotseat seat saved under the old name follows the
   character (`OLD_NAMES`, ui/seats.ts).
-- **Coming soon characters** (owner, 2 Oct): garyoldmancorp, shotdownboyz, kiwicore, odsey, lankcity and
+- **Coming soon characters** (owner, 2 Oct): garyoldmancorp, kiwicore, odsey, lankcity and
   doctorfox are in the character pickers (hotseat and Choose your tank, under "Coming soon") and have an
   info tab each, with a Coming soon banner. They can be looked at, not played: Start and Join wait for
   someone playable. `characters/upcoming.ts`, deliberately outside ROSTER (nothing else can pick one).
   Their pages tease moves (owner, 2 Oct; marked work in progress, subject to change): kiwicore (tier 1
   torpedo pass, tier 2 throwdown), garyoldmancorp (tier 2 kamp karl, tier 3 the crinkler, bonus action
-  stop the violence), lankcity (tier 2 HARD disk drive, movement lizard walk), shotdownboyz (tier 2 summon
-  digger, tier 3 neurodiverge, passive tank build).
+  stop the violence), and lankcity (tier 2 HARD disk drive, movement lizard walk).
 - **Push notifications** (owner, 1 Oct; from the owner's handover doc). Turn them on with 🔔 on the landing
   screen; then "🎯 Your turn!" when the other player has played and you're away, and "🎮 Someone joined
   your game" when someone starts your open game. Two ways in, one alert: an open page shows it at once
@@ -580,4 +582,5 @@ between visits.
 | **garyoldmancorp** (rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Mr Bean ☕: rapid fire, 10 lobbed coffee beans with a slight spread, 2 each; they home in on an enemy within 170px, harder than the Rizzler | Hoop Dreamz 🏀: shoot through a hoop over the enemy; a slam dunk is 70 straight down, a loose ball bouncing onto them 15 | 007 🍸: a Bond trivia question (20 s, the six actors to pick from); right, and the gun barrel opens on the nearest enemy, a spy sting, then they lose 77% of the health they have left; wrong, nothing. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
 | **doctorfox** (beta; flies an Arwing: takes off, flies over anything at 3× speed, 2× range, lands when let go) | Beta Shot: stand-in shell, 30 | Sly 🌫: a smokescreen, fuel filled up and 10 s to move; hidden from the enemy until his next turn (a hit gives him away) | Beta Bomb: stand-in shell, 70 |
 | **kiwicore** (beta; wears a flat cap) | béretta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Band Aid: a rhythm minigame over a 4-bar chiptune thrasher, tap anywhere on the beat (24 notes), the turret swings a drumstick from drum to drum; perfect and close hits heal, up to 40% of full health; 3 misses end it | Beta Bomb: stand-in shell, 70 |
+| **shotdownboyz** (beta; bulldozer mount, horizontal tunnelling) | Beta Shot: stand-in shell, 30 | Beta Bomb: stand-in shell, 50 | Beta Blast: stand-in shell, 70; plus a 4th slot, **Activate Digger**: a bonus move once a turn; drive left/right through terrain at the current height, carving a tunnel. Once all fuel is spent, a second diesel tank refills it at the start of his next turn, once per match |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

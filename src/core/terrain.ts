@@ -176,6 +176,27 @@ export class Terrain {
     return removed;
   }
 
+  /** Remove all solid pixels in a rectangle. Returns pixels removed. */
+  carveRect(x: number, y: number, w: number, h: number): number {
+    const x0 = Math.max(0, Math.floor(x));
+    const x1 = Math.min(this.width - 1, Math.ceil(x + w) - 1);
+    const y0 = Math.max(0, Math.floor(y));
+    const y1 = Math.min(this.height - 1, Math.ceil(y + h) - 1);
+    if (x0 > x1 || y0 > y1) return 0;
+    let removed = 0;
+    for (let yy = y0; yy <= y1; yy++) {
+      for (let xx = x0; xx <= x1; xx++) {
+        const i = yy * this.width + xx;
+        if (this.solid[i] === 0) continue;
+        this.solid[i] = 0;
+        this.pixels[i * 4 + 3] = 0;
+        removed++;
+      }
+    }
+    if (removed > 0) this.markDirty({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    return removed;
+  }
+
   /**
    * Make the solid mask match `mask` (from the other phone): cleared pixels vanish, new ones are
    * coloured like the soil nearest them. Returns how many pixels changed.

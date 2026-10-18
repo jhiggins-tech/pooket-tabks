@@ -72,4 +72,15 @@ describe('snapshots', () => {
     expect(B.nextId).toBe(12);
     expect('floaters' in B).toBe(false);
   });
+
+  it("upgrades older player snapshots with ShotDownBoyz's movement state", () => {
+    const snap = takeSnapshot(createGame({ seed: 9, players }));
+    const player = (snap.players as Record<string, unknown>[])[0]!;
+    delete player.diggerActive;
+    delete player.diggerTurn;
+    delete player.dieselAvailable;
+    delete player.dieselCanTime;
+    const upgraded = upgradeSnapshot(snap);
+    expect(upgraded.players).toMatchObject([{ diggerActive: false, diggerTurn: -1, dieselAvailable: false, dieselCanTime: 0 }]);
+  });
 });

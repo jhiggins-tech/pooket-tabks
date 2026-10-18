@@ -1,6 +1,6 @@
 /** The HUD's weapon buttons: rebuilt only when the loadout, rounds, selection or phase change. */
 import { AMMO_PER_TIER } from '../../characters/roster';
-import { canSuckYolk, canUseSlot, coffeeFailChance, isCoffee, weaponForTier, YOLK_SUCKER, yolkTier } from '../../game/game';
+import { canSuckYolk, canUseSlot, coffeeFailChance, isCoffee, isDigger, weaponForTier, YOLK_SUCKER, yolkTier } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { byId, el } from '../../ui/dom';
 import { keyed, type Part } from './part';
@@ -9,7 +9,7 @@ export function weapons(): Part {
   const weaponsEl = byId('weapons');
   return keyed(
     (state, { p }) =>
-      `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}|${yolkTier(p)}|${canSuckYolk(p)}|${state.turn}|${p.coffee?.turn}|${p.coffee?.failChance}`,
+      `${p.id}|${p.loadout.join(',')}|${p.ammo.join(',')}|${p.selectedTier}|${state.phase === 'aiming'}|${yolkTier(p)}|${canSuckYolk(p)}|${state.turn}|${p.coffee?.turn}|${p.coffee?.failChance}|${p.diggerTurn}|${p.diggerActive}`,
     (state, { p }) => weaponsEl.replaceChildren(...p.loadout.map((_, tier) => weaponButton(state, p, tier))),
   );
 }
@@ -44,6 +44,15 @@ function weaponButton(state: GameState, p: Player, tier: number): HTMLButtonElem
     name.textContent = w.shortName;
     name.classList.add('long');
     btn.append(name, el('span', 'pips bonus', why));
+    return btn;
+  }
+  if (isDigger(p, tier)) {
+    const stateLabel = p.diggerActive ? 'active' : ok ? 'ready' : 'used';
+    btn.classList.add('digger');
+    btn.setAttribute('aria-label', `${w.name}, bonus move, ${ok ? 'ready' : stateLabel}`);
+    name.textContent = w.shortName;
+    name.classList.add('long');
+    btn.append(name, el('span', 'pips bonus', stateLabel));
     return btn;
   }
   btn.setAttribute('aria-label', `${w.name}, ${left} left`);

@@ -22,5 +22,6 @@ describe('info screen content', () => {
     expect(movementInfo(getCharacter('ciarra')).label).toBe('Frog hops');
     expect(movementInfo(getCharacter('tones')).label).toBe('Drives');
     expect(movementInfo(getCharacter('doctorfox')).label).toBe('Arwing');
+    expect(movementInfo(getCharacter('shotdownboyz')).label).toBe('Bulldozer');
   });
 });

@@ -127,9 +127,60 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
     const cap = capSpot(p);
     drawFlatCap(ctx, cap.x, cap.y + 2, Math.cos(((at?.angle ?? owner.angle) * Math.PI) / 180) >= 0 ? 1 : -1);
   }
+  if (owner.characterId === 'shotdownboyz') drawBulldozer(ctx, p);
   ctx.restore();
 
   if (isCurrent && state.phase === 'aiming') drawTurnMarker(d, c);
+  if (!at && p.dieselCanTime > 0) drawJerryCan(ctx, c.x - 18, c.y - 26);
+}
+
+function drawBulldozer(ctx: CanvasRenderingContext2D, p: Player): void {
+  const dir = Math.cos((p.angle * Math.PI) / 180) >= 0 ? 1 : -1;
+  ctx.save();
+  ctx.translate(p.x + dir * 10, p.y - 2);
+  ctx.scale(dir, 1);
+  ctx.fillStyle = '#d9a52e';
+  ctx.strokeStyle = '#44351a';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(0, -7);
+  ctx.lineTo(8, -5);
+  ctx.lineTo(10, 3);
+  ctx.lineTo(1, 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = '#6b7280';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-5, -8);
+  ctx.lineTo(1, -5);
+  ctx.moveTo(-3, 0);
+  ctx.lineTo(1, -1);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawJerryCan(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  ctx.save();
+  ctx.fillStyle = '#84a83b';
+  ctx.strokeStyle = '#26351b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(x, y + 3, 13, 13, 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = '#d5e9a3';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + 4, y + 4);
+  ctx.lineTo(x + 5, y);
+  ctx.lineTo(x + 10, y);
+  ctx.lineTo(x + 11, y + 4);
+  ctx.moveTo(x + 10, y + 2);
+  ctx.lineTo(x + 15, y + 2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** The bobbing white arrow over the current player's tank, `c` its centre. */

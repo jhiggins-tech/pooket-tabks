@@ -60,6 +60,8 @@ export const KINDS = {
   steal: { aims: false, turn: 'free' },
   /** Women in Scam: an enemy hit on the firer next turn earns them a round of the weapon that did it. */
   scam: { aims: false, turn: 'bonus', per: 'match' },
+  /** ShotDownBoyz: enter horizontal terrain-digging mode for this turn. */
+  digger: { aims: false, turn: 'bonus', per: 'turn' },
   /** Diced Coffee: a spinner; a win skips the next enemy turn (go again), a loss spills it for good. */
   coffee: { aims: false, turn: 'bonus', per: 'turn', keepsInPlay: false },
 } as const satisfies Record<string, KindRow>;

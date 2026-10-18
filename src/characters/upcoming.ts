@@ -17,16 +17,6 @@ export interface Teaser {
 }
 
 export const UPCOMING: readonly Upcoming[] = [
-  {
-    id: 'shotdownboyz',
-    name: 'shotdownboyz',
-    colour: '#f87171',
-    teasers: [
-      { slot: 'Tier 2', name: 'summon digger' },
-      { slot: 'Tier 3', name: 'neurodiverge' },
-      { slot: 'Passive', name: 'tank build' },
-    ],
-  },
   { id: 'odsey', name: 'odsey', colour: '#c084fc' },
   {
     id: 'lankcity',

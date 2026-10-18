@@ -28,6 +28,14 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     pew(s);
     s.noise({ dur: 0.08, rate: 0.6, vol: 0.15 });
   },
+  'activate-digger': (s) => {
+    s.noise({ dur: 0.22, rate: 0.35, to: 0.8, vol: 0.16 });
+    s.tone({ at: 0.08, dur: 0.25, from: 90, to: 190, duty: 0.5, vol: 0.14 });
+    s.tone({ at: 0.28, dur: 0.12, from: 620, to: 230, duty: 0.25, vol: 0.1 });
+  },
+  'digger-shot': (s) => { pew(s); s.noise({ dur: 0.08, rate: 0.6, vol: 0.15 }); },
+  'digger-bomb': (s) => { pew(s, 0, 950, 120); s.noise({ dur: 0.12, rate: 0.5, vol: 0.2 }); },
+  'digger-blast': (s) => { pew(s, 0, 700, 70); s.noise({ dur: 0.18, rate: 0.35, vol: 0.24 }); },
   // An ice cream van jingle, badly.
   'double-park': (s) => {
     arp(s, [76, 79, 81, 83, 81, 79, 76, 72], 0.075, { duty: 0.125, vol: 0.13 });
@@ -257,6 +265,10 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   refund: (s) => {
     s.tone({ dur: 0.07, from: midi(83), duty: 0.5, vol: 0.14 });
     s.tone({ at: 0.07, dur: 0.35, from: midi(88), duty: 0.5, vol: 0.14 });
+  },
+  refuel: (s) => {
+    s.noise({ dur: 0.18, rate: 0.6, to: 0.2, vol: 0.06 });
+    arp(s, [60, 67, 72, 79], 0.08, { at: 0.12, duty: 0.25, vol: 0.1 });
   },
   // Victory!
   gameover: (s) => {
