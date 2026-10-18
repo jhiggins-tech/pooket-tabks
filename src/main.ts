@@ -36,7 +36,7 @@ import { MatchTape } from './app/tape';
 import { nameKey, playerKey } from './stats/summary';
 import { StatsScreen } from './ui/stats';
 import { RANKS } from './stats/ranks';
-import { Ratings } from './ui/ranks';
+import { Ratings, type RatingChange } from './ui/ranks';
 import { RankUp } from './ui/rankup';
 import { openOnline } from './characters/access';
 import { unlockAll } from './app/unlockall';
@@ -152,15 +152,15 @@ function celebrateRankUp(): void {
   rankUp.show(seen.rank, seen.first, ratings.rating(myStatsKey));
   sfx.jingle(seen.rank);
 }
-/** A rated match has just ended here: a rank-up (if it's gone up), then what the match earned (ui/xp.ts). */
-function celebrateMatch(gain: Gain | null): void {
-  const seen = ratings.noteSeen();
+/** A rated match has just ended here: show its rating movement, then what the match earned (ui/xp.ts). */
+function celebrateMatch(gain: Gain | null, change: RatingChange | null): void {
   const xp = () => {
     if (gain) xpScreen.show(gain);
   };
-  if (!seen?.up) return xp();
-  rankUp.show(seen.rank, seen.first, ratings.rating(myStatsKey), xp);
-  sfx.jingle(seen.rank);
+  if (!change) return xp();
+  const seen = ratings.noteSeen();
+  rankUp.showRating(change.before, change.after, seen?.first ?? false, xp);
+  if (seen?.up) sfx.jingle(seen.rank);
 }
 /** On the menus (not in an online match): a rank-up that turns up in the totals is celebrated at once. */
 function celebrateOnMenus(): void {
@@ -178,12 +178,11 @@ const online = new OnlineScreen({
   relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
   syncSeats: () => account.seatSync?.sync() ?? Promise.resolve(),
   rankOf: (key) => ratings.rank(key),
-  // A rated match just ended here: the rating and XP move now; over the game over card, a rank-up is
-  // celebrated, then the XP it earned fills the bar towards the next unlock.
+  // A rated match just ended here: show its rating movement over the game-over card, then its XP.
   ranked: (opponent, score, turns) => {
-    ratings.played(opponent, score);
+    const change = ratings.played(opponent, score);
     const gain = progress.played(score, turns);
-    setTimeout(() => celebrateMatch(gain), 1800);
+    setTimeout(() => celebrateMatch(gain, change), 1800);
   },
   // What's open online, and a token spent from Choose your tank (its padlock breaking open).
   unlocks: { access: () => progress.access(), tokens: () => progress.tokens(), unlock: (id) => xpScreen.unlockNow(id) },

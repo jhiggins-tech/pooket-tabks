@@ -28,6 +28,11 @@ interface Provisional {
   at: number;
 }
 
+export interface RatingChange {
+  before: number;
+  after: number;
+}
+
 /** The totals as loaded (or handed over by the stats viewer): the ratings, and maybe the rest. */
 type Totals = Pick<StatsSummary, 'ratings' | 'updatedAt'> & Partial<StatsSummary>;
 
@@ -94,12 +99,15 @@ export class Ratings {
    * This phone's player has just finished a rated match (both players signed in) against `opponent`:
    * their rating as it will be. `score`: 1 won, 0.5 drew, 0 lost.
    */
-  played(opponent: string, score: 1 | 0.5 | 0): void {
+  played(opponent: string, score: 1 | 0.5 | 0): RatingChange | null {
     const me = this.me();
-    if (!me) return;
-    const [mine] = elo(this.rating(me) ?? START_RATING, this.rating(opponent) ?? START_RATING, score);
-    writeJson(PROVISIONAL_KEY, { key: me, rating: Math.round(mine * 10) / 10, at: Date.now() } satisfies Provisional); // (else the totals will have it within the hour)
+    if (!me) return null;
+    const before = this.rating(me) ?? START_RATING;
+    const [mine] = elo(before, this.rating(opponent) ?? START_RATING, score);
+    const after = Math.round(mine * 10) / 10;
+    writeJson(PROVISIONAL_KEY, { key: me, rating: after, at: Date.now() } satisfies Provisional); // (else the totals will have it within the hour)
     this.changes.emit('changed');
+    return { before, after };
   }
 
   /**

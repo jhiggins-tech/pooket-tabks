@@ -25,6 +25,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **Rank progress after every rated match.** A rank screen shows the rating change and animates progress up
+  or down, including across a rank boundary.
 - **Name your online game.** Hosts can edit the public Games browser title while setting up a match; it
   stays with the open game if the host leaves and comes back.
 

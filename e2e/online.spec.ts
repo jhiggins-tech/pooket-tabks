@@ -137,9 +137,12 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
   await b.locator('#menu-resign').tap();
   await b.locator('#menu-resign').tap();
 
-  // Their first rated match: each is ranked first (the rank screen), then the XP screen.
-  for (const p of [a, b]) {
+  // Their first rated match: each sees their rating move before the XP screen.
+  for (const [p, direction, delta] of [[a, 'up', '+40'], [b, 'down', '-40']] as const) {
     await expect(p.locator('#rankup')).toBeVisible({ timeout: 20_000 });
+    await expect(p.locator('#rankup')).toHaveAttribute('data-direction', direction);
+    await expect(p.locator('#rankup-progress')).toBeVisible();
+    await expect(p.locator('.rankup-rating-change')).toContainText(delta);
     await p.locator('#rankup-ok').tap();
   }
   await expect(a.locator('#xp')).toBeVisible({ timeout: 5_000 });
@@ -1121,10 +1124,17 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await expect(a.locator('#xp .xp-next')).toHaveText('Too quick to count: matches count from turn 4.');
   await a.locator('#xp-ok').tap();
   await expect(a.locator('#xp')).toBeHidden();
-  // Hal lost to a lower rank: down to Silver, and nothing to celebrate (once his phone has looked at his new rank).
+  // Hal lost to a lower rank: his rating moves down to Silver too.
   const seenRank = () => b.evaluate(() => (JSON.parse(localStorage.getItem('pooket.rankSeen') ?? '{}') as { id?: string }).id);
   await expect.poll(seenRank, { timeout: 10_000 }).toBe('silver');
-  await expect(b.locator('#rankup')).toBeHidden();
+  await expect(b.locator('#rankup')).toBeVisible({ timeout: 20_000 });
+  await expect(b.locator('#rankup')).toHaveAttribute('data-direction', 'down');
+  await expect(b.locator('.rankup-rating-change')).toContainText(/-\d/);
+  await b.locator('#rankup-ok').tap();
+  await expect(b.locator('#xp')).toBeVisible();
+  await expect(b.locator('#xp .xp-gain')).toHaveText('+0 XP');
+  await b.locator('#xp-ok').tap();
+  await expect(b.locator('#xp')).toBeHidden();
   // Back at the menu, Gina's insignia is Gold now (until the hourly totals say otherwise), and it isn't celebrated twice.
   await a.locator('#gameover-leave').tap();
   await expect(a.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);

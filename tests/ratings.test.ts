@@ -28,8 +28,9 @@ describe('ratings on this phone', () => {
     r.take(totals({ 'a:me': 1000, 'a:you': 1200 }, Date.now() - 60_000));
     let heard = 0;
     r.onChange(() => heard++);
-    r.played('a:you', 1); // an upset
+    const change = r.played('a:you', 1); // an upset
     const [expected] = elo(1000, 1200, 1);
+    expect(change).toEqual({ before: 1000, after: Math.round(expected * 10) / 10 });
     expect(r.rating('a:me')).toBeCloseTo(expected, 0);
     expect(r.rank('a:me')?.name).toBe('Gold'); // from Silver: a win over a higher rank is a big move
     expect(heard).toBe(1);

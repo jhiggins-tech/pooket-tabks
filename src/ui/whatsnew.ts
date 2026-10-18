@@ -20,6 +20,11 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 54,
+    title: 'See your rating move',
+    items: ['After every rated match, watch your rank progress move up or down with your rating.'],
+  },
+  {
     version: 53,
     title: 'Name your game',
     items: ['When you host an online game, edit its name before anyone joins. Players see it in the Games browser.'],
