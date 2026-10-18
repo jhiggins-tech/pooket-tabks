@@ -117,6 +117,7 @@ export function createGame(cfg: GameConfig): GameState {
       twinSpot: null,
       fuel: FUEL_PER_MATCH,
       diggerActive: false,
+      diggerFacing: 1,
       diggerTurn: -1,
       dieselAvailable: character.id === 'shotdownboyz',
       dieselCanTime: 0,

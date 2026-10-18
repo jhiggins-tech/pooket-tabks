@@ -40,6 +40,12 @@ describe("ShotDownBoyz's beta movement", () => {
     expect(p.x).toBeGreaterThan(350);
     expect(p.y).toBe(400);
     expect(g.terrain.isSolid(360, 390)).toBe(false);
+    expect(g.terrain.isSolid(360, 380)).toBe(true);
+    expect(p.diggerFacing).toBe(1);
+    expect(g.sfx.some((e) => e.cue === 'digger')).toBe(true);
+
+    hold(g, -1, 0.2);
+    expect(p.diggerFacing).toBe(-1);
 
     const blocked = match();
     const digger = currentPlayer(blocked);
@@ -49,6 +55,7 @@ describe("ShotDownBoyz's beta movement", () => {
     hold(blocked, 1, 2);
     expect(blocked.players[1]!.x - digger.x).toBeGreaterThanOrEqual(22);
     expect(blocked.players[1]!.x - digger.x).toBeLessThan(23);
+    expect(blocked.sfx.some((e) => e.cue === 'digger')).toBe(false);
   });
 
   it('cannot drive while pinned', () => {

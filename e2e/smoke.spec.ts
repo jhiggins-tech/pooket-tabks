@@ -976,6 +976,7 @@ test('ShotDownBoyz activates the digger and gets one second-diesel refill', asyn
   await page.locator('#weapons .weapon').nth(3).tap();
   await page.locator('#fire').tap();
   await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.diggerActive)).toBe(true);
+  await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.diggerFacing)).toBe(1);
 
   const right = page.getByRole('button', { name: 'Drive right' });
   const box = await right.boundingBox();

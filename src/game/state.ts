@@ -76,6 +76,8 @@ export interface Player extends TankBody {
   fuel: number;
   /** ShotDownBoyz: whether this turn's driving is horizontal, tunnelling digger movement. */
   diggerActive: boolean;
+  /** ShotDownBoyz: direction of the last successful digger movement. */
+  diggerFacing: number;
   /** ShotDownBoyz: global turn when Activate Digger was last used. */
   diggerTurn: number;
   /** ShotDownBoyz: the once-per-match reserve diesel tank is still available. */
@@ -604,6 +606,7 @@ export type SfxCue =
   | 'slurp'
   | 'spill'
   | 'refuel'
+  | 'digger'
   | 'scoot'
   | 'crash'
   | 'arwing-up'

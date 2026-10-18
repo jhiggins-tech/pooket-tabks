@@ -298,6 +298,12 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.tone({ dur: 0.06, from: 210, to: 260, duty: 0.25, vol: 0.05 });
     s.noise({ dur: 0.04, rate: 0.5, vol: 0.03 });
   },
+  digger: (s) => {
+    s.noise({ dur: 0.18, rate: 0.42, to: 0.18, vol: 0.24 });
+    s.tone({ dur: 0.16, from: 58, to: 92, duty: 0.5, vibrato: [18, 12], vol: 0.2 });
+    s.tone({ at: 0.02, dur: 0.13, from: 210, to: 95, duty: 0.25, steps: 5, vol: 0.12 });
+    s.noise({ at: 0.09, dur: 0.09, rate: 1.1, vol: 0.16 });
+  },
   // Scooter crash: a clang, a rattle, and a little boing of the bell.
   crash: (s) => {
     s.noise({ dur: 0.25, rate: 0.7, to: 0.2, vol: 0.18 });
@@ -504,7 +510,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
 };
 
 /** Minimum seconds between two plays of the same sound, so a pill storm doesn't turn into mush. */
-const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, arwing: 0.09, dribble: 0.06 };
+const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, digger: 0.12, arwing: 0.09, dribble: 0.06 };
 
 /** Plays queued cues on a synth, throttling rapid repeats. */
 export class SfxPlayer {

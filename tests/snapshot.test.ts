@@ -77,10 +77,11 @@ describe('snapshots', () => {
     const snap = takeSnapshot(createGame({ seed: 9, players }));
     const player = (snap.players as Record<string, unknown>[])[0]!;
     delete player.diggerActive;
+    delete player.diggerFacing;
     delete player.diggerTurn;
     delete player.dieselAvailable;
     delete player.dieselCanTime;
     upgradeSnapshot(snap);
-    expect(player).toMatchObject({ diggerActive: false, diggerTurn: -1, dieselAvailable: false, dieselCanTime: 0 });
+    expect(player).toMatchObject({ diggerActive: false, diggerFacing: 1, diggerTurn: -1, dieselAvailable: false, dieselCanTime: 0 });
   });
 });
