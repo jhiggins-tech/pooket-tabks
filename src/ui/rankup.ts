@@ -81,7 +81,7 @@ export class RankUp {
     this.title.textContent = first ? 'RANKED!' : movement > 0 ? 'RANK UP!' : movement < 0 ? 'RANK DOWN!' : 'RATING UPDATE';
     this.progress.hidden = false;
     this.root.dataset.state = 'rating';
-    this.root.dataset.direction = movement > 0 ? 'up' : movement < 0 ? 'down' : 'same';
+    this.root.dataset.direction = after > before ? 'up' : after < before ? 'down' : 'same';
     const start = rankProgress(before, beforeRank);
     const finish = rankProgress(after, rank);
     this.progressFill.style.width = `${start}%`;
