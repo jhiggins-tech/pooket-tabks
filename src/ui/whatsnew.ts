@@ -20,6 +20,11 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 55,
+    title: 'See your progress glow',
+    items: ['Your rank progress bar now glows in your rank’s colours as it moves up or down.'],
+  },
+  {
     version: 54,
     title: 'See your rating move',
     items: ['After every rated match, watch your rank progress move up or down with your rating.'],

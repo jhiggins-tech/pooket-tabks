@@ -57,8 +57,8 @@ export class RankUp {
       burst.append(spark);
     }
     this.stage.replaceChildren(burst, badge);
-    this.stage.style.setProperty('--rank-light', rank.colours[0]);
-    this.stage.style.setProperty('--rank-dark', rank.colours[1]);
+    this.root.style.setProperty('--rank-light', rank.colours[0]);
+    this.root.style.setProperty('--rank-dark', rank.colours[1]);
     this.title.textContent = first ? 'RANKED!' : 'RANK UP!';
     this.name.textContent = rank.name;
     this.name.style.color = rank.colours[0];
