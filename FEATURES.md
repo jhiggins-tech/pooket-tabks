@@ -31,7 +31,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
   Digger polish (18 Oct; rules 34): driving off the edge in digger mode lays a flat bed of dirt under him
   down to the ground (kicking out clods as it goes) instead of floating, and levels his tunnel floors; it
   stops short of burying a tank below. New art: tracks, a curved blade on a push frame and ram, and a
-  diesel exhaust stack that puffs black fumes while the digger moves.
+  diesel exhaust stack, shown only while the digger moves, puffing black fumes.
 - **Rank progress after every rated match.** A rank screen shows the rating change and animates progress up
   or down, including across a rank boundary.
 - **Name your online game.** Hosts can edit the public Games browser title while setting up a match; it

@@ -4,9 +4,8 @@ import type { GameState, Player } from '../../game/state';
 import type { Draw, Exhaust } from './context';
 
 /**
- * ShotDownBoyz's rig (game/digger.ts): the diesel exhaust stack on the back of his hull, and with the
- * Digger on, tracks and the bulldozer blade out front; while the digger moves, black fumes puff out of the
- * stack. Moving is worked out from the tank's position frame to frame (cosmetic, like the scooter, so it
+ * ShotDownBoyz's rig (game/digger.ts): with the Digger on, tracks and the bulldozer blade out front; while
+ * the digger moves, a diesel exhaust stack on the back of his hull, puffing black fumes. Moving is worked out from the tank's position frame to frame (cosmetic, like the scooter, so it
  * shows the same for a phone watching his previews).
  */
 
@@ -21,22 +20,20 @@ function stackTop(p: { x: number; y: number }, dir: number): { x: number; y: num
 }
 
 /**
- * Draws ShotDownBoyz's rig on his tank (`p`, where this copy of `owner`'s tank is drawn): the stack always,
- * the tracks and blade only on the tank itself with the Digger on.
+ * Draws ShotDownBoyz's rig on his tank (`p`, where this copy of `owner`'s tank is drawn), only on the tank
+ * itself with the Digger on: the tracks and blade, and the stack while it moves.
  */
 export function drawDiggerRig(d: Draw, owner: Player, p: Player, state: GameState, copy: boolean): void {
-  const digging = !copy && owner.diggerActive;
-  const dir = digging ? owner.diggerFacing : Math.cos((p.angle * Math.PI) / 180) >= 0 ? 1 : -1;
-  const moving = !copy && dieselMoving(d, owner, state);
+  if (copy || !owner.diggerActive) return;
+  const dir = owner.diggerFacing;
+  const moving = dieselMoving(d, owner, state);
   const { ctx } = d;
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.scale(dir, 1); // forward is +x
-  drawStack(ctx, d.time, moving);
-  if (digging) {
-    drawTracks(ctx, p.x * dir);
-    drawBlade(ctx, moving ? Math.sin(d.time * 40) * 0.35 : 0);
-  }
+  if (moving) drawStack(ctx, d.time);
+  drawTracks(ctx, p.x * dir);
+  drawBlade(ctx, moving ? Math.sin(d.time * 40) * 0.35 : 0);
   ctx.restore();
 }
 
@@ -86,8 +83,8 @@ export function drawFumes(d: Draw, _state: GameState): void {
   }
 }
 
-/** The exhaust stack: a little vertical pipe off the back of the hull, its rain flap popping while it runs. */
-function drawStack(ctx: CanvasRenderingContext2D, time: number, running: boolean): void {
+/** The exhaust stack: a little vertical pipe off the back of the hull, its rain flap rattling open. */
+function drawStack(ctx: CanvasRenderingContext2D, time: number): void {
   const x = -8;
   const top = -TANK_BODY_HEIGHT - 10;
   // Mounting bracket on the hull.
@@ -103,8 +100,8 @@ function drawStack(ctx: CanvasRenderingContext2D, time: number, running: boolean
   ctx.stroke();
   ctx.fillStyle = '#a1a1aa';
   ctx.fillRect(x - 0.7, top + 1, 0.7, 7.5);
-  // The rain flap, hinged at the back: shut at rest, rattling open while the engine works.
-  const open = running ? 0.9 + 0.35 * Math.sin(time * 38) : 0;
+  // The rain flap, hinged at the back, rattling open while the engine works.
+  const open = 0.9 + 0.35 * Math.sin(time * 38);
   ctx.save();
   ctx.translate(x - 1.5, top);
   ctx.rotate(-open);
