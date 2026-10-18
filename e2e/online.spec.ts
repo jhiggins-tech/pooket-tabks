@@ -1114,18 +1114,33 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await b.locator('#menu-resign').tap();
   await b.locator('#menu-resign').tap();
   await expect(a.locator('#rankup')).toBeVisible({ timeout: 20_000 });
+  await expect(b.locator('#rankup')).toBeVisible({ timeout: 20_000 });
   await expect(a.locator('#rankup')).toContainText('RANK UP!');
   await expect(a.locator('#rankup .rankup-name')).toHaveText('Gold');
+  await expect(b.locator('#rankup')).toHaveAttribute('data-direction', 'down');
+  await expect(b.locator('.rankup-rating-change')).toContainText(/-\d/);
   const bar = a.locator('.rankup-progress-fill');
+  const downBar = b.locator('.rankup-progress-fill');
   await expect.poll(() => bar.evaluate((fill) => getComputedStyle(fill).backgroundImage)).toContain('linear-gradient');
-  const before = await bar.evaluate((fill) => fill.getBoundingClientRect().width);
-  await a.waitForTimeout(300);
-  expect(await bar.evaluate((fill) => fill.getBoundingClientRect().width)).not.toBe(before);
+  await expect.poll(() => downBar.evaluate((fill) => getComputedStyle(fill).backgroundImage)).toContain('linear-gradient');
+  const [before, downBefore] = await Promise.all([
+    bar.evaluate((fill) => fill.getBoundingClientRect().width),
+    downBar.evaluate((fill) => fill.getBoundingClientRect().width),
+  ]);
+  await Promise.all([a.waitForTimeout(300), b.waitForTimeout(300)]);
+  const [after, downAfter] = await Promise.all([
+    bar.evaluate((fill) => fill.getBoundingClientRect().width),
+    downBar.evaluate((fill) => fill.getBoundingClientRect().width),
+  ]);
+  expect(after).not.toBe(before);
+  expect(downAfter).not.toBe(downBefore);
   await a.waitForTimeout(900);
   await a.screenshot({ path: 'test-results/rank-up.png' });
   await expect(a.locator('#winner .insignia')).toHaveCount(1);
   await a.locator('#rankup-ok').tap();
+  await b.locator('#rankup-ok').tap();
   await expect(a.locator('#rankup')).toBeHidden();
+  await expect(b.locator('#rankup')).toBeHidden();
   // Then the XP it earned: nothing, this time (a resignation on the first turn is too quick to count).
   await expect(a.locator('#xp')).toBeVisible();
   await expect(a.locator('#xp .xp-gain')).toHaveText('+0 XP');
@@ -1135,15 +1150,6 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   // Hal lost to a lower rank: his rating moves down to Silver too.
   const seenRank = () => b.evaluate(() => (JSON.parse(localStorage.getItem('pooket.rankSeen') ?? '{}') as { id?: string }).id);
   await expect.poll(seenRank, { timeout: 10_000 }).toBe('silver');
-  await expect(b.locator('#rankup')).toBeVisible({ timeout: 20_000 });
-  await expect(b.locator('#rankup')).toHaveAttribute('data-direction', 'down');
-  await expect(b.locator('.rankup-rating-change')).toContainText(/-\d/);
-  const downBar = b.locator('.rankup-progress-fill');
-  await expect.poll(() => downBar.evaluate((fill) => getComputedStyle(fill).backgroundImage)).toContain('linear-gradient');
-  const downBefore = await downBar.evaluate((fill) => fill.getBoundingClientRect().width);
-  await b.waitForTimeout(300);
-  expect(await downBar.evaluate((fill) => fill.getBoundingClientRect().width)).not.toBe(downBefore);
-  await b.locator('#rankup-ok').tap();
   await expect(b.locator('#xp')).toBeVisible();
   await expect(b.locator('#xp .xp-gain')).toHaveText('+0 XP');
   await b.locator('#xp-ok').tap();
