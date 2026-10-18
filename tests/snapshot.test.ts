@@ -80,7 +80,7 @@ describe('snapshots', () => {
     delete player.diggerTurn;
     delete player.dieselAvailable;
     delete player.dieselCanTime;
-    const upgraded = upgradeSnapshot(snap);
-    expect(upgraded.players[0]).toMatchObject({ diggerActive: false, diggerTurn: -1, dieselAvailable: false, dieselCanTime: 0 });
+    upgradeSnapshot(snap);
+    expect(player).toMatchObject({ diggerActive: false, diggerTurn: -1, dieselAvailable: false, dieselCanTime: 0 });
   });
 });
