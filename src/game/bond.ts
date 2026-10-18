@@ -5,8 +5,8 @@ import { TANK_BODY_HEIGHT } from './constants';
 import { sound, spawnFloater } from './fx';
 import { canUseSlot, weaponForTier } from './loadout';
 import type { Stepper } from './mechanics';
-import type { BondMark, GameState, Player, Quiz } from './state';
-import { allTargets, applyHit, currentPlayer, scaled, tankCentre, targetOwner, targetPos, type Target } from './tanks';
+import type { GameState, Player, Quiz } from './state';
+import { applyHit, currentPlayer, markFor, scaled, tankCentre, targetOf, targetPos } from './tanks';
 
 /**
  * garyoldmancorp's 007: a Bond trivia question (weapons/trivia.ts) pops up, the answer always one of the
@@ -116,29 +116,6 @@ export function fireBond(state: GameState, p: Player, weapon: WeaponOf<'bond'>):
   }
   const at = targetPos(mark.target);
   state.barrel = { ownerId: p.id, weaponId: weapon.id, mark: mark.mark, x: at.x, y: at.y, t: 0, hit: false };
-}
-
-/** The enemy target nearest `p` along the ground that can be seen (a decoy counts; a tank hidden by Sly doesn't). */
-function markFor(state: GameState, p: Player): { target: Target; mark: BondMark } | null {
-  let best: Target | null = null;
-  for (const t of allTargets(state)) {
-    if (targetOwner(t) === p.id || (t.kind === 'tank' && t.player.hidden)) continue;
-    if (!best || Math.abs(targetPos(t).x - p.x) < Math.abs(targetPos(best).x - p.x)) best = t;
-  }
-  if (!best) return null;
-  const mark: BondMark = best.kind === 'hologram' ? { kind: 'hologram', id: best.holo.id } : { kind: 'tank', playerId: best.player.id, twin: best.tank !== best.player };
-  return { target: best, mark };
-}
-
-/** The target a mark is on, if it's still on the field. */
-function targetOf(state: GameState, m: BondMark): Target | null {
-  if (m.kind === 'hologram') {
-    const holo = state.holograms.find((h) => h.id === m.id);
-    return holo ? { kind: 'hologram', holo } : null;
-  }
-  const player = state.players[m.playerId];
-  const tank = player && (m.twin ? player.twin : player);
-  return player?.alive && tank ? { kind: 'tank', player, tank } : null;
 }
 
 /** The answer shows, then goes. */

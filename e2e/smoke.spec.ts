@@ -675,6 +675,26 @@ test("doctorfox's Sly: a smokescreen, a full tank to sneak off on, and he's hidd
   await page.screenshot({ path: 'test-results/sly-hidden.png' });
 });
 
+test("doctorfox's Air Strike: a ping, three Arwings, a comm from the Star Fox team, lasers and the bomb", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('No aiming needed. Just FIRE');
+  const hp = await page.evaluate(() => window.__pooket.state.players[1]!.hp);
+  await page.locator('#fire').tap();
+  const at = (t: number) => page.waitForFunction((t) => (window.__pooket.state.airstrike?.t ?? 0) >= t, t);
+  await at(0.3);
+  await page.screenshot({ path: 'test-results/air-strike-ping.png' });
+  await at(1.3);
+  await page.screenshot({ path: 'test-results/air-strike-arwings.png' });
+  await at(2.3);
+  expect(await page.evaluate(() => window.__pooket.state.airstrike!.bolts.length)).toBeGreaterThan(3);
+  await page.screenshot({ path: 'test-results/air-strike-lasers.png' });
+  await at(3.6);
+  await page.screenshot({ path: 'test-results/air-strike-bomb.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBeLessThan(hp);
+});
+
 test("garyoldmancorp's Diced Coffee: lactose free goes again, full cream jetpacks up, ends the turn and it's gone", async ({ page }) => {
   test.setTimeout(60_000);
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', p2: 'kcaj', query: 'debug' });
@@ -934,7 +954,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   // And doctorfox.
   await page.getByRole('tab', { name: 'doctorfox', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Sly', 'Beta Bomb']);
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Sly', 'Air Strike']);
   await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Bomb', 'Beta Blast', 'Activate Digger']);

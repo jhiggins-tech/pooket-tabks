@@ -270,14 +270,14 @@ export interface Quiz {
   outro: number | null;
 }
 
-/** Who 007's gun barrel is on: one of a player's tanks (the main one, or the twin), or a decoy. */
-export type BondMark = { kind: 'tank'; playerId: number; twin: boolean } | { kind: 'hologram'; id: number };
+/** Who a shot that finds its own target is on (007's gun barrel, an Air Strike): one of a player's tanks (the main one, or the twin), or a decoy. */
+export type TargetMark = { kind: 'tank'; playerId: number; twin: boolean } | { kind: 'hologram'; id: number };
 
 /** A right answer to 007: the gun barrel cutscene on the enemy, then their share of health (game/bond.ts). */
 export interface GunBarrel {
   ownerId: number;
   weaponId: string;
-  mark: BondMark;
+  mark: TargetMark;
   /** Where the mark's hull rests (where the barrel's drawn). */
   x: number;
   y: number;
@@ -285,6 +285,31 @@ export interface GunBarrel {
   t: number;
   /** The shot's been fired and the damage done. */
   hit: boolean;
+}
+
+/**
+ * doctorfox's Air Strike (game/airstrike.ts): the ping on the horizon, three Arwings coming in over the
+ * mark and strafing it, the comm from one of the Star Fox team (`pilot`), then the bomb.
+ */
+export interface AirStrike {
+  ownerId: number;
+  weaponId: string;
+  mark: TargetMark;
+  /** Where the mark's hull was last seen (the run follows it; it stays put if the mark is gone). */
+  x: number;
+  y: number;
+  /** Which way the ships fly over (±1), from the far side of the mark. */
+  dir: number;
+  /** Which comm line (weapons/comms.ts `COMMS`). */
+  pilot: number;
+  /** Where each laser bolt lands, across the mark (px, −spread to +spread), picked when it's called in. */
+  aims: number[];
+  /** The bolts fired so far: from the ship to where each stopped (drawn as it streaks down). */
+  bolts: { x1: number; y1: number; x2: number; y2: number; t: number }[];
+  /** Seconds since it was called in (the run's clock: airstrike.ts `STRIKE`). */
+  t: number;
+  /** The bomb's gone off. */
+  bombed: boolean;
 }
 
 /** A marathon runner, jogging a leg at a time towards the nearest enemy, across turns. */
@@ -629,6 +654,11 @@ export type SfxCue =
   | 'gun-barrel'
   | 'bond-sting'
   | 'bond-shot'
+  | 'kira'
+  | 'arwings'
+  | 'comm'
+  | 'laser'
+  | 'smart-bomb'
   | 'gameover';
 
 export interface Sfx {
@@ -727,6 +757,8 @@ export interface GameState {
   quiz: Quiz | null;
   /** garyoldmancorp's 007, answered right: the gun barrel cutscene. */
   barrel: GunBarrel | null;
+  /** doctorfox's Air Strike, while it plays out. */
+  airstrike: AirStrike | null;
   /** Sound cues since the audio layer last drained them (capped). */
   sfx: Sfx[];
   /** Weapons whose walker chiptune is playing (cosmetic). */

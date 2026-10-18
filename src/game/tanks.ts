@@ -5,7 +5,7 @@ import { sound, spawnFloater } from './fx';
 import type { Stepper } from './mechanics';
 import { bodiesOf, settleTanks, tankBody } from './bodies';
 import { noteScamHit } from './scam';
-import type { GameState, Hologram, Player, TankBody } from './state';
+import type { GameState, Hologram, Player, TankBody, TargetMark } from './state';
 import { defaultSource, tallyDamage, tallyHit, type DamageSource } from './tally';
 import { afflict, scaled, vulnerable } from './statuses';
 import { reveal } from './sly';
@@ -294,3 +294,26 @@ export const soakStepper: Stepper = {
   step: (state, dt) => stepSoak(state, dt, false),
   busy: () => false,
 };
+
+/** The enemy target nearest `p` along the ground that can be seen (a decoy counts; a tank hidden by Sly doesn't). */
+export function markFor(state: GameState, p: Player): { target: Target; mark: TargetMark } | null {
+  let best: Target | null = null;
+  for (const t of allTargets(state)) {
+    if (targetOwner(t) === p.id || (t.kind === 'tank' && t.player.hidden)) continue;
+    if (!best || Math.abs(targetPos(t).x - p.x) < Math.abs(targetPos(best).x - p.x)) best = t;
+  }
+  if (!best) return null;
+  const mark: TargetMark = best.kind === 'hologram' ? { kind: 'hologram', id: best.holo.id } : { kind: 'tank', playerId: best.player.id, twin: best.tank !== best.player };
+  return { target: best, mark };
+}
+
+/** The target a mark is on, if it's still on the field. */
+export function targetOf(state: GameState, m: TargetMark): Target | null {
+  if (m.kind === 'hologram') {
+    const holo = state.holograms.find((h) => h.id === m.id);
+    return holo ? { kind: 'hologram', holo } : null;
+  }
+  const player = state.players[m.playerId];
+  const tank = player && (m.twin ? player.twin : player);
+  return player?.alive && tank ? { kind: 'tank', player, tank } : null;
+}

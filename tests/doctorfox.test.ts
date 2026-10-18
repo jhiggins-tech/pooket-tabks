@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { foxBomb, hoopDreamz, sly } from '../src/characters/kits';
+import { airStrike, hoopDreamz, sly } from '../src/characters/kits';
 import { FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
-import { canFire, explode, fire, hoopFor, isSly, selectTier, sneakClock, sneakLeft, sneakReady } from '../src/game/game';
+import { STRIKE, canFire, explode, fire, hoopFor, isAimless, isSly, shipAt, selectTier, sneakClock, sneakLeft, sneakReady } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { nearestEnemyX } from '../src/game/tanks';
+import { COMMS, PILOTS } from '../src/weapons/comms';
 import { applyPreview, previewOf } from '../src/net/follow';
 import { hold, passTurn, testGame, untilNextTurn } from './support/game';
 
@@ -91,7 +92,7 @@ describe("doctorfox's Sly", () => {
     sneakFor(g, sly.sly.time + FIXED_DT);
     fire(g);
     untilNextTurn(g);
-    explode(g, fox.x, fox.y - 8, foxBomb, 1);
+    explode(g, fox.x, fox.y - 8, airStrike, 1);
     expect(fox.hp).toBeLessThan(fox.maxHp);
     expect(fox.hidden).toBe(false);
     expect(g.fx.floaters.some((f) => f.text === 'SPOTTED!')).toBe(true);
@@ -117,5 +118,68 @@ describe("doctorfox's Sly", () => {
     expect(there.players[0]!.x).toBe(here.players[0]!.x);
     expect(there.fx.smokes).toHaveLength(1);
     expect(there.sneak!.movedAt).not.toBeNull();
+  });
+});
+
+describe("doctorfox's Air Strike", () => {
+  /** fox to play, with Air Strike selected. */
+  function strikeGame(): GameState {
+    const g = testGame({ seed: 3, players, xs: [300, 700] });
+    g.current = 0;
+    selectTier(g, 2);
+    return g;
+  }
+
+  it('is his tier 3: no aiming, three Arwings on the nearest enemy, a comm, lasers and the bomb', () => {
+    const g = strikeGame();
+    const gary = g.players[1]!;
+    expect(isAimless(g)).toBe(true);
+    expect(fire(g)).toBe(true);
+    const s = g.airstrike!;
+    expect(s.mark).toEqual({ kind: 'tank', playerId: 1, twin: false });
+    expect(s.dir).toBe(1);
+    expect(COMMS[s.pilot]).toBeDefined();
+    expect(s.aims).toHaveLength(airStrike.airstrike.lasers);
+    expect(s.aims.every((a) => Math.abs(a) <= airStrike.airstrike.spread)).toBe(true);
+    // The ships come out of the ping on the horizon, small, and are full size over the target.
+    expect(shipAt(s, 0, 0.1)).toBeNull();
+    expect(shipAt(s, 0, STRIKE.arrive + 0.01)!.scale).toBeLessThan(0.2);
+    expect(shipAt(s, 0, STRIKE.strafe)!.scale).toBe(1);
+    untilNextTurn(g);
+    expect(g.airstrike).toBeNull();
+    expect(g.current).toBe(1);
+    const cues = g.sfx.map((e) => e.cue);
+    for (const cue of ['kira', 'arwings', 'comm', 'smart-bomb'] as const) expect(cues).toContain(cue);
+    // The bomb lands on him (up to 40), plus whatever lasers hit.
+    expect(gary.hp).toBeLessThanOrEqual(gary.maxHp - 30);
+    expect(gary.hp).toBeGreaterThanOrEqual(gary.maxHp - airStrike.damage - airStrike.airstrike.lasers * airStrike.airstrike.laserDamage);
+  });
+
+  it('plays out the same on both phones', () => {
+    const a = strikeGame();
+    const b = strikeGame();
+    fire(a);
+    fire(b);
+    untilNextTurn(a);
+    untilNextTurn(b);
+    expect(a.players.map((p) => p.hp)).toEqual(b.players.map((p) => p.hp));
+  });
+
+  it('can’t find an enemy hidden by Sly', () => {
+    const g = strikeGame();
+    g.players[1]!.hidden = true;
+    fire(g);
+    expect(g.airstrike).toBeNull();
+    expect(g.fx.floaters.some((f) => f.text === 'NO TARGET')).toBe(true);
+    untilNextTurn(g);
+    expect(g.players[1]!.hp).toBe(g.players[1]!.maxHp);
+  });
+
+  it('has 20 comms, every one from a pilot with a portrait', () => {
+    expect(COMMS).toHaveLength(20);
+    for (const c of COMMS) {
+      expect(PILOTS[c.pilot]).toBeDefined();
+      expect(c.line.length).toBeLessThanOrEqual(60);
+    }
   });
 });

@@ -2,10 +2,12 @@ import type { Terrain } from '../core/terrain';
 import { BARREL } from '../game/game';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
+import { drawAirStrike } from './draw/airstrike';
 import { drawBarrel } from './draw/bond';
 import { drawBoomerangs } from './draw/boomerang';
 import { drawCoffee } from './draw/coffee';
 import { drawFumes } from './draw/digger';
+import { drawComm } from './draw/comm';
 import { drawDrums } from './draw/drums';
 import { drawGhosts, drawHologramBlasts } from './draw/copies';
 import { drawExplosions, drawFloaters } from './draw/fx';
@@ -69,6 +71,7 @@ const LAYERS: Layer[] = [
   drawBooms,
   drawExplosions,
   drawHologramBlasts,
+  drawAirStrike,
   drawHeist,
   drawBarrel, // the dark over everything, bar the numbers it ends on
   drawFloaters,
@@ -243,6 +246,8 @@ export class Renderer {
       ctx.fillStyle = '#2a1c10';
       ctx.fillRect(0, this.canvas.height - below, this.canvas.width, below + 1);
     }
+    // On the screen itself, over everything: an Air Strike's comm.
+    drawComm(ctx, state, this.canvas.height, this.dpr, this.d.time);
   }
 
   private syncTerrain(): void {

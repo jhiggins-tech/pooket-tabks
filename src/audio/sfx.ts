@@ -7,6 +7,7 @@ import type { Jingle, Rank } from '../stats/ranks';
 import { rankJingle } from './jingle';
 import { TunePlayer } from './tunes';
 import { XP_SOUNDS, type XpCue } from './xp';
+import { TYPE_RATE } from '../weapons/comms';
 
 /** The rank-up jingle (jingle.ts), played by `SfxPlayer.jingle`. */
 export { rankJingle };
@@ -195,9 +196,11 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     pew(s, 0, 1600, 300, 0.15);
     s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });
   },
-  'fox-bomb': (s) => {
-    s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
-    s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
+  // Air Strike: calling it in, a radio click and a crackle.
+  'air-strike': (s) => {
+    s.tone({ dur: 0.03, from: 2600, duty: 0.5, vol: 0.08 });
+    s.noise({ at: 0.03, dur: 0.25, rate: 1.6, to: 1.1, vol: 0.06 });
+    s.tone({ at: 0.28, dur: 0.03, from: 2000, duty: 0.5, vol: 0.06 });
   },
   // Sly is fired when the sneaking's over: tiptoes fading away.
   sly: (s) => {
@@ -406,6 +409,33 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.18, rate: 1.2, to: 0.3, vol: 0.3 });
     s.tone({ dur: 0.08, from: 900, to: 120, duty: 0.5, vol: 0.14 });
     s.noise({ at: 0.22, dur: 0.25, rate: 0.7, to: 0.3, vol: 0.08 });
+  },
+  // ---- Air Strike (game/airstrike.ts). ----
+  // Kira! The glint on the horizon: a bright high sparkle.
+  kira: (s) => {
+    arp(s, [96, 103, 108], 0.045, { wave: 'triangle', vol: 0.12, dur: 0.12 });
+    s.tone({ at: 0.14, dur: 0.4, from: midi(108), wave: 'triangle', vibrato: [18, 60], vol: 0.06 });
+  },
+  // Three Arwings screaming in from far off: a jet roar rising as they close.
+  arwings: (s) => {
+    s.noise({ dur: 1.1, rate: 0.5, to: 1.6, vol: 0.14, env: [[0, 0.05], [0.8, 1], [1, 0]] });
+    s.tone({ dur: 1.1, from: 300, to: 1100, duty: 0.125, vibrato: [11, 25], vol: 0.05, env: [[0, 0.1], [0.85, 1], [1, 0]] });
+  },
+  // The comm: Star Fox 64's gabble, a blip a syllable while the caption types (`size`: its length).
+  comm: (s, e) => {
+    s.noise({ dur: 0.08, rate: 1.8, vol: 0.05 });
+    const dur = (e.size ?? 20) / TYPE_RATE;
+    for (let t = 0.05, i = 0; t < dur; t += 0.075, i++) {
+      s.tone({ at: t, dur: 0.06, from: 260 + ((i * 137) % 160), to: 220 + ((i * 89) % 200), duty: 0.25, vol: 0.07 });
+    }
+  },
+  // A laser bolt: a quick bright zap down.
+  laser: (s) => s.tone({ dur: 0.1, from: 2600, to: 700, duty: 0.125, steps: 6, vol: 0.09 }),
+  // The bomb: a deep swelling WHOOM, with a sparkling ring over it.
+  'smart-bomb': (s) => {
+    s.tone({ dur: 0.9, from: 140, to: 40, duty: 0.5, vol: 0.2 });
+    s.noise({ dur: 1, rate: 0.25, to: 0.08, vol: 0.24, env: [[0, 1], [0.3, 0.8], [1, 0]] });
+    arp(s, [84, 91, 96, 91, 84], 0.06, { at: 0.05, wave: 'triangle', vol: 0.07, dur: 0.1 });
   },
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),

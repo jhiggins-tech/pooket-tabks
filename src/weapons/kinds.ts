@@ -54,6 +54,11 @@ export const KINDS = {
    * fired once it's answered, and a right answer is the gun barrel on the enemy and a share of their health.
    */
   bond: { aims: false, turn: 'shot' },
+  /**
+   * doctorfox's Air Strike: no aiming. Three Arwings come in from the horizon over the enemy nearest him,
+   * strafe them with lasers and finish with a bomb (game/airstrike.ts).
+   */
+  airstrike: { aims: false, turn: 'shot' },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

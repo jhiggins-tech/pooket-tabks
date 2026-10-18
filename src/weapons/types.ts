@@ -271,6 +271,18 @@ export interface BondSpec {
 }
 
 /**
+ * Air Strike: three Arwings strafe the enemy nearest the firer with `lasers` laser bolts, each landing up to
+ * `spread` px either side of them; a bolt that hits a target does `laserDamage` and every bolt burns a
+ * `laserRadius` px hole where it lands. Then a bomb on them: the weapon's blast.
+ */
+export interface AirStrikeSpec {
+  lasers: number;
+  laserDamage: number;
+  laserRadius: number;
+  spread: number;
+}
+
+/**
  * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any hill;
  * on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
  */
@@ -308,6 +320,8 @@ export type WeaponDef = WeaponBase &
     | { kind: 'drum'; drum: DrumSpec }
     | { kind: 'sly'; sly: SlySpec }
     | { kind: 'bond'; bond: BondSpec }
+    /** The strafing run, and the bomb's blast. */
+    | ({ kind: 'airstrike'; airstrike: AirStrikeSpec } & BlastSpec)
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }

@@ -19,8 +19,8 @@ describe('roster', () => {
   });
 
   it("doctorfox's beta loadout: Sly between two stand-in shots", () => {
-    expect(getCharacter('doctorfox').loadout).toEqual(['fox-shot', 'sly', 'fox-bomb']);
-    expect(['fox-shot', 'sly', 'fox-bomb'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'ballistic']);
+    expect(getCharacter('doctorfox').loadout).toEqual(['fox-shot', 'sly', 'air-strike']);
+    expect(['fox-shot', 'sly', 'air-strike'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'airstrike']);
     expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 

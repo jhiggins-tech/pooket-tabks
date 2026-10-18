@@ -39,7 +39,7 @@ export function drawArwingFlight(d: Draw, p: Player, state: GameState, drawTank:
     ctx.rotate(f.stage === 'cruise' ? -0.06 : (1 - shipK) * -0.5);
     ctx.globalAlpha *= Math.min(1, shipK * 1.5);
     if (f.stage === 'cruise') drawSpeedLines(d);
-    drawShip(d, p, shipK);
+    drawArwing(d, p.colour, shipK);
     ctx.restore();
   }
   // The transformation flash: a white burst and a ring, peaking halfway through.
@@ -65,8 +65,8 @@ export function drawArwingFlight(d: Draw, p: Player, state: GameState, drawTank:
   if (tankAlpha <= 0 && state.players[state.current] === p && state.phase === 'aiming') drawMarker(d, cx, cy - 22);
 }
 
-/** The ship, nose to +x, centred on its body; `unfold` (0–1) opens its wings. */
-function drawShip(d: Draw, p: Player, unfold: number): void {
+/** The ship, nose to +x, centred on its body, a stripe of `colour` down its side; `unfold` (0–1) opens its wings. */
+export function drawArwing(d: Draw, colour: string, unfold = 1): void {
   const { ctx } = d;
   const outline = 'rgba(20,24,40,0.85)';
   ctx.lineJoin = 'round';
@@ -119,7 +119,7 @@ function drawShip(d: Draw, p: Player, unfold: number): void {
   ctx.fill();
   ctx.stroke();
   // A stripe in the player's colour down the side, and the engine's intake.
-  ctx.fillStyle = p.colour;
+  ctx.fillStyle = colour;
   ctx.beginPath();
   ctx.moveTo(13, 0.5);
   ctx.lineTo(-12, -0.8);

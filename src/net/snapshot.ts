@@ -92,6 +92,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   // Rules 29: garyoldmancorp's 007.
   snap.quiz ??= null;
   snap.barrel ??= null;
+  // Rules 35: doctorfox's Air Strike.
+  snap.airstrike ??= null;
   return snap;
 }
 
