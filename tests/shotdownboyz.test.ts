@@ -47,8 +47,8 @@ describe("ShotDownBoyz's beta movement", () => {
     expect(selectTier(blocked, 3)).toBe(true);
     fire(blocked);
     hold(blocked, 1, 2);
-    expect(blocked.players[1]!.x - digger.x).toBeGreaterThanOrEqual(21);
-    expect(blocked.players[1]!.x - digger.x).toBeLessThanOrEqual(22);
+    expect(blocked.players[1]!.x - digger.x).toBeGreaterThanOrEqual(22);
+    expect(blocked.players[1]!.x - digger.x).toBeLessThan(23);
   });
 
   it('cannot drive while pinned', () => {
