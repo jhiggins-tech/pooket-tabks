@@ -9,9 +9,10 @@ import { drumStick } from './drums';
 import { drawJet } from './jetpack';
 import { tankShown } from './sly';
 import { drawArwingFlight } from './arwing';
+import { drawDiggerRig } from './digger';
 
 /**
- * Tanks (and their hologram, twin and ghost copies; kiwicore's flat cap: boomerang.ts; doctorfox's Arwing: arwing.ts), garyoldmancorp's scooter, the spew gush, the swap
+ * Tanks (and their hologram, twin and ghost copies; kiwicore's flat cap: boomerang.ts; doctorfox's Arwing: arwing.ts; ShotDownBoyz's dozer: digger.ts), garyoldmancorp's scooter, the spew gush, the swap
  * marker and the aim guide (the jetpack's charge and flame: jetpack.ts).
  */
 
@@ -127,82 +128,11 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
     const cap = capSpot(p);
     drawFlatCap(ctx, cap.x, cap.y + 2, Math.cos(((at?.angle ?? owner.angle) * Math.PI) / 180) >= 0 ? 1 : -1);
   }
-  if (!at && owner.characterId === 'shotdownboyz' && owner.diggerActive) {
-    drawBulldozer(ctx, p, owner.diggerFacing);
-  }
+  if (owner.characterId === 'shotdownboyz') drawDiggerRig(d, owner, p, state, !!at);
   ctx.restore();
 
   if (isCurrent && state.phase === 'aiming') drawTurnMarker(d, c);
   if (!at && p.dieselCanTime > 0) drawJerryCan(ctx, c.x - 18, c.y - 26);
-}
-
-function drawBulldozer(ctx: CanvasRenderingContext2D, p: Player, dir: number): void {
-  ctx.save();
-  ctx.translate(p.x + dir * 9, p.y - 1);
-  ctx.scale(dir, 1);
-
-  ctx.fillStyle = '#51452d';
-  ctx.strokeStyle = '#30291f';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-7, -7);
-  ctx.lineTo(4, -11);
-  ctx.lineTo(12, -8);
-  ctx.lineTo(14, -3);
-  ctx.lineTo(12, 3);
-  ctx.lineTo(3, 2);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#dcae42';
-  ctx.strokeStyle = '#62491d';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(3, -13);
-  ctx.quadraticCurveTo(10, -11, 16, -7);
-  ctx.lineTo(16, -2);
-  ctx.quadraticCurveTo(11, 2, 4, 4);
-  ctx.lineTo(2, 1);
-  ctx.lineTo(5, -4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.strokeStyle = '#f3d77a';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(7, -10);
-  ctx.quadraticCurveTo(11, -8, 14, -6);
-  ctx.moveTo(7, -1);
-  ctx.quadraticCurveTo(11, -3, 14, -5);
-  ctx.stroke();
-
-  ctx.strokeStyle = '#59616a';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(4, 4);
-  ctx.lineTo(15, 1);
-  ctx.stroke();
-
-  ctx.fillStyle = '#e9d08e';
-  for (const [x, y] of [[6, -8], [11, -5], [7, 0]] as const) {
-    ctx.beginPath();
-    ctx.arc(x, y, 0.8, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  ctx.strokeStyle = '#6b7280';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-7, -5);
-  ctx.lineTo(3, -8);
-  ctx.lineTo(5, -10);
-  ctx.moveTo(-6, 1);
-  ctx.lineTo(3, 2);
-  ctx.lineTo(5, 4);
-  ctx.stroke();
-  ctx.restore();
 }
 
 function drawJerryCan(ctx: CanvasRenderingContext2D, x: number, y: number): void {

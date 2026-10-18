@@ -551,6 +551,8 @@ export interface Splash {
   colour: string;
   /** Radius (px; default 1.4): a splashback's drops are big, and stay solid until they land. */
   size?: number;
+  /** Drawn in its own colour, not lightened like spray (the digger's clods of dirt). */
+  opaque?: boolean;
 }
 
 /** Floating damage number drifting up and away from a tank. */

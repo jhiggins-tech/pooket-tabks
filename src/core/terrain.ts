@@ -127,21 +127,41 @@ export class Terrain {
         if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r) continue;
         const i = y * this.width + x;
         if (this.solid[i] === 1) continue;
-        this.solid[i] = 1;
-        this.wet[i] = 1; // new dirt is already its own colour
-        // Deterministic speckle so piles look granular.
-        const n = (((x * 73856093) ^ (y * 19349663)) >>> 0) % 29;
-        const k = n < 3 ? 1.45 : 0.7 + n / 60; // granular, with the odd wet glint
-        const p = i * 4;
-        this.pixels[p] = rgb[0] * k;
-        this.pixels[p + 1] = rgb[1] * k;
-        this.pixels[p + 2] = rgb[2] * k;
-        this.pixels[p + 3] = 255;
+        this.putDirt(x, y, rgb);
         added++;
       }
     }
     if (added > 0) this.markDirty({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
     return added;
+  }
+
+  /**
+   * Fill column x with new dirt from `top` down to the ground (or to `bottom`, whichever comes first), so
+   * its surface is flat at `top`. Returns pixels added.
+   */
+  fillDown(x: number, top: number, bottom: number, rgb: readonly [number, number, number]): number {
+    const xi = Math.floor(x);
+    if (xi < 0 || xi >= this.width) return 0;
+    const y0 = Math.max(0, Math.ceil(top));
+    const y1 = Math.min(this.height, Math.ceil(bottom));
+    let y = y0;
+    while (y < y1 && this.solid[y * this.width + xi] === 0) this.putDirt(xi, y++, rgb);
+    if (y > y0) this.markDirty({ x: xi, y: y0, w: 1, h: y - y0 });
+    return y - y0;
+  }
+
+  /** Make one empty pixel new dirt: deterministic speckle so piles look granular. */
+  private putDirt(x: number, y: number, rgb: readonly [number, number, number]): void {
+    const i = y * this.width + x;
+    this.solid[i] = 1;
+    this.wet[i] = 1; // new dirt is already its own colour
+    const n = (((x * 73856093) ^ (y * 19349663)) >>> 0) % 29;
+    const k = n < 3 ? 1.45 : 0.7 + n / 60; // granular, with the odd wet glint
+    const p = i * 4;
+    this.pixels[p] = rgb[0] * k;
+    this.pixels[p + 1] = rgb[1] * k;
+    this.pixels[p + 2] = rgb[2] * k;
+    this.pixels[p + 3] = 255;
   }
 
   isWet(x: number, y: number): boolean {

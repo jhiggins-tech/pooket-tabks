@@ -5,6 +5,7 @@ import type { Draw } from './draw/context';
 import { drawBarrel } from './draw/bond';
 import { drawBoomerangs } from './draw/boomerang';
 import { drawCoffee } from './draw/coffee';
+import { drawFumes } from './draw/digger';
 import { drawDrums } from './draw/drums';
 import { drawGhosts, drawHologramBlasts } from './draw/copies';
 import { drawExplosions, drawFloaters } from './draw/fx';
@@ -49,6 +50,7 @@ const LAYERS: Layer[] = [
   drawPuddles,
   drawSludge, // behind the tanks so the jet flame stays visible
   drawTanks,
+  drawFumes,
   drawSmokes,
   drawDrums,
   drawCoffee,
@@ -106,7 +108,7 @@ export class Renderer {
     private readonly worldH: number,
   ) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
-    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), hoop: null, viewer: null };
+    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), exhausts: new Map(), hoop: null, viewer: null };
     this.terrainCanvas.width = worldW;
     this.terrainCanvas.height = worldH;
     this.terrainCtx = this.terrainCanvas.getContext('2d')!;

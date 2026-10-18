@@ -58,6 +58,42 @@ describe("ShotDownBoyz's beta movement", () => {
     expect(blocked.sfx.some((e) => e.cue === 'digger')).toBe(true);
   });
 
+  it('lays a flat bed of dirt under itself over air, and levels its tunnel floor', () => {
+    // A cliff edge at 330, a drop to 500 beyond it, and a hill at 420 to tunnel through.
+    const g = match((x) => (x < 330 ? 400 : x < 420 ? 500 : 350));
+    const p = currentPlayer(g);
+    selectTier(g, 3);
+    fire(g);
+    hold(g, 1, 6);
+    expect(p.x).toBeGreaterThan(440);
+    expect(p.y).toBe(400);
+    for (const x of [340, 370, 400, 430]) {
+      expect(g.terrain.groundBelow(x, 390)).toBe(400); // flat, at the hull's base (in the tunnel too)
+      expect(g.terrain.isSolid(x, 450)).toBe(true); // filled right down to the old ground
+    }
+    expect(g.terrain.isSolid(430, 395)).toBe(false); // the tunnel's still open above it
+    expect(g.fx.splashes.some((sp) => sp.opaque)).toBe(true); // clods of dirt kicked out
+
+    // Tanks settling at the end of the turn don't fall: he's on solid ground.
+    passTurn(g);
+    expect(p.y).toBe(400);
+  });
+
+  it("doesn't bury a tank below its bridge", () => {
+    const g = match((x) => (x < 330 ? 400 : 500));
+    const p = currentPlayer(g);
+    const below = g.players[1]!;
+    below.x = 380;
+    below.y = 500;
+    selectTier(g, 3);
+    fire(g);
+    hold(g, 1, 4);
+    expect(p.x).toBeGreaterThan(400);
+    expect(g.terrain.isSolid(380, 470)).toBe(true); // the bridge, over its head
+    expect(g.terrain.isSolid(380, 495)).toBe(false);
+    expect(g.terrain.isSolid(380, 488)).toBe(false);
+  });
+
   it('cannot drive while pinned', () => {
     const g = match();
     const p = currentPlayer(g);
