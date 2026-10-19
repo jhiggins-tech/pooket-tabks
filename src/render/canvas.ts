@@ -5,6 +5,7 @@ import type { Draw } from './draw/context';
 import { drawAirStrike } from './draw/airstrike';
 import { drawBarrel } from './draw/bond';
 import { drawBoomerangs } from './draw/boomerang';
+import { drawBunkerBacks, drawBunkerWork } from './draw/bunker';
 import { drawCoffee } from './draw/coffee';
 import { drawFumes } from './draw/digger';
 import { drawComm } from './draw/comm';
@@ -46,13 +47,14 @@ const BARREL_CENTRE = 0.7;
 type Layer = (d: Draw, state: GameState) => void;
 
 /** Drawn in the sky, behind the hills. */
-const BACKDROP: Layer[] = [drawApparitions];
+const BACKDROP: Layer[] = [drawApparitions, drawBunkerBacks];
 
 /** Drawn over the terrain, back to front: the order is the layering (like STEPPERS for the simulation). */
 const LAYERS: Layer[] = [
   drawPuddles,
   drawSludge, // behind the tanks so the jet flame stays visible
   drawTanks,
+  drawBunkerWork,
   drawFumes,
   drawSmokes,
   drawDrums,

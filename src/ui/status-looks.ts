@@ -75,6 +75,14 @@ const LOOKS: StatusLook[] = [
     badges: (pl) => (pl.hidden ? [{ title: 'Sly: hidden until their next turn (a hit gives them away)' }] : []),
   },
   {
+    cls: 'bunkered',
+    icon: '🧱',
+    name: 'Bunkered',
+    weapon: 'prepper',
+    info: (w) => `dug into a brick bunker with a ${w.kind === 'bunker' ? w.bunker.slit : 35}° firing slit: can’t drive until it’s knocked down.`,
+    badges: (pl) => (pl.bunker ? [{ title: 'Prepper: in a bunker, can’t drive until it’s knocked down' }] : []),
+  },
+  {
     cls: 'again',
     icon: '☕',
     name: 'Caffeinated',
@@ -105,7 +113,7 @@ const LOOKS: StatusLook[] = [
 ];
 
 /** The info screen's list, in its own order. */
-const INFO_ORDER = ['burn', 'cooked', 'tattoo', 'pinned', 'scam', 'again', 'sly'];
+const INFO_ORDER = ['burn', 'cooked', 'tattoo', 'pinned', 'scam', 'again', 'sly', 'bunkered'];
 
 /** A player's badges, in order (none once they're out). */
 export function badgesOf(pl: Player): Badge[] {

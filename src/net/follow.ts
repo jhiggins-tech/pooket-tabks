@@ -1,4 +1,5 @@
 import { currentPlayer, followDrums, followGuess, followQuiz, followSneak } from '../game/game';
+import { repaintBunkers } from '../game/bunker';
 import type { GameState } from '../game/state';
 import type { NetMsg } from './session';
 import { applySnapshot, decodeSolid, type Snapshot } from './snapshot';
@@ -50,6 +51,7 @@ export const LIVE: ReadonlySet<GameState['phase']> = new Set(['aiming', 'drummin
 export function putState(s: GameState, snap: Snapshot, terrain: string): void {
   applySnapshot(s, snap);
   s.terrain.patchSolid(decodeSolid(terrain, s.terrain.solid.length));
+  repaintBunkers(s);
 }
 
 /** The turn a shot was fired in is over here (the next turn has come up, or the game has ended). */

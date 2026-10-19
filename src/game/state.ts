@@ -74,6 +74,8 @@ export interface Player extends TankBody {
   twinSpot: number | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
+  /** A Prepper bunker round the main tank, while it stands: they can't drive. */
+  bunker: Bunker | null;
   /** ShotDownBoyz: whether this turn's driving is horizontal, tunnelling digger movement. */
   diggerActive: boolean;
   /** ShotDownBoyz: direction of the last successful digger movement. */
@@ -350,6 +352,25 @@ export interface Runner {
   distance: number;
   /** Knocked out by a blast (removed on its next step). */
   out: boolean;
+}
+
+/**
+ * ShotDownBoyz's Prepper (game/bunker.ts): a brick bunker round a player's tank. The bricks themselves are
+ * terrain; this is where it is, which way its slit faces, and how its building is going.
+ */
+export interface Bunker {
+  weaponId: string;
+  /** The turret's pivot once dug in: the bunker's centre. */
+  x: number;
+  y: number;
+  /** The ground under the tank before it dug in. */
+  ground: number;
+  /** Degrees (0 = right, 90 = up, 180 = left) the slit is centred on. */
+  slit: number;
+  /** Seconds since it was fired (drilling, then building). */
+  elapsed: number;
+  /** Solid pixels in its walls once built (0 while it's building): how much there was to knock down. */
+  bricks: number;
 }
 
 /** A player's second tank (torikloud's Twins). */
@@ -691,6 +712,9 @@ export type SfxCue =
   | 'laser'
   | 'smart-bomb'
   | 'strike-beat'
+  | 'drill'
+  | 'brick'
+  | 'bunker-down'
   | 'gameover';
 
 export interface Sfx {

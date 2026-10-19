@@ -97,6 +97,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   // Rules 38: doctorfox's Who's That Pokémon?.
   snap.guess ??= null;
   for (const p of (snap.players as { pokemon?: unknown }[] | undefined) ?? []) p.pokemon ??= null;
+  // Rules 39: ShotDownBoyz's Prepper bunker.
+  for (const p of (snap.players as { bunker?: unknown }[] | undefined) ?? []) p.bunker ??= null;
   return snap;
 }
 

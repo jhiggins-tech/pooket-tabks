@@ -60,6 +60,11 @@ export const KINDS = {
    * strafe them with lasers and finish with a bomb (game/airstrike.ts).
    */
   airstrike: { aims: false, turn: 'shot' },
+  /**
+   * ShotDownBoyz's Prepper: he drills into the ground and a brick bunker builds round him, open only in a
+   * slit along his aim (game/bunker.ts). Aimed: the angle sets the slit (power doesn't matter).
+   */
+  bunker: { aims: true, turn: 'shot', harmless: true },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

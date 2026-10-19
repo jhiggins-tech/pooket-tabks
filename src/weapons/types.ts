@@ -314,6 +314,24 @@ export interface RunnerSpec {
 }
 
 /**
+ * Prepper: the tank drills `sink` px down over `drillTime` s, then a brick bunker builds round it over
+ * `buildTime` s: `courses` rings of bricks (`course` px deep, about `brick` px long, staggered) from
+ * `inner` px out from the turret's pivot, over the top from ground to ground, leaving a slit `slit`° wide
+ * centred on the aim. It stands until fewer than `standing` of its bricks are left.
+ */
+export interface BunkerSpec {
+  sink: number;
+  drillTime: number;
+  buildTime: number;
+  inner: number;
+  courses: number;
+  course: number;
+  brick: number;
+  slit: number;
+  standing: number;
+}
+
+/**
  * A weapon: what it has in common with every other, plus its kind's spec (kinds.ts says what each kind
  * is). The kind decides which spec it must have, so a weapon missing its spec doesn't compile.
  */
@@ -343,6 +361,7 @@ export type WeaponDef = WeaponBase &
     /** The strafing run, and the bomb's blast. */
     | ({ kind: 'airstrike'; airstrike: AirStrikeSpec } & BlastSpec)
     | { kind: 'runner'; runner: RunnerSpec }
+    | { kind: 'bunker'; bunker: BunkerSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }
     | { kind: 'digger' }

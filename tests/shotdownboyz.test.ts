@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { DRIVE_SPEED, FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
 import { currentPlayer, fire, selectTier } from '../src/game/game';
 import { canMove } from '../src/game/statuses';
+import { repaintBunkers, slitOf } from '../src/game/bunker';
 import type { GameState } from '../src/game/state';
-import { passTurn, testGame, hold } from './support/game';
+import { FLAT_Y, passTurn, testGame, hold, untilNextTurn, whileFlying } from './support/game';
 
 const players = [
   { name: 'Boyz', colour: '#f87171', characterId: 'shotdownboyz' },
@@ -127,5 +128,97 @@ describe("ShotDownBoyz's beta movement", () => {
     passTurn(g);
     expect(p.fuel).toBe(0);
     expect(p.dieselCanTime).toBeCloseTo(2.4 - FIXED_DT * 2, 5);
+  });
+});
+
+describe("ShotDownBoyz's Prepper", () => {
+  /** Dig him in at x 300 on flat ground, the slit at `angle`, and let it build. */
+  function bunkered(angle = 60): GameState {
+    const g = match();
+    const p = currentPlayer(g);
+    p.angle = angle;
+    expect(selectTier(g, 2)).toBe(true);
+    expect(fire(g)).toBe(true);
+    untilNextTurn(g);
+    return g;
+  }
+  /** The pixel `r` px out from the pivot at `deg`. */
+  const at = (g: GameState, deg: number, r: number) => {
+    const b = g.players[0]!.bunker!;
+    return [Math.floor(b.x + Math.cos((deg * Math.PI) / 180) * r), Math.floor(b.y - Math.sin((deg * Math.PI) / 180) * r)] as const;
+  };
+  /** Solid pixels within 32 px of the pivot. */
+  const walls = (g: GameState) => {
+    const b = g.players[0]!.bunker!;
+    let n = 0;
+    for (let y = b.y - 32; y <= b.y; y++) for (let x = b.x - 32; x <= b.x + 32; x++) if (Math.hypot(x - b.x, y - b.y) < 32 && g.terrain.isSolid(x, y)) n++;
+    return n;
+  };
+
+  it('digs him 8 px in and builds brick walls round him, open in a 35° slit along his aim', () => {
+    const g = bunkered(60);
+    const p = g.players[0]!;
+    expect(p.y).toBe(FLAT_Y + 8);
+    expect(p.bunker).toMatchObject({ x: 300, y: FLAT_Y, slit: 60 });
+    expect(p.bunker!.bricks).toBeGreaterThan(400);
+    for (const deg of [10, 90, 120, 170]) expect(g.terrain.isSolid(...at(g, deg, 27))).toBe(true);
+    for (const deg of [46, 60, 74]) expect(g.terrain.isSolid(...at(g, deg, 27))).toBe(false);
+    expect(g.terrain.isSolid(...at(g, 120, 15))).toBe(false); // room inside for the barrel
+    // Brick red, not soil.
+    const [x, y] = at(g, 120, 27.5);
+    const i = (y * g.terrain.width + x) * 4;
+    expect(g.terrain.pixels[i]!).toBeGreaterThan(g.terrain.pixels[i + 1]! + 50);
+    expect(canMove(p)).toBe(false);
+  });
+
+  it('keeps the slit above the ground when he aims down', () => {
+    expect(slitOf(300)).toBe(0);
+    expect(slitOf(200)).toBe(180);
+    expect(slitOf(135)).toBe(135);
+  });
+
+  it('lets a shot out through the slit, but stops one aimed at his own wall', () => {
+    const g = bunkered(60);
+    const p = g.players[0]!;
+    const before = walls(g);
+    passTurn(g);
+    expect(currentPlayer(g)).toBe(p);
+    Object.assign(p, { angle: 60, power: 70 });
+    selectTier(g, 0);
+    fire(g);
+    whileFlying(g);
+    expect(walls(g)).toBe(before);
+
+    untilNextTurn(g);
+    passTurn(g);
+    p.angle = 150;
+    selectTier(g, 0);
+    fire(g);
+    whileFlying(g);
+    expect(walls(g)).toBeLessThan(before);
+  });
+
+  it('stands until most of it is knocked down, then he can drive again', () => {
+    const g = bunkered(60);
+    const p = g.players[0]!;
+    const b = p.bunker!;
+    g.terrain.carveCircle(b.x - 25, b.y - 20, 8);
+    passTurn(g);
+    expect(p.bunker).not.toBeNull();
+    g.terrain.carveCircle(b.x, b.y - 20, 30);
+    passTurn(g);
+    expect(p.bunker).toBeNull();
+    expect(g.sfx.some((e) => e.cue === 'bunker-down')).toBe(true);
+    expect(canMove(p)).toBe(true);
+  });
+
+  it('puts the brick colours back after the terrain is patched from another phone', () => {
+    const g = bunkered(60);
+    const [x, y] = at(g, 120, 27.5);
+    const i = (y * g.terrain.width + x) * 4;
+    const red = g.terrain.pixels[i];
+    g.terrain.pixels[i] = 90;
+    repaintBunkers(g);
+    expect(g.terrain.pixels[i]).toBe(red);
   });
 });

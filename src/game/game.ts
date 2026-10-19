@@ -3,6 +3,7 @@ import { createRng, randRange } from '../core/rng';
 import { Terrain } from '../core/terrain';
 import { flattenAround, generateHeights } from '../core/terrainGen';
 import { ignoresAim, kindOf } from '../weapons/registry';
+import { checkBunkers } from './bunker';
 import { isShotKind, type ShotKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
 import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './constants';
@@ -119,6 +120,7 @@ export function createGame(cfg: GameConfig): GameState {
       aimTwin: false,
       twinSpot: null,
       fuel: FUEL_PER_MATCH,
+      bunker: null,
       diggerActive: false,
       diggerFacing: 1,
       diggerTurn: -1,
@@ -349,6 +351,7 @@ function endTurn(state: GameState): void {
   state.lastShot = null; // burns ticking below aren't this turn's attack
   state.tallyShot = null;
   resolveHolograms(state);
+  checkBunkers(state);
   // Burns tick at every turn change, whoever's turn it is: everyone burning takes their damage, round the
   // table from the next player. Then the turn goes to the next player alive with ammo.
   const n = state.players.length;

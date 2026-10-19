@@ -1015,7 +1015,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Bomb', 'Beta Blast', 'Activate Digger']);
+  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Bomb', 'Prepper', 'Activate Digger']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
 });
 
@@ -1086,6 +1086,24 @@ test('ShotDownBoyz activates the digger and gets one second-diesel refill', asyn
   await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.fuel)).toBe(250);
   expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselAvailable)).toBe(false);
   expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselCanTime)).toBeGreaterThan(0);
+});
+
+test("ShotDownBoyz's Prepper digs him in and builds a brick bunker with a slit along his aim", async ({ page }) => {
+  await startHotseat(page, { seed: 77, p1: 'shotdownboyz', p2: 'kie', query: 'debug' });
+  await page.evaluate(() => {
+    const p = window.__pooket.state.players[0]!;
+    p.angle = 55;
+  });
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await expect(page.locator('#hint')).toContainText('Prepper');
+  await page.locator('#fire').tap();
+  await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.bunker?.elapsed ?? 0)).toBeGreaterThan(2.2);
+  await page.screenshot({ path: 'test-results/prepper-building.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  const b = await page.evaluate(() => window.__pooket.state.players[0]!.bunker);
+  expect(b?.slit).toBe(55);
+  expect(b?.bricks).toBeGreaterThan(400);
+  await page.screenshot({ path: 'test-results/prepper-bunker.png' });
 });
 
 test('remembers the last setup', async ({ page }) => {

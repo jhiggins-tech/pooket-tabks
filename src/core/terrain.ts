@@ -150,6 +150,37 @@ export class Terrain {
     return y - y0;
   }
 
+  /**
+   * Paint the pixels of a rectangle (inclusive) that `colourAt` gives a colour (null: leave it): `fill` makes
+   * empty ones solid in that colour (ShotDownBoyz's bricks), `recolour` repaints solid ones. Returns how many
+   * changed.
+   */
+  paint(x0: number, y0: number, x1: number, y1: number, colourAt: (x: number, y: number) => readonly [number, number, number] | null, mode: 'fill' | 'recolour'): number {
+    const xa = Math.max(0, Math.floor(x0));
+    const xb = Math.min(this.width - 1, Math.floor(x1));
+    const ya = Math.max(0, Math.floor(y0));
+    const yb = Math.min(this.height - 1, Math.floor(y1));
+    let changed = 0;
+    for (let y = ya; y <= yb; y++) {
+      for (let x = xa; x <= xb; x++) {
+        const i = y * this.width + x;
+        if ((this.solid[i] === 1) !== (mode === 'recolour')) continue;
+        const rgb = colourAt(x, y);
+        if (!rgb) continue;
+        this.solid[i] = 1;
+        this.wet[i] = 1;
+        const p = i * 4;
+        this.pixels[p] = rgb[0];
+        this.pixels[p + 1] = rgb[1];
+        this.pixels[p + 2] = rgb[2];
+        this.pixels[p + 3] = 255;
+        changed++;
+      }
+    }
+    if (changed > 0) this.markDirty({ x: xa, y: ya, w: xb - xa + 1, h: yb - ya + 1 });
+    return changed;
+  }
+
   /** Make one empty pixel new dirt: deterministic speckle so piles look granular. */
   private putDirt(x: number, y: number, rgb: readonly [number, number, number]): void {
     const i = y * this.width + x;

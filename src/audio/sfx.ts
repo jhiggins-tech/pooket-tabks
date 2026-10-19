@@ -37,7 +37,10 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
   },
   'digger-shot': (s) => { pew(s); s.noise({ dur: 0.08, rate: 0.6, vol: 0.15 }); },
   'digger-bomb': (s) => { pew(s, 0, 950, 120); s.noise({ dur: 0.12, rate: 0.5, vol: 0.2 }); },
-  'digger-blast': (s) => { pew(s, 0, 700, 70); s.noise({ dur: 0.18, rate: 0.35, vol: 0.24 }); },
+  // A bunker-alarm klaxon, twice (the drill and the bricks have their own: CUE_SOUNDS).
+  prepper: (s) => {
+    for (const at of [0, 0.2]) s.tone({ at, dur: 0.16, from: 520, to: 380, duty: 0.5, vol: 0.1 });
+  },
   // An ice cream van jingle, badly.
   'double-park': (s) => {
     arp(s, [76, 79, 81, 83, 81, 79, 76, 72], 0.075, { duty: 0.125, vol: 0.13 });
@@ -467,6 +470,22 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   },
   // A beat of the backing music (audio/strike.ts; `size`: beats left before the dive).
   'strike-beat': (s, e) => strikeBeat(s, e.size ?? 1),
+  // ---- ShotDownBoyz's Prepper (game/bunker.ts). ----
+  // The drill biting in: a rising whine over grinding noise.
+  drill: (s) => {
+    s.noise({ dur: 1.15, rate: 0.3, to: 0.55, vol: 0.14, env: [[0.05, 1], [0.85, 0.8], [1, 0]] });
+    s.tone({ dur: 1.15, from: 120, to: 380, duty: 0.25, vibrato: [28, 25], vol: 0.08 });
+  },
+  // A brick clunking into place (spaced out by MIN_GAP while they rain in).
+  brick: (s) => {
+    s.tone({ dur: 0.05, from: 320, to: 180, duty: 0.5, vol: 0.07 });
+    s.noise({ dur: 0.03, rate: 0.8, vol: 0.05 });
+  },
+  // The bunker giving way: a rumble and a tumbling scale down.
+  'bunker-down': (s) => {
+    s.noise({ dur: 0.6, rate: 0.35, to: 0.1, vol: 0.18 });
+    arp(s, [64, 60, 57, 52, 48], 0.07, { at: 0.05, duty: 0.5, vol: 0.09 });
+  },
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),
   // ---- Steal (game/steal.ts). ----
@@ -570,7 +589,7 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
 };
 
 /** Minimum seconds between two plays of the same sound, so a pill storm doesn't turn into mush. */
-const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, digger: 0.12, arwing: 0.09, dribble: 0.06 };
+const MIN_GAP: Partial<Record<SfxCue, number>> = { boom: 0.035, hit: 0.07, round: 0.02, tick: 0.01, leg: 0.3, scoot: 0.11, digger: 0.12, arwing: 0.09, dribble: 0.06, brick: 0.07 };
 
 /** Plays queued cues on a synth, throttling rapid repeats. */
 export class SfxPlayer {

@@ -22,6 +22,7 @@ import { dropletStepper, fireStream, streamStepper } from './stream';
 import { soakStepper } from './tanks';
 import { fireSly } from './sly';
 import { activateDigger } from './digger';
+import { bunkerStepper, fireBunker } from './bunker';
 
 /**
  * The weapon mechanics, in one place: how each kind goes off (`FIRE` for shots, `FREE_ACTIONS` for the rest:
@@ -81,6 +82,7 @@ export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   spew: fireSpew,
   jetpack: fireJetpack,
   heal: fireNap,
+  bunker: fireBunker,
 };
 
 /** Everything that moves during a shot, stepped in this order every tick (the order is part of the simulation). */
@@ -108,4 +110,5 @@ export const STEPPERS: Stepper[] = [
   toxinStepper,
   decoyPickStepper,
   hologramBlastStepper,
+  bunkerStepper,
 ];

@@ -1,4 +1,5 @@
 import { getCharacter } from '../../characters/roster';
+import { weaponOf } from '../../weapons/registry';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
 import { canDriveNow, canPickDecoy, capSpot, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre, wearsCap } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
@@ -68,6 +69,8 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
 
   ctx.save();
   ctx.globalAlpha *= p.alive ? 1 : 0.35;
+  // Prepper: the hull shudders while it drills in (game/bunker.ts).
+  if (!at && owner.bunker && owner.bunker.elapsed < weaponOf(owner.bunker.weaponId, 'bunker').bunker.drillTime) ctx.translate(Math.sin(d.time * 95) * 0.5, 0);
 
   // Barrel
   const m = muzzle(p);

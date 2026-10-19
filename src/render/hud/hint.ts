@@ -2,9 +2,9 @@
  * The hint line under the controls: what to do now. `HINTS` is an ordered table of [when, text]: the first
  * row that applies wins. Pure and DOM-free (tests/hud-hint.test.ts).
  */
-import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isBond, isCoffee, isDigger, isDrum, isHoop, isPokemon, isSly, jetCharge, missingNoNext, pendingTwinSpot, slotAt, sneakLeft } from '../../game/game';
+import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isBond, isCoffee, isDigger, isDrum, isHoop, isPokemon, isSly, jetCharge, missingNoNext, pendingTwinSpot, slotAt, sneakLeft, weaponForTier } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
-import { jetSpec } from '../../weapons/registry';
+import { jetSpec, kindOf } from '../../weapons/registry';
 
 /** What the hint goes by besides the state. */
 export interface HintView {
@@ -52,6 +52,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   [(c) => isDrum(c.p, c.p.selectedTier), () => 'Band Aid: FIRE, then tap anywhere on the beat to heal'],
   [(c) => isSly(c.p, c.p.selectedTier), () => 'Sly: FIRE for a smokescreen, then sneak off unseen'],
   [(c) => isBond(c.p, c.p.selectedTier), () => '007: FIRE, then name the Bond actor'],
+  [(c) => kindOf(weaponForTier(c.p, c.p.selectedTier)) === 'bunker', () => 'Prepper: aim where you want the firing slit, then FIRE'],
   [(c) => pendingTwinSpot(c.state) !== null, () => 'Tap the ground to place your twin, then FIRE'],
   [(c) => isAimless(c.state), () => 'No aiming needed. Just FIRE'],
   [(c) => !!c.p.twin, () => 'Drag from a tank to aim it · 🎯 switches tank (◀ ▶ drive it)'],
