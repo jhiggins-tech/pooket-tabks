@@ -2,8 +2,8 @@
 
 Pooket Tabks: a Worms / Pocket Tanks style artillery game for **phone browsers only** (landscape, touch),
 hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Nine characters, each with a
-three-weapon kit (larinovsky, garyoldmancorp and doctorfox have a fourth: a bonus move; kiwicore, doctorfox and
-shotdownboyz are in beta, `CharacterDef.beta`: with a stand-in shot or two, or `'testing'`); hotseat on one phone, or two phones online through Firebase (with
+three-weapon kit (larinovsky, garyoldmancorp and doctorfox have a fourth: a bonus move; kiwicore and
+shotdownboyz are in beta, `CharacterDef.beta`, with a stand-in shot or two); hotseat on one phone, or two phones online through Firebase (with
 spectators).
 
 ## Working rules

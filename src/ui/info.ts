@@ -183,7 +183,7 @@ export function characterDetails(c: CharacterDef, colour: string): HTMLElement[]
   const health = el('p', 'info-move info-health');
   const hp = c.maxHp ?? MAX_HP;
   health.append(el('b', undefined, 'Health'), ` · ${hp}${hp > MAX_HP ? ` (most start with ${MAX_HP})` : ''}`);
-  header.append(name, ...(c.beta ? [el('span', 'beta-banner', c.beta === 'testing' ? 'Beta: being tested' : 'Beta: stand-in moves for now')] : []), blurb, moves, health);
+  header.append(name, ...(c.beta ? [el('span', 'beta-banner', 'Beta: stand-in moves for now')] : []), blurb, moves, health);
 
   const cards = el('div', 'info-cards');
   cards.style.setProperty('--c', colour);

@@ -2,8 +2,8 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * doctorfox, in beta (until the owner says he's ready): Calculated (tier 1), Sly (tier 2), Air Strike
- * (tier 3), Who's That Pokémon? (a bonus move) and his movement, an Arwing (game/movement.ts).
+ * doctorfox: Calculated (tier 1), Sly (tier 2), Air Strike (tier 3), Who's That Pokémon? (a bonus move)
+ * and his movement, an Arwing (game/movement.ts).
  */
 
 /**
@@ -75,10 +75,9 @@ export const doctorfox = kit(
   {
     id: 'doctorfox',
     name: 'doctorfox',
-    blurb: 'Beta: flies an Arwing over anything; Calculated, plasma with tracers that show how far off they were; Sly, a smokescreen to fly off unseen on a full tank; Air Strike, three Arwings to strafe and bomb the enemy; and Who’s That Pokémon?, a bonus move.',
+    blurb: 'Flies an Arwing over anything; Calculated, plasma with tracers that show how far off they were; Sly, a smokescreen to fly off unseen on a full tank; Air Strike, three Arwings to strafe and bomb the enemy; and Who’s That Pokémon?, a bonus move.',
     colours: ['#fb923c', '#fdba74', '#ea580c'],
     movement: 'arwing',
-    beta: 'testing',
   },
   [calculated, sly, airStrike, whosThatPokemon],
 );

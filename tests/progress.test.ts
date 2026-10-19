@@ -64,7 +64,7 @@ describe('a signed-in player’s career', () => {
     p.take(totals(13, { torikloud: 3 })); // two tokens' worth; torikloud played before unlocks came in
     expect(p.access().owned).toEqual(new Set(['torikloud']));
     expect(p.tokens()).toBe(2);
-    expect(p.unlockable()).toEqual(['ciarra', 'larinovsky', 'garyoldmancorp']);
+    expect(p.unlockable()).toEqual(['ciarra', 'larinovsky', 'garyoldmancorp', 'doctorfox']);
     expect(await p.unlock('kiwicore')).toBe(false); // a beta: not for unlocking
     expect(await p.unlock('ciarra')).toBe(true);
     expect(server.at(`users/${me.uid}/unlocks/ciarra`)).toEqual({ ts: expect.any(Number) });

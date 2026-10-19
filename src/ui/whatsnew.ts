@@ -20,6 +20,19 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 57,
+    title: '🦊 doctorfox is here',
+    items: [
+      'doctorfox is out of beta, and he flies an Arwing: hold ◀ or ▶ to take off and fly over anything, much faster and further than driving. Let go to land.',
+      'Calculated: a lobbed ball of plasma, up to 30 damage, with tracer rounds fanned out either side. Where each tracer lands it shows how many degrees off your aim it was, so you can work out the next shot.',
+      'Sly: a smokescreen, and he vanishes. A full tank and 10 seconds to sneak off, unseen by the enemy until his next turn (a hit gives him away).',
+      'Air Strike: three Arwings come in over the nearest enemy, strafe them with lasers and drop a bomb, while someone from the Star Fox team chats over the comm.',
+      'Who’s That Pokémon? (bonus move, once a turn): name the silhouette from four choices in 10 seconds for a round of Calculated back. Get it wrong and it’s gone for the match. Any of all 1025… and if you keep it going long enough, something glitches.',
+      'Bonus moves can’t be stolen any more: kie’s Steal only takes shots.',
+      'Play him online too: unlock him with XP like the others.',
+    ],
+  },
+  {
     version: 56,
     title: 'Know who’s who',
     items: ['In a match, each player’s tank now shows under their name, so you can see who picked what.'],

@@ -17,11 +17,8 @@ export interface CharacterDef {
   hat?: 'flat-cap';
   /** Starting (and full) health, if not the usual MAX_HP. */
   maxHp?: number;
-  /**
-   * Playable but unfinished: marked Beta in the pickers and the info screen. `true`: with stand-in moves;
-   * `'testing'`: all their own moves, being tried out before they're released.
-   */
-  beta?: true | 'testing';
+  /** Playable but unfinished (stand-in moves): marked Beta in the pickers and the info screen. */
+  beta?: true;
 }
 
 /** A character and the weapons of their loadout (tiers 1, 2 and 3, and optionally a bonus move), defined together in one file. */

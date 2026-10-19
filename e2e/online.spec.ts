@@ -168,7 +168,7 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
 
   // Ivy chooses torikloud: the padlock breaks open, and it's hers.
   await a.locator('#xp-choose').tap();
-  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒torikloud', '🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp']);
+  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒torikloud', '🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp', '🔒doctorfox']);
   await a.screenshot({ path: 'test-results/xp-choose.png' });
   await a.locator('#xp .xp-pick[data-character="torikloud"]').tap();
   await expect(a.locator('#xp')).toHaveAttribute('data-state', 'unlocked', { timeout: 10_000 });
@@ -177,7 +177,7 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
   await a.screenshot({ path: 'test-results/xp-unlocked.png' });
   expect(await db.at(`users/uid-ivy/unlocks/torikloud`)).toEqual({ ts: expect.any(Number) });
   // A token left: the choice again, without torikloud; she keeps it for later.
-  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp'], { timeout: 10_000 });
+  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp', '🔒doctorfox'], { timeout: 10_000 });
   await a.locator('#xp-ok').tap();
   await expect(a.locator('#xp')).toBeHidden();
 

@@ -5,9 +5,9 @@ import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the ten selectable characters (kiwicore, doctorfox and ShotDownBoyz in beta)', () => {
+  it('has the ten selectable characters (kiwicore and ShotDownBoyz in beta)', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox', 'shotdownboyz']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore', 'doctorfox', 'shotdownboyz']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore', 'shotdownboyz']);
   });
 
   it("kiwicore's beta loadout: the béretta M2, Band Aid and a stand-in shot; he wears a flat cap", () => {
@@ -18,7 +18,7 @@ describe('roster', () => {
     expect(getCharacter('kiwicore').hat).toBe('flat-cap');
   });
 
-  it("doctorfox's beta loadout: Calculated, Sly, Air Strike and Who's That Pokémon?", () => {
+  it("doctorfox's loadout: Calculated, Sly, Air Strike and Who's That Pokémon?", () => {
     expect(getCharacter('doctorfox').loadout).toEqual(['calculated', 'sly', 'air-strike', 'whos-that-pokemon']);
     expect(['calculated', 'sly', 'air-strike', 'whos-that-pokemon'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'airstrike', 'pokemon']);
     expect(getCharacter('doctorfox').movement).toBe('arwing');
@@ -55,7 +55,7 @@ describe('roster', () => {
     // Teased moves (work in progress), by slot.
     expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now
     expect(upcoming('kiwicore')).toBeUndefined(); // playable in beta
-    expect(upcoming('doctorfox')).toBeUndefined(); // playable in beta
+    expect(upcoming('doctorfox')).toBeUndefined(); // playable
     expect(upcoming('shotdownboyz')).toBeUndefined(); // playable in beta
     expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
     expect(upcoming('odsey')!.teasers).toBeUndefined();
