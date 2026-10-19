@@ -41,6 +41,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
     The cadence is now ping, ships on approach (holding back, bobbing), the comm (it types out and stays
     up 1.2 s to be read), and only once it switches off do they dive in and strafe (`strikeClock`: the run
     starts after the comm, however long its line).
+  - **50 comms** (owner, 19 Oct; rules 37): 30 more lines from the same ten pilots (the line's length sets
+    the strike's timing, so it's a rules change).
 - **ShotDownBoyz, in beta** (owner, 18 Oct; rules 32; a testing push). Three stand-in shots; his
   once-per-turn bonus activates horizontal bulldozer movement that tunnels through terrain. When he
   spends all his fuel, a second diesel tank refills it at the start of his next turn, once per match.

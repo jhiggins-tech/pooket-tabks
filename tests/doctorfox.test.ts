@@ -181,8 +181,8 @@ describe("doctorfox's Air Strike", () => {
     expect(g.players[1]!.hp).toBe(g.players[1]!.maxHp);
   });
 
-  it('has 20 comms, every one from a pilot with a portrait', () => {
-    expect(COMMS).toHaveLength(20);
+  it('has 50 comms, every one from a pilot with a portrait', () => {
+    expect(COMMS).toHaveLength(50);
     for (const c of COMMS) {
       expect(PILOTS[c.pilot]).toBeDefined();
       expect(c.line.length).toBeLessThanOrEqual(60);
