@@ -8,6 +8,7 @@
  *   `free`: the turn carries on (Steal); `bonus`: the turn carries on, and it's a bonus move.
  * - `per` (bonus moves): how often it can be used. `match`: once for each round it has (one, so once a
  *   match); `turn`: once a turn while it has its round (Diced Coffee, until it fails: game/loadout.ts).
+ *   Only shots can be stolen (game/steal.ts): never Steal itself, nor a bonus move.
  * - `keepsInPlay` (default true): whether a round of it keeps its player taking turns (game.ts `hasAmmo`).
  *   Diced Coffee's doesn't: with only that left there's nothing to fire, and they sit out.
  * - `harmless`: it never does damage itself, so the stats leave it out of shots and accuracy (game/tally.ts).
@@ -69,6 +70,11 @@ export const KINDS = {
   digger: { aims: false, turn: 'bonus', per: 'turn' },
   /** Diced Coffee: a spinner; a win skips the next enemy turn (go again), a loss spills it for good. */
   coffee: { aims: false, turn: 'bonus', per: 'turn', keepsInPlay: false },
+  /**
+   * doctorfox's Who's That Pokémon?: a silhouette and names to pick from (the `guessing` phase:
+   * game/pokemon.ts); right refills a round of his tier 1, wrong loses it for the match.
+   */
+  pokemon: { aims: false, turn: 'bonus', per: 'turn', keepsInPlay: false },
 } as const satisfies Record<string, KindRow>;
 
 /** A row of KINDS (see the list above): a bonus move must say how often it can be used. */

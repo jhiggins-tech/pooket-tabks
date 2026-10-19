@@ -1,3 +1,4 @@
+import { isShotKind } from '../weapons/kinds';
 import { kindOf } from '../weapons/registry';
 import { ring, sound, spawnFloater } from './fx';
 import { reselect, weaponForTier } from './loadout';
@@ -13,12 +14,12 @@ export const STEAL_HOLD = 1.3;
 
 const STEAL_TICKS = 19;
 
-/** Enemy rounds that can be stolen: any tier with ammo left, except another Steal. */
+/** Enemy rounds that can be stolen: any shot with ammo left (not another Steal, nor a bonus move). */
 function stealable(state: GameState, thief: Player): { victim: Player; tier: number }[] {
   return state.players
     .filter((q) => q !== thief && q.alive)
     .flatMap((victim) => victim.ammo.map((n, tier) => ({ victim, tier, n })))
-    .filter(({ victim, tier, n }) => n > 0 && kindOf(weaponForTier(victim, tier)) !== 'steal')
+    .filter(({ victim, tier, n }) => n > 0 && isShotKind(kindOf(weaponForTier(victim, tier))))
     .map(({ victim, tier }) => ({ victim, tier }));
 }
 

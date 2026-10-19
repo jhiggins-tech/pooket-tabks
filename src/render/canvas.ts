@@ -22,6 +22,7 @@ import { drawHeist } from './draw/steal';
 import { drawBasketballs, drawHoopBack, drawHoopFront } from './draw/hoop';
 import { drawSmokes, drawStealthUp } from './draw/sly';
 import { drawLiquid } from './draw/stream';
+import { drawMarks } from './draw/tracers';
 import { drawAim, drawTanks } from './draw/tank';
 import { loadSprites } from './sprites';
 
@@ -60,6 +61,7 @@ const LAYERS: Layer[] = [
   drawGhosts,
   drawHoopBack,
   drawAim,
+  drawMarks,
   drawProjectiles,
   drawBasketballs,
   drawHoopFront,

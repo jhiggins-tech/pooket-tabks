@@ -18,9 +18,9 @@ describe('roster', () => {
     expect(getCharacter('kiwicore').hat).toBe('flat-cap');
   });
 
-  it("doctorfox's beta loadout: Sly between two stand-in shots", () => {
-    expect(getCharacter('doctorfox').loadout).toEqual(['fox-shot', 'sly', 'air-strike']);
-    expect(['fox-shot', 'sly', 'air-strike'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'airstrike']);
+  it("doctorfox's beta loadout: Calculated, Sly, Air Strike and Who's That Pokémon?", () => {
+    expect(getCharacter('doctorfox').loadout).toEqual(['calculated', 'sly', 'air-strike', 'whos-that-pokemon']);
+    expect(['calculated', 'sly', 'air-strike', 'whos-that-pokemon'].map((id) => getWeapon(id).kind ?? 'ballistic')).toEqual(['ballistic', 'sly', 'airstrike', 'pokemon']);
     expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 

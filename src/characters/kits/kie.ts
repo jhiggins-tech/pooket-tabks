@@ -49,7 +49,7 @@ export const steal = {
   name: 'Steal',
   shortName: 'Steal',
   info:
-    'No aiming. A roulette spins over the enemy’s weapons and lands on one at random: kie pinches a round of it (they lose it), and it takes Steal’s place, ready to fire this turn.',
+    'No aiming. A roulette spins over the enemy’s weapons and lands on one at random (never a bonus move): kie pinches a round of it (they lose it), and it takes Steal’s place, ready to fire this turn.',
   kind: 'steal',
   colour: '#4ea8ff',
 } satisfies WeaponDef;

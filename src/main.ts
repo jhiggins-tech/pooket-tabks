@@ -7,11 +7,12 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, answerQuiz, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, pendingTwinSpot, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
+import { adjustAim, aimTwin, answerGuess, answerQuiz, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, guessClock, guessReady, pendingTwinSpot, pokedexDown, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
 import { Hud } from './render/hud';
+import { pictureStatus } from './render/pokemon-picture';
 import { Chip } from './audio/chip';
 import { SfxPlayer } from './audio/sfx';
 import { takePlayRef, takeRoomCode } from './net/links';
@@ -344,6 +345,8 @@ bindControls(canvas, {
   drum: (at) => drumTap(state, Math.min(0.1, Math.max(-0.2, acc + (at - last) / 1000 - chip.latency))),
   canAnswer: () => state.phase === 'quizzing' && localCanAct(),
   answer: (i) => answerQuiz(state, i),
+  canGuess: () => state.phase === 'guessing' && localCanAct(),
+  guess: (i) => answerGuess(state, i),
 });
 
 /** Fire for whoever's turn it is on this phone (online, through the session, which tells the other phone). */
@@ -427,6 +430,8 @@ function runFrame(now: number): void {
       drumClock(state, FIXED_DT);
       sneakClock(state, FIXED_DT);
       quizClock(state, FIXED_DT);
+      // Who's That Pokémon?'s clock starts once the picture's in.
+      if (state.guess && pictureStatus(state.guess.dex) === 'ok') guessClock(state, FIXED_DT);
     }
     step(state, FIXED_DT);
     acc -= FIXED_DT;
@@ -437,6 +442,9 @@ function runFrame(now: number): void {
   if (sneakReady(state) && localCanAct()) fireNow();
   // 007's answered (or time's up): fire it, the same way.
   if (quizReady(state) && localCanAct()) fireNow();
+  // Who's That Pokémon?, the same way; or its picture won't come, and it's called off (nothing spent).
+  if (guessReady(state) && localCanAct()) fireNow();
+  if (state.phase === 'guessing' && state.guess && !state.guess.done && localCanAct() && pictureStatus(state.guess.dex) === 'error') pokedexDown(state);
   document.body.classList.toggle('drumming', state.phase === 'drumming');
   net?.tick(dt);
   if (net) online.matchFinished(state.phase === 'gameover');

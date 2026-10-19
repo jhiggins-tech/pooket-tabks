@@ -1093,6 +1093,158 @@ button.big {
   .quiz-answer { min-height: 32px; font-size: 12px; }
 }
 
+/* ---------- Who's That Pokémon? (doctorfox): a silhouette and four names ---------- */
+#pokemon {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100% - 32px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 12px;
+  border-radius: 18px;
+  background: rgba(8, 8, 12, 0.92);
+  border: 2px solid var(--asker);
+  z-index: 5;
+}
+#pokemon[hidden] {
+  display: none;
+}
+#pokemon.right {
+  border-color: #fde047;
+  animation: heist-lock 0.5s ease-out;
+}
+#pokemon.wrong {
+  border-color: #f87171;
+}
+.pokemon-title {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.pokemon-title b {
+  font-weight: 900;
+}
+.pokemon-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+/* The show's burst of rays behind the silhouette. */
+.pokemon-picture {
+  flex: none;
+  width: 112px;
+  height: 112px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.55) 0 18%, transparent 62%),
+    repeating-conic-gradient(#2563eb 0 10deg, #60a5fa 10deg 20deg);
+  overflow: hidden;
+}
+.pokemon-picture img {
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: brightness(0);
+  transition: filter 0.35s ease-out;
+}
+.pokemon-picture img.revealed {
+  filter: none;
+}
+.pokemon-answers {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+.pokemon-answer {
+  min-height: 44px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: #1c1c26;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+}
+.pokemon-answer:disabled {
+  opacity: 0.75;
+}
+.pokemon-answer.picked {
+  border-color: var(--asker);
+  background: #2c2c3c;
+  opacity: 1;
+}
+.pokemon-answer.right {
+  border-color: #fde047;
+  background: #fde047;
+  color: #111;
+  opacity: 1;
+}
+.pokemon-answer.wrong {
+  border-color: #f87171;
+  color: #f87171;
+  text-decoration: line-through;
+}
+.pokemon-result {
+  margin: 0;
+  min-height: 18px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--asker);
+}
+#pokemon.right .pokemon-result {
+  color: #fde047;
+}
+#pokemon.wrong .pokemon-result {
+  color: #f87171;
+}
+.pokemon-result.rolling {
+  letter-spacing: 6px;
+  animation: heist-dots 0.6s steps(2) infinite;
+}
+/* MissingNo.: the card tears and jitters, the colours go wrong. */
+#pokemon.glitch {
+  border-color: #e879f9;
+  animation: missingno 0.4s steps(3) infinite;
+}
+#pokemon.glitch .pokemon-picture {
+  background: repeating-linear-gradient(0deg, #7c3aed 0 3px, #0f172a 3px 7px, #a3e635 7px 8px);
+}
+#pokemon.glitch .pokemon-picture img {
+  filter: none;
+}
+#pokemon.glitch .pokemon-answer {
+  font-family: ui-monospace, monospace;
+  letter-spacing: 0.08em;
+}
+#pokemon.glitch .pokemon-result {
+  color: #e879f9;
+}
+@keyframes missingno {
+  0% { transform: translateX(-50%); filter: none; }
+  33% { transform: translate(calc(-50% + 3px), -1px) skewX(-4deg); filter: hue-rotate(90deg); }
+  66% { transform: translate(calc(-50% - 2px), 1px); filter: invert(0.15) hue-rotate(200deg); }
+  100% { transform: translateX(-50%); filter: none; }
+}
+@media (max-height: 340px) {
+  #pokemon { top: 4%; padding: 6px 10px 8px; gap: 5px; }
+  .pokemon-picture { width: 88px; height: 88px; }
+  .pokemon-picture img { width: 82px; height: 82px; }
+  .pokemon-answer { min-height: 36px; font-size: 12px; }
+}
+
 /* Band Aid: a touch anywhere is a drum hit (input/controls.ts), so the controls let touches through. */
 body.drumming #hud,
 body.drumming #hud * {

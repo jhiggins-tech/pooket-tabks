@@ -33,6 +33,25 @@ function fireBallistic(state: GameState, p: Player, gun: Gun, weapon: Projectile
     const a = ((gun.angle + offset) * Math.PI) / 180;
     spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed, i);
   });
+  // Calculated's tracers, fanned out either side.
+  for (const offset of tracerOffsets(weapon)) {
+    const a = ((gun.angle + offset) * Math.PI) / 180;
+    spawnProjectile(state, p, weapon, m.x, m.y, Math.cos(a) * speed, -Math.sin(a) * speed);
+    state.projectiles[state.projectiles.length - 1]!.tracer = offset;
+  }
+}
+
+/** A weapon's tracers' offsets from the aim (degrees): −30, −20, −10, +10, +20, +30 for 3 at 10°. */
+export function tracerOffsets(weapon: Projectiles): number[] {
+  const t = weapon.tracers;
+  if (!t) return [];
+  return Array.from({ length: t.count }, (_, i) => (i + 1) * t.stepDeg).flatMap((d) => [-d, d]);
+}
+
+/** A tracer has landed (or hit a tank): it leaves its offset there for the firer, and goes. Harmless. */
+function landTracer(state: GameState, pr: Projectile, x: number, y: number): void {
+  state.fx.marks.push({ ownerId: pr.ownerId, x, y, offset: pr.tracer!, age: 0 });
+  sound(state, 'tracer', pr.weaponId);
 }
 
 /** Ballistic rounds from the main tank or the twin: a single shot/volley, a burst, or a word. */
@@ -110,12 +129,13 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
   const { terrain } = state;
   const weapon = projectileWeapon(pr.weaponId);
   pr.age += dt;
+  const tracer = pr.tracer !== undefined;
   if (pr.age > PROJECTILE_MAX_AGE) {
-    explode(state, pr.x, pr.y, weapon, pr.ownerId);
+    if (!tracer) explode(state, pr.x, pr.y, weapon, pr.ownerId);
     return true;
   }
   if (pr.walkDir !== 0) return stepWalker(state, pr, weapon, dt);
-  if (weapon.homing) steerHoming(state, pr, weapon.homing, dt);
+  if (weapon.homing && !tracer) steerHoming(state, pr, weapon.homing, dt);
   if (!pr.homing) pr.vy += GRAVITY * dt;
   const nx = pr.x + pr.vx * dt;
   const ny = pr.y + pr.vy * dt;
@@ -129,6 +149,15 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
     const t = i / steps;
     const x = pr.x + (nx - pr.x) * t;
     const y = pr.y + (ny - pr.y) * t;
+    if (tracer) {
+      if (targetAt(state, x, y) || terrain.isSolid(x, y)) {
+        landTracer(state, pr, x, Math.min(y, terrain.height));
+        return true;
+      }
+      lastX = x;
+      lastY = y;
+      continue;
+    }
     if (targetAt(state, x, y) || runnerAt(state, x, y, pr.ownerId)) {
       explode(state, x, y, weapon, pr.ownerId);
       return true;

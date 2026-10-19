@@ -192,11 +192,14 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
     s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
   },
-  // doctorfox's stand-in shots (beta): plain pews, bigger for the higher tier.
-  'fox-shot': (s) => {
-    pew(s, 0, 1600, 300, 0.15);
-    s.noise({ dur: 0.06, rate: 0.7, vol: 0.1 });
+  // Calculated: a plasma lob, a warbling sci-fi throb, and the tracers' thin zips either side.
+  calculated: (s) => {
+    s.tone({ dur: 0.28, from: 520, to: 180, duty: 0.5, vibrato: [28, 40], vol: 0.13 });
+    s.noise({ dur: 0.08, rate: 0.6, vol: 0.08 });
+    for (let i = 0; i < 3; i++) s.tone({ at: 0.03 + i * 0.04, dur: 0.07, from: 3200 - i * 300, to: 1800, duty: 0.125, vol: 0.04 });
   },
+  // Who's That Pokémon? is put up with its own cue (`pokemon`); fired, the answer's sound says how it went.
+  'whos-that-pokemon': (s) => s.tone({ dur: 0.05, from: 1800, duty: 0.25, vol: 0.06 }),
   // Air Strike: calling it in, a radio click and a crackle.
   'air-strike': (s) => {
     s.tone({ dur: 0.03, from: 2600, duty: 0.5, vol: 0.08 });
@@ -410,6 +413,30 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.18, rate: 1.2, to: 0.3, vol: 0.3 });
     s.tone({ dur: 0.08, from: 900, to: 120, duty: 0.5, vol: 0.14 });
     s.noise({ at: 0.22, dur: 0.25, rate: 0.7, to: 0.3, vol: 0.08 });
+  },
+  // ---- Calculated and Who's That Pokémon? (game/projectiles.ts tracers, game/pokemon.ts). ----
+  // A tracer lands: a tiny radar blip.
+  tracer: (s) => s.tone({ dur: 0.06, from: midi(96), wave: 'triangle', vol: 0.06 }),
+  // The silhouette goes up: a cartoon-show sting, a quick rising run and a bright "who's that?" hit.
+  pokemon: (s) => {
+    arp(s, [60, 64, 67, 72, 76], 0.05, { duty: 0.25, vol: 0.1, dur: 0.06 });
+    s.tone({ at: 0.27, dur: 0.35, from: midi(79), duty: 0.25, vibrato: [7, 5], vol: 0.12 });
+    s.tone({ at: 0.27, dur: 0.35, from: midi(55), wave: 'triangle', vol: 0.18 });
+  },
+  // Right: the item-get fanfare, three quick notes and a held one.
+  'pokemon-right': (s) => {
+    arp(s, [72, 72, 72], 0.09, { duty: 0.5, vol: 0.11, dur: 0.07 });
+    s.tone({ at: 0.27, dur: 0.4, from: midi(79), duty: 0.5, vibrato: [6, 4], vol: 0.12 });
+  },
+  // Wrong (or out of time): a sad two-note slide down.
+  'pokemon-wrong': (s) => {
+    s.tone({ dur: 0.2, from: midi(67), to: midi(63), duty: 0.25, vol: 0.12 });
+    s.tone({ at: 0.22, dur: 0.45, from: midi(62), to: midi(55), duty: 0.25, vol: 0.12 });
+  },
+  // MissingNo.: the cartridge crashing, garbled square blips and static.
+  missingno: (s) => {
+    for (let i = 0; i < 14; i++) s.tone({ at: i * 0.045, dur: 0.04, from: 200 + ((i * 733) % 2400), duty: i % 2 ? 0.125 : 0.5, vol: 0.08 });
+    s.noise({ at: 0.1, dur: 0.6, rate: 1.9, to: 0.4, vol: 0.09 });
   },
   // ---- Air Strike (game/airstrike.ts). ----
   // Kira! The glint on the horizon: a bright high sparkle.

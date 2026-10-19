@@ -16,6 +16,7 @@ import { boomStepper, fireSonic } from './sonic';
 import type { GameState, Player } from './state';
 import { armScam } from './scam';
 import { startCoffee } from './coffee';
+import { resolveGuess } from './pokemon';
 import { startHeist } from './steal';
 import { dropletStepper, fireStream, streamStepper } from './stream';
 import { soakStepper } from './tanks';
@@ -52,6 +53,7 @@ export const FREE_ACTIONS: Record<Exclude<WeaponKind, ShotKind>, FreeActionFn> =
   scam: armScam,
   digger: activateDigger,
   coffee: startCoffee,
+  pokemon: resolveGuess,
 };
 
 /** How each kind of shot goes off (each given a weapon of its kind: see `fireShot`). */

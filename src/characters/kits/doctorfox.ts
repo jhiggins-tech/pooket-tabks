@@ -2,18 +2,25 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * doctorfox, in beta: Sly (tier 2), Air Strike (tier 3) and his movement, an Arwing (game/movement.ts), are
- * his own; tier 1 is a stand-in (a plain ballistic shell) until his own is ready.
+ * doctorfox, in beta (until the owner says he's ready): Calculated (tier 1), Sly (tier 2), Air Strike
+ * (tier 3), Who's That Pokémon? (a bonus move) and his movement, an Arwing (game/movement.ts).
  */
 
-/** Tier 1 stand-in: a small shell. */
-export const foxShot = {
-  id: 'fox-shot',
-  name: 'Beta Shot',
-  shortName: 'Beta Shot',
-  info: 'A stand-in while doctorfox is in beta: a small shell, up to 30 damage.',
+/**
+ * Tier 1: a lobbed ball of plasma, up to 30 (as the stand-in it replaces), with three harmless tracers
+ * either side, 10° apart: where each lands it shows how far off his aim it was ("+20°"), until he fires
+ * again (game/projectiles.ts), so he can work out the next one.
+ */
+export const calculated = {
+  id: 'calculated',
+  name: 'Calculated',
+  shortName: 'Calculated',
+  info: 'A lobbed ball of plasma, up to 30 damage, with three tracer rounds fanned out either side of it, 10° apart. The tracers do no damage: where each one lands it shows how many degrees off your aim it was (+10°, −20°…), and the numbers stay up until you fire again.',
   blastRadius: 18,
   damage: 30,
+  tracers: { count: 3, stepDeg: 10 },
+  plasma: true,
+  colour: '#22d3ee',
 } satisfies WeaponDef;
 
 /**
@@ -49,14 +56,29 @@ export const airStrike = {
   colour: '#60a5fa',
 } satisfies WeaponDef;
 
+/**
+ * Bonus move, once a turn: Who's That Pokémon? (game/pokemon.ts). A silhouette, four names, 10 s. Right:
+ * a round of Calculated back (up to full); wrong, or out of time: gone for the match. His sixth go is always
+ * MissingNo., and that glitches it out for good. It can't be stolen (no bonus move can).
+ */
+export const whosThatPokemon = {
+  id: 'whos-that-pokemon',
+  name: 'Who’s That Pokémon?',
+  shortName: 'Who’s That?',
+  info: 'Bonus move, once a turn, before you fire: a Pokémon’s silhouette and four names, 10 seconds to pick. Right, and you get a round of Calculated back (up to full). Wrong, or out of time, and it’s gone for the match. Any of all 1025 Pokémon. And if you ever get to a sixth go… something glitches. It can’t be stolen.',
+  kind: 'pokemon',
+  pokemon: { time: 10, options: 4, refill: 0, missingNo: 6 },
+  colour: '#facc15',
+} satisfies WeaponDef;
+
 export const doctorfox = kit(
   {
     id: 'doctorfox',
     name: 'doctorfox',
-    blurb: 'Beta: flies an Arwing over anything; Sly, a smokescreen to fly off unseen on a full tank; Air Strike, three Arwings to strafe and bomb the enemy; and a stand-in shot for now.',
+    blurb: 'Beta: flies an Arwing over anything; Calculated, plasma with tracers that show how far off they were; Sly, a smokescreen to fly off unseen on a full tank; Air Strike, three Arwings to strafe and bomb the enemy; and Who’s That Pokémon?, a bonus move.',
     colours: ['#fb923c', '#fdba74', '#ea580c'],
     movement: 'arwing',
-    beta: true,
+    beta: 'testing',
   },
-  [foxShot, sly, airStrike],
+  [calculated, sly, airStrike, whosThatPokemon],
 );

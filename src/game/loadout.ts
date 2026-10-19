@@ -41,7 +41,7 @@ export function canSuckYolk(p: Player): boolean {
 /**
  * Whether `p` can use slot `tier` now (select it, and fire it on their turn): Yolk Sucker while there's
  * health to even out; anything else while it has a round, and a once-a-turn bonus move (Diced Coffee) only
- * if it hasn't had one this turn (`Player.coffee.turn` or `Player.diggerTurn`).
+ * if it hasn't had one this turn (`Player.coffee.turn`, `Player.diggerTurn` or `Player.pokemon.turn`).
  */
 export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
   if (slotAt(p, tier) === 'yolk') return canSuckYolk(p);
@@ -50,7 +50,9 @@ export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
   if (id === undefined) return true;
   const row = kindRow(kindOf(getWeapon(id)));
   if (row.turn !== 'bonus' || row.per !== 'turn') return true;
-  if (kindOf(getWeapon(id)) === 'digger') return p.diggerTurn !== state.turn;
+  const kind = kindOf(getWeapon(id));
+  if (kind === 'digger') return p.diggerTurn !== state.turn;
+  if (kind === 'pokemon') return p.pokemon?.turn !== state.turn;
   return p.coffee?.turn !== state.turn;
 }
 
@@ -66,6 +68,8 @@ export function canFire(state: GameState): boolean {
   if (state.phase === 'sneaking') return !currentPlayer(state).hop && !currentPlayer(state).flight;
   // 007 is fired once the question's answered (or time's up: game/bond.ts).
   if (state.phase === 'quizzing') return !!state.quiz?.done;
+  // Who's That Pokémon? likewise (game/pokemon.ts); once fired, the answer's showing.
+  if (state.phase === 'guessing') return !!state.guess?.done && state.guess.outro === null;
   if (state.phase !== 'aiming') return false;
   const p = currentPlayer(state);
   return !p.hop && !p.flight && canUseSlot(state, p, p.selectedTier);

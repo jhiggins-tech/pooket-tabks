@@ -94,6 +94,8 @@ export interface Player extends TankBody {
   scooterCrash: number;
   /** doctorfox's Sly: out of sight of the other players until his next turn starts, or a hit (game/sly.ts). */
   hidden: boolean;
+  /** doctorfox's Who's That Pokémon?: how many goes he's had, and the turn of the last (it's once a turn). Null: never tried. */
+  pokemon: { tries: number; turn: number } | null;
 }
 
 /** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
@@ -270,6 +272,28 @@ export interface Quiz {
   outro: number | null;
 }
 
+/**
+ * doctorfox's Who's That Pokémon? in play: a silhouette and the names to pick from (game/pokemon.ts).
+ * Pokédex numbers (weapons/pokedex.ts); MissingNo. (0) on the last go, its options all 0 too.
+ */
+export interface Guess {
+  playerId: number;
+  tier: number;
+  weaponId: string;
+  /** Who it is. */
+  dex: number;
+  /** The names to pick from (Pokédex numbers), `dex` among them. */
+  options: number[];
+  /** Seconds since it went up (the clock runs once the picture's in: main.ts). */
+  t: number;
+  /** The option picked, null: none yet (or out of time). */
+  picked: number | null;
+  /** Answered, or out of time: it's fired. */
+  done: boolean;
+  /** Seconds since it was fired (the answer shown), null before. */
+  outro: number | null;
+}
+
 /** Who a shot that finds its own target is on (007's gun barrel, an Air Strike): one of a player's tanks (the main one, or the twin), or a decoy. */
 export type TargetMark = { kind: 'tank'; playerId: number; twin: boolean } | { kind: 'hologram'; id: number };
 
@@ -362,6 +386,8 @@ export interface Projectile {
   /** Word fire: the letter this round is, and its colour. */
   glyph?: string;
   glyphColour?: string;
+  /** A tracer (doctorfox's Calculated): how many degrees off the aim it was fired. Harmless: it marks where it lands. */
+  tracer?: number;
 }
 
 export interface Beam {
@@ -655,6 +681,11 @@ export type SfxCue =
   | 'bond-sting'
   | 'bond-shot'
   | 'kira'
+  | 'pokemon'
+  | 'pokemon-right'
+  | 'pokemon-wrong'
+  | 'missingno'
+  | 'tracer'
   | 'arwings'
   | 'comm'
   | 'laser'
@@ -677,9 +708,11 @@ export interface Sfx {
  * when it's over it's fired, and the shot (`flying`) is the kit packing away. `sneaking`: doctorfox's Sly,
  * driving off unseen (his phone's input too, like aiming); when time's up it's fired, and his turn is over.
  * `quizzing`: garyoldmancorp's 007, a Bond question to answer (his phone's input too); answered, it's
- * fired, and the shot is the gun barrel cutscene (or nothing, for a wrong answer).
+ * fired, and the shot is the gun barrel cutscene (or nothing, for a wrong answer). `guessing`: doctorfox's
+ * Who's That Pokémon?, a bonus move (his phone's input too); answered, it's fired, the answer shows, and
+ * the turn carries on (back to `aiming`).
  */
-export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'flying' | 'settling' | 'gameover';
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'guessing' | 'flying' | 'settling' | 'gameover';
 
 /**
  * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
@@ -729,6 +762,17 @@ export interface Fx {
   apparitions: Apparition[];
   /** Sly's smokescreens, billowing up where doctorfox was and thinning out. */
   smokes: Smoke[];
+  /** Where Calculated's tracers landed, and how far off the aim they were: until he fires again. */
+  marks: TracerMark[];
+}
+
+/** A tracer's landing (cosmetic): where, whose, and its offset from the aim in degrees. */
+export interface TracerMark {
+  ownerId: number;
+  x: number;
+  y: number;
+  offset: number;
+  age: number;
 }
 
 /** A smokescreen (cosmetic): where, how old and how long it lasts (s). */
@@ -756,6 +800,8 @@ export interface GameState {
   sneak: Sneak | null;
   /** garyoldmancorp's 007: the question, while it's up and while the answer shows after. */
   quiz: Quiz | null;
+  /** doctorfox's Who's That Pokémon?: the silhouette, while it's up and while the answer shows after. */
+  guess: Guess | null;
   /** garyoldmancorp's 007, answered right: the gun barrel cutscene. */
   barrel: GunBarrel | null;
   /** doctorfox's Air Strike, while it plays out. */

@@ -9,6 +9,7 @@ import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './con
 import { settleTurn, tankBody } from './bodies';
 import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
 import { startQuiz } from './bond';
+import { startGuess, stepGuess } from './pokemon';
 import { startDrums } from './drums';
 import { startSneak, stepSmokes } from './sly';
 import { resolveHolograms, stepPhaseFx, suckYolk } from './copies';
@@ -30,7 +31,7 @@ import { refillDiesel } from './digger';
  * their own module), the fixed-step simulation and the turn state machine
  * (aiming → flying → settling → aiming | gameover; plus stealing, kie's Steal roulette, and coffee, Diced
  * Coffee's spinner: both back to aiming, or from coffee to settling when it spilt or nothing's left to
- * fire; and drumming, Band Aid, sneaking, Sly, and quizzing, 007: all between FIRE and the shot). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
+ * fire; and drumming, Band Aid, sneaking, Sly, and quizzing, 007: all between FIRE and the shot; and guessing, Who's That Pokémon?, a bonus move). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
  * './game'.
  */
 export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
@@ -38,6 +39,7 @@ export { BALL_RADIUS, BOARD_HEIGHT, hoopFor, isHoop } from './hoop';
 export { DRUM_OUTRO, drumClock, drumsReady, drumTap, followDrums, isDrum, noteSide, noteTimes, startDrums, trackEnd } from './drums';
 export { SMOKE_TIME, followSneak, isSly, sneakClock, sneakLeft, sneakReady, startSneak } from './sly';
 export { STRIKE, STRIKE_BEAT, horizonOf, laserTime, shipAt, strikeClock } from './airstrike';
+export { GUESS_OUTRO, answerGuess, followGuess, guessClock, guessedRight, guessLeft, guessReady, isPokemon, missingNoNext, pokedexDown, startGuess } from './pokemon';
 export { BARREL, QUIZ_OUTRO, answerQuiz, answeredRight, followQuiz, isBond, quizClock, quizLeft, quizReady, rightAnswer, startQuiz } from './bond';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
@@ -125,6 +127,7 @@ export function createGame(cfg: GameConfig): GameState {
       scam: null,
       coffee: null,
       extraTurn: false,
+      pokemon: null,
       scooterCrash: 0,
       hidden: false,
     };
@@ -142,6 +145,7 @@ export function createGame(cfg: GameConfig): GameState {
     drums: null,
     sneak: null,
     quiz: null,
+    guess: null,
     barrel: null,
     airstrike: null,
     sfx: [],
@@ -172,7 +176,7 @@ export function createGame(cfg: GameConfig): GameState {
     rng,
     nextId: 0,
     fxSeq: 0,
-    fx: { explosions: [], floaters: [], splashes: [], shimmers: [], ghosts: [], holoBlasts: [], apparitions: [], smokes: [] },
+    fx: { explosions: [], floaters: [], splashes: [], shimmers: [], ghosts: [], holoBlasts: [], apparitions: [], smokes: [], marks: [] },
     settleTimer: 0,
     winner: null,
     endReason: null,
@@ -260,10 +264,17 @@ export function fire(state: GameState): boolean {
     startQuiz(state);
     return false;
   }
+  // Who's That Pokémon?: FIRE puts the silhouette up; it's fired for real once it's answered.
+  if (kind === 'pokemon' && state.phase === 'aiming') {
+    startGuess(state);
+    return false;
+  }
   // Not a shot (Steal, a bonus move): it does its thing, and the turn carries on.
   if (!isShotKind(kind)) return FREE_ACTIONS[kind](state, p, tier);
   p.ammo[tier]!--;
   reselect(p);
+  // Calculated's tracer marks from his last shot go when he fires again.
+  state.fx.marks = state.fx.marks.filter((m) => m.ownerId !== p.id);
   // A miss gets the round back (checked when the turn ends).
   state.refund = weapon.refundOnMiss ? { playerId: p.id, tier, hit: false } : null;
   state.lastShot = { playerId: p.id, weaponId: weapon.id };
@@ -285,6 +296,7 @@ export function step(state: GameState, dt: number): void {
   for (const a of state.fx.apparitions) a.age += dt;
   state.fx.apparitions = state.fx.apparitions.filter((a) => a.age < a.duration);
 
+  for (const m of state.fx.marks) m.age += dt;
   stepSplashes(state, dt);
   stepSmokes(state, dt);
   for (const p of state.players) p.dieselCanTime = Math.max(0, p.dieselCanTime - dt);
@@ -302,6 +314,8 @@ export function step(state: GameState, dt: number): void {
     // A spill's little jetpack (and its mud) plays out like a shot, then the turn carries on.
     const busy = runSteppers(state, dt);
     if (coffeeDone(state) && !busy) finishCoffee(state);
+  } else if (state.phase === 'guessing') {
+    stepGuess(state, dt);
   } else if (state.phase === 'settling') {
     state.settleTimer -= dt;
     if (state.settleTimer <= 0) endTurn(state);

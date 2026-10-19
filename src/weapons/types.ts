@@ -108,6 +108,18 @@ export interface CoffeeSpec {
   failStep: number;
 }
 
+/**
+ * Who's That Pokémon?: a silhouette and `options` names, `time` s to pick (the clock starts once the
+ * picture's in). Right: a round back on tier `refill` (up to full); wrong, or out of time: it's gone for the
+ * match. Go number `missingNo` is always MissingNo., which glitches it out for good. Once a turn.
+ */
+export interface PokemonSpec {
+  time: number;
+  options: number;
+  refill: number;
+  missingNo: number;
+}
+
 /** What every weapon has, whatever its kind. */
 export interface WeaponBase {
   id: string;
@@ -190,6 +202,14 @@ export interface ProjectileSpec extends BlastSpec {
   spin?: number;
   /** Draw a dotted trail behind projectiles. Default true. */
   trail?: boolean;
+  /**
+   * Tracers (doctorfox's Calculated): with each shot, `count` harmless rounds either side of it, `stepDeg`
+   * apart (count 3, step 10: ±10°, ±20°, ±30°). Where each lands it leaves its offset from the aim
+   * ("+20°"), until the firer fires again.
+   */
+  tracers?: { count: number; stepDeg: number };
+  /** Drawn as a glowing ball of plasma in the weapon's colour (rather than a sprite or a shell). */
+  plasma?: boolean;
 }
 
 /**
@@ -328,6 +348,7 @@ export type WeaponDef = WeaponBase &
     | { kind: 'digger' }
     /** The spinner's odds, and the little jetpack (and its gunk) of a spill. */
     | { kind: 'coffee'; coffee: CoffeeSpec; jetpack: JetpackSpec; gunk: GunkSpec }
+    | { kind: 'pokemon'; pokemon: PokemonSpec }
   );
 
 /** The weapons of one kind (with that kind's spec). */

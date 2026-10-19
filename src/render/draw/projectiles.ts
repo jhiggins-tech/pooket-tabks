@@ -10,6 +10,14 @@ import { spriteReady } from '../sprites';
 export function drawProjectiles(d: Draw, state: GameState): void {
   const { ctx } = d;
   for (const pr of state.projectiles) {
+    if (pr.tracer !== undefined) {
+      drawTracer(d, pr);
+      continue;
+    }
+    if (projectileWeapon(pr.weaponId).plasma) {
+      drawPlasma(d, pr);
+      continue;
+    }
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
     pr.trail.forEach((t, i) => {
       if (i % 3) return;
@@ -26,6 +34,47 @@ export function drawProjectiles(d: Draw, state: GameState): void {
       ctx.fill();
     }
   }
+}
+
+/** Calculated's tracers: a thin bright streak along the last bit of the path, and a hot dot. */
+function drawTracer(d: Draw, pr: Projectile): void {
+  const { ctx } = d;
+  const t = pr.trail;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(165,243,252,0.55)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  const from = Math.max(0, t.length - 10);
+  t.slice(from).forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
+  ctx.lineTo(pr.x, pr.y);
+  ctx.stroke();
+  ctx.fillStyle = '#ecfeff';
+  ctx.beginPath();
+  ctx.arc(pr.x, pr.y, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Calculated's plasma: a glowing ball in the weapon's colour, crackling, with a fading glow behind it. */
+function drawPlasma(d: Draw, pr: Projectile): void {
+  const { ctx } = d;
+  const colour = projectileWeapon(pr.weaponId).colour ?? '#22d3ee';
+  pr.trail.forEach((p, i) => {
+    if (i % 2) return;
+    const k = i / pr.trail.length;
+    glow(ctx, p.x, p.y, 2 + 3 * k, [
+      [0, withAlpha(colour, 0.35 * k)],
+      [1, withAlpha(colour, 0)],
+    ]);
+  });
+  const flicker = 1 + 0.15 * Math.sin(d.time * 40 + pr.age * 13);
+  glow(ctx, pr.x, pr.y, 11 * flicker, [
+    [0, 'rgba(255,255,255,1)'],
+    [0.25, withAlpha(colour, 0.95)],
+    [0.6, withAlpha(colour, 0.35)],
+    [1, withAlpha(colour, 0)],
+  ]);
 }
 
 /** Debate: each round is a letter, tumbling through the air. */

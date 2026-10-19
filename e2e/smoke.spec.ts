@@ -1,6 +1,9 @@
 import { BOND_ACTORS, BOND_TRIVIA } from '../src/weapons/trivia';
 import { expect, startHotseat, test } from './support';
 
+/** A stand-in Pokémon picture (an orange blob, 8×8), so the e2e tests never fetch one. */
+const POKE_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAHElEQVR4nGNgIBb8b2D4j4zxSmIoooMCgo7EBwAqb0/B3MqGvwAAAABJRU5ErkJggg==', 'base64');
+
 test('sets up players and plays a turn on a landscape phone', async ({ page }) => {
   await page.goto('./?seed=12345&debug');
   await expect(page.locator('#rotate')).toBeHidden();
@@ -675,6 +678,57 @@ test("doctorfox's Sly: a smokescreen, a full tank to sneak off on, and he's hidd
   await page.screenshot({ path: 'test-results/sly-hidden.png' });
 });
 
+test("doctorfox's Calculated: a plasma ball and six tracers, each leaving how far off the aim it was", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
+  await page.evaluate(() => Object.assign(window.__pooket.state.players[0]!, { angle: 60, power: 55 }));
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.projectiles.length === 7);
+  await page.waitForTimeout(250);
+  await page.screenshot({ path: 'test-results/calculated-flight.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  const offsets = await page.evaluate(() => window.__pooket.state.fx.marks.map((m) => m.offset).sort((a, b) => a - b));
+  expect(offsets).toEqual([-30, -20, -10, 10, 20, 30]);
+  await page.screenshot({ path: 'test-results/calculated-marks.png' });
+});
+
+test("doctorfox's Who's That Pokémon?: a silhouette and four names, and a right one is a round of Calculated back", async ({ page }) => {
+  // The pictures come from PokeAPI's sprites while playing: here, a stand-in (a tiny PNG) so the test needs no network.
+  await page.route('https://raw.githubusercontent.com/PokeAPI/sprites/**', (route) => route.fulfill({ contentType: 'image/png', body: POKE_PNG }));
+  await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
+  await page.evaluate(() => (window.__pooket.state.players[0]!.ammo[0] = 2));
+  await page.locator('#weapons .weapon').nth(3).tap();
+  await expect(page.locator('#hint')).toHaveText('Who’s That Pokémon?: FIRE, then name it for a round of Calculated');
+  await page.locator('#fire').tap();
+  await expect(page.locator('#pokemon')).toBeVisible();
+  await expect(page.locator('.pokemon-answer')).toHaveCount(4);
+  await expect(page.locator('.pokemon-picture img')).not.toHaveClass(/revealed/);
+  await expect(page.locator('.pokemon-title')).toContainText('⏱');
+  await page.screenshot({ path: 'test-results/pokemon-question.png' });
+  const right = await page.evaluate(() => window.__pooket.state.guess!.options.indexOf(window.__pooket.state.guess!.dex));
+  await page.locator('.pokemon-answer').nth(right).tap();
+  await expect(page.locator('.pokemon-result')).toContainText('+1 Calculated');
+  await expect(page.locator('.pokemon-picture img')).toHaveClass(/revealed/);
+  await page.screenshot({ path: 'test-results/pokemon-right.png' });
+  // The turn carries on: back to aiming, Calculated selected, a round better off.
+  await expect(page.locator('#pokemon')).toBeHidden();
+  expect(await page.evaluate(() => [window.__pooket.state.phase, window.__pooket.state.players[0]!.ammo[0], window.__pooket.state.players[0]!.selectedTier])).toEqual(['aiming', 3, 0]);
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '1');
+});
+
+test("doctorfox's Who's That Pokémon?: the sixth go is MissingNo., and it glitches out for good", async ({ page }) => {
+  await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
+  await page.evaluate(() => (window.__pooket.state.players[0]!.pokemon = { tries: 5, turn: -1 }));
+  await page.locator('#weapons .weapon').nth(3).tap();
+  await expect(page.locator('#hint')).toContainText('if you dare');
+  await page.locator('#fire').tap();
+  await expect(page.locator('#pokemon')).toHaveClass(/glitch/);
+  await page.screenshot({ path: 'test-results/pokemon-missingno.png' });
+  await page.locator('.pokemon-answer').first().tap();
+  await expect(page.locator('.pokemon-result')).toContainText('MISSINGNO. glitched out');
+  await expect(page.locator('#pokemon')).toBeHidden();
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[3])).toBe(0);
+});
+
 test("doctorfox's Air Strike: a ping, three Arwings, a comm from the Star Fox team, lasers and the bomb", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'doctorfox', p2: 'kcaj', query: 'debug' });
   await page.locator('#weapons .weapon').nth(2).tap();
@@ -956,8 +1010,9 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Band Aid', 'Beta Bomb']);
   // And doctorfox.
   await page.getByRole('tab', { name: 'doctorfox', exact: true }).tap();
-  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Sly', 'Air Strike']);
+  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: being tested');
+  await expect(page.locator('.info-card h3')).toHaveText(['Calculated', 'Sly', 'Air Strike', 'Who’s That Pokémon?']);
+  await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
   await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Bomb', 'Beta Blast', 'Activate Digger']);

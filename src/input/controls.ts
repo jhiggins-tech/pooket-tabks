@@ -26,6 +26,10 @@ export interface ControlHandlers {
   canAnswer(): boolean;
   /** 007: actor `i` picked (weapons/trivia.ts `BOND_ACTORS`). */
   answer(i: number): void;
+  /** Whether this phone names the Pokémon right now (Who's That Pokémon?). */
+  canGuess(): boolean;
+  /** Who's That Pokémon?: option `i` picked. */
+  guess(i: number): void;
 }
 
 const DRAG_DEADZONE_PX = 10;
@@ -145,6 +149,12 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
   byId('quiz').addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-answer]');
     if (btn && !btn.disabled && h.canAnswer()) h.answer(Number(btn.dataset.answer));
+  });
+
+  // Who's That Pokémon?'s names likewise (render/hud/pokemon.ts).
+  byId('pokemon').addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-answer]');
+    if (btn && !btn.disabled && h.canGuess()) h.guess(Number(btn.dataset.answer));
   });
 
   byId('aim-switch').addEventListener('click', () => {
