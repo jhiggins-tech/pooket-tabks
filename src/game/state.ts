@@ -659,6 +659,7 @@ export type SfxCue =
   | 'comm'
   | 'laser'
   | 'smart-bomb'
+  | 'strike-beat'
   | 'gameover';
 
 export interface Sfx {

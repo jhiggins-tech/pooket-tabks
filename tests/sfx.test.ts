@@ -61,6 +61,14 @@ describe('sound effects', () => {
     }
   });
 
+  it("Air Strike's backing music plays every beat, from far out on approach to the bomb", () => {
+    for (let k = 40; k >= -8; k--) {
+      const r = new Recorder();
+      CUE_SOUNDS['strike-beat']!(r, { cue: 'strike-beat', size: k });
+      sane(r);
+    }
+  });
+
   it('long weapons sound for as long as they last', () => {
     const r = new Recorder();
     FIRE_SOUNDS['ten-2']!(r, { cue: 'fire', weaponId: 'ten-2' });

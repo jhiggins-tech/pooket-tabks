@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { airStrike, hoopDreamz, sly } from '../src/characters/kits';
 import { FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
-import { STRIKE, canFire, explode, fire, hoopFor, isAimless, isSly, shipAt, strikeClock, selectTier, sneakClock, sneakLeft, sneakReady } from '../src/game/game';
+import { STRIKE, STRIKE_BEAT, canFire, explode, fire, hoopFor, isAimless, isSly, shipAt, strikeClock, selectTier, sneakClock, sneakLeft, sneakReady, step } from '../src/game/game';
 import type { GameState } from '../src/game/state';
 import { nearestEnemyX } from '../src/game/tanks';
 import { COMMS, PILOTS, TYPE_RATE } from '../src/weapons/comms';
@@ -159,6 +159,30 @@ describe("doctorfox's Air Strike", () => {
     // The bomb lands on him (up to 40), plus whatever lasers hit.
     expect(gary.hp).toBeLessThanOrEqual(gary.maxHp - 30);
     expect(gary.hp).toBeGreaterThanOrEqual(gary.maxHp - airStrike.damage - airStrike.airstrike.lasers * airStrike.airstrike.laserDamage);
+  });
+
+  it('has backing music on the beat: counted down to the dive, then the theme, landing on the bomb', () => {
+    const g = strikeGame();
+    fire(g);
+    const s = g.airstrike!;
+    const c = strikeClock(s);
+    const beats: { k: number; t: number }[] = [];
+    let bombAt = -1;
+    while (g.airstrike) {
+      const from = g.sfx.length;
+      step(g, FIXED_DT);
+      for (const e of g.sfx.slice(from)) {
+        if (e.cue === 'strike-beat') beats.push({ k: e.size!, t: s.t });
+        if (e.cue === 'smart-bomb') bombAt = s.t;
+      }
+    }
+    const ks = beats.map((b) => b.k);
+    expect(ks[ks.length - 1]).toBe(-8);
+    ks.forEach((k, i) => i > 0 && expect(k).toBe(ks[i - 1]! - 1));
+    expect(beats[0]!.t).toBeGreaterThanOrEqual(STRIKE.arrive);
+    expect(beats[0]!.t - STRIKE_BEAT).toBeLessThan(STRIKE.arrive);
+    expect(beats.find((b) => b.k === 0)!.t).toBeCloseTo(c.dive, 1);
+    expect(beats.find((b) => b.k === -8)!.t).toBe(bombAt);
   });
 
   it('plays out the same on both phones', () => {

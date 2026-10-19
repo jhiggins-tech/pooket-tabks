@@ -37,7 +37,7 @@ export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
 export { BALL_RADIUS, BOARD_HEIGHT, hoopFor, isHoop } from './hoop';
 export { DRUM_OUTRO, drumClock, drumsReady, drumTap, followDrums, isDrum, noteSide, noteTimes, startDrums, trackEnd } from './drums';
 export { SMOKE_TIME, followSneak, isSly, sneakClock, sneakLeft, sneakReady, startSneak } from './sly';
-export { STRIKE, horizonOf, laserTime, shipAt, strikeClock } from './airstrike';
+export { STRIKE, STRIKE_BEAT, horizonOf, laserTime, shipAt, strikeClock } from './airstrike';
 export { BARREL, QUIZ_OUTRO, answerQuiz, answeredRight, followQuiz, isBond, quizClock, quizLeft, quizReady, rightAnswer, startQuiz } from './bond';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';

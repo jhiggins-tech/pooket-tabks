@@ -43,6 +43,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
     starts after the comm, however long its line).
   - **50 comms** (owner, 19 Oct; rules 37): 30 more lines from the same ten pilots (the line's length sets
     the strike's timing, so it's a rules change).
+  - **Backing music** (owner, 19 Oct; a testing push, no rules change: sound only). An original
+    space-opera chiptune (`audio/strike.ts`), cued a beat at a time (`STRIKE_BEAT`, eight from the dive
+    to the bomb) and counted back from the dive so it lands on it whatever the comm's length: a C minor
+    gallop under the comm (Cm, A♭, B♭, G), a snare-roll build in the bar before the dive, the theme
+    lifted into C major over the dive and strafing run, and a held C major chord and crash on the bomb.
 - **ShotDownBoyz, in beta** (owner, 18 Oct; rules 32; a testing push). Three stand-in shots; his
   once-per-turn bonus activates horizontal bulldozer movement that tunnels through terrain. When he
   spends all his fuel, a second diesel tank refills it at the start of his next turn, once per match.

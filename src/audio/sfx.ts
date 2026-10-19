@@ -5,6 +5,7 @@ import type { TuneId } from '../weapons/types';
 import { arp, midi, type Synth } from './chip';
 import type { Jingle, Rank } from '../stats/ranks';
 import { rankJingle } from './jingle';
+import { strikeBeat } from './strike';
 import { TunePlayer } from './tunes';
 import { XP_SOUNDS, type XpCue } from './xp';
 import { TYPE_RATE } from '../weapons/comms';
@@ -437,6 +438,8 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 1, rate: 0.25, to: 0.08, vol: 0.24, env: [[0, 1], [0.3, 0.8], [1, 0]] });
     arp(s, [84, 91, 96, 91, 84], 0.06, { at: 0.05, wave: 'triangle', vol: 0.07, dur: 0.1 });
   },
+  // A beat of the backing music (audio/strike.ts; `size`: beats left before the dive).
+  'strike-beat': (s, e) => strikeBeat(s, e.size ?? 1),
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),
   // ---- Steal (game/steal.ts). ----

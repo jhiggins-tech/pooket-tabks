@@ -30,6 +30,13 @@ import { applyHit, explode, markFor, scaled, tankCentre, targetAt, targetOf, tar
  */
 export const STRIKE = { ping: 0.7, arrive: 0.5, hold: 1.5, comm: 1.0, switch: 0.16, read: 1.2, dive: 0.6, strafe: 1.5, laser: 0.1, gap: 0.16, bomb: 0.45, away: 1.0, end: 1.25 } as const;
 
+/**
+ * The backing music's beat (s): eight from the dive to the bomb. The music (audio/strike.ts) is cued a
+ * beat at a time ('strike-beat', its size the beats left before the dive), counted back from the dive so
+ * it lands on it however long the comm is: from the first beat after the ships are in to the bomb.
+ */
+export const STRIKE_BEAT = (STRIKE.dive + STRIKE.strafe + STRIKE.bomb) / 8;
+
 /** When each part of strike `s` happens (s from FIRE), after its comm. */
 export interface StrikeClock {
   commEnd: number;
@@ -183,6 +190,9 @@ export const strikeStepper: Stepper = {
       if (was < laserTime(s, i) && s.t >= laserTime(s, i)) fireLaser(state, s, i);
     });
     const c = strikeClock(s);
+    const beatsLeft = (t: number) => Math.floor((c.dive - t) / STRIKE_BEAT);
+    const beat = beatsLeft(was);
+    if (beatsLeft(s.t) < beat && beat >= -8 && s.t >= STRIKE.arrive) sound(state, 'strike-beat', s.weaponId, beat);
     if (was < c.dive && s.t >= c.dive) sound(state, 'arwings', s.weaponId);
     if (!s.bombed && s.t >= c.bomb) {
       s.bombed = true;
