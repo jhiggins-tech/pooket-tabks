@@ -10,6 +10,7 @@ import { settleTanks, type Gun } from './bodies';
 import type { Burst, GameState, Origin, Player, Projectile } from './state';
 import { applyHit, explode, forEachTargetPos, muzzle, runnerAt, scaled, tankCentre, targetAt, type Target } from './tanks';
 import { startWalking, stepWalker, stopFinishedTunes } from './walkers';
+import { landBeacon } from './stratagems';
 
 /** Weapons that fire projectiles. */
 type Projectiles = WeaponOf<'ballistic' | 'rain'>;
@@ -130,13 +131,15 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
   const weapon = projectileWeapon(pr.weaponId);
   pr.age += dt;
   const tracer = pr.tracer !== undefined;
+  // A stratagem beacon calls its stratagem in where it lands, rather than going off.
+  const goOff = (x: number, y: number) => (pr.stratagem ? landBeacon(state, pr, x, y) : explode(state, x, y, weapon, pr.ownerId));
   if (pr.age > PROJECTILE_MAX_AGE) {
-    if (!tracer) explode(state, pr.x, pr.y, weapon, pr.ownerId);
+    if (!tracer) goOff(pr.x, pr.y);
     return true;
   }
   if (pr.walkDir !== 0) return stepWalker(state, pr, weapon, dt);
   if (weapon.homing && !tracer) steerHoming(state, pr, weapon.homing, dt);
-  if (!pr.homing) pr.vy += GRAVITY * dt;
+  if (!pr.homing || weapon.homing?.soft) pr.vy += GRAVITY * dt;
   const nx = pr.x + pr.vx * dt;
   const ny = pr.y + pr.vy * dt;
 
@@ -159,7 +162,7 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
       continue;
     }
     if (targetAt(state, x, y) || runnerAt(state, x, y, pr.ownerId)) {
-      explode(state, x, y, weapon, pr.ownerId);
+      goOff(x, y);
       return true;
     }
     if (terrain.isSolid(x, y)) {
@@ -171,7 +174,7 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
         bounce(state, pr, weapon, x, y, lastX, lastY);
         return false;
       }
-      explode(state, x, Math.min(y, terrain.height), weapon, pr.ownerId);
+      goOff(x, Math.min(y, terrain.height));
       return true;
     }
     lastX = x;

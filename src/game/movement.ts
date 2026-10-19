@@ -1,4 +1,5 @@
 import { getCharacter } from '../characters/roster';
+import { pickUpCrates } from './stratagems';
 import { ARWING_ALTITUDE, ARWING_CLIMB, ARWING_FUEL, ARWING_LOOKAHEAD, ARWING_MORPH, ARWING_SPEED, DRIVE_CLIMB, DRIVE_LOOKAHEAD, DRIVE_MAX_SLOPE, DRIVE_SCRAMBLE, DRIVE_SCRAMBLE_REACH, DRIVE_SPEED, HOP_DISTANCE, HOP_FUEL, HOP_HEIGHT, HOP_TIME, SCOOTER_CRASH, SCOOTER_FUEL, SCOOTER_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { sound, spawnDust, spawnFloater } from './fx';
 import type { Flight, GameState, Hop, Player, TankBody } from './state';
@@ -35,6 +36,7 @@ export function drive(state: GameState, dir: number, dt: number): number {
   if (!canDriveNow(state)) return settleFlight(state, dt);
   const moved = move(state, dir, dt);
   if (moved > 0 || currentPlayer(state).flight) sneakMoved(state); // (taking off counts)
+  if (moved > 0) pickUpCrates(state); // (ShotDownBoyz's stratagem pods)
   return moved;
 }
 

@@ -191,9 +191,10 @@ export interface ProjectileSpec extends BlastSpec {
   /**
    * Homing: once the projectile comes within `radius` px of an enemy tank (or one of its decoys or twin),
    * it locks on and flies at it, turning up to `turnRate` degrees a second at `minSpeed` px/s or more
-   * (no gravity once locked).
+   * (no gravity once locked). `soft`: it keeps falling as it turns, so it tilts toward them rather than
+   * flying straight at them (ShotDownBoyz's missiles).
    */
-  homing?: { radius: number; turnRate: number; minSpeed: number };
+  homing?: { radius: number; turnRate: number; minSpeed: number; soft?: boolean };
   /** Draw the projectile as a sprite pointing along its flight path; default is a plain shell. */
   sprite?: SpriteId;
   /** A mix of looks: round n of a burst (or shot n of a volley) is drawn with `spriteVariants[n % length]`. */
@@ -332,6 +333,16 @@ export interface BunkerSpec {
 }
 
 /**
+ * Stratagem: `offered` stratagems a match (and Resupply), `time` s to key one's combo; a supply or weapon
+ * pod that lands on a tank does `podDamage` (game/stratagems.ts).
+ */
+export interface StratagemSpec {
+  time: number;
+  offered: number;
+  podDamage: number;
+}
+
+/**
  * A weapon: what it has in common with every other, plus its kind's spec (kinds.ts says what each kind
  * is). The kind decides which spec it must have, so a weapon missing its spec doesn't compile.
  */
@@ -362,6 +373,7 @@ export type WeaponDef = WeaponBase &
     | ({ kind: 'airstrike'; airstrike: AirStrikeSpec } & BlastSpec)
     | { kind: 'runner'; runner: RunnerSpec }
     | { kind: 'bunker'; bunker: BunkerSpec }
+    | { kind: 'stratagem'; stratagem: StratagemSpec }
     | { kind: 'steal' }
     | { kind: 'scam' }
     | { kind: 'digger' }

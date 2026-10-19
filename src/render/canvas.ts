@@ -4,6 +4,7 @@ import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
 import { drawAirStrike } from './draw/airstrike';
 import { drawBarrel } from './draw/bond';
+import { drawStratagemDrops, drawStratagemGround } from './draw/stratagems';
 import { drawBoomerangs } from './draw/boomerang';
 import { drawBunkerBacks, drawBunkerWork } from './draw/bunker';
 import { drawCoffee } from './draw/coffee';
@@ -52,6 +53,7 @@ const BACKDROP: Layer[] = [drawApparitions, drawBunkerBacks];
 /** Drawn over the terrain, back to front: the order is the layering (like STEPPERS for the simulation). */
 const LAYERS: Layer[] = [
   drawPuddles,
+  drawStratagemGround,
   drawSludge, // behind the tanks so the jet flame stays visible
   drawTanks,
   drawBunkerWork,
@@ -72,6 +74,7 @@ const LAYERS: Layer[] = [
   drawRunners,
   drawLiquid,
   drawBeams,
+  drawStratagemDrops,
   drawBooms,
   drawExplosions,
   drawHologramBlasts,

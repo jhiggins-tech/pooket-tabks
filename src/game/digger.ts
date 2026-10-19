@@ -1,7 +1,7 @@
 /**
  * ShotDownBoyz's free Digger bonus: drive sideways through terrain at his current height, and over air on
  * a flat bed of dirt he lays as he goes (the spray of dirt off the back is just the look; his exhaust
- * and its fumes: render/draw/digger.ts); then he refills once from a reserve tank.
+ * and its fumes: render/draw/digger.ts); and his jerry cans of diesel in reserve, each a full refill.
  */
 import { DRIVE_SPEED, FUEL_PER_MATCH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from './constants';
 import { tankCentre } from './bodies';
@@ -28,14 +28,14 @@ export function activateDigger(state: GameState, p: Player, tier: number): boole
   return true;
 }
 
-/** ShotDownBoyz's second diesel tank: one full refill, when a turn starts with no fuel. */
+/** ShotDownBoyz's jerry cans of diesel: one full refill each, when a turn starts with no fuel. */
 export function refillDiesel(state: GameState, p: Player): void {
-  if (p.characterId !== 'shotdownboyz' || !p.dieselAvailable || p.fuel > 0) return;
+  if (p.dieselCans <= 0 || p.fuel > 0) return;
   p.fuel = FUEL_PER_MATCH;
-  p.dieselAvailable = false;
+  p.dieselCans--;
   p.dieselCanTime = 2.4;
   const c = tankCentre(p);
-  spawnFloater(state, c.x, c.y - 18, '2ND DIESEL!', '#a3e635');
+  spawnFloater(state, c.x, c.y - 18, 'DIESEL REFILL!', '#a3e635');
   sound(state, 'refuel');
 }
 

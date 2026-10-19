@@ -65,6 +65,11 @@ export const KINDS = {
    * slit along his aim (game/bunker.ts). Aimed: the angle sets the slit (power doesn't matter).
    */
   bunker: { aims: true, turn: 'shot', harmless: true },
+  /**
+   * ShotDownBoyz's Stratagem: FIRE brings up the d-pad (the `calling` phase: game/stratagems.ts); a
+   * finished combo fires a beacon along the aim, and what it called in comes down where it lands.
+   */
+  stratagem: { aims: true, turn: 'shot' },
   /** A marathon runner jogs towards the nearest enemy a leg at a time, turn after turn. */
   runner: { aims: false, turn: 'shot' },
   /** Takes one round of a random enemy weapon, which replaces it in the slot. */

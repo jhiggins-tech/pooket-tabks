@@ -26,13 +26,14 @@ import { currentPlayer, stepSoak, tankCentre, tickBurn } from './tanks';
 import { newTally, tallyShot } from './tally';
 import { clamp, normalizeAngle } from './util';
 import { refillDiesel } from './digger';
+import { drawStratagems, fireSentries, rearmStratagems, startCall } from './stratagems';
 
 /**
  * The match: creating a game, aiming and weapon choice, firing (each weapon kind's mechanics live in
  * their own module), the fixed-step simulation and the turn state machine
  * (aiming → flying → settling → aiming | gameover; plus stealing, kie's Steal roulette, and coffee, Diced
  * Coffee's spinner: both back to aiming, or from coffee to settling when it spilt or nothing's left to
- * fire; and drumming, Band Aid, sneaking, Sly, and quizzing, 007: all between FIRE and the shot; and guessing, Who's That Pokémon?, a bonus move). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
+ * fire; and drumming, Band Aid, sneaking, Sly, quizzing, 007, and calling, a Stratagem: all between FIRE and the shot; and guessing, Who's That Pokémon?, a bonus move). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
  * './game'.
  */
 export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
@@ -41,6 +42,7 @@ export { DRUM_OUTRO, drumClock, drumsReady, drumTap, followDrums, isDrum, noteSi
 export { SMOKE_TIME, followSneak, isSly, sneakClock, sneakLeft, sneakReady, startSneak } from './sly';
 export { STRIKE, STRIKE_BEAT, horizonOf, laserTime, shipAt, strikeClock } from './airstrike';
 export { GUESS_OUTRO, answerGuess, followGuess, guessClock, guessedRight, guessLeft, guessReady, isPokemon, missingNoNext, pokedexDown, startGuess } from './pokemon';
+export { BEACON_TIME, LASER_TIME, SENTRY_HEIGHT, TESLA_RANGE, callClock, callLeft, callReady, cancelCall, candidates, followCall, isStratagem, pressArrow, readyStratagems, startCall } from './stratagems';
 export { BARREL, QUIZ_OUTRO, answerQuiz, answeredRight, followQuiz, isBond, quizClock, quizLeft, quizReady, rightAnswer, startQuiz } from './bond';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
@@ -124,7 +126,7 @@ export function createGame(cfg: GameConfig): GameState {
       diggerActive: false,
       diggerFacing: 1,
       diggerTurn: -1,
-      dieselAvailable: character.id === 'shotdownboyz',
+      dieselCans: character.id === 'shotdownboyz' ? 1 : 0,
       dieselCanTime: 0,
       scam: null,
       coffee: null,
@@ -132,6 +134,7 @@ export function createGame(cfg: GameConfig): GameState {
       pokemon: null,
       scooterCrash: 0,
       hidden: false,
+      stratagems: drawStratagems(cfg.seed, i).map((id) => ({ id, rearm: 0 })),
     };
   });
 
@@ -148,6 +151,10 @@ export function createGame(cfg: GameConfig): GameState {
     sneak: null,
     quiz: null,
     guess: null,
+    call: null,
+    drops: [],
+    sentries: [],
+    crates: [],
     barrel: null,
     airstrike: null,
     sfx: [],
@@ -266,6 +273,11 @@ export function fire(state: GameState): boolean {
     startQuiz(state);
     return false;
   }
+  // Stratagem: FIRE puts the d-pad up; it's fired for real (the beacon) once a combo's finished.
+  if (kind === 'stratagem' && state.phase === 'aiming') {
+    startCall(state);
+    return false;
+  }
   // Who's That Pokémon?: FIRE puts the silhouette up; it's fired for real once it's answered.
   if (kind === 'pokemon' && state.phase === 'aiming') {
     startGuess(state);
@@ -284,6 +296,7 @@ export function fire(state: GameState): boolean {
   fireShot(state, p, weapon as WeaponOf<ShotKind>, kind);
   sound(state, 'fire', weapon.id, p.power);
   runLegs(state);
+  fireSentries(state);
   if (weapon.apparition) summonApparition(state, p, weapon.apparition);
   state.phase = 'flying';
   return true;
@@ -391,4 +404,5 @@ function endTurn(state: GameState): void {
   state.phase = 'aiming';
   turnStarting(state.players[next]!);
   refillDiesel(state, state.players[next]!);
+  rearmStratagems(state, state.players[next]!);
 }

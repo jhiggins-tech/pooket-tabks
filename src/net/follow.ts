@@ -1,4 +1,4 @@
-import { currentPlayer, followDrums, followGuess, followQuiz, followSneak } from '../game/game';
+import { currentPlayer, followCall, followDrums, followGuess, followQuiz, followSneak } from '../game/game';
 import { repaintBunkers } from '../game/bunker';
 import type { GameState } from '../game/state';
 import type { NetMsg } from './session';
@@ -25,16 +25,18 @@ export function previewOf(s: GameState): Preview {
   const quiz = s.phase === 'quizzing' ? s.quiz : null;
   // (Only while he picks: once it's fired, each phone plays the answer out itself.)
   const guess = s.phase === 'guessing' && s.guess?.outro === null ? s.guess : null;
-  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, flight: p.flight, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums, sneak, quiz, guess };
+  const call = s.phase === 'calling' ? s.call : null;
+  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, flight: p.flight, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums, sneak, quiz, guess, call };
 }
 
-/** Show the current player aiming (or drumming Band Aid, sneaking off under Sly, answering 007's question, or naming a Pokémon) as the preview says (if it's for this turn, before they fire). */
+/** Show the current player aiming (or drumming Band Aid, sneaking off under Sly, answering 007's question, naming a Pokémon, or keying a stratagem) as the preview says (if it's for this turn, before they fire). */
 export function applyPreview(s: GameState, v: Preview): void {
   if (v.turn !== s.turn || !LIVE.has(s.phase)) return;
   if (v.drums) followDrums(s, v.drums);
   if (v.sneak) followSneak(s, v.sneak);
   if (v.quiz) followQuiz(s, v.quiz);
   followGuess(s, v.guess ?? null);
+  followCall(s, v.call ?? null);
   const p = currentPlayer(s);
   Object.assign(p, { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop, flight: v.flight ?? null, aimTwin: v.aimTwin ?? false, twinSpot: v.twinSpot ?? null });
   if (p.twin && v.twin) {
@@ -45,7 +47,7 @@ export function applyPreview(s: GameState, v: Preview): void {
 }
 
 /** The phases that are the current player's input, streamed in previews (net/session.ts streams them). */
-export const LIVE: ReadonlySet<GameState['phase']> = new Set(['aiming', 'drumming', 'sneaking', 'quizzing', 'guessing']);
+export const LIVE: ReadonlySet<GameState['phase']> = new Set(['aiming', 'drumming', 'sneaking', 'quizzing', 'guessing', 'calling']);
 
 /** Snap the game to a snapshot and its terrain. */
 export function putState(s: GameState, snap: Snapshot, terrain: string): void {

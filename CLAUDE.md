@@ -2,8 +2,8 @@
 
 Pooket Tabks: a Worms / Pocket Tanks style artillery game for **phone browsers only** (landscape, touch),
 hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Nine characters, each with a
-three-weapon kit (larinovsky, garyoldmancorp and doctorfox have a fourth: a bonus move; kiwicore and
-shotdownboyz are in beta, `CharacterDef.beta`, with a stand-in shot or two); hotseat on one phone, or two phones online through Firebase (with
+three-weapon kit (larinovsky, garyoldmancorp, doctorfox and shotdownboyz have a fourth: a bonus move; kiwicore and
+shotdownboyz are in beta, `CharacterDef.beta`); hotseat on one phone, or two phones online through Firebase (with
 spectators).
 
 ## Working rules
@@ -69,7 +69,9 @@ what it's for; weapons are documented where they're defined.
   007: a Bond trivia question between FIRE and the shot, the same way; `bond.ts`, the questions in
   `weapons/trivia.ts`), and `guessing` (doctorfox's Who's That Pokémon?, a bonus move: a silhouette to name,
   the same way, then back to `aiming`; `pokemon.ts`, the names in `weapons/pokedex.ts`, pictures fetched
-  while playing by `render/pokemon-picture.ts`). `fire()` (gated by `canFire`) spends
+  while playing by `render/pokemon-picture.ts`), and `calling` (shotdownboyz's Stratagem: a Helldivers combo on a
+  d-pad between FIRE and the beacon, the same way; `stratagems.ts`, the table in `weapons/stratagems.ts`;
+  sentries and pods stay on the field across turns). `fire()` (gated by `canFire`) spends
   the round and calls the weapon kind's entry in `FIRE` (free actions and bonus moves: `FREE_ACTIONS`, and
   the turn carries on); `state.lastShot` is the turn's shot; `step()` runs `STEPPERS` while flying
   (`runSteppers`) and settles once none is busy (`settleTurn`); `endTurn()` runs statuses, holograms, refunds,

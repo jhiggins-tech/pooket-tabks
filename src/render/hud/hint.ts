@@ -2,7 +2,7 @@
  * The hint line under the controls: what to do now. `HINTS` is an ordered table of [when, text]: the first
  * row that applies wins. Pure and DOM-free (tests/hud-hint.test.ts).
  */
-import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isBond, isCoffee, isDigger, isDrum, isHoop, isPokemon, isSly, jetCharge, missingNoNext, pendingTwinSpot, slotAt, sneakLeft, weaponForTier } from '../../game/game';
+import { coffeeFailChance, currentPlayer, decoyPickLeft, hologramsOf, isAimless, isBond, isCoffee, isDigger, isDrum, isHoop, isPokemon, isSly, isStratagem, jetCharge, missingNoNext, pendingTwinSpot, slotAt, sneakLeft, weaponForTier } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
 import { jetSpec, kindOf } from '../../weapons/registry';
 
@@ -23,7 +23,7 @@ interface HintCase extends HintView {
 }
 
 /** What the other phone's player is doing, as the hint says it (online): by phase, else firing. */
-const DOING: Partial<Record<GameState['phase'], string>> = { aiming: 'aiming', drumming: 'drumming', sneaking: 'sneaking off', quizzing: 'answering a Bond question', guessing: 'naming a Pokémon' };
+const DOING: Partial<Record<GameState['phase'], string>> = { aiming: 'aiming', drumming: 'drumming', sneaking: 'sneaking off', quizzing: 'answering a Bond question', guessing: 'naming a Pokémon', calling: 'keying a stratagem' };
 
 /** [when, text], in order: the first row whose `when` holds gives the hint. */
 const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] = [
@@ -35,7 +35,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   // Sly: sneaking off.
   [(c) => c.state.phase === 'sneaking', (c) => (c.state.sneak?.done ? '' : `🦊 Sneak off with ◀ ▶ · ${sneakLeft(c.state)}s · FIRE when you’re done`)],
   // The steal roulette, the coffee spinner, 007's question and the Pokémon say it all themselves.
-  [(c) => c.state.phase === 'stealing' || c.state.phase === 'coffee' || c.state.phase === 'quizzing' || c.state.phase === 'guessing', () => ''],
+  [(c) => c.state.phase === 'stealing' || c.state.phase === 'coffee' || c.state.phase === 'quizzing' || c.state.phase === 'guessing' || c.state.phase === 'calling', () => ''],
   [(c) => isCoffee(c.p, c.p.selectedTier), (c) => `Diced Coffee: ${Math.round(coffeeFailChance(c.p, c.p.selectedTier) * 100)}% full cream (ends your turn) · FIRE to spin`],
   [(c) => isDigger(c.p, c.p.selectedTier), (c) => c.p.diggerActive ? 'Digger active: ◀ ▶ plough a horizontal tunnel · FIRE when ready' : 'Activate Digger with FIRE, then drive through terrain this turn'],
   // Just cast Trollogram: picking a decoy to swap into.
@@ -52,6 +52,7 @@ const HINTS: [when: (c: HintCase) => boolean, text: (c: HintCase) => string][] =
   [(c) => isDrum(c.p, c.p.selectedTier), () => 'Band Aid: FIRE, then tap anywhere on the beat to heal'],
   [(c) => isSly(c.p, c.p.selectedTier), () => 'Sly: FIRE for a smokescreen, then sneak off unseen'],
   [(c) => isBond(c.p, c.p.selectedTier), () => '007: FIRE, then name the Bond actor'],
+  [(c) => isStratagem(c.p, c.p.selectedTier), () => 'Stratagem: aim the beacon, FIRE, then key a combo on the d-pad'],
   [(c) => kindOf(weaponForTier(c.p, c.p.selectedTier)) === 'bunker', () => 'Prepper: aim where you want the firing slit, then FIRE'],
   [(c) => pendingTwinSpot(c.state) !== null, () => 'Tap the ground to place your twin, then FIRE'],
   [(c) => isAimless(c.state), () => 'No aiming needed. Just FIRE'],

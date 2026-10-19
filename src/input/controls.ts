@@ -1,4 +1,5 @@
 import { byId } from '../ui/dom';
+import type { Arrow } from '../weapons/stratagems';
 
 export interface ControlHandlers {
   canAim(): boolean;
@@ -30,7 +31,14 @@ export interface ControlHandlers {
   canGuess(): boolean;
   /** Who's That Pokémon?: option `i` picked. */
   guess(i: number): void;
+  /** Whether this phone keys a stratagem's combo right now. */
+  canCall(): boolean;
+  /** A Stratagem's arrow (the d-pad, W A S D or the arrow keys). */
+  arrow(a: Arrow): void;
 }
+
+/** The keys that key a stratagem's arrows. */
+const ARROW_KEYS: Record<string, Arrow> = { w: 'U', a: 'L', s: 'D', d: 'R', ArrowUp: 'U', ArrowLeft: 'L', ArrowDown: 'D', ArrowRight: 'R' };
 
 const DRAG_DEADZONE_PX = 10;
 /** Pull length for 100% power, as a fraction of the screen's short side (~110px on a phone). */
@@ -155,6 +163,20 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
   byId('pokemon').addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-answer]');
     if (btn && !btn.disabled && h.canGuess()) h.guess(Number(btn.dataset.answer));
+  });
+
+  // A Stratagem's d-pad (render/hud/stratagems.ts): on the finger coming down, for quick combos.
+  byId('stratagems').addEventListener('pointerdown', (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-arrow]');
+    if (!btn || btn.disabled || !h.canCall()) return;
+    e.preventDefault();
+    h.arrow(btn.dataset.arrow as Arrow);
+  });
+  window.addEventListener('keydown', (e) => {
+    const a = ARROW_KEYS[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+    if (!a || e.repeat || !h.canCall()) return;
+    e.preventDefault();
+    h.arrow(a);
   });
 
   byId('aim-switch').addEventListener('click', () => {

@@ -1,5 +1,5 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
-import type { DrumSet, Flight, GameState, Guess, Hop, PlayerConfig, Quiz, Sneak } from '../game/state';
+import type { Call, DrumSet, Flight, GameState, Guess, Hop, PlayerConfig, Quiz, Sneak } from '../game/state';
 import { Emitter } from '../core/emitter';
 import { applyPreview, LIVE, previewOf, putState, ResultBuffer, type Preview } from './follow';
 import { netLog } from './log';
@@ -67,6 +67,8 @@ export type NetMsg =
       quiz?: Quiz | null;
       /** doctorfox's Who's That Pokémon? while he picks (the `guessing` phase is his phone's input too). */
       guess?: Guess | null;
+      /** ShotDownBoyz's Stratagem while he keys a combo (the `calling` phase is his phone's input too). */
+      call?: Call | null;
     }
   | { k: 'fire'; turn: number; snap: Snapshot }
   | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }

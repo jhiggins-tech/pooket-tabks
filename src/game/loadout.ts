@@ -49,6 +49,8 @@ export function canUseSlot(state: GameState, p: Player, tier: number): boolean {
   const id = p.loadout[tier];
   if (id === undefined) return true;
   const row = kindRow(kindOf(getWeapon(id)));
+  // A Stratagem needs one that isn't re-arming (game/stratagems.ts).
+  if (kindOf(getWeapon(id)) === 'stratagem') return p.stratagems.some((s) => s.rearm <= 0);
   if (row.turn !== 'bonus' || row.per !== 'turn') return true;
   const kind = kindOf(getWeapon(id));
   if (kind === 'digger') return p.diggerTurn !== state.turn;
@@ -68,6 +70,8 @@ export function canFire(state: GameState): boolean {
   if (state.phase === 'sneaking') return !currentPlayer(state).hop && !currentPlayer(state).flight;
   // 007 is fired once the question's answered (or time's up: game/bond.ts).
   if (state.phase === 'quizzing') return !!state.quiz?.done;
+  // A Stratagem once a combo's finished (game/stratagems.ts).
+  if (state.phase === 'calling') return !!state.call?.picked;
   // Who's That Pokémon? likewise (game/pokemon.ts); once fired, the answer's showing.
   if (state.phase === 'guessing') return !!state.guess?.done && state.guess.outro === null;
   if (state.phase !== 'aiming') return false;

@@ -108,7 +108,7 @@ describe("ShotDownBoyz's beta movement", () => {
     expect(g.sfx.some((e) => e.cue === 'digger')).toBe(false);
   });
 
-  it('refills one empty fuel tank at the start of the next turn, once', () => {
+  it('refills one empty fuel tank at the start of the next turn from his one jerry can', () => {
     const g = match();
     const p = currentPlayer(g);
     p.fuel = DRIVE_SPEED * 0.2;
@@ -120,7 +120,7 @@ describe("ShotDownBoyz's beta movement", () => {
     passTurn(g);
     expect(currentPlayer(g)).toBe(p);
     expect(p.fuel).toBe(FUEL_PER_MATCH);
-    expect(p.dieselAvailable).toBe(false);
+    expect(p.dieselCans).toBe(0);
     expect(p.dieselCanTime).toBeGreaterThan(0);
 
     p.fuel = 0;

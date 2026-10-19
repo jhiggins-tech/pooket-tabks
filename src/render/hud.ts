@@ -7,6 +7,7 @@ import { coffee } from './hud/coffee';
 import { heist } from './hud/heist';
 import { pokemon } from './hud/pokemon';
 import { quiz } from './hud/quiz';
+import { stratagems } from './hud/stratagems';
 import type { HudContext, Part } from './hud/part';
 import { readouts } from './hud/readouts';
 import { status } from './hud/status';
@@ -35,7 +36,7 @@ export class Hud {
   /** `gameOver`: the game over card, shown when a match ends (ui/gameover.ts). */
   constructor(gameOver: GameOverCard) {
     this.gameOver = gameOverCard(gameOver);
-    this.parts = [readouts(), status(), this.chips, weapons(), heist(), coffee(), quiz(), pokemon(), this.banner, this.gameOver];
+    this.parts = [readouts(), status(), this.chips, weapons(), heist(), coffee(), quiz(), pokemon(), stratagems(), this.banner, this.gameOver];
   }
 
   /** The players' ranks in this match (null: not ranked, or not signed in). */

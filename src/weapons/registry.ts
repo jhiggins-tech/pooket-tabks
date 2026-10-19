@@ -12,8 +12,8 @@ export const shell = {
   damage: 45,
 } satisfies WeaponDef;
 
-/** Every weapon: the plain shell, and each character's three (their definitions live with the character, in characters/kits/). */
-const weapons: WeaponDef[] = [shell, ...KITS.flatMap((k) => k.weapons)];
+/** Every weapon: the plain shell, and each character's three and any extras (their definitions live with the character, in characters/kits/). */
+const weapons: WeaponDef[] = [shell, ...KITS.flatMap((k) => [...k.weapons, ...(k.extras ?? [])])];
 
 const byId = new Map(weapons.map((w) => [w.id, w]));
 

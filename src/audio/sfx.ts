@@ -35,8 +35,42 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.tone({ at: 0.08, dur: 0.25, from: 90, to: 190, duty: 0.5, vol: 0.14 });
     s.tone({ at: 0.28, dur: 0.12, from: 620, to: 230, duty: 0.25, vol: 0.1 });
   },
-  'digger-shot': (s) => { pew(s); s.noise({ dur: 0.08, rate: 0.6, vol: 0.15 }); },
-  'digger-bomb': (s) => { pew(s, 0, 950, 120); s.noise({ dur: 0.12, rate: 0.5, vol: 0.2 }); },
+  // A thin little pop.
+  pistol: (s) => {
+    s.tone({ dur: 0.08, from: 1800, to: 600, duty: 0.25, steps: 6, vol: 0.12 });
+    s.noise({ dur: 0.04, rate: 1.2, vol: 0.1 });
+  },
+  // The beacon's thrown: a chunky clack.
+  stratagem: (s) => {
+    s.noise({ dur: 0.05, rate: 1, vol: 0.16 });
+    s.tone({ at: 0.04, dur: 0.1, from: 900, to: 300, duty: 0.5, vol: 0.1 });
+  },
+  // A rocket pod's whoosh (each missile has its blip: ROUND_SOUNDS).
+  wasp: (s) => s.noise({ dur: 0.35, rate: 0.5, to: 1.4, vol: 0.12 }),
+  // A heavy launch: a thump, then a rising roar.
+  spear: (s) => {
+    s.tone({ dur: 0.12, from: 160, to: 60, duty: 0.5, vol: 0.18 });
+    s.noise({ at: 0.05, dur: 0.6, rate: 0.35, to: 1, vol: 0.16 });
+  },
+  // A charge-up whine and a ZAP.
+  quasar: (s) => {
+    s.tone({ dur: 0.35, from: 300, to: 2400, duty: 0.125, vol: 0.09 });
+    s.tone({ at: 0.35, dur: 0.18, from: 2600, to: 400, duty: 0.5, vol: 0.15 });
+  },
+  // A hollow bloop.
+  'grenade-pistol': (s) => s.tone({ dur: 0.14, from: 260, to: 520, duty: 0.5, vol: 0.15 }),
+  // Brrrrt.
+  smg: (s) => {
+    for (let i = 0; i < 5; i++) s.tone({ at: i * 0.05, dur: 0.035, from: 1300 - i * 60, to: 500, duty: 0.25, vol: 0.1 });
+  },
+  // (What his stratagems hit with fire from no gun of his: their sounds are cues, in CUE_SOUNDS.)
+  'stratagem-beacon': (s) => s.tone({ dur: 0.05, from: 1500, duty: 0.125, vol: 0.06 }),
+  'orbital-laser': (s) => s.tone({ dur: 0.05, from: 1200, duty: 0.125, vol: 0.06 }),
+  railcannon: (s) => s.tone({ dur: 0.05, from: 900, duty: 0.125, vol: 0.06 }),
+  'sentry-rocket': (s) => s.noise({ dur: 0.2, rate: 0.5, to: 1.2, vol: 0.1 }),
+  'autocannon-shell': (s) => s.tone({ dur: 0.08, from: 400, to: 120, duty: 0.5, vol: 0.12 }),
+  'tesla-zap': (s) => s.tone({ dur: 0.1, from: 3000, duty: 0.125, vibrato: [60, 400], vol: 0.08 }),
+  'supply-pod': (s) => s.noise({ dur: 0.1, rate: 0.7, vol: 0.1 }),
   // A bunker-alarm klaxon, twice (the drill and the bricks have their own: CUE_SOUNDS).
   prepper: (s) => {
     for (const at of [0, 0.2]) s.tone({ at, dur: 0.16, from: 520, to: 380, duty: 0.5, vol: 0.1 });
@@ -238,6 +272,8 @@ export const BOND_STING: Jingle = {
 
 /** Per-round blips for burst weapons. */
 export const ROUND_SOUNDS: Record<string, Recipe> = {
+  // Each little missile: a fizzing pfft.
+  wasp: (s) => s.noise({ dur: 0.07, rate: 1.2, to: 0.6, vol: 0.1 }),
   'pill-pusher': (s) => s.tone({ dur: 0.07, from: 1500, to: 700, duty: 0.25, vol: 0.12 }),
   // Typewriter clack.
   debate: (s) => {
@@ -486,6 +522,54 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     s.noise({ dur: 0.6, rate: 0.35, to: 0.1, vol: 0.18 });
     arp(s, [64, 60, 57, 52, 48], 0.07, { at: 0.05, duty: 0.5, vol: 0.09 });
   },
+  // ---- ShotDownBoyz's Stratagem (game/stratagems.ts). ----
+  // The d-pad comes up: a rising four-note "ready" chime.
+  call: (s) => arp(s, [67, 71, 74, 79], 0.05, { duty: 0.25, vol: 0.1 }),
+  // Each arrow keyed: a crisp blip.
+  'call-key': (s) => s.tone({ dur: 0.04, from: 1320, duty: 0.25, vol: 0.1 }),
+  // An arrow that fits nothing: the input wiped, a sour buzz.
+  'call-wrong': (s) => s.tone({ dur: 0.18, from: 140, to: 110, duty: 0.5, vol: 0.12 }),
+  // A combo finished: the satisfying "stratagem ready" triad.
+  'call-done': (s) => arp(s, [79, 83, 86, 91], 0.045, { duty: 0.125, vol: 0.12, dur: 0.12 }),
+  // Out of time: two notes down.
+  'call-off': (s) => arp(s, [64, 57], 0.12, { duty: 0.5, vol: 0.1 }),
+  // The beacon: a radio beep-beep as it's thrown and as it lands.
+  beacon: (s) => {
+    s.tone({ dur: 0.06, from: 1760, duty: 0.5, vol: 0.09 });
+    s.tone({ at: 0.12, dur: 0.06, from: 1760, duty: 0.5, vol: 0.09 });
+  },
+  // The Orbital Laser: a long searing hum that wavers.
+  'orbital-laser': (s) => {
+    s.tone({ dur: 2.6, from: 180, duty: 0.25, vibrato: [14, 30], vol: 0.11, env: [[0.04, 1], [0.9, 0.9], [1, 0]] });
+    s.noise({ dur: 2.6, rate: 1.4, vol: 0.05 });
+  },
+  // The Railcannon: a whine winding up and an almighty KER-CHUNK.
+  railcannon: (s) => {
+    s.tone({ dur: 0.18, from: 600, to: 3200, duty: 0.125, vol: 0.08 });
+    s.noise({ at: 0.15, dur: 0.6, rate: 0.3, to: 0.06, vol: 0.3 });
+    s.tone({ at: 0.15, dur: 0.4, from: 90, to: 30, duty: 0.5, vol: 0.2 });
+  },
+  // A pod slamming down.
+  pod: (s) => {
+    s.noise({ dur: 0.25, rate: 0.4, to: 0.1, vol: 0.2 });
+    s.tone({ dur: 0.15, from: 120, to: 50, duty: 0.5, vol: 0.14 });
+  },
+  // A sentry unfolding: servo whirr up.
+  'sentry-up': (s) => s.tone({ at: 0.2, dur: 0.35, from: 200, to: 700, duty: 0.25, steps: 8, vol: 0.08 }),
+  // A sentry's rocket: fwoosh.
+  'sentry-rocket': (s) => s.noise({ dur: 0.4, rate: 0.5, to: 1.3, vol: 0.13 }),
+  // A sentry's autocannon: a heavy thunk.
+  'sentry-shell': (s) => {
+    s.tone({ dur: 0.1, from: 300, to: 90, duty: 0.5, vol: 0.16 });
+    s.noise({ dur: 0.08, rate: 0.7, vol: 0.12 });
+  },
+  // The Tesla Tower: crackling electricity.
+  zap: (s) => {
+    s.noise({ dur: 0.35, rate: 2, vol: 0.12, env: [[0, 1], [0.3, 0.4], [0.5, 1], [1, 0]] });
+    s.tone({ dur: 0.3, from: 2600, duty: 0.125, vibrato: [70, 600], vol: 0.06 });
+  },
+  // A pod picked up: a cheery pickup arpeggio.
+  pickup: (s) => arp(s, [72, 79, 84, 88], 0.06, { duty: 0.25, vol: 0.12 }),
   // ---- Spinners: Steal's roulette and Diced Coffee's wheel both tick. ----
   tick: (s) => s.tone({ dur: 0.03, from: 1760, duty: 0.125, vol: 0.12 }),
   // ---- Steal (game/steal.ts). ----

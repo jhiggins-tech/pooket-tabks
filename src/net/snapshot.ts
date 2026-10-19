@@ -79,10 +79,9 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   snap.sneak ??= null;
   for (const p of (snap.players as { hidden?: boolean }[] | undefined) ?? []) p.hidden ??= false;
   // Rules 32: ShotDownBoyz's turn-limited digger and one reserve diesel tank.
-  for (const p of (snap.players as { diggerActive?: boolean; diggerFacing?: number; diggerTurn?: number; dieselAvailable?: boolean; dieselCanTime?: number }[] | undefined) ?? []) {
+  for (const p of (snap.players as { diggerActive?: boolean; diggerFacing?: number; diggerTurn?: number; dieselCanTime?: number }[] | undefined) ?? []) {
     p.diggerActive ??= false;
     p.diggerTurn ??= -1;
-    p.dieselAvailable ??= false;
     p.dieselCanTime ??= 0;
   }
   // Rules 33: the active bulldozer faces its last direction of travel.
@@ -99,6 +98,17 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   for (const p of (snap.players as { pokemon?: unknown }[] | undefined) ?? []) p.pokemon ??= null;
   // Rules 39: ShotDownBoyz's Prepper bunker.
   for (const p of (snap.players as { bunker?: unknown }[] | undefined) ?? []) p.bunker ??= null;
+  // Rules 40: ShotDownBoyz's Stratagem: the d-pad, what's coming down, sentries and pods; his stratagems,
+  // and his reserve diesel as jerry cans (it was one tank, once a match: `dieselAvailable`).
+  snap.call ??= null;
+  snap.drops ??= [];
+  snap.sentries ??= [];
+  snap.crates ??= [];
+  for (const p of (snap.players as { stratagems?: unknown; dieselCans?: number; dieselAvailable?: boolean }[] | undefined) ?? []) {
+    p.stratagems ??= [];
+    p.dieselCans ??= p.dieselAvailable ? 1 : 0;
+    delete p.dieselAvailable;
+  }
   return snap;
 }
 

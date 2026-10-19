@@ -1015,7 +1015,7 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   await page.getByRole('tab', { name: 'shotdownboyz', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['Beta Shot', 'Beta Bomb', 'Prepper', 'Activate Digger']);
+  await expect(page.locator('.info-card h3')).toHaveText(['Pistol', 'Stratagem', 'Prepper', 'Activate Digger']);
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
 });
 
@@ -1084,8 +1084,41 @@ test('ShotDownBoyz activates the digger and gets one second-diesel refill', asyn
   await endTurn(2);
   await endTurn(3);
   await expect.poll(() => page.evaluate(() => window.__pooket.state.players[0]!.fuel)).toBe(250);
-  expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselAvailable)).toBe(false);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselCans)).toBe(0);
   expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselCanTime)).toBeGreaterThan(0);
+});
+
+test("ShotDownBoyz's Stratagem: the d-pad, a combo keyed by taps and keys, a beacon and a pod to drive into", async ({ page }) => {
+  await startHotseat(page, { seed: 77, p1: 'shotdownboyz', p2: 'kie', query: 'debug' });
+  await page.evaluate(() => {
+    const p = window.__pooket.state.players[0]!;
+    p.stratagems = ['orbital-laser', 'rocket-sentry', 'tesla-tower', 'smg', 'resupply'].map((id) => ({ id, rearm: 0 }));
+    p.stratagems[1]!.rearm = 3;
+    p.angle = 90;
+    p.power = 30;
+  });
+  await page.locator('#weapons .weapon').nth(1).tap();
+  await expect(page.locator('#hint')).toContainText('Stratagem');
+  await page.locator('#fire').tap();
+  const panel = page.locator('#stratagems');
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('.strat-card')).toHaveCount(5);
+  await expect(panel.locator('.strat-card.rearming')).toHaveText(/RE-ARMING · 3 turns left/);
+  // ▼ ▼ on the d-pad: only SMG's combo starts that way, and Resupply's.
+  await panel.getByRole('button', { name: 'Down' }).tap();
+  await panel.getByRole('button', { name: 'Down' }).tap();
+  await expect(panel.locator('.strat-card.out')).toHaveCount(3);
+  await page.screenshot({ path: 'test-results/stratagem-dpad.png' });
+  // Then ▲ ▶ on the keyboard: Resupply.
+  await page.keyboard.press('w');
+  await page.keyboard.press('ArrowRight');
+  await expect(panel).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.__pooket.state.drops.length + window.__pooket.state.crates.length)).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/stratagem-beacon.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 15_000 });
+  // It came down beside him: picked up, a second jerry can by the gauge.
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselCans)).toBe(2);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[1])).toBe(3);
 });
 
 test("ShotDownBoyz's Prepper digs him in and builds a brick bunker with a slit along his aim", async ({ page }) => {

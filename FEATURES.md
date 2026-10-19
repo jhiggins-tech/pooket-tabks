@@ -25,6 +25,33 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **shotdownboyz's Pistol (tier 1) and Stratagem (tier 2)** (owner, 19 Oct, from the stratagem table approved
+  in the project's stratagem thread, `stratagems/stratagems.md`; rules 40; a testing push while he's in beta:
+  no What's new release). The **Pistol** replaces Beta Shot: one weak bullet on an arc (12). **Stratagem**
+  replaces Beta Bomb, Helldivers 2 style (`game/stratagems.ts`, the table in `weapons/stratagems.ts`, a new
+  `stratagem` kind and `calling` phase, streamed in previews like 007). Each match he gets 4 of the 10
+  stratagems (drawn from the seed) and Resupply. FIRE brings up a d-pad in the middle with his stratagems on
+  cards either side, each with its real HD2 combo; he has 10 s to key one (taps, or W A S D / arrow keys).
+  Cards that no longer fit grey out, a wrong arrow wipes the input (and shakes the panel), a finished combo
+  throws a beacon along his aim; out of time, it's called off with nothing spent. Where the beacon lands its
+  light goes up (red ordnance, amber turret, blue weapon, green supply) and 1.2 s later:
+  - **Ordnance**: Orbital Laser (→↓↑→↓: 2.6 s of 4-damage pulses that drift toward an enemy within 120 px,
+    cutting a trench) or Railcannon Strike (→↑↓↓→: 95 straight down, a 13 px blast). Re-arms 5 turns.
+  - **Turrets** (3 rounds, fire each time anyone fires, re-arm 4): Rocket Sentry (↓↑→→←: a rocket roughly at
+    the nearest enemy, ±12% off, with soft homing, 24), Tesla Tower (↓↑→↑←→: zaps every tank within 80 px,
+    his own too, 16), Autocannon Sentry (↓↑→↑←↑: the only one that aims itself exactly, 20).
+  - **Weapon drops** (re-arm 3): a pod (8 to any tank it lands on) waits on the ground until he drives into it,
+    then its weapon takes the Pistol's place, rounds and all: W.A.S.P. (↓↓↑↓→: 4 missiles, soft homing, 14),
+    Spear (↓↓↑↓↓: one missile, soft homing, 50), Quasar (↓↓↑←→: a straight beam, 40), Grenade Pistol (↓←↑←↓,
+    borrowed from the GL-21: bounces once, 32), SMG (↓←↓↑→, borrowed from the MG-43: 5 bullets, 7 each).
+  - **Resupply** (↓↓↑→, re-arms 4): a pod that gives a jerry can of diesel in reserve, 3 Pistol rounds and 1
+    Stratagem round (not past full); it doesn't touch his weapons.
+  Soft homing (`homing.soft`) keeps falling as it steers, so it tilts toward an enemy rather than locking on.
+  Every offensive stratagem hurts him too if the beacon lands close. A used card shows **RE-ARMING · X turns
+  left** in place of its arrows (his own turns); if every one is re-arming and nothing else he could fire is
+  left, the soonest re-arms at once. His one reserve diesel tank is now **jerry cans** (`Player.dieselCans`:
+  one to start with, Resupply adds more), shown by the gauge, now labelled **DIESEL**.
+
 - **shotdownboyz's Prepper (tier 3)** (owner, 19 Oct, from the approved design in the project's "Prepper
   bunker" thread; rules 39; a testing push while he's in beta: no What's new release). Replaces the stand-in
   Beta Blast. He drills 8 px into the ground (his hull top level with it), then a brick bunker builds up round
@@ -640,5 +667,5 @@ between visits.
 | **garyoldmancorp** (rides a scooter: 4× speed, 3× range, crashes into walls for 5) | Mr Bean ☕: rapid fire, 10 lobbed coffee beans with a slight spread, 2 each; they home in on an enemy within 170px, harder than the Rizzler | Hoop Dreamz 🏀: shoot through a hoop over the enemy; a slam dunk is 70 straight down, a loose ball bouncing onto them 15 | 007 🍸: a Bond trivia question (20 s, the six actors to pick from); right, and the gun barrel opens on the nearest enemy, a spy sting, then they lose 77% of the health they have left; wrong, nothing. Plus a 4th slot, **Diced Coffee** ☕: a bonus move once a turn; a spinner, lactose free (90%, then 10% less each win) skips the enemy's next turn, full cream jetpacks him straight up, ends his turn and it's gone |
 | **doctorfox** (flies an Arwing: takes off, flies over anything at 3× speed, 2× range, lands when let go) | Calculated: a plasma lob, 30, with 3 harmless tracers either side 10° apart that tag where they land with their offset (+20°) | Sly 🌫: a smokescreen, fuel filled up and 10 s to move; hidden from the enemy until his next turn (a hit gives him away) | Air Strike ✈: three Arwings strafe the nearest enemy with 8 lasers (4 each) and bomb them (40); a comm from the Star Fox team. Plus a 4th slot, **Who's That Pokémon?** ❓: a bonus move once a turn; name the silhouette (4 names, 10 s) for +1 Calculated, wrong and it's gone; the 6th go is MissingNo., which glitches it out for good |
 | **kiwicore** (beta; wears a flat cap) | béretta M2: his flat cap thrown like a boomerang, a loop through terrain out to the aim point (power = reach) and home; 20 to each enemy it passes, once out and once back (up to 40) | Band Aid: a rhythm minigame over a 4-bar chiptune thrasher, tap anywhere on the beat (24 notes), the turret swings a drumstick from drum to drum; perfect and close hits heal, up to 40% of full health; 3 misses end it | Air Strike ✈: three Arwings strafe the nearest enemy with 8 lasers (4 each) and bomb them (40); a comm from the Star Fox team |
-| **shotdownboyz** (beta; bulldozer mount, horizontal tunnelling) | Beta Shot: stand-in shell, 30 | Beta Bomb: stand-in shell, 50 | **Prepper**: digs in and builds a brick bunker round him, open in a 35° slit along his aim; no driving until it's knocked down; plus a 4th slot, **Activate Digger**: a bonus move once a turn; drive left/right through terrain at the current height, carving a tunnel, and over air on a flat bed of dirt it lays down. Once all fuel is spent, a second diesel tank refills it at the start of his next turn, once per match |
+| **shotdownboyz** (beta; bulldozer mount, horizontal tunnelling) | **Pistol**: one weak bullet, 12 (a weapon drop takes its place) | **Stratagem**: key a Helldivers combo on a d-pad, a beacon calls in ordnance, a turret, a weapon drop or Resupply; each re-arms for a few turns | **Prepper**: digs in and builds a brick bunker round him, open in a 35° slit along his aim; no driving until it's knocked down; plus a 4th slot, **Activate Digger**: a bonus move once a turn; drive left/right through terrain at the current height, carving a tunnel, and over air on a flat bed of dirt it lays down. Once all fuel is spent, a jerry can of diesel in reserve refills it at the start of his next turn (one to start with; Resupply adds more) |
 | **larinovsky** | Pill Pusher: indirect fire, a series of 4 lobbed pills that walk across the target; a mixed handful (red and white capsule, round mint tablet, blue and yellow capsule, lilac oval caplet) | the Rizzler: homes in on any enemy tank within 100px; blast "cooks" enemies, who deal half damage on their next turn | Take a Nap: doze for 2s (a ginger cat and a grey cat curl up either side), wake at full health with Pill Pusher and the Rizzler restocked (5 / 3). Plus a 4th slot, **Women in Scam** 💅: a bonus move once a match (doesn't use the turn); if an enemy attack hits larinovsky's own tank during the next enemy turn, larinovsky gets a round of that weapon (in a new slot, or on top of the same weapon), one per enemy turn |

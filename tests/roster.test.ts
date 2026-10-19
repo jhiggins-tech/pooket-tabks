@@ -24,9 +24,10 @@ describe('roster', () => {
     expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 
-  it("ShotDownBoyz's beta loadout has two stand-in shots, Prepper and an unlimited once-a-turn digger bonus", () => {
+  it("ShotDownBoyz's beta loadout: the Pistol, Stratagem, Prepper and an unlimited once-a-turn digger bonus", () => {
     const boyz = getCharacter('shotdownboyz');
-    expect(boyz.loadout).toEqual(['digger-shot', 'digger-bomb', 'prepper', 'activate-digger']);
+    expect(boyz.loadout).toEqual(['pistol', 'stratagem', 'prepper', 'activate-digger']);
+    expect(getWeapon('stratagem').kind).toBe('stratagem');
     expect(boyz.beta).toBe(true);
     expect(getWeapon('activate-digger').kind).toBe('digger');
   });

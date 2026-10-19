@@ -3,7 +3,7 @@ import { getCharacter } from '../../characters/roster';
 import { FUEL_PER_MATCH } from '../../game/constants';
 import { aimedTank, canDriveNow } from '../../game/game';
 import type { GameState, Player } from '../../game/state';
-import { byId, query } from '../../ui/dom';
+import { byId, el, query } from '../../ui/dom';
 import { keyed, type Part } from './part';
 
 export function readouts(): Part {
@@ -19,7 +19,7 @@ export function readouts(): Part {
   return keyed(
     (state, { p, remote }) => {
       const aim = aimedTank(p);
-      return `${aim.angle}|${aim.power}|${Math.round(p.fuel)}|${p.characterId}|${state.phase}|${twinSwitch(state, p, remote)}|${p.aimTwin}`;
+      return `${aim.angle}|${aim.power}|${Math.round(p.fuel)}|${p.characterId}|${p.dieselCans}|${state.phase}|${twinSwitch(state, p, remote)}|${p.aimTwin}`;
     },
     (state, { p, remote }) => {
       const aim = aimedTank(p);
@@ -29,13 +29,42 @@ export function readouts(): Part {
       aimSwitch.textContent = p.aimTwin && p.twin ? '🎯 Twin' : '🎯 Main tank';
       aimSwitch.setAttribute('aria-pressed', String(p.aimTwin && !!p.twin));
       fuelEl.style.width = `${(p.fuel / FUEL_PER_MATCH) * 100}%`;
-      fuelLabel.textContent = getCharacter(p.characterId).movement === 'hop' ? 'HOPS' : 'FUEL';
+      fuelLabel.replaceChildren(...fuelName(p));
       const empty = p.fuel <= 0.5;
       driveEl.dataset.empty = String(empty);
       // (Driving's before firing, and while sneaking off under Sly.)
       for (const b of driveEl.querySelectorAll('button')) b.disabled = !canDriveNow(state) || empty;
     },
   );
+}
+
+/** The fuel gauge's label: HOPS for a frog; ShotDownBoyz's DIESEL, with a jerry can for each in reserve. */
+function fuelName(p: Player): (string | Node)[] {
+  if (getCharacter(p.characterId).movement === 'hop') return ['HOPS'];
+  if (p.characterId !== 'shotdownboyz') return ['FUEL'];
+  const cans = el('span', 'diesel-cans');
+  cans.setAttribute('aria-label', `${p.dieselCans} jerry can${p.dieselCans === 1 ? '' : 's'} in reserve`);
+  for (let i = 0; i < p.dieselCans; i++) cans.append(jerryCan());
+  return ['DIESEL', cans];
+}
+
+/** A little red jerry can. */
+function jerryCan(): SVGSVGElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 9 11');
+  svg.setAttribute('aria-hidden', 'true');
+  const body = document.createElementNS(ns, 'path');
+  body.setAttribute('d', 'M1 3.5 3 1.5h5v9H1z');
+  body.setAttribute('fill', '#dc2626');
+  body.setAttribute('stroke', '#7f1d1d');
+  body.setAttribute('stroke-width', '0.8');
+  const cross = document.createElementNS(ns, 'path');
+  cross.setAttribute('d', 'M2.6 4.5 6.6 9M6.6 4.5 2.6 9');
+  cross.setAttribute('stroke', '#fca5a5');
+  cross.setAttribute('stroke-width', '0.7');
+  svg.append(body, cross);
+  return svg;
 }
 
 /**

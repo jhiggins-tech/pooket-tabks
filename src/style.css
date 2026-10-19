@@ -2715,3 +2715,172 @@ body[data-online='true'] #net-menu {
     animation: none !important;
   }
 }
+
+/* ---------- ShotDownBoyz's Stratagem: the d-pad and his stratagems round it ---------- */
+#stratagems {
+  position: absolute;
+  inset: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  background: rgba(6, 10, 14, 0.93);
+  border: 2px solid var(--caller);
+  z-index: 5;
+}
+#stratagems[hidden] {
+  display: none;
+}
+#stratagems.wrong {
+  animation: strat-shake 0.35s ease-out;
+  border-color: #f87171;
+}
+@keyframes strat-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}
+.strat-title {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.strat-title b {
+  font-weight: 900;
+}
+.strat-body {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.strat-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+.strat-col:last-child {
+  align-items: flex-end;
+}
+.strat-col:last-child .strat-card {
+  align-items: flex-start;
+}
+.strat-card {
+  width: min(210px, 100%);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: #151b24;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-left: 6px solid var(--strat, #fbbf24);
+  transition: opacity 0.15s, filter 0.15s;
+}
+.strat-card.ordnance { --strat: #ef4444; }
+.strat-card.turret { --strat: #fbbf24; }
+.strat-card.weapon { --strat: #60a5fa; }
+.strat-card.supply { --strat: #4ade80; }
+.strat-name {
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.strat-arrows {
+  display: flex;
+  gap: 4px;
+  font-size: 15px;
+  line-height: 1;
+  color: #9ca3af;
+}
+.strat-arrows .lit {
+  color: #fde047;
+  text-shadow: 0 0 6px rgba(253, 224, 71, 0.8);
+}
+.strat-card.out {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+.strat-card.picked {
+  border-color: #fde047;
+  background: #2a2610;
+}
+.strat-card.rearming {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+}
+.strat-rearm {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #fca5a5;
+}
+.strat-centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.strat-keyed {
+  margin: 0;
+  min-height: 20px;
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  color: #fde047;
+}
+.strat-dpad {
+  display: grid;
+  grid-template: 'a up b' 52px 'left c right' 52px 'd down e' 52px / 52px 52px 52px;
+  gap: 4px;
+}
+.strat-dpad button {
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: #232a35;
+  color: #fff;
+  font: inherit;
+  font-size: 22px;
+  touch-action: manipulation;
+}
+.strat-dpad button:active {
+  background: #fde047;
+  color: #111;
+}
+.strat-dpad button:disabled {
+  opacity: 0.5;
+}
+.strat-dpad .up { grid-area: up; }
+.strat-dpad .left { grid-area: left; }
+.strat-dpad .right { grid-area: right; }
+.strat-dpad .down { grid-area: down; }
+.strat-result {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.85;
+}
+@media (max-height: 360px) {
+  .strat-dpad { grid-template: 'a up b' 44px 'left c right' 44px 'd down e' 44px / 44px 44px 44px; }
+  .strat-card { padding: 3px 8px; }
+}
+
+/* ShotDownBoyz's diesel: a jerry can for each in reserve, by the fuel gauge. */
+.diesel-cans {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.diesel-cans svg {
+  width: 9px;
+  height: 11px;
+}

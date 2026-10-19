@@ -25,9 +25,11 @@ export interface CharacterDef {
 export interface Kit {
   character: CharacterDef;
   weapons: readonly [WeaponDef, WeaponDef, WeaponDef] | readonly [WeaponDef, WeaponDef, WeaponDef, WeaponDef];
+  /** Weapons that aren't in a slot to begin with but can turn up (ShotDownBoyz's weapon drops, what his stratagems hit with). */
+  extras?: readonly WeaponDef[];
 }
 
 /** A character whose loadout is these weapons, by tier. */
-export function kit(character: Omit<CharacterDef, 'loadout'>, weapons: Kit['weapons']): Kit {
-  return { character: { ...character, loadout: weapons.map((w) => w.id) as unknown as Loadout }, weapons };
+export function kit(character: Omit<CharacterDef, 'loadout'>, weapons: Kit['weapons'], extras?: Kit['extras']): Kit {
+  return { character: { ...character, loadout: weapons.map((w) => w.id) as unknown as Loadout }, weapons, extras };
 }

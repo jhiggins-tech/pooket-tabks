@@ -79,9 +79,25 @@ describe('snapshots', () => {
     delete player.diggerActive;
     delete player.diggerFacing;
     delete player.diggerTurn;
-    delete player.dieselAvailable;
     delete player.dieselCanTime;
     upgradeSnapshot(snap);
-    expect(player).toMatchObject({ diggerActive: false, diggerFacing: 1, diggerTurn: -1, dieselAvailable: false, dieselCanTime: 0 });
+    expect(player).toMatchObject({ diggerActive: false, diggerFacing: 1, diggerTurn: -1, dieselCanTime: 0 });
+  });
+
+  it("upgrades ShotDownBoyz's one reserve diesel tank to jerry cans, and fills in his stratagems", () => {
+    const snap = takeSnapshot(createGame({ seed: 9, players }));
+    const [had, spent] = snap.players as Record<string, unknown>[];
+    for (const p of [had!, spent!]) {
+      delete p.dieselCans;
+      delete p.stratagems;
+    }
+    had!.dieselAvailable = true;
+    spent!.dieselAvailable = false;
+    delete (snap as Record<string, unknown>).crates;
+    upgradeSnapshot(snap);
+    expect(had).toMatchObject({ dieselCans: 1, stratagems: [] });
+    expect(spent).toMatchObject({ dieselCans: 0 });
+    expect('dieselAvailable' in had!).toBe(false);
+    expect((snap as Record<string, unknown>).crates).toEqual([]);
   });
 });

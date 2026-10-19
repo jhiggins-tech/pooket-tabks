@@ -82,8 +82,8 @@ export interface Player extends TankBody {
   diggerFacing: number;
   /** ShotDownBoyz: global turn when Activate Digger was last used. */
   diggerTurn: number;
-  /** ShotDownBoyz: the once-per-match reserve diesel tank is still available. */
-  dieselAvailable: boolean;
+  /** ShotDownBoyz: jerry cans of diesel in reserve (one to start with; Resupply adds more): one refills an empty tank as his turn starts. */
+  dieselCans: number;
   /** ShotDownBoyz: seconds the refuelling jerry can remains visible. */
   dieselCanTime: number;
   /** Women in Scam in play: until the end of the next enemy turn; `loot` is the weapon of the first enemy hit on this tank. */
@@ -98,6 +98,11 @@ export interface Player extends TankBody {
   hidden: boolean;
   /** doctorfox's Who's That Pokémon?: how many goes he's had, and the turn of the last (it's once a turn). Null: never tried. */
   pokemon: { tries: number; turn: number } | null;
+  /**
+   * ShotDownBoyz's stratagems this match (drawn from the seed: game/stratagems.ts), each with how many more
+   * of this player's turns it's re-arming for (0: ready). Everyone has a set, in case one is stolen.
+   */
+  stratagems: { id: string; rearm: number }[];
 }
 
 /** Hyperfixate's burn on a tank (the main tank or a twin, whichever the beam hit). */
@@ -296,6 +301,67 @@ export interface Guess {
   outro: number | null;
 }
 
+/** ShotDownBoyz's Stratagem in play: the d-pad up, the arrows keyed so far, and how it's going. */
+export interface Call {
+  playerId: number;
+  weaponId: string;
+  /** The arrows keyed so far (weapons/stratagems.ts `Arrow`s), matching at least one ready stratagem. */
+  input: string;
+  /** Seconds since it went up. */
+  t: number;
+  /** When (`t`) the last wrong arrow wiped the input, null: none yet. */
+  wrongAt: number | null;
+  /** The stratagem whose combo was finished, null: none (yet, or out of time). */
+  picked: string | null;
+  /** A combo's finished, or out of time: it's fired (or called off). */
+  done: boolean;
+}
+
+/**
+ * A stratagem coming down where its beacon landed (game/stratagems.ts): the beacon's light, then the
+ * strike, or the pod falling.
+ */
+export interface StratagemDrop {
+  ownerId: number;
+  stratagem: string;
+  /** Where the beacon landed. */
+  x: number;
+  y: number;
+  /** Seconds since it landed. */
+  t: number;
+  /** The Orbital Laser: where the beam is now (it drifts toward an enemy close by, burning down to `beamY`), and the pulses burnt so far. */
+  beamX: number;
+  beamY: number;
+  pulses: number;
+  /** A pod: how far down it's fallen (null: not dropping yet). */
+  podY: number | null;
+  /** It's over: the strike's done, or the pod's down. */
+  done: boolean;
+}
+
+/** A ShotDownBoyz sentry (a turret stratagem): it fires every turn, anyone's, until its rounds are gone. */
+export interface Sentry {
+  id: number;
+  ownerId: number;
+  stratagem: string;
+  x: number;
+  y: number;
+  shots: number;
+  /** Degrees it last fired at (0 = right, 90 = up), for drawing its barrel. */
+  aim: number;
+  /** Seconds since it landed (cosmetic: unfolding). */
+  age: number;
+}
+
+/** A pod on the ground (a weapon drop or Resupply), waiting for its owner to drive into it. */
+export interface Crate {
+  id: number;
+  ownerId: number;
+  stratagem: string;
+  x: number;
+  y: number;
+}
+
 /** Who a shot that finds its own target is on (007's gun barrel, an Air Strike): one of a player's tanks (the main one, or the twin), or a decoy. */
 export type TargetMark = { kind: 'tank'; playerId: number; twin: boolean } | { kind: 'hologram'; id: number };
 
@@ -409,6 +475,8 @@ export interface Projectile {
   glyphColour?: string;
   /** A tracer (doctorfox's Calculated): how many degrees off the aim it was fired. Harmless: it marks where it lands. */
   tracer?: number;
+  /** A stratagem beacon: what it calls in where it lands (game/stratagems.ts). */
+  stratagem?: string;
 }
 
 export interface Beam {
@@ -715,6 +783,20 @@ export type SfxCue =
   | 'drill'
   | 'brick'
   | 'bunker-down'
+  | 'call'
+  | 'call-key'
+  | 'call-wrong'
+  | 'call-done'
+  | 'call-off'
+  | 'beacon'
+  | 'orbital-laser'
+  | 'railcannon'
+  | 'pod'
+  | 'sentry-up'
+  | 'sentry-rocket'
+  | 'sentry-shell'
+  | 'zap'
+  | 'pickup'
   | 'gameover';
 
 export interface Sfx {
@@ -734,9 +816,10 @@ export interface Sfx {
  * `quizzing`: garyoldmancorp's 007, a Bond question to answer (his phone's input too); answered, it's
  * fired, and the shot is the gun barrel cutscene (or nothing, for a wrong answer). `guessing`: doctorfox's
  * Who's That Pokémon?, a bonus move (his phone's input too); answered, it's fired, the answer shows, and
- * the turn carries on (back to `aiming`).
+ * the turn carries on (back to `aiming`). `calling`: ShotDownBoyz's Stratagem, a combo to key on the d-pad
+ * (his phone's input too); finished, it's fired (the beacon); out of time, it's back to `aiming`.
  */
-export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'guessing' | 'flying' | 'settling' | 'gameover';
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'guessing' | 'calling' | 'flying' | 'settling' | 'gameover';
 
 /**
  * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
@@ -826,6 +909,14 @@ export interface GameState {
   quiz: Quiz | null;
   /** doctorfox's Who's That Pokémon?: the silhouette, while it's up and while the answer shows after. */
   guess: Guess | null;
+  /** ShotDownBoyz's Stratagem: the d-pad, while he keys a combo. */
+  call: Call | null;
+  /** Stratagems coming down where their beacons landed. */
+  drops: StratagemDrop[];
+  /** ShotDownBoyz's sentries on the field (they stay, turn after turn, until their rounds are gone). */
+  sentries: Sentry[];
+  /** Weapon and Resupply pods on the ground, waiting to be driven into. */
+  crates: Crate[];
   /** garyoldmancorp's 007, answered right: the gun barrel cutscene. */
   barrel: GunBarrel | null;
   /** doctorfox's Air Strike, while it plays out. */
