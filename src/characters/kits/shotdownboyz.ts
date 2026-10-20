@@ -180,7 +180,7 @@ export const prepper = {
   name: 'Prepper',
   shortName: 'Prepper',
   info:
-    'He drills into the ground and a brick bunker builds round him, open only in a 35° slit where he’s aiming. Shells stop at the walls and blasts knock bricks out; a shot aimed outside the slit hits his own wall. He can’t drive until it’s knocked down (most of its bricks gone).',
+    'He drills into the ground and a brick bunker builds round him, open only in a 35° slit where he’s aiming. Shells stop at the walls and blasts knock bricks out; a shot aimed outside the slit hits his own wall. The walls box him in like any terrain: blast a way out, or dig one with the Digger.',
   kind: 'bunker',
   bunker: { sink: 8, drillTime: 1.2, buildTime: 2.3, inner: 22, courses: 3, course: 3, brick: 7, slit: 35, standing: 0.4 },
 } satisfies WeaponDef;

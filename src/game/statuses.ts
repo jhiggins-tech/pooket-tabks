@@ -16,7 +16,6 @@ import type { GameState, Player, TankBody } from './state';
  * | tattoo (Tattoo Gun) | `tattoo` | the player | their next `tattoo.turns` turns (takes × `multiplier` damage) |
  * | pinned (Sew) | `pin` | the player | their next turn (no driving or hopping) |
  * | hidden (Sly) | (the move itself: sly.ts) | the player | until their next turn starts, or a hit (`reveal`) |
- * | bunkered (Prepper) | (the move itself: bunker.ts) | the main tank | until the bunker's knocked down (no driving or hopping) |
  *
  * (Women in Scam is a bonus move's own business: scam.ts. Soak and toxin are damage on its way: tanks.ts.)
  * How they look is render/draw/tank.ts (on the tank) and ui/status-looks.ts (badges by the name, info lines).
@@ -83,9 +82,9 @@ export function vulnerable(p: Player, amount: number): number {
   return p.tattoo ? Math.round(amount * p.tattoo.multiplier) : amount;
 }
 
-/** Pinned players can't drive or hop this turn, nor can anyone dug into a Prepper bunker (game/bunker.ts). */
+/** Pinned players can't drive or hop this turn. */
 export function canMove(p: Player): boolean {
-  return !p.pinned?.active && !p.bunker;
+  return !p.pinned?.active;
 }
 
 /** Scale an amount by the shooter's offence and round it (a real amount never rounds down to 0). */

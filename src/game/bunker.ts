@@ -12,8 +12,9 @@ import type { Bunker, GameState, Player } from './state';
  * falls away), over the top, leaving one slit
  * along his aim. The bricks are terrain (filled into empty pixels, in brick and mortar colours), so shells
  * hit them, blasts knock them out, a shot aimed outside the slit hits his own wall, and a hole blown through
- * is a hole. `Player.bunker` is where it is and how it's going; while it stands he can't drive
- * (statuses.ts `canMove`). It's down (`Player.bunker` null, the bricks left are just rubble) once fewer than
+ * is a hole. Nothing else keeps him in: the walls stop his tank like any terrain (movement.ts), so he
+ * can drive out through a hole, or tunnel out with the Digger. `Player.bunker` is where it is and how it's
+ * going. It's down (`Player.bunker` null, the bricks left are just rubble) once fewer than
  * `standing` of its pixels are left at a turn's end. The falling bricks, dust and the dark inside:
  * render/draw/bunker.ts. After a snapshot (net/follow.ts) `repaintBunkers` puts the brick colours back.
  */

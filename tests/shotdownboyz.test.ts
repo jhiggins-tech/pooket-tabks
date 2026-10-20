@@ -168,7 +168,23 @@ describe("ShotDownBoyz's Prepper", () => {
     const [x, y] = at(g, 120, 27.5);
     const i = (y * g.terrain.width + x) * 4;
     expect(g.terrain.pixels[i]!).toBeGreaterThan(g.terrain.pixels[i + 1]! + 50);
-    expect(canMove(p)).toBe(false);
+  });
+
+  it('boxes him in with its walls alone, and the Digger can tunnel him out', () => {
+    const g = bunkered(60);
+    const p = g.players[0]!;
+    passTurn(g);
+    expect(currentPlayer(g)).toBe(p);
+    expect(canMove(p)).toBe(true); // no lock: it's the bricks
+    for (const dir of [1, -1]) {
+      hold(g, dir, 2);
+      expect(Math.abs(p.x - 300)).toBeLessThan(22);
+    }
+    hold(g, 1, 0.1); // back to the middle-ish, then dig out to the right
+    selectTier(g, 3);
+    expect(fire(g)).toBe(true);
+    hold(g, 1, 3);
+    expect(p.x).toBeGreaterThan(300 + 31);
   });
 
   it('keeps the slit above the ground when he aims down', () => {
@@ -198,7 +214,7 @@ describe("ShotDownBoyz's Prepper", () => {
     expect(walls(g)).toBeLessThan(before);
   });
 
-  it('stands until most of it is knocked down, then he can drive again', () => {
+  it('stands until most of it is knocked down', () => {
     const g = bunkered(60);
     const p = g.players[0]!;
     const b = p.bunker!;
@@ -209,7 +225,6 @@ describe("ShotDownBoyz's Prepper", () => {
     passTurn(g);
     expect(p.bunker).toBeNull();
     expect(g.sfx.some((e) => e.cue === 'bunker-down')).toBe(true);
-    expect(canMove(p)).toBe(true);
   });
 
   it('puts the brick colours back after the terrain is patched from another phone', () => {

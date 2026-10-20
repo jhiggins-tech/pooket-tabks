@@ -74,7 +74,7 @@ export interface Player extends TankBody {
   twinSpot: number | null;
   /** px of driving left for the rest of the match. */
   fuel: number;
-  /** A Prepper bunker round the main tank, while it stands: they can't drive. */
+  /** A Prepper bunker round the main tank, while it stands (its walls are terrain: they're what keep him in). */
   bunker: Bunker | null;
   /** ShotDownBoyz: whether this turn's driving is horizontal, tunnelling digger movement. */
   diggerActive: boolean;
