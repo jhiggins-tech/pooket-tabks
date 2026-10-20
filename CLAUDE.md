@@ -117,30 +117,36 @@ what it's for; weapons are documented where they're defined.
 ### Online (`src/net/`, `src/ui/online.ts`, `src/ui/online/`)
 - **Pipe**: phone → Firebase Realtime Database (REST + SSE, `rtdb.ts`; `followChildren` for streamed lists)
   → phone, all sealed with AES-GCM from the room code (`seal.ts`). `rooms.ts`: codes, seats (`roomRef`,
-  `RoomError`, `watchSeat`), `relay.ts` the message pipe (numbered batches per epoch, stamped with the
-  sender's seat id; silence = "quiet", not the end).
-- **Match protocol** (`session.ts`, `NetSession`, in one `phase`: lobby, rejoining, match, ended; screens
-  follow it with `on(event)`): the phone whose turn it is streams its aim (previews, which carry health),
-  sends a pre-fire snapshot, then the result snapshot + terrain, which the other phone snaps to; a shot in
-  play and its result are a `ResultBuffer` (`follow.ts`, shared with spectators). Matches are live when both
-  phones are there and **turn by turn** when not: `record.ts` is each room's lasting record, and
-  `NetSession.catchUp` goes by it when nobody answers a rejoin within `RESUME_WAIT`; a match records the
-  rules it started on (`MatchSetup.rules`, see Versions). `away` (back to the menu: the room stays),
-  `resign`, `forfeit` after `FORFEIT_MS`; only leaving the lobby (`leave`, 'bye') or Cancel game ends a room.
-- **Screens**: `OnlineScreen` (`ui/online.ts`): hosting, joining, rejoining, watching, the lobby and match
-  menu; each way in is an attempt (`online/scope.ts`), ended by the next one. A match on this phone is one
-  `MatchLink` (`online/match.ts`): it owns the seat, check-ins, the spectator feed, record and replay,
-  notifications, listing and result filing, and `end(how)` ends them all (a table of what each way of
-  leaving does to the seat, session and listing); `MatchSlot` holds one at a time.
+  `RoomError`, `watchSeat`), hosting (`HostedRoom`, `waitForMatch`), `joinRoom` / `rejoinRoom`. There's no
+  message pipe between the phones: **the record is the match**.
+- **The record** (`record.ts`, `rooms/T/game`): `GameRecord` (setup, latest snapshot + terrain, the shot in
+  flight, `moves`: the run of one player's moves since the turn passed, each with a `seq`). Writes are
+  numbered (`n`, outside the seal) and the rules refuse one that isn't newer, so whoever writes second adopts
+  the winner's. Each phone writes it on its own turn only (and records the result of a shot whose phone
+  vanished mid-flight, `ORPHAN_WAIT`).
+- **Match protocol** (`session.ts`, `NetSession`, `phase`: idle, match, ended; screens follow it with
+  `on(event)`) over a `MatchChannel` (`channel.ts`: `RoomChannel` streams the whole room once: the record,
+  the live aim in `view/aim`, the other seat; `memoryRoom` for tests). **Joining starts the match** and the
+  joiner has the first go (`start`, `MatchSetup.first`); everyone else `open`s it from the record, which
+  replays the other player's moves this phone hasn't seen (`seen`, kept in the seat; `skip`). With both phones
+  in, the other's turn plays out live (their aim streamed, then the record's shot, then its result snapped
+  to: `ResultBuffer`, `follow.ts`, shared with spectators). **Presence**: each phone checks in on its seat
+  (`presence`, `seatHere`): `peerAway`, the green live dot. `away` (back to the menu: the room stays),
+  `resign`, `forfeit` after `FORFEIT_MS`; only Cancel game (no one joined yet) ends a room.
+- **Screens**: `OnlineScreen` (`ui/online.ts`): hosting, joining, rejoining, watching and the match menu;
+  each way in is an attempt (`online/scope.ts`), ended by the next one. A match on this phone is one
+  `MatchLink` (`online/match.ts`): it owns the seat, the spectator feed, record and replay, notifications,
+  listing and result filing, and `end(how)` ends them all (a table of what each way of leaving does to the
+  seat and session); `MatchSlot` holds one at a time.
 - **Open offers**: hosting puts the host's pick in the room (`OpenRecord`): the game stays open (and listed,
-  up to `OPEN_ADVERT_MS`) without its host, and a guest who joins with the host away starts the match itself
-  (`startIfHostAway`). Hosting and joining go through `chooseTank` first.
+  up to `OPEN_ADVERT_MS`) without its host. Hosting and joining go through `chooseTank` first.
 - **Watching, listing, replays**: `view.ts` + `spectate.ts` spectators (`watchers.ts`: who's watching,
   shown by `online/audience.ts`), `lobby.ts` the public Games list (a host's `Listing`: waiting → playing →
   over; `watchCounts` for the landing screen), `replay.ts` replays of public matches (`ReplayRecorder`,
   `loadReplays`, `ReplayPlayer`), `seat.ts` this phone's matches (`matches.ts`: how each stands).
 - Log every network step with `netLog` (`errText(e)` for thrown values; the "Copy logs" button;
-  `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&lost=MS` (each test its own Games list).
+  `window.__pooket.log()` in debug). Tests: `?debug&db=URL&lobby=NAME&here=MS` (each test its own Games
+  list; `here`: a phone that stops checking in counts as gone after MS).
 
 ### Sign in with Google and the account
 Optional (`net/auth.ts`, `net/account.ts`, `ui/signin.ts`, `app/account.ts`, `app/localprofile.ts`); no
@@ -231,16 +237,17 @@ needs its name in `InsigniaShape` and its drawing in `ui/insignia-shapes.ts`.
 it happens (game logic only queues cues), and its recipe in `CUE_SOUNDS` (`audio/sfx.ts`, in its group).
 Keep it kitschy.
 
-**Versions** (`net/version.ts`): any gameplay change (a balance tweak, a mechanic) bumps `RULES`: phones
-playing live must match exactly, and an older phone is told to reload. Matches in progress carry on under
+**Versions** (`net/version.ts`): any gameplay change (a balance tweak, a mechanic) bumps `RULES`: a phone
+that opens a match last recorded on newer rules is told to reload. Matches in progress carry on under
 the new rules unless you also raise `OLDEST_RULES`; replays from rules older than that are hidden. A
 change to the state's shape (a new field) gets a fill-in in `upgradeSnapshot` (`net/snapshot.ts`) for
-stored matches and replays, rather than raising `OLDEST_RULES`. A change to the messages or stored records
-that an older build can't read bumps `WIRE`.
+stored matches and replays, rather than raising `OLDEST_RULES`. A change to the stored records (or anything
+else an older build can't read) bumps `WIRE`; replays keep their own `REPLAY_WIRE`.
 
-**Change the online protocol**: `NetMsg` in `net/session.ts`, bump `WIRE` (see Versions), `netLog` the new
-steps, test over `loopback()` (`tests/net-session.test.ts`, with `tests/support/net.ts`) and the fake
-Firebase (`tests/rejoin.test.ts`, `tests/rooms.test.ts`). New database paths need rules (and a re-publish,
+**Change the online protocol**: `GameRecord` in `net/record.ts` (and `NetSession` in `net/session.ts`), bump
+`WIRE` (see Versions), `netLog` the new steps, test over `memoryRoom()` (`tests/net-session.test.ts`,
+`tests/async.test.ts`, with `tests/support/net.ts`) and the fake Firebase (`tests/rejoin.test.ts`,
+`tests/rooms.test.ts`). New database paths need rules (and a re-publish,
 see above).
 
 ## Invariants and gotchas

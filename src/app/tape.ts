@@ -1,8 +1,7 @@
 import type { GameState, PlayerConfig } from '../game/state';
-import type { ShotRecord } from '../net/record';
-import { shotKey, type Replay } from '../net/replay';
+import { shotKey, type Replay, type ReplayShot } from '../net/replay';
 import { encodeSolid, takeSnapshot } from '../net/snapshot';
-import { RULES, WIRE } from '../net/version';
+import { REPLAY_WIRE, RULES } from '../net/version';
 
 /**
  * The match being played on this phone, recorded as it goes (hotseat or online, public or private), so it
@@ -15,7 +14,7 @@ export class MatchTape {
 
   /** A new match: anything recorded before is dropped. */
   start(seed: number, players: PlayerConfig[]): void {
-    this.tape = { listing: { id: 'local', v: WIRE, rules: RULES, seed, players, ts: Date.now() }, shots: [], end: null };
+    this.tape = { listing: { id: 'local', v: REPLAY_WIRE, rules: RULES, seed, players, ts: Date.now() }, shots: [], end: null };
     this.keys.clear();
   }
 
@@ -26,12 +25,12 @@ export class MatchTape {
   }
 
   /** A shot about to be fired here (hotseat): record the state as it is now. */
-  firing(state: GameState): ShotRecord {
+  firing(state: GameState): ReplayShot {
     return { turn: state.turn, owner: state.current, snap: takeSnapshot(state), terrain: encodeSolid(state.terrain) };
   }
 
   /** A shot fired (the same shot again, say played out from the record after a rejoin, replaces it). */
-  shot(shot: ShotRecord): void {
+  shot(shot: ReplayShot): void {
     if (!this.tape || this.tape.end) return;
     const key = shotKey(shot);
     const at = this.keys.get(key);

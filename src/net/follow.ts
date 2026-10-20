@@ -1,20 +1,48 @@
 import { currentPlayer, followCall, followDrums, followGuess, followQuiz, followSneak } from '../game/game';
 import { repaintBunkers } from '../game/bunker';
-import type { GameState } from '../game/state';
-import type { NetMsg } from './session';
+import type { Call, DrumSet, Flight, GameState, Guess, Hop, Quiz, Sneak } from '../game/state';
 import { applySnapshot, decodeSolid, type Snapshot } from './snapshot';
 
 /**
  * Following a match someone else is playing: what the phone waiting out the other's turn, a spectator
  * and a replay all do. Each shot is replayed locally from its pre-shot state, then the game snaps to the
  * turn's result once the local shot has played out (or after SYNC_GRACE, if it hasn't): `ResultBuffer`.
+ * While they aim, their aim and position come as previews (`previewOf`, `applyPreview`).
  */
 
 /** If a turn's result arrives while the shot is still playing out here, apply it after this long anyway. */
 export const SYNC_GRACE = 4;
 
-/** The aim and position of whoever's turn it is, streamed while they aim. */
-export type Preview = Extract<NetMsg, { k: 'preview' }>;
+/** The aim and position of whoever's turn it is, streamed while they aim (and their minigames' input). */
+export interface Preview {
+  k: 'preview';
+  turn: number;
+  x: number;
+  y: number;
+  fuel: number;
+  angle: number;
+  power: number;
+  tier: number;
+  hop: Hop | null;
+  /** doctorfox's Arwing in the air. */
+  flight?: Flight | null;
+  /** torikloud: the twin's own aim and where it is (it drives too), which tank is being aimed, and where a twin being placed will go. */
+  twin?: { angle: number; power: number; x?: number; y?: number } | null;
+  aimTwin?: boolean;
+  twinSpot?: number | null;
+  /** Health, which can change while aiming (garyoldmancorp's scooter crashes, kiwicore's Band Aid). */
+  hp?: number;
+  /** kiwicore's Band Aid while he drums (the `drumming` phase is his phone's input, like aiming). */
+  drums?: DrumSet | null;
+  /** doctorfox's Sly while he sneaks off (the `sneaking` phase is his phone's input too). */
+  sneak?: Sneak | null;
+  /** garyoldmancorp's 007 while he answers (the `quizzing` phase is his phone's input too). */
+  quiz?: Quiz | null;
+  /** doctorfox's Who's That Pokémon? while he picks (the `guessing` phase is his phone's input too). */
+  guess?: Guess | null;
+  /** ShotDownBoyz's Stratagem while he keys a combo (the `calling` phase is his phone's input too). */
+  call?: Call | null;
+}
 
 /** The current player's aim and position, as a preview. */
 export function previewOf(s: GameState): Preview {

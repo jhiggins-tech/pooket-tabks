@@ -8,7 +8,7 @@ import { heist } from './hud/heist';
 import { pokemon } from './hud/pokemon';
 import { quiz } from './hud/quiz';
 import { stratagems } from './hud/stratagems';
-import type { HudContext, Part } from './hud/part';
+import type { HudContext, Online, Part } from './hud/part';
 import { readouts } from './hud/readouts';
 import { status } from './hud/status';
 import { gameOverCard, turnBanner } from './hud/turn';
@@ -30,8 +30,8 @@ export class Hud {
   private readonly gameOver: Part;
   /** Every part, in the order they're drawn. */
   private readonly parts: Part[];
-  /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
-  online: { localSeat: number; syncing: boolean } | null = null;
+  /** Set in an online match: which seat is this phone's, whether it's waiting for the other's result, and whether they're here. */
+  online: Online | null = null;
 
   /** `gameOver`: the game over card, shown when a match ends (ui/gameover.ts). */
   constructor(gameOver: GameOverCard) {

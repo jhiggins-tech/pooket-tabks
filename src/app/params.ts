@@ -14,8 +14,8 @@ export interface Params {
   db: string | null;
   /** `?debug&lobby=NAME`: a Games list of its own (so tests don't see each other's games). */
   lobby: string | null;
-  /** `?debug&lost=MS`: notice a quiet phone sooner. */
-  lostMs: number | null;
+  /** `?debug&here=MS`: a phone that stops checking in on its match counts as gone after MS (not a minute). */
+  hereMs: number | null;
   /** `?debug&vapid=KEY`: a VAPID key, so tests see the notifications button. */
   vapid: string | null;
   /** `?debug&db=URL&fakegoogle=NAME`: sign in as NAME against the test database's stand-in for Google and Firebase Auth. */
@@ -40,7 +40,7 @@ export function readParams(search: string, automated: boolean): Params {
     debug,
     db: (debug && q.get('db')) || null,
     lobby: (debug && q.get('lobby')) || null,
-    lostMs: debug && q.has('lost') ? Number(q.get('lost')) : null,
+    hereMs: debug && q.has('here') ? Number(q.get('here')) : null,
     vapid: (debug && q.get('vapid')) || null,
     fakeGoogle: (debug && q.get('db') && q.get('fakegoogle')) || null,
     whatsNew: !automated || q.has('whatsnew'),

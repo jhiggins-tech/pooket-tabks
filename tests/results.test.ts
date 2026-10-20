@@ -15,7 +15,7 @@ const players = [
   { name: 'Ann', colour: '#f0f', characterId: 'kcaj' },
   { name: 'Bo', colour: '#4ea8ff', characterId: 'kie' },
 ];
-const setup = (rules = 15): MatchSetup => ({ seed: 4242, players, rules });
+const setup = (rules = 15): MatchSetup => ({ seed: 4242, players, rules, first: 0 });
 
 /** A match kcaj wins: Hyperfixate into a nearly-dead kie. */
 function finished(): GameState {

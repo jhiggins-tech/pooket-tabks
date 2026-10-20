@@ -168,27 +168,23 @@ describe('one phone per seat: the one that rejoins last plays', () => {
   });
 
   it('the phone that had the seat hears that another device took it; its own rejoins and check-ins don’t count', async () => {
-    const room = await HostedRoom.open(db, undefined, 'phone-a');
-    const waiting = room.waitForGuest();
-    const guest = await joinRoom(db, room.code, undefined, 'g', 'phone-g');
-    const host = await waiting;
+    const room = await HostedRoom.open(db, { host: { name: 'A', characterId: 'kcaj' }, listed: false }, 'phone-a');
+    await joinRoom(db, room.code, 'g', 'phone-g');
     const path = `rooms/${(await sealerFor('room', room.code)).topic}`;
     let taken = 0;
     const watch = watchSeat({ db, path, sealer: await sealerFor('room', room.code) }, 'host', room.id, () => taken++, 'phone-a');
     // Checking in (just the time) and rejoining from the same phone: still ours.
     await db.patch(`${path}/host`, { ts: Date.now() });
-    host.close();
-    const again = await rejoinRoom(db, room.code, 'host', room.id, undefined, 'phone-a');
+    await rejoinRoom(db, room.code, 'host', room.id, 'phone-a');
     await new Promise((r) => setTimeout(r, 200));
     expect(taken).toBe(0);
     expect((server.tree().rooms as Record<string, { host: { dev: string } }>)[path.split('/')[1]!]!.host.dev).toBe('phone-a');
     // The same player's other phone takes the seat: phone A hears, before B starts reading messages.
     const t0 = Date.now();
-    const b = await rejoinRoom(db, room.code, 'host', room.id, undefined, 'phone-b');
+    await rejoinRoom(db, room.code, 'host', room.id, 'phone-b');
     expect(Date.now() - t0).toBeGreaterThanOrEqual(TAKEOVER_WAIT_MS - 50);
     await until(() => taken === 1);
     watch.close();
-    for (const t of [again, b, guest]) t.close();
   });
 
   it('older versions’ seats (no device) never make anyone stand aside', async () => {

@@ -3,7 +3,8 @@ import { FIXED_DT } from '../src/game/constants';
 import { createGame, setAim, step } from '../src/game/game';
 import type { GameState, PlayerConfig } from '../src/game/state';
 import { HostedRoom, joinRoom } from '../src/net/rooms';
-import { ViewPublisher, watchRoom } from '../src/net/view';
+import { watchRoom } from '../src/net/view';
+import { RoomChannel } from '../src/net/channel';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession, type ViewMsg } from '../src/net/session';
 import { Spectator } from '../src/net/spectate';
@@ -15,10 +16,10 @@ const players: PlayerConfig[] = [
   { name: 'H', characterId: 'kcaj', colour: '#fc0' },
   { name: 'G', characterId: 'tones', colour: '#f55' },
 ];
-const build = (seed: number, p: PlayerConfig[]) => createGame({ seed, players: p });
-/** Two players over loopback, with every view message also going to `feed`. */
+const build = (seed: number, p: PlayerConfig[], first = 0) => createGame({ seed, players: p, first });
+/** Two players in a room in memory, with the spectator feed going to `feed`. */
 async function match(feed: (v: ViewMsg) => void) {
-  const { a, b, A, B } = await connectedPair({ seed: 77, players, onStart: build, setup: (s) => s.on('view', feed) });
+  const { a, b, A, B } = await connectedPair({ seed: 77, players, onStart: build, onView: feed });
   return { host: a, guest: b, H: A, G: B };
 }
 
@@ -74,11 +75,11 @@ describe('spectating', { timeout: 60_000 }, () => {
   it("sees the live aim, but can't be steered by it after a shot", async () => {
     const sp = new Spectator();
     sp.onStart = build;
-    const { host, H } = await match((v) => sp.receive(v));
-    setAim(H, 33, 44);
-    for (let i = 0; i < 20; i++) host.tick(FIXED_DT);
+    const { guest, G } = await match((v) => sp.receive(v));
+    setAim(G, 33, 44); // (the guest's go first)
+    for (let i = 0; i < 20; i++) guest.tick(FIXED_DT);
     await flush();
-    expect([sp.game!.players[0]!.angle, sp.game!.players[0]!.power]).toEqual([33, 44]);
+    expect([sp.game!.players[1]!.angle, sp.game!.players[1]!.power]).toEqual([33, 44]);
   });
 });
 
@@ -93,22 +94,15 @@ describe('spectating through Firebase', () => {
     await server.close();
   });
   it('players publish, a watcher with the code follows along, and is told when the room closes', { timeout: 30_000 }, async () => {
-    const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest();
-    const gt = await joinRoom(db, room.code);
-    const ht = await hostSide;
-    const host = new NetSession(ht, 'host');
-    const guest = new NetSession(gt, 'guest');
-    const hp = new ViewPublisher(ht.room);
-    const gp = new ViewPublisher(gt.room);
-    host.on('view', (v) => hp.push(v));
-    guest.on('view', (v) => gp.push(v));
-    for (const s of [host, guest]) s.onStart = build;
-    host.setPick({ name: 'H', characterId: 'kcaj' });
-    guest.setPick({ name: 'G', characterId: 'tones' });
-    await until(() => host.ready && guest.ready);
-    host.start(5, players);
-    await until(() => !!guest.game);
+    const room = await HostedRoom.open(db, { host: { name: 'H', characterId: 'kcaj' }, listed: false });
+    const joined = await joinRoom(db, room.code);
+    const guest = new NetSession(new RoomChannel(joined.room, 'guest'), 'guest');
+    guest.onStart = build;
+    guest.start(5, players);
+    const stored = await room.waitForMatch();
+    const host = new NetSession(new RoomChannel(room.ref, 'host'), 'host');
+    host.onStart = build;
+    host.open(stored.rec);
 
     const sp = new Spectator();
     sp.onStart = build;
@@ -120,8 +114,9 @@ describe('spectating through Firebase', () => {
     expect(JSON.stringify(server.tree())).not.toContain('kcaj');
 
     await expect(watchRoom(db, 'ZZZZ', () => {}, () => {})).rejects.toThrow(/No game/);
-    host.leave(); // the host closes the room
-    ht.close();
+    host.away();
+    guest.away();
+    await db.put(room.ref.path, null); // the room closes (Cancel game)
     await until(() => ended);
   });
 });

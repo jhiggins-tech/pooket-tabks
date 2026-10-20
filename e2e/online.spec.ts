@@ -115,9 +115,7 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
   await b.goto(`./?${q}&locks&fakegoogle=jo&via=link#room=${code}`);
   await b.locator('#online-accept').tap();
   await pickTank(b);
-  await expect(a.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
-  await a.locator('#online-start').tap();
-  for (const p of [a, b]) await expect(p.locator('#online')).toBeHidden({ timeout: 15_000 });
+  for (const p of [a, b]) await expect(p.locator('#online')).toBeHidden({ timeout: 20_000 });
 
   // Four turns (a match has to get to turn 4 to count), shooting off the edge of the map, away from each other …
   const away = (p: Page) =>
@@ -127,7 +125,7 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
       const them = s.players.find((o) => o !== me)!;
       Object.assign(me, { angle: me.x < them.x ? 170 : 10, power: 100 });
     });
-  for (const [shooter, next] of [[a, b], [b, a], [a, b], [b, a]] as const) {
+  for (const [shooter, next] of [[b, a], [a, b], [b, a], [a, b]] as const) {
     await away(shooter);
     await shooter.locator('#fire').tap();
     await expect.poll(() => canAct(next), { timeout: 30_000 }).toBe(true);
@@ -239,21 +237,12 @@ async function phones(browser: Browser, lobby: string) {
   return { host, guest, q, errors, close: () => Promise.all([hostCtx.close(), guestCtx.close()]) };
 }
 
-/** Both phones reach the lobby; the host starts; one turn plays out in sync. */
-async function playFromLobby(host: Page, guest: Page) {
-  await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
-  await expect(guest.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
-  // Who's playing as what (tanks were chosen before hosting or joining): nothing to pick here.
-  for (const p of [host, guest]) {
-    await expect(p.locator('#online .online-seat')).toHaveCount(2);
-    await expect(p.locator('#online select')).toHaveCount(0);
-  }
-  await expect(host.locator('#online-start')).toBeEnabled();
-  await host.locator('#online-start').tap();
-  await expect(guest.locator('#online')).toBeHidden({ timeout: 15_000 });
-  await host.locator('#fire').tap();
+/** The guest has joined, which starts the match: both phones are in it, the same, and it's the guest's go. */
+async function joined(host: Page, guest: Page) {
+  for (const p of [host, guest]) await expect(p.locator('#online')).toBeHidden({ timeout: 20_000 });
   await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
-  expect(await summary(guest)).toEqual(await summary(host));
+  expect(await canAct(host)).toBe(false);
+  await expect.poll(async () => JSON.stringify(await summary(host)), { timeout: 15_000 }).toBe(JSON.stringify(await summary(guest)));
 }
 
 test('the Games list: a hosted game shows up for any phone, one tap to join (through the game server)', async ({ browser }) => {
@@ -277,23 +266,29 @@ test('the Games list: a hosted game shows up for any phone, one tap to join (thr
   await expect(game).toHaveAttribute('data-room', code);
   await expect(rows(guest, 'live')).toHaveCount(0);
   await guest.screenshot({ path: 'test-results/room-join-list.png' });
+  // Joining starts the match, host there or not: the guest has the first go.
   await game.getByRole('button', { name: 'Join' }).tap();
   await pickTank(guest);
-  await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
+  await joined(host, guest);
+  // Both are in it: each sees the other's green dot.
+  for (const p of [host, guest]) await expect(p.locator('.live-dot:not([hidden])')).toHaveCount(1, { timeout: 15_000 });
+  await host.screenshot({ path: 'test-results/live-dot.png' });
+  await guest.locator('#fire').tap();
+  await expect.poll(() => canAct(host), { timeout: 20_000 }).toBe(true);
+  expect(await summary(guest)).toEqual(await summary(host));
 
-  // The logs button copies a readable account of what happened, for bug reports.
+  // The logs button (in the game menu) copies a readable account of what happened, for bug reports.
   await host.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await host.locator('#net-menu').tap();
   await host.locator('#online-logs').tap();
   await expect(host.locator('#online-logs')).toHaveText('✓ Logs copied');
   const log = await host.evaluate(() => navigator.clipboard.readText());
-  for (const line of ['Pooket Tabks network log', `rooms: hosting ${code}`, `ui: room ${code} open, on the Games list`, 'db: streaming', 'joined', 'ui: connected as host', 'session: hello from the other phone']) {
+  for (const line of ['Pooket Tabks network log', `rooms: hosting ${code}`, `ui: room ${code} open, on the Games list`, 'db: streaming', `ui: into ${code} as host`, 'match: the other player is here']) {
     expect(log).toContain(line);
   }
   console.log(log);
-  await playFromLobby(host, guest);
-  await guest.evaluate(() => window.__pooket.net!.setPick(window.__pooket.net!.localPick!));
+  await host.locator('#menu-keep').tap();
   await expect(host.locator('#online')).toBeHidden();
-  await expect(guest.locator('#online')).toBeHidden();
   expect(errors).toEqual([]);
   await close();
 });
@@ -321,7 +316,7 @@ test('a private game stays off the list: type the room code, or open the room li
   await guest.getByLabel('Room code').fill(code.toLowerCase());
   await guest.locator('#online .games-private').getByRole('button', { name: 'Join' }).tap();
   await pickTank(guest);
-  await playFromLobby(host, guest);
+  await joined(host, guest);
 
   // A wrong code is explained.
   const lost = await browser.newContext(devices['Pixel 7 landscape']);
@@ -347,9 +342,7 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await guest.goto(`./?${q}#room=${code}`);
   await guest.locator('#online-accept').tap(); // an invite link asks first
   await pickTank(guest);
-  await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
-  await host.locator('#online-start').tap();
-  await expect(guest.locator('#online')).toBeHidden({ timeout: 15_000 });
+  await joined(host, guest);
 
   // A third phone: the match shows as in progress; tap to watch.
   const ctx = await browser.newContext(devices['Pixel 7 landscape']);
@@ -385,9 +378,9 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await fan.locator('#watchers-list').tap();
   await fan.screenshot({ path: 'test-results/spectating.png' });
 
-  // The host fires; the watcher sees it play out and ends up in the same place.
-  await host.locator('#fire').tap();
-  await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
+  // The guest fires (it has the first go); the watcher sees it play out and ends up in the same place.
+  await guest.locator('#fire').tap();
+  await expect.poll(() => canAct(host), { timeout: 20_000 }).toBe(true);
   await expect.poll(async () => JSON.stringify(await summary(fan)), { timeout: 15_000 }).toBe(JSON.stringify(await summary(host)));
 
   // Joining by code also lands on watching when the game is full.
@@ -404,7 +397,7 @@ test('a third phone watches a match in progress (from the Live list), view only'
   await expect(fan.locator('#setup')).toBeVisible();
   await expect(host.locator('#watchers')).toHaveText('👁 1', { timeout: 10_000 }); // checked out
   await expect(fan.locator('#watchers')).toBeHidden();
-  expect(await canAct(guest)).toBe(true);
+  expect(await canAct(host)).toBe(true);
   expect(errors).toEqual([]);
   await ctx.close();
   await ctx2.close();
@@ -425,9 +418,11 @@ test('past matches: a finished public match can be watched again, start to finis
   await guest.locator('#open-browser').tap();
   await rows(guest, 'open').getByRole('button', { name: 'Join' }).tap();
   await pickTank(guest, 'kcaj');
-  await playFromLobby(host, guest);
+  await joined(host, guest);
   await guest.locator('#fire').tap();
   await expect.poll(() => canAct(host), { timeout: 20_000 }).toBe(true);
+  await host.locator('#fire').tap();
+  await expect.poll(() => canAct(guest), { timeout: 20_000 }).toBe(true);
   await guest.locator('#net-menu').tap();
   await guest.locator('#menu-resign').tap();
   await guest.locator('#menu-resign').tap();
@@ -481,7 +476,7 @@ test('past matches: a finished public match can be watched again, start to finis
 test('a phone that drops out gets straight back into its seat (reload, or opening the game again)', async ({ browser }) => {
   test.setTimeout(150_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-rejoin');
-  const q = `${base}&lost=1500`; // notice a quiet phone quickly
+  const q = `${base}&here=1500`; // notice a phone that's gone quickly
   await host.goto(`./?${q}`);
   await setName(host, 'Ann');
   await host.locator('#open-browser').tap();
@@ -491,7 +486,7 @@ test('a phone that drops out gets straight back into its seat (reload, or openin
   await guest.goto(`./?${q}#room=${code}`);
   await guest.locator('#online-accept').tap(); // an invite link asks first
   await pickTank(guest);
-  await playFromLobby(host, guest);
+  await joined(host, guest);
 
   // The guest's page reloads mid-match: straight back into its seat, caught up, and it's still its turn.
   await guest.reload();
@@ -537,7 +532,7 @@ test('a phone that drops out gets straight back into its seat (reload, or openin
 test("the Game browser lists a match from a while ago; typing its code rejoins too", async ({ browser }) => {
   test.setTimeout(120_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-rejoin-later');
-  const q = `${base}&lost=1500`;
+  const q = `${base}&here=1500`;
   await host.goto(`./?${q}`);
   await host.locator('#open-browser').tap();
   await host.locator('#online-host').tap();
@@ -546,7 +541,7 @@ test("the Game browser lists a match from a while ago; typing its code rejoins t
   await guest.goto(`./?${q}#room=${code}`);
   await guest.locator('#online-accept').tap(); // an invite link asks first
   await pickTank(guest);
-  await playFromLobby(host, guest);
+  await joined(host, guest);
 
   // The guest dropped out a while ago (too long for rejoining by itself on opening).
   await guest.evaluate(() => {
@@ -573,10 +568,10 @@ test("the Game browser lists a match from a while ago; typing its code rejoins t
   await close();
 });
 
-test("a link preview that joins and vanishes doesn't take the seat; an invite link asks before joining", async ({ browser }) => {
+test('an invite link asks before joining (link previews mustn’t take the seat)', async ({ browser }) => {
   test.setTimeout(120_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-ghost');
-  const q = `${base}&lost=1500`;
+  const q = `${base}&here=1500`;
   await host.goto(`./?${q}`);
   await host.locator('#open-browser').tap();
   await host.locator('#online-host').tap();
@@ -590,22 +585,10 @@ test("a link preview that joins and vanishes doesn't take the seat; an invite li
   await guest.waitForTimeout(1500);
   await expect(host.locator('#online-room-code')).toHaveText(code); // still waiting
 
-  // A "preview" that did join (an older version, say) and then vanished: the host frees the seat.
-  const ctx = await browser.newContext(devices['Pixel 7 landscape']);
-  const ghost = await ctx.newPage();
-  await ghost.goto(`./?${q}`);
-  await ghost.locator('#open-browser').tap();
-  await ghost.getByLabel('Room code').fill(code);
-  await ghost.locator('#online .games-private').getByRole('button', { name: 'Join' }).tap();
-  await pickTank(ghost);
-  await expect(host.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
-  await ctx.close();
-  await expect(host.locator('#online-room-code')).toHaveText(code, { timeout: 20_000 }); // back to waiting, same code
-
-  // The real player taps Join game and plays.
+  // The player taps Join game and plays.
   await guest.locator('#online-accept').tap();
   await pickTank(guest);
-  await playFromLobby(host, guest);
+  await joined(host, guest);
   expect(errors).toEqual([]);
   await close();
 });
@@ -613,7 +596,7 @@ test("a link preview that joins and vanishes doesn't take the seat; an invite li
 test('a host that reloads mid-match goes straight back on the Games list', async ({ browser }) => {
   test.setTimeout(120_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-relist');
-  const q = `${base}&lost=1500`;
+  const q = `${base}&here=1500`;
   await host.goto(`./?${q}`);
   await setName(host, 'Bo');
   await host.locator('#open-browser').tap();
@@ -623,7 +606,7 @@ test('a host that reloads mid-match goes straight back on the Games list', async
   await guest.goto(`./?${q}#room=${code}`);
   await guest.locator('#online-accept').tap();
   await pickTank(guest);
-  await playFromLobby(host, guest);
+  await joined(host, guest);
 
   // The host's page reloads: back in the match, and its listing is refreshed (not left to go stale).
   const listingTs = () => {
@@ -648,7 +631,7 @@ test('a host that reloads mid-match goes straight back on the Games list', async
 test('turn by turn: take your turn and go back to the menu; the other player finds it in My games, and so on', async ({ browser }) => {
   test.setTimeout(180_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-async');
-  const q = `${base}&lost=1500`;
+  const q = `${base}&here=1500`;
   await host.goto(`./?${q}`);
   await setName(host, 'Ann');
   await host.locator('#open-browser').tap();
@@ -658,7 +641,7 @@ test('turn by turn: take your turn and go back to the menu; the other player fin
   await guest.goto(`./?${q}#room=${code}`);
   await guest.locator('#online-accept').tap();
   await pickTank(guest);
-  await playFromLobby(host, guest); // the guest's turn now
+  await joined(host, guest); // the guest's go first
 
   // The host goes back to the menu; the match waits for it.
   await host.locator('#net-menu').tap();
@@ -690,7 +673,7 @@ test('turn by turn: take your turn and go back to the menu; the other player fin
   await expect.poll(() => canAct(host), { timeout: 40_000 }).toBe(true);
   expect(await summary(host)).toEqual(afterGuest);
   await host.locator('#fire').tap();
-  await expect.poll(async () => (await summary(host)).turn, { timeout: 30_000 }).toBe(4);
+  await expect.poll(async () => (await summary(host)).turn, { timeout: 30_000 }).toBe(3);
   await expect(host.locator('#net-away')).toContainText("It's", { timeout: 20_000 });
   const afterHost = await summary(host);
   await host.locator('#net-menu').tap();
@@ -742,7 +725,7 @@ test('turn by turn: take your turn and go back to the menu; the other player fin
   await close();
 });
 
-test('host a game and go: it stays open, whoever joins first starts it, and the host takes its turn later', async ({ browser }) => {
+test('host a game and go: it stays open, whoever joins first starts it and has the first go, and the host takes its turn later', async ({ browser }) => {
   test.setTimeout(150_000);
   const { host, guest, q, errors, close } = await phones(browser, 'games-open');
   await host.goto(`./?${q}`);
@@ -784,9 +767,12 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await guest.screenshot({ path: 'test-results/choose-tank.png' });
   await guest.locator('#tank-go').tap();
   await expect(guest.locator('#online')).toBeHidden({ timeout: 20_000 });
-  await expect(guest.locator('#net-away')).toContainText("It's Jack's turn, and they're not here", { timeout: 10_000 });
+  await expect(guest.locator('#net-away')).toContainText("Jack isn't here. Take your turn", { timeout: 10_000 });
+  await expect(guest.locator('.live-dot:not([hidden])')).toHaveCount(0);
   await guest.screenshot({ path: 'test-results/joined-open-game.png' });
   expect(await guest.evaluate(() => window.__pooket.state.players.map((p) => p.characterId))).toEqual(['kie', 'larinovsky']);
+  await guest.locator('#fire').tap();
+  await expect(guest.locator('#net-away')).toContainText("It's Jack's turn, and they're not here", { timeout: 20_000 });
 
   // The host comes back to its turn; with both there it's live.
   await host.goto(`./?${q}`);
@@ -796,7 +782,12 @@ test('host a game and go: it stays open, whoever joins first starts it, and the 
   await expect(mine).toContainText('You vs Bo');
   await expect(mine).toContainText('Your turn');
   await mine.getByRole('button', { name: 'Play' }).tap();
+  // It catches up on the guest's first go (Skip goes straight to how things stand), then it's live.
+  await expect(host.locator('#net-skip')).toBeVisible({ timeout: 20_000 });
+  await host.screenshot({ path: 'test-results/catching-up.png' });
+  await host.locator('#net-skip').tap();
   await expect.poll(() => canAct(host), { timeout: 30_000 }).toBe(true);
+  for (const p of [host, guest]) await expect(p.locator('.live-dot:not([hidden])')).toHaveCount(1, { timeout: 15_000 });
   await host.locator('#fire').tap();
   await expect.poll(() => canAct(guest), { timeout: 30_000 }).toBe(true);
   expect(await summary(guest)).toEqual(await summary(host));
@@ -827,7 +818,7 @@ test('Cancel game takes a hosted game down', async ({ browser }) => {
 test("notifications: the host's away; the guest's turn ends, and the host's open page says it's their turn", async ({ browser }) => {
   test.setTimeout(120_000);
   const { host, guest, q: base, errors, close } = await phones(browser, 'games-push');
-  const q = `${base}&lost=1500&vapid=test-key`;
+  const q = `${base}&here=1500&vapid=test-key`;
   await host.addInitScript(() => localStorage.setItem('pooket.push', 'on')); // (as if turned on: tests can't subscribe)
   await host.goto(`./?${q}`);
   await setName(host, 'Ann');
@@ -840,7 +831,7 @@ test("notifications: the host's away; the guest's turn ends, and the host's open
   await guest.goto(`./?${q}#room=${code}`);
   await guest.locator('#online-accept').tap();
   await pickTank(guest);
-  await playFromLobby(host, guest); // the guest's turn now
+  await joined(host, guest); // the guest's go first
 
   // The host goes back to the menu; the guest plays: it's the host's turn, and the host's page says so.
   await host.locator('#net-menu').tap();
@@ -848,7 +839,8 @@ test("notifications: the host's away; the guest's turn ends, and the host's open
   await expect(host.locator('#setup')).toBeVisible();
   await expect(guest.locator('#net-away')).toBeVisible({ timeout: 10_000 });
   await guest.locator('#fire').tap();
-  await expect(host.locator('#toast')).toHaveText('🎯 Your turn! Your move in Pooket Tabks. Tap to play.', { timeout: 30_000 });
+  // (The first time it's the host's go, the guest has just joined.)
+  await expect(host.locator('#toast')).toHaveText('🎮 Someone joined your game! They’ve had the first go in Pooket Tabks: your move. Tap to play.', { timeout: 30_000 });
   await host.screenshot({ path: 'test-results/notified.png' });
   // Tapping it goes straight to that match.
   await host.locator('#toast').tap();
@@ -909,7 +901,7 @@ test('no sign-in button where there is nothing to sign in to (a test database wi
 test('signed in, your matches follow you: carry one on from another phone, which plays while the first stands aside', async ({ browser }) => {
   test.setTimeout(150_000);
   const { host: a, guest: c, q: base, errors, close } = await phones(browser, 'seats-follow');
-  const q = `${base}&lost=1500`;
+  const q = `${base}&here=1500`;
   const bCtx = await browser.newContext(devices['Pixel 7 landscape']);
   const b = await bCtx.newPage();
   watchErrors(b, errors);
@@ -926,7 +918,7 @@ test('signed in, your matches follow you: carry one on from another phone, which
   await c.goto(`./?${q}#room=${code}`);
   await c.locator('#online-accept').tap();
   await pickTank(c);
-  await playFromLobby(a, c); // C's turn now
+  await joined(a, c); // C's turn now
   await expect.poll(() => (db.tree().users as Record<string, { games?: Record<string, unknown> }>)['uid-cara']?.games?.[code]).toBeTruthy();
 
   // Ann picks up phone B and signs in: the match is in her games there, and she carries on with it.
@@ -964,7 +956,7 @@ test('signed in, your matches follow you: carry one on from another phone, which
 test("signed in, your turn reaches every phone you're signed in on: tap it on the other phone to play there", async ({ browser }) => {
   test.setTimeout(150_000);
   const { host: a, guest: c, q: base, errors, close } = await phones(browser, 'push-account');
-  const q = `${base}&lost=1500`;
+  const q = `${base}&here=1500`;
   const a2Ctx = await browser.newContext(devices['Pixel 7 landscape']);
   const a2 = await a2Ctx.newPage();
   watchErrors(a2, errors);
@@ -981,7 +973,7 @@ test("signed in, your turn reaches every phone you're signed in on: tap it on th
   await c.goto(`./?${q}#room=${code}`);
   await c.locator('#online-accept').tap();
   await pickTank(c);
-  await playFromLobby(a, c); // C's turn now
+  await joined(a, c); // C's turn now
   await a.locator('#net-menu').tap();
   await a.locator('#menu-leave').tap();
   await expect(a.locator('#setup')).toBeVisible();
@@ -995,7 +987,7 @@ test("signed in, your turn reaches every phone you're signed in on: tap it on th
   await expect(c.locator('#net-away')).toBeVisible({ timeout: 10_000 });
   await c.locator('#fire').tap();
   await expect.poll(() => Object.values((db.tree().outbox as Record<string, { to?: string }> | undefined) ?? {}).some((e) => e.to === 'u:uid-dee'), { timeout: 30_000 }).toBe(true);
-  for (const p of [a, a2]) await expect(p.locator('#toast')).toHaveText('🎯 Your turn! Your move in Pooket Tabks. Tap to play.', { timeout: 30_000 });
+  for (const p of [a, a2]) await expect(p.locator('#toast')).toHaveText('🎮 Someone joined your game! They’ve had the first go in Pooket Tabks: your move. Tap to play.', { timeout: 30_000 });
   await a2.screenshot({ path: 'test-results/notified-other-phone.png' });
   // Tapping it on the other phone goes straight into the match (it came with the account).
   await a2.locator('#toast').tap();
@@ -1072,7 +1064,7 @@ test('📊 Stats: players, characters, weapons and you; Verified only shows the 
   await close();
 });
 
-test('ranks: insignia by verified players’ names in the lobby, the match and the menu; beating a higher rank ranks you up, with a celebration', async ({ browser }) => {
+test('ranks: insignia by verified players’ names in the match and the menu; beating a higher rank ranks you up, with a celebration', async ({ browser }) => {
   test.setTimeout(150_000);
   // Gina is Silver (the starting rank); Hal is Gold, a little above her.
   const gina = await playerKey('uid-gina');
@@ -1091,7 +1083,7 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await b.locator('#sign-in').tap();
   await expect(b.locator('#you-rank .insignia')).toHaveClass(/rank-gold/);
 
-  // Gina hosts, Hal joins: each sees both insignia in the lobby and by the names in the match.
+  // Gina hosts, Hal joins: each sees both insignia by the names in the match.
   await a.locator('#open-browser').tap();
   await a.locator('#online-host').tap();
   await pickTank(a);
@@ -1099,13 +1091,9 @@ test('ranks: insignia by verified players’ names in the lobby, the match and t
   await b.goto(`./?${q}&fakegoogle=hal&via=link#room=${code}`);
   await b.locator('#online-accept').tap();
   await pickTank(b);
-  await expect(a.locator('#online h2')).toHaveText('Connected!', { timeout: 20_000 });
-  for (const p of [a, b]) await expect(p.locator('#online .online-seat .insignia')).toHaveCount(2, { timeout: 10_000 });
-  await a.screenshot({ path: 'test-results/ranks-lobby.png' });
-  await a.locator('#online-start').tap();
   for (const p of [a, b]) {
-    await expect(p.locator('#online')).toBeHidden({ timeout: 15_000 });
-    await expect(p.locator('#players .chip .insignia')).toHaveCount(2);
+    await expect(p.locator('#online')).toBeHidden({ timeout: 20_000 });
+    await expect(p.locator('#players .chip .insignia')).toHaveCount(2, { timeout: 10_000 });
   }
   await a.screenshot({ path: 'test-results/ranks-hud.png' });
 

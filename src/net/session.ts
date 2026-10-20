@@ -1,30 +1,33 @@
 import { concede, finishDecoyPick, fire } from '../game/game';
-import type { Call, DrumSet, Flight, GameState, Guess, Hop, PlayerConfig, Quiz, Sneak } from '../game/state';
+import type { GameState, PlayerConfig } from '../game/state';
 import { Emitter } from '../core/emitter';
+import type { MatchChannel } from './channel';
 import { applyPreview, LIVE, previewOf, putState, ResultBuffer, type Preview } from './follow';
 import { netLog } from './log';
-import type { GameRecord, GameStore, ShotRecord } from './record';
-import { applySnapshot, decodeSolid, encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
+import { recordCompat, type GameRecord, type GameStore, type ShotRecord } from './record';
+import { encodeSolid, takeSnapshot, type Snapshot } from './snapshot';
 import { newReplayId } from './replay';
 import { otherSeat, seatOf } from './seat';
 import { RULES, WIRE } from './version';
-import type { Transport } from './transport';
+import { randomId } from './rooms';
 
 /**
  * A match's setup: the map's seed, the players ([host, guest]), the game rules it started on (version.ts),
- * and (a public match) the id its replay is recorded under (replay.ts).
+ * who went first (the guest: whoever joins has the first go), and (a public match) the id its replay is
+ * recorded under (replay.ts).
  */
 export interface MatchSetup {
   seed: number;
   players: PlayerConfig[];
   rules: number;
+  first: number;
   replay?: string;
 }
 
 /** Which phone is out of date: this one (it should reload) or the other one. */
 export type Outdated = 'us' | 'them';
 
-/** What each phone picked in the lobby. */
+/** Who's playing, as which character (the host's comes from its open offer). */
 export interface Pick {
   name: string;
   characterId: string;
@@ -37,217 +40,136 @@ export function brief(p: { name: string; characterId: string }): { name: string;
   return { name: p.name, characterId: p.characterId };
 }
 
-export type NetMsg =
-  /** `v` is the wire version and `rules` the rules version (version.ts): they must match exactly. */
-  | { k: 'hello'; v: number; rules: number; pick: Pick }
-  | { k: 'start'; seed: number; players: PlayerConfig[]; rules: number; terrain: string; replay?: string }
-  | {
-      k: 'preview';
-      turn: number;
-      x: number;
-      y: number;
-      fuel: number;
-      angle: number;
-      power: number;
-      tier: number;
-      hop: Hop | null;
-      /** doctorfox's Arwing in the air. */
-      flight?: Flight | null;
-      /** torikloud: the twin's own aim and where it is (it drives too), which tank is being aimed, and where a twin being placed will go. */
-      twin?: { angle: number; power: number; x?: number; y?: number } | null;
-      aimTwin?: boolean;
-      twinSpot?: number | null;
-      /** Health, which can change while aiming (garyoldmancorp's scooter crashes, kiwicore's Band Aid). */
-      hp?: number;
-      /** kiwicore's Band Aid while he drums (the `drumming` phase is his phone's input, like aiming). */
-      drums?: DrumSet | null;
-      /** doctorfox's Sly while he sneaks off (the `sneaking` phase is his phone's input too). */
-      sneak?: Sneak | null;
-      /** garyoldmancorp's 007 while he answers (the `quizzing` phase is his phone's input too). */
-      quiz?: Quiz | null;
-      /** doctorfox's Who's That Pokémon? while he picks (the `guessing` phase is his phone's input too). */
-      guess?: Guess | null;
-      /** ShotDownBoyz's Stratagem while he keys a combo (the `calling` phase is his phone's input too). */
-      call?: Call | null;
-    }
-  | { k: 'fire'; turn: number; snap: Snapshot }
-  | { k: 'sync'; turn: number; snap: Snapshot; terrain: string }
-  /** A phone that dropped out is back (on a new connection) and needs catching up. */
-  | { k: 'rejoin'; v: number; rules: number }
-  /** The catch-up: both picks ([host, guest]), and the match as it stands (null: still in the lobby). */
-  | { k: 'resume'; picks: [Pick | null, Pick | null]; setup: MatchSetup | null; snap: Snapshot | null; terrain: string | null }
-  /** Leaving before the match has started: that's the end of it. */
-  | { k: 'bye' }
-  /** Leaving a match for now (it carries on turn by turn: it's in the game record). */
-  | { k: 'away' }
-  | { k: 'resign' };
-
 /**
  * What spectators get: the latest full state (why: a match started, a shot was fired from it, or it's a
- * turn's result), complete with the match setup and terrain so they can join at any point; and the live aim.
+ * turn's result), complete with the match setup and terrain so they can join at any point; and the live
+ * aim (which the other player's phone follows too).
  */
 export type ViewMsg =
   | { k: 'state'; why: 'start' | 'fire' | 'sync'; seed: number; players: PlayerConfig[]; snap: Snapshot; terrain: string }
   | Preview;
 
-type SyncMsg = Extract<NetMsg, { k: 'sync' }>;
+/** How a move played out: the state after it (a turn's result). */
+interface Result {
+  snap: Snapshot;
+  terrain: string;
+}
 
-/**
- * The match's shots (ResultBuffer: the one playing out and the other phone's result for it), plus what the
- * record keeps of them: the last shot that played out, and the one in flight.
- */
-class MatchShots extends ResultBuffer<SyncMsg> {
-  private lastShot: ShotRecord | null = null;
-  private flyingShot: ShotRecord | null = null;
-
-  get last(): ShotRecord | null {
-    return this.lastShot;
-  }
-  get flying(): ShotRecord | null {
-    return this.flyingShot;
-  }
-
-  /** A shot was fired: in flight (with its record, if it has one: a replayed last shot hasn't). */
-  override fired(shot: { turn: number; owner: number }, flying?: ShotRecord): void {
-    super.fired(shot);
-    if (flying) this.flyingShot = flying;
-  }
-
-  /** The other phone's result was applied: the shot in flight (if any) is the last one now. */
-  override applied(): void {
-    super.applied();
-    this.lastShot = this.flyingShot ?? this.lastShot;
-    this.flyingShot = null;
-  }
-
-  /** Our result of the shot is the one: it's the last one now. */
-  override settledHere(): void {
-    super.settledHere();
-    this.lastShot = this.flyingShot;
-    this.flyingShot = null;
-  }
-
-  /** The match ended between shots (resigned, out of time): no shot, no result, nothing in flight. */
-  over(): void {
-    this.cleared();
-    this.flyingShot = null;
-  }
-
-  /** A new game: no shots at all yet. */
-  override reset(): void {
-    super.reset();
-    this.lastShot = null;
-    this.flyingShot = null;
-  }
-
-  /** Picked up from the record: the last shot that played out there. */
-  carryOn(last: ShotRecord | null): void {
-    this.lastShot = last;
-  }
+/** A move playing out here: its turn, whose, and its number. */
+interface Playing {
+  turn: number;
+  owner: number;
+  seq: number;
 }
 
 /** How often the player whose turn it is streams their aim and position to the other phone. */
 const PREVIEW_INTERVAL = 1 / 15;
-/** Replaying their last shot from the record (the result's already known): let it play out, within reason. */
+/** Replaying a move whose result is already known: let it play out, within reason. */
 const REPLAY_GRACE = 60;
-/** Rejoining: how long to wait for the other phone to catch us up before going by the record instead. */
-export const RESUME_WAIT = 2.5;
-
+/** A move replayed before another (missed while away) is moved on from after this long, played out or not. */
+const MOVE_MAX = 30;
+/** A move being replayed: its aim, shown for this long before it's fired. */
+const SHOW_AIM = 1;
 /**
- * Where a session is:
- * - lobby: connected, picks going back and forth (setPick, 'hello');
- * - rejoining: back on a new connection, waiting to be caught up by the other phone, or after RESUME_WAIT
- *   by the match's record (`fallback`), into the match or the lobby;
- * - match: a game under way (or over);
- * - ended: this phone left (for good, or for now: 'away'), the versions don't match, or the other phone
- *   left or the room went ('lost'). Nothing more is sent or taken in; the game, if any, stays to look at.
+ * The other player's shot has played out here but its result hasn't come: if they're not here (their phone
+ * went away mid-shot), record it as it played out here; if they are, give them this long first.
  */
-type SessionPhase =
-  | { k: 'lobby' }
-  | { k: 'rejoining'; fallback: { rec: GameRecord; replay: boolean; waited: number } | null }
-  | { k: 'match'; game: GameState }
-  | { k: 'ended'; why: 'left' | 'away' | 'outdated' | 'lost'; game: GameState | null };
+const ORPHAN_WAIT = 15;
 
 /** What a session tells the screens (NetSession.on). */
 export interface SessionEvents extends Record<string, unknown[]> {
-  /** Picks changed (ours or theirs): the lobby shows them. */
-  lobby: [];
-  /** The match is over for good: the other phone left before it started, or the room has gone. */
+  /** The match is over for this phone: the room has gone. */
   lost: [];
-  /** The other phone runs another version of the game: one of them has to reload first. */
+  /** A newer version of the game wrote the match's record: this phone has to reload first. */
   outdated: [who: Outdated];
-  /** The other phone went quiet (true) or came back (false). The match waits for it; it may rejoin. */
+  /** The other player has gone (true: not got the match open) or is here (false). */
   peerAway: [away: boolean];
-  /** Rejoined and caught up: back in the match (true), or in the lobby (false). */
-  resumed: [inMatch: boolean];
-  /** Spectators' feed: whatever this phone is in charge of sending (see ViewMsg). */
-  view: [v: ViewMsg];
-  /** A shot is fired (by either phone, or played out from the record): the state just before it. */
+  /** A move is fired (by either phone, or played out from the record): the state just before it. */
   shot: [shot: ShotRecord];
 }
 
 /**
- * One networked match between two phones. Host is seat 0, guest is seat 1 (who goes first is up to the game).
+ * One online match on this phone: a seat in a room, played turn by turn through the match's record
+ * (record.ts), which both phones follow (`MatchChannel`, channel.ts). There's no lobby and no handshake:
+ * the guest starts the match as it joins (`start`), and either phone opens it whenever (`open`).
  *
- * Both phones run the same deterministic simulation. The phone whose turn it is is in charge of it:
- * it streams aim/driving previews, and when it fires it sends a snapshot of the state just before the
- * shot, so both phones fire from exactly the same position. When the shot has played out it sends the
- * resulting state (and terrain) and the other phone snaps to it, so any drift (different phones can
- * round maths slightly differently) never lasts beyond a turn.
+ * Both phones run the same deterministic simulation. The phone whose turn it is is in charge of it: it
+ * streams its aim (the live aim, `view`), and when it fires it writes the record with the exact state just
+ * before the move, so every phone plays it out from the same place; when it has played out it writes the
+ * result, and every other phone snaps to it, so any drift (different phones can round maths slightly
+ * differently) never lasts beyond a move. A phone that opens the match plays out the other player's moves
+ * it hasn't seen (`seen`) before it snaps to how things stand.
  *
- * Every match also has a lasting record (`store`, see record.ts) so it can carry on turn by turn: when
- * the other phone isn't there, a phone that opens the game catches up from it (`catchUp`), and if the
- * other phone vanished mid-shot, the shot is played out here and its result recorded.
+ * If the shooter's phone goes away mid-shot, the shot (in the record as fired) is played out by whichever
+ * phone has the match open next, and its result recorded from there; the record's numbering (`n`) makes
+ * sure only one result ever counts.
  */
 export class NetSession {
   readonly localSeat: 0 | 1;
   localPick: Pick | null = null;
   remotePick: Pick | null = null;
 
-  /** Build a fresh game for these players (both phones call createGame with the same seed). */
-  onStart: (seed: number, players: PlayerConfig[]) => GameState = () => {
+  /** Build a fresh game for these players (every phone calls createGame with the same seed and first player). */
+  onStart: (seed: number, players: PlayerConfig[], first: number) => GameState = () => {
     throw new Error('onStart not set');
   };
-  /** Whether the other phone has gone quiet. */
-  peerAway = false;
-  /** Where the match's lasting record goes (null: nowhere, e.g. in tests over a loopback). */
+  /** Whether the other player hasn't got the match open (until we hear otherwise, they haven't). */
+  peerAway = true;
+  /** Where else this phone's records go (a public match's replay). */
   store: GameStore | null = null;
-  /** Matches this phone starts are public (on the Games list): record their replays. */
+  /** A match this phone starts is public (on the Games list): record its replay. */
   publicReplay = false;
 
   private readonly events = new Emitter<SessionEvents>();
-  private phase: SessionPhase = { k: 'lobby' };
-  private setup: MatchSetup = { seed: 0, players: [], rules: RULES };
-
-  /** The match's setup (seed, players, the rules it started on). */
-  get matchSetup(): MatchSetup {
-    return this.setup;
-  }
-  /** The turn a shot was fired in (and whose it was) until its result is synced; the record's shots. */
-  private readonly shots = new MatchShots();
+  private phase: SessionPhase = { k: 'idle' };
+  private setup: MatchSetup = { seed: 0, players: [], rules: RULES, first: 0 };
+  /** This session's id: its records say it wrote them (so it knows its own when they come back). */
+  private readonly id = randomId();
+  /** The newest record's number (and whether this phone wrote it), and how many moves the match has had. */
+  private n = 0;
+  private wroteN = false;
+  private fired = 0;
+  /** The moves since the other player last moved (the record's `moves`). */
+  private moves: ShotRecord[] = [];
+  /** The move in flight whose result is this phone's to record: its own (or theirs, if they've gone). */
+  private flying: ShotRecord | null = null;
+  /** The other player's move playing out here (its record, for recording its result if they've gone). */
+  private flyingIn: ShotRecord | null = null;
+  /** The newest move played out here (or on its way to be), and the newest seen played out to the end. */
+  private played = 0;
+  private seenSeq = 0;
+  /** The move playing out here, and the result for it once it's in (or known already). */
+  private readonly shots = new ResultBuffer<Result, Playing>();
+  /**
+   * Moves still to play out here after the one playing (missed while away), and how things stood after
+   * the last of them (null: its result is still to come). A move being replayed shows its aim for a moment
+   * first (`aiming`).
+   */
+  private queue: ShotRecord[] = [];
+  private after: Result | null = null;
+  private aiming: { move: ShotRecord; wait: number } | null = null;
+  /** How long the move playing out here (one of several to replay) has been going. */
+  private moveClock = 0;
+  /** How long the other player's move has been played out here with no result from them. */
+  private orphaned = 0;
+  /** Playing out moves this phone missed (it can skip them). */
+  private catchingUp = false;
   private previewTimer = 0;
   private lastPreview = '';
-  /** The other phone rejoined: catch it up once any shot in flight has played out. */
-  private resumeWanted = false;
 
   constructor(
-    private readonly transport: Transport,
+    private readonly channel: MatchChannel,
     role: 'host' | 'guest',
   ) {
     this.localSeat = seatOf(role);
-    transport.onMessage = (m) => this.receive(m as NetMsg);
-    transport.onClose = () => this.drop();
-    transport.onQuiet = (quiet) => this.setPeerAway(quiet);
-  }
-
-  /**
-   * Back after dropping out, on a new connection: ask the other phone to catch us up. If it isn't there
-   * (no answer within RESUME_WAIT) and the match has a record, carry on from that (see catchUp).
-   */
-  rejoin(fallback?: { rec: GameRecord; replay: boolean }): void {
-    netLog('session: rejoining');
-    this.phase = { k: 'rejoining', fallback: fallback ? { ...fallback, waited: 0 } : null };
-    this.transport.send({ k: 'rejoin', v: WIRE, rules: RULES } satisfies NetMsg);
+    channel.onRecord = (rec) => this.receive(rec);
+    channel.onAim = (p) => {
+      const s = this.state;
+      if (s && s.current !== this.localSeat && !this.busy) applyPreview(s, p);
+    };
+    channel.onPresence = (here) => this.setPeerAway(!here);
+    channel.onClose = () => this.drop();
+    channel.start();
   }
 
   /** Listen for one of the session's events (see SessionEvents); returns the function that stops listening. */
@@ -255,14 +177,7 @@ export class NetSession {
     return this.events.on(event, fn);
   }
 
-  get isRejoining(): boolean {
-    return this.phase.k === 'rejoining';
-  }
-
-  /**
-   * Over for this phone, for whatever reason: it left (for good, or for now), stood aside for the player's
-   * other phone, the versions don't match, or the other phone left or the room went.
-   */
+  /** Over for this phone: it left (for now), stood aside for the player's other phone, needs an update, or the room went. */
   get ended(): boolean {
     return this.phase.k === 'ended';
   }
@@ -272,7 +187,7 @@ export class NetSession {
   }
 
   get game(): GameState | null {
-    return this.phase.k === 'match' || this.phase.k === 'ended' ? this.phase.game : null;
+    return this.phase.k === 'idle' ? null : this.phase.game;
   }
 
   /** The game, while the match is on (not once this phone has left it). */
@@ -280,43 +195,80 @@ export class NetSession {
     return this.phase.k === 'match' ? this.phase.game : null;
   }
 
-  /** Both picks are in: the host can start. */
-  get ready(): boolean {
-    return !!this.localPick && !!this.remotePick;
+  /** The match's setup (seed, players, the rules it started on, who went first). */
+  get matchSetup(): MatchSetup {
+    return this.setup;
   }
 
-  setPick(pick: Pick): void {
-    this.localPick = pick;
-    this.transport.send({ k: 'hello', v: WIRE, rules: RULES, pick } satisfies NetMsg);
-    this.events.emit('lobby');
+  /** The newest move this phone has seen played out (kept with its seat: what it missed is replayed when it's back). */
+  get seen(): number {
+    return this.seenSeq;
+  }
+
+  /** Playing out the other player's moves this phone missed (`skip` jumps to how things stand). */
+  get replaying(): boolean {
+    return this.catchingUp && !this.ended;
   }
 
   /**
-   * Start (or restart) the match. Players are [host, guest]; colours are resolved by the caller. Usually
-   * the host's to do; the guest starts it when it joins an open game whose host isn't there.
+   * Start the match: the guest does, as it joins (players are [host, guest], their colours worked out by
+   * the caller). The guest has the first go: whoever joins has something to do straight away.
    */
   start(seed: number, players: PlayerConfig[]): GameState {
     netLog(`session: starting a match (${players.map((p) => p.characterId).join(' vs ')})`);
     const replay = this.publicReplay ? newReplayId() : undefined;
-    const state = this.begin({ seed, players, rules: RULES, replay });
-    const terrain = encodeSolid(state.terrain);
-    this.transport.send({ k: 'start', seed, players, rules: RULES, terrain, replay } satisfies NetMsg);
-    this.publish('start', takeSnapshot(state), terrain);
-    return state;
+    const s = this.begin({ seed, players, rules: RULES, first: this.localSeat, ...(replay ? { replay } : {}) });
+    this.save('start');
+    return s;
   }
 
-  /** Whether this phone may act now: its own turn, and the last shot's result has arrived. */
+  /**
+   * Open the match from its record (`seen`: the newest move this phone saw played out, last time it had it
+   * open). The other player's moves since then are played out again, then it carries on from how things
+   * stand; a move left in flight (its phone went away mid-shot) is played out here, and its result recorded.
+   */
+  open(rec: GameRecord, seen = 0): GameState | null {
+    if (this.outdated(rec)) return null;
+    netLog(`session: opening the match (turn ${rec.snap.turn}, ${rec.fired} moves${rec.flying ? `, move ${rec.flying.seq} in flight` : ''}; seen ${seen})`);
+    const s = this.begin(rec.setup);
+    this.n = rec.n;
+    this.fired = rec.fired;
+    this.moves = rec.moves;
+    this.played = this.seenSeq = seen;
+    const missed = rec.moves.filter((m) => m.seq > seen && m.owner !== this.localSeat);
+    // (A move left in flight always plays out: whoever fired it, and whether or not it was seen to begin.)
+    const fly = rec.flying;
+    if (fly?.owner === this.localSeat) this.flying = fly; // ours: its result is ours to record
+    if (!missed.length && !fly) {
+      putState(s, rec.snap, rec.terrain);
+      this.played = this.seenSeq = rec.fired;
+      return s;
+    }
+    this.catchingUp = missed.length > 0;
+    this.play([...missed, ...(fly ? [fly] : [])], fly ? null : rec);
+    this.played = Math.max(this.played, rec.fired);
+    return s;
+  }
+
+  /** Whether this phone may act now: its own turn, and nothing of the other player's still to play out here. */
   canAct(): boolean {
     const s = this.state;
-    return !!s && s.current === this.localSeat && !this.awaitingSync;
+    return !!s && s.current === this.localSeat && !this.busy && !this.awaitingSync;
   }
 
+  /** The other player's move has played out here, and its result hasn't come yet. */
   get awaitingSync(): boolean {
     const { shot } = this.shots;
     return shot !== null && shot.owner !== this.localSeat && this.shots.resolved(this.game);
   }
 
-  /** Fire for the local player: tell the other phone (with the exact pre-shot state), then fire here. */
+  /** Playing out the other player's moves here (one is under way, or more are to come). */
+  private get busy(): boolean {
+    const { shot } = this.shots;
+    return this.queue.length > 0 || this.aiming !== null || (shot !== null && shot.owner !== this.localSeat && !this.shots.resolved(this.game));
+  }
+
+  /** Fire for the local player: into the record (with the exact state just before it), and here. */
   fire(): boolean {
     const s = this.state;
     if (!s || !this.canAct()) return false;
@@ -324,98 +276,41 @@ export class NetSession {
     const snap = this.sharedSnapshot(s);
     const terrain = encodeSolid(s.terrain);
     if (!fire(s)) return false;
-    // In the record at once (publish): closing the app mid-shot doesn't undo it.
-    const flying: ShotRecord = { turn: snap.turn, owner: this.localSeat, snap, terrain };
-    this.shots.fired({ turn: snap.turn, owner: this.localSeat }, flying);
-    netLog(`session: fired on turn ${snap.turn}`);
-    this.transport.send({ k: 'fire', turn: snap.turn, snap } satisfies NetMsg);
-    this.publish('fire', snap, terrain);
-    this.events.emit('shot', flying);
+    const seq = ++this.fired;
+    this.played = this.seenSeq = seq;
+    this.shots.reset(); // (anything of theirs is done with: it's our move now)
+    this.flyingIn = null;
+    // In the record at once: closing the app mid-shot doesn't undo it.
+    this.flying = { turn: snap.turn, owner: this.localSeat, seq, snap, terrain };
+    this.shots.fired({ turn: snap.turn, owner: this.localSeat, seq });
+    netLog(`session: fired move ${seq} on turn ${snap.turn}`);
+    this.save('fire');
+    this.events.emit('shot', this.flying);
     return true;
+  }
+
+  /** Jump past the other player's moves being replayed: to how things stand (or to their move in flight). */
+  skip(): void {
+    const s = this.state;
+    if (!s || !this.catchingUp) return;
+    netLog('session: skipping the replay');
+    this.catchingUp = false;
+    const known = this.after ?? (this.queue.length || this.aiming ? null : this.shots.pending);
+    const last = this.queue.at(-1) ?? this.aiming?.move ?? null;
+    this.queue = [];
+    this.aiming = null;
+    this.after = null;
+    if (known) this.applyResult(known);
+    else if (last) this.launch(s, last); // their move in flight: from just before it, at once
   }
 
   /** Call once per frame after stepping the simulation. */
   tick(dt: number): void {
-    const { phase } = this;
-    if (phase.k === 'rejoining' && phase.fallback && (phase.fallback.waited += dt) >= RESUME_WAIT) this.catchUp(phase.fallback.rec, phase.fallback.replay);
     const s = this.state;
-    if (s) {
-      this.streamAim(s, dt);
-      this.settleShot(s, dt);
-    }
-    // After the shot's settled: a phone that rejoined is caught up with the turn's result, not before it.
-    this.sendResume();
-  }
-
-  /** Stream the aim while it's our turn to aim. */
-  private streamAim(s: GameState, dt: number): void {
-    if (this.canAct() && LIVE.has(s.phase)) {
-      this.previewTimer -= dt;
-      if (this.previewTimer <= 0) {
-        this.previewTimer = PREVIEW_INTERVAL;
-        const msg = previewOf(s);
-        const key = JSON.stringify(msg);
-        if (key !== this.lastPreview) {
-          this.lastPreview = key;
-          this.transport.send(msg satisfies NetMsg);
-          this.events.emit('view', msg);
-        }
-      }
-    }
-  }
-
-  /** A shot that has played out: send (or record) our result, or take theirs. */
-  private settleShot(s: GameState, dt: number): void {
-    const { shot } = this.shots;
-    if (!shot || !this.shots.resolved(this.game)) {
-      // Still playing out. A result that's already arrived gets a grace period, then wins anyway.
-      const due = this.shots.due(dt);
-      if (due) this.applySync(due);
-      return;
-    }
-    // Our shot has played out (or theirs has, and they've gone before sending its result): this
-    // result is the one that counts.
-    const pending = this.shots.pending;
-    if (shot.owner === this.localSeat || (!pending && this.peerAway)) this.ownResult(s, shot);
-    else if (pending) this.applySync(pending);
-  }
-
-  /** The shot's result as it played out here is the one that counts: send it (our shot), show it and record it. */
-  private ownResult(s: GameState, shot: { turn: number; owner: number }): void {
-    netLog(`session: ${shot.owner === this.localSeat ? 'sending' : 'recording'} the result of turn ${shot.turn}`);
-    const snap = takeSnapshot(s);
-    const terrain = encodeSolid(s.terrain);
-    if (shot.owner === this.localSeat) this.transport.send({ k: 'sync', turn: s.turn, snap, terrain } satisfies NetMsg);
-    this.shots.settledHere();
-    this.publish('sync', snap, terrain);
-  }
-
-  /**
-   * Opened the match with nobody else there: carry on from its record. A shot left in flight is played out
-   * here; otherwise, with `replay`, their last shot is shown again before snapping to how things stand.
-   */
-  catchUp(rec: GameRecord, replay: boolean): void {
-    netLog(`session: catching up from the record (turn ${rec.snap.turn}${rec.flying ? ', a shot in flight' : replay && rec.last ? ', replaying their shot' : ''})`);
-    const pickOf = (i: number): Pick | null => {
-      const p = rec.setup.players[i];
-      return p ? brief(p) : null;
-    };
-    this.localPick = pickOf(this.localSeat) ?? this.localPick;
-    this.remotePick = pickOf(otherSeat(this.localSeat)) ?? this.remotePick;
-    const s = this.begin(rec.setup);
-    this.shots.carryOn(rec.last);
-    const from = rec.flying ?? (replay ? rec.last : null);
-    if (from) {
-      putState(s, from.snap, from.terrain);
-      this.events.emit('shot', from);
-      fire(s);
-      this.shots.fired({ turn: from.turn, owner: from.owner }, rec.flying ?? undefined);
-      if (!rec.flying) this.shots.known({ k: 'sync', turn: rec.snap.turn, snap: rec.snap, terrain: rec.terrain }, REPLAY_GRACE);
-    } else {
-      putState(s, rec.snap, rec.terrain);
-    }
-    this.setPeerAway(true);
-    this.events.emit('resumed', true);
+    if (!s) return;
+    this.streamAim(s, dt);
+    this.playOn(s, dt);
+    this.settle(s, dt);
   }
 
   /** Give up the match: the other player wins. */
@@ -424,8 +319,7 @@ export class NetSession {
     if (!s || s.phase === 'gameover') return;
     netLog('session: resigning');
     concede(s, this.localSeat, 'resigned');
-    this.transport.send({ k: 'resign' } satisfies NetMsg);
-    this.settled();
+    this.overNow();
   }
 
   /** Nobody's moved for three days: whoever's turn it is loses. */
@@ -434,16 +328,15 @@ export class NetSession {
     if (!s || s.phase === 'gameover') return;
     netLog(`session: ${s.players[s.current]?.name ?? 'someone'} ran out of time`);
     concede(s, s.current, 'timeout');
-    this.settled();
+    this.overNow();
   }
 
-  /** Leave the match for now (it carries on turn by turn): tell the other phone, keep the room. */
+  /** Leave the match for now (it carries on turn by turn): stop following it, the room as it is. */
   away(): void {
     if (this.ended) return;
     netLog('session: leaving the match for now');
-    this.transport.send({ k: 'away' } satisfies NetMsg);
     this.end('away');
-    this.letGo();
+    this.channel.close(true);
   }
 
   /**
@@ -454,22 +347,237 @@ export class NetSession {
     if (this.ended) return;
     netLog('session: standing aside for this player’s other phone');
     this.end('away');
-    this.letGo();
+    this.channel.close(false);
   }
 
-  /** The match ended between shots (resigned, out of time): record how it stands. */
-  private settled(): void {
+  /** Stream the aim while it's our turn to aim. */
+  private streamAim(s: GameState, dt: number): void {
+    if (!this.canAct() || !LIVE.has(s.phase)) return;
+    this.previewTimer -= dt;
+    if (this.previewTimer > 0) return;
+    this.previewTimer = PREVIEW_INTERVAL;
+    const msg = previewOf(s);
+    const key = JSON.stringify(msg);
+    if (key === this.lastPreview) return;
+    this.lastPreview = key;
+    this.channel.view(msg);
+  }
+
+  /**
+   * The other player's moves to play out here, in order; `then`: how things stood after the last (null:
+   * its result is still to come). Catching up, they're played one after another; otherwise (they're here,
+   * playing) a newer move overtakes whatever of theirs is still playing out: it was fired from after it.
+   */
+  private play(moves: ShotRecord[], then: Result | null): void {
     const s = this.state!;
-    const snap = takeSnapshot(s);
-    const terrain = encodeSolid(s.terrain);
-    this.shots.over();
-    this.publish('sync', snap, terrain);
+    this.played = Math.max(this.played, ...moves.map((m) => m.seq));
+    const last = moves.at(-1);
+    if (last && last.owner !== this.localSeat && !then) this.flyingIn = last;
+    if (this.catchingUp && (this.busy || this.queue.length)) {
+      this.queue.push(...moves);
+      this.after = then;
+      return;
+    }
+    this.queue = moves.slice(1);
+    this.after = then;
+    const first = moves[0];
+    if (!first) return;
+    if (this.catchingUp) this.aiming = { move: first, wait: SHOW_AIM };
+    else this.launch(s, first);
+    if (this.catchingUp) this.showAim(s, first);
   }
 
-  /** A state the match has reached (and the terrain then): out to spectators and into the record. */
-  private publish(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
-    this.view(why, snap, terrain);
-    this.record(snap, terrain);
+  /** Put everything as it was just before a move (showing its aim, a replay's first moment). */
+  private showAim(s: GameState, move: ShotRecord): void {
+    this.shots.reset();
+    putState(s, move.snap, move.terrain);
+  }
+
+  /** Fire a move here, from just before it. */
+  private launch(s: GameState, move: ShotRecord): void {
+    netLog(`session: playing out move ${move.seq} (turn ${move.turn})`);
+    this.aiming = null;
+    this.shots.reset();
+    putState(s, move.snap, move.terrain);
+    this.events.emit('shot', move);
+    fire(s);
+    finishDecoyPick(s); // which decoy they swapped into (if any) shows from the result
+    this.shots.fired({ turn: move.turn, owner: move.owner, seq: move.seq });
+    this.moveClock = 0;
+    this.orphaned = 0;
+    if (!this.queue.length && this.after) {
+      this.shots.known(this.after, REPLAY_GRACE);
+      this.after = null;
+    }
+  }
+
+  /** Moves being replayed: show each one's aim for a moment, fire it, and on to the next once it has played out. */
+  private playOn(s: GameState, dt: number): void {
+    if (this.aiming) {
+      if ((this.aiming.wait -= dt) <= 0) this.launch(s, this.aiming.move);
+      return;
+    }
+    if (!this.queue.length || !this.shots.shot) return;
+    this.moveClock += dt;
+    const done = (this.moveClock > 0.5 && (s.phase === 'aiming' || s.phase === 'gameover')) || this.moveClock > MOVE_MAX;
+    if (!done) return;
+    const next = this.queue.shift()!;
+    if (this.catchingUp) {
+      this.aiming = { move: next, wait: SHOW_AIM };
+      this.showAim(s, next);
+    } else this.launch(s, next);
+  }
+
+  /** The move playing out here: once it has, its result (theirs), or ours (our move, or theirs with them gone). */
+  private settle(s: GameState, dt: number): void {
+    const shot = this.shots.shot;
+    if (!shot || this.queue.length || this.aiming) return;
+    const pending = this.shots.pending;
+    // A bonus move (or free action) settles back into the same turn: done once it's back to aiming.
+    const backToAiming = s.phase === 'aiming' && s.turn === shot.turn;
+    if (shot.owner !== this.localSeat) {
+      if (pending && (this.shots.resolved(s) || (backToAiming && turnOf(pending) === shot.turn))) return this.applyResult(pending);
+      if (!this.shots.resolved(s)) {
+        // Still playing out. A result that's already arrived gets a grace period, then wins anyway.
+        const due = this.shots.due(dt);
+        if (due) this.applyResult(due);
+        return;
+      }
+      // Played out here with no result from them: they've gone (or are taking far too long).
+      this.orphaned += dt;
+      if (this.peerAway || this.orphaned > ORPHAN_WAIT) this.ownResult(s, this.flyingIn);
+      return;
+    }
+    if (this.shots.resolved(s)) this.ownResult(s, this.flying);
+    else if (backToAiming && this.flying) this.ownBonus(s);
+  }
+
+  /** A move's result as it played out here is the one that counts: into the record (and out to spectators). */
+  private ownResult(s: GameState, move: ShotRecord | null): void {
+    netLog(`session: recording ${move?.owner === this.localSeat ? 'our' : 'their'} move's result (now turn ${s.turn})`);
+    if (move) this.moves = [...(this.moves.at(-1)?.owner === move.owner ? this.moves.filter((m) => m.seq < move.seq) : []), move];
+    this.flying = this.flyingIn = null;
+    this.shots.settledHere();
+    this.seenSeq = Math.max(this.seenSeq, this.played);
+    this.catchingUp = false;
+    this.save('sync');
+  }
+
+  /** Our bonus move (or free action) has played out, and it's still our turn: how things stand now goes in the record. */
+  private ownBonus(s: GameState): void {
+    netLog(`session: our bonus move has played out (turn ${s.turn})`);
+    this.flying = null;
+    this.shots.settledHere();
+    this.save('sync');
+  }
+
+  /** Snap to the other player's result. */
+  private applyResult(r: Result): void {
+    const s = this.state!;
+    netLog(`session: applying their result (now turn ${turnOf(r)})`);
+    putState(s, r.snap, r.terrain);
+    this.shots.applied();
+    this.flyingIn = null;
+    this.seenSeq = Math.max(this.seenSeq, this.played);
+    this.catchingUp = false;
+  }
+
+  /** The match ended between moves (resigned, out of time): no move in flight, and into the record. */
+  private overNow(): void {
+    this.queue = [];
+    this.after = null;
+    this.aiming = null;
+    this.flying = this.flyingIn = null;
+    this.shots.reset();
+    this.catchingUp = false;
+    this.save('sync');
+  }
+
+  /** A record written by someone (this phone's own come back too, and are passed over). */
+  private receive(rec: GameRecord): void {
+    if (this.phase.k !== 'match' || rec.by === this.id) return;
+    // Older than ours, or the one we have; but the same number as one we wrote is the other phone's
+    // write winning the race to it: theirs stands.
+    if (rec.n < this.n || (rec.n === this.n && !this.wroteN)) return;
+    if (this.outdated(rec)) return;
+    const s = this.state!;
+    this.n = rec.n;
+    this.wroteN = false;
+    this.fired = Math.max(this.fired, rec.fired);
+    this.moves = rec.moves;
+    netLog(`session: record #${rec.n} in (turn ${rec.snap.turn}${rec.flying ? `, move ${rec.flying.seq} in flight` : ''})`);
+    const result: Result = { snap: rec.snap, terrain: rec.terrain };
+    // Our move in flight, overtaken (they recorded it, thinking us gone): their record stands.
+    if (this.flying && rec.fired >= this.flying.seq && rec.flying?.seq !== this.flying.seq) this.flying = null;
+    const fresh = [...rec.moves, ...(rec.flying ? [rec.flying] : [])].filter((m) => m.seq > this.played && m.owner !== this.localSeat);
+    if (rec.snap.phase === 'gameover' && !fresh.length) {
+      // Over (resigned, or out of time): that's how it ended, whatever's playing out here.
+      return this.over(s, result, rec.fired);
+    }
+    if (fresh.length) return this.play(fresh, rec.flying && fresh.at(-1) === rec.flying ? null : result);
+    if (rec.flying) return; // (a move already playing out here: its result is still to come)
+    const shot = this.shots.shot;
+    if (this.queue.length || this.aiming) this.after = result;
+    else if (shot && shot.owner !== this.localSeat) {
+      this.shots.resultIn(result);
+      finishDecoyPick(s); // they've finished picking a decoy, if they were
+    } else {
+      // Nothing of theirs playing out here: how things stand (their bonus move settled, or they recorded
+      // our move's result first, thinking us gone).
+      this.flying = null;
+      this.shots.reset();
+      putState(s, rec.snap, rec.terrain);
+      this.seenSeq = Math.max(this.seenSeq, rec.fired);
+    }
+  }
+
+  /** Straight to how it ended. */
+  private over(s: GameState, r: Result, fired: number): void {
+    this.queue = [];
+    this.after = null;
+    this.aiming = null;
+    this.flying = this.flyingIn = null;
+    this.shots.reset();
+    this.catchingUp = false;
+    putState(s, r.snap, r.terrain);
+    this.played = this.seenSeq = Math.max(this.played, fired);
+  }
+
+  /** A record from a newer version of the game: this phone has to reload before it can carry on. */
+  private outdated(rec: GameRecord): boolean {
+    if (recordCompat(rec) !== 'newer') return false;
+    netLog(`session: the record was written by a newer version (wire ${rec.v}, rules ${rec.rules}; this one ${WIRE} / ${RULES})`);
+    this.end('outdated');
+    this.channel.close(true);
+    this.events.emit('outdated', 'us');
+    return true;
+  }
+
+  /**
+   * Into the record (as number `n + 1`), out to spectators, and to the replay (a public match). Between
+   * moves the record has the state as it stands; with a move just fired, the state it was fired from.
+   */
+  private save(why: 'start' | 'fire' | 'sync'): void {
+    const s = this.state;
+    if (!s) return;
+    const snap = why === 'fire' && this.flying ? this.flying.snap : takeSnapshot(s);
+    const terrain = why === 'fire' && this.flying ? this.flying.terrain : encodeSolid(s.terrain);
+    const rec: GameRecord = {
+      v: WIRE,
+      rules: RULES,
+      n: ++this.n,
+      by: this.id,
+      setup: this.setup,
+      snap,
+      terrain,
+      fired: this.fired,
+      moves: this.moves,
+      flying: this.flying,
+    };
+    this.wroteN = true;
+    this.channel.save(rec);
+    this.store?.save(rec);
+    this.channel.view({ k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
   }
 
   /** The state as the other phone may see it: the swap target is a secret (it learns it from the result). */
@@ -479,192 +587,42 @@ export class NetSession {
     return snap;
   }
 
-  /** Stop using the pipe, leaving the room as it is (if the transport can; otherwise just close it). */
-  private letGo(): void {
-    (this.transport.detach ?? this.transport.close).call(this.transport);
-  }
-
-  private record(snap: Snapshot, terrain: string): void {
-    if (!this.store || !this.state) return;
-    this.store.save({ v: WIRE, rules: RULES, setup: this.setup, snap, terrain, last: this.shots.last, flying: this.shots.flying });
-  }
-
-  /** Carrying on without them (the guest started the match with the host away). */
-  assumeAway(): void {
-    this.setPeerAway(true);
-  }
-
   private setPeerAway(away: boolean): void {
     if (this.peerAway === away) return;
     this.peerAway = away;
     this.events.emit('peerAway', away);
   }
 
-  /** Catch up a phone that rejoined, from a settled moment (not mid-shot). Our result of that turn stands. */
-  private sendResume(): void {
-    // (Still being caught up ourselves: answer once we are.)
-    if (!this.resumeWanted || this.phase.k === 'ended' || this.phase.k === 'rejoining') return;
-    const s = this.state;
-    if (s && s.phase !== 'aiming' && s.phase !== 'gameover') return;
-    this.resumeWanted = false;
-    const { shot, pending } = this.shots;
-    if (s && shot && this.shots.resolved(this.game)) {
-      // Their shot has played out here: their result if it's come, else ours (they dropped out before sending it).
-      if (pending) this.applySync(pending);
-      else this.ownResult(s, shot);
-    }
-    this.shots.cleared();
-    const picks: [Pick | null, Pick | null] = this.isHost ? [this.localPick, this.remotePick] : [this.remotePick, this.localPick];
-    const snap = s ? this.sharedSnapshot(s) : null; // (the swap target still a secret)
-    netLog(`session: catching the other phone up${s ? ` (turn ${s.turn})` : ' (lobby)'}`);
-    this.transport.send({
-      k: 'resume',
-      picks,
-      setup: s ? this.setup : null,
-      snap,
-      terrain: s ? encodeSolid(s.terrain) : null,
-    } satisfies NetMsg);
-  }
-
-  leave(): void {
-    if (this.ended) return;
-    this.transport.send({ k: 'bye' } satisfies NetMsg);
-    this.end('left');
-    this.transport.close();
-  }
-
-  private view(why: 'start' | 'fire' | 'sync', snap: Snapshot, terrain: string): void {
-    this.events.emit('view', { k: 'state', why, seed: this.setup.seed, players: this.setup.players, snap, terrain });
-  }
-
   private begin(setup: MatchSetup): GameState {
     this.setup = setup;
-    const game = this.onStart(setup.seed, setup.players);
+    const pick = (p: PlayerConfig | undefined): Pick | null => (p ? { ...brief(p), ...(p.key ? { key: p.key } : {}) } : null);
+    this.localPick = pick(setup.players[this.localSeat]) ?? this.localPick;
+    this.remotePick = pick(setup.players[otherSeat(this.localSeat)]) ?? this.remotePick;
+    const game = this.onStart(setup.seed, setup.players, setup.first);
     this.phase = { k: 'match', game };
     this.shots.reset();
+    this.queue = [];
+    this.after = null;
+    this.aiming = null;
     this.lastPreview = '';
     return game;
-  }
-
-  private applySync(msg: SyncMsg): void {
-    const s = this.state!;
-    netLog(`session: applying the other phone's result (now turn ${msg.snap.turn})`);
-    putState(s, msg.snap, msg.terrain);
-    this.shots.applied();
-  }
-
-  private receive(msg: NetMsg): void {
-    if (this.ended) return;
-    // Anything from them means they're here (after catching up from the record, we assumed not).
-    if (msg.k !== 'away') this.setPeerAway(false);
-    // Rejoining: anything from before we're caught up is stale.
-    if (this.phase.k === 'rejoining' && msg.k !== 'resume' && msg.k !== 'rejoin' && msg.k !== 'bye') return;
-    switch (msg.k) {
-      case 'hello':
-        netLog(`session: hello from the other phone (${msg.pick.characterId})`);
-        if (this.mismatched(msg)) return;
-        const firstHello = this.remotePick === null;
-        this.remotePick = msg.pick;
-        if (firstHello && this.localPick) {
-          this.transport.send({ k: 'hello', v: WIRE, rules: RULES, pick: this.localPick } satisfies NetMsg);
-        }
-        this.events.emit('lobby');
-        return;
-      case 'start': {
-        // Usually the host starts; the guest does if it joined while the host was away.
-        if (this.isHost && this.state) return;
-        const s = this.begin({ seed: msg.seed, players: msg.players, rules: msg.rules, replay: msg.replay });
-        // Same seed, same map, but make sure (maths can round differently between phones).
-        s.terrain.patchSolid(decodeSolid(msg.terrain, s.terrain.solid.length));
-        return;
-      }
-      case 'preview':
-        if (this.state && this.state.current !== this.localSeat) applyPreview(this.state, msg);
-        return;
-      case 'fire': {
-        const s = this.state;
-        if (!s) return;
-        netLog(`session: the other phone fired on turn ${msg.turn}`);
-        // Their shot supersedes anything still pending from before.
-        this.shots.dropResult();
-        applySnapshot(s, msg.snap);
-        const flying: ShotRecord = { turn: msg.turn, owner: s.current, snap: msg.snap, terrain: encodeSolid(s.terrain) };
-        this.events.emit('shot', flying);
-        fire(s);
-        this.shots.fired({ turn: msg.turn, owner: s.current }, flying);
-        return;
-      }
-      case 'sync':
-        if (!this.state) return;
-        this.shots.resultIn(msg);
-        finishDecoyPick(this.state); // they've finished picking a decoy, if they were
-        return;
-      case 'rejoin':
-        netLog('session: the other phone is back and rejoining');
-        if (this.mismatched(msg)) return;
-        this.transport.restart?.();
-        this.resumeWanted = true;
-        this.sendResume();
-        return;
-      case 'resume': {
-        if (this.phase.k !== 'rejoining') return;
-        this.localPick = msg.picks[this.localSeat] ?? this.localPick;
-        this.remotePick = msg.picks[otherSeat(this.localSeat)] ?? this.remotePick;
-        if (msg.setup && msg.snap && msg.terrain) {
-          netLog(`session: caught up (turn ${msg.snap.turn})`);
-          const s = this.begin(msg.setup);
-          putState(s, msg.snap, msg.terrain);
-          this.events.emit('resumed', true);
-        } else {
-          netLog('session: caught up (lobby)');
-          this.phase = { k: 'lobby' };
-          this.events.emit('resumed', false);
-        }
-        return;
-      }
-      case 'bye':
-        netLog('session: the other phone left');
-        this.drop();
-        return;
-      case 'away':
-        netLog('session: the other phone left the match for now');
-        this.setPeerAway(true);
-        return;
-      case 'resign': {
-        const s = this.state;
-        if (!s) return;
-        netLog('session: the other phone resigned');
-        concede(s, otherSeat(this.localSeat), 'resigned');
-        this.shots.cleared(); // (the shot in flight, if any, stays in the record: unlike settled)
-        return;
-      }
-    }
-  }
-
-  /**
-   * The other phone runs another version (wire or rules): no playing together. Whoever's older is told to
-   * reload (the site always serves the latest).
-   */
-  private mismatched(msg: { v: number; rules?: number }): boolean {
-    if (msg.v === WIRE && msg.rules === RULES) return false;
-    const who: Outdated = msg.v > WIRE || (msg.rules ?? 0) > RULES ? 'us' : 'them';
-    netLog(`session: other phone runs wire ${msg.v} rules ${msg.rules ?? '?'}, this one ${WIRE} / ${RULES}: ${who === 'us' ? 'this phone' : 'the other phone'} needs to reload`);
-    // Not the end of the match: leave the room as it is, to carry on once both are up to date.
-    this.end('outdated');
-    this.letGo();
-    this.events.emit('outdated', who);
-    return true;
   }
 
   private drop(): void {
     if (this.ended) return;
     this.end('lost');
-    this.transport.close();
+    this.channel.close(false);
     this.events.emit('lost');
   }
 
-  private end(why: Extract<SessionPhase, { k: 'ended' }>['why']): void {
+  private end(why: 'away' | 'outdated' | 'lost'): void {
     this.phase = { k: 'ended', why, game: this.game };
     netLog(`session: ended (${why})`);
   }
 }
+
+/** Where a session is: no match yet, the match (played or watched here), or done with it on this phone. */
+type SessionPhase = { k: 'idle' } | { k: 'match'; game: GameState } | { k: 'ended'; why: 'away' | 'outdated' | 'lost'; game: GameState | null };
+
+/** The turn a result leaves the match on. */
+const turnOf = (r: Result): number => (r.snap as { turn?: number }).turn ?? 0;

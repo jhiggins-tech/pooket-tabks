@@ -7,7 +7,7 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, answerGuess, answerQuiz, callClock, callReady, cancelCall, pressArrow, canPickDecoy, createGame, currentPlayer, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, guessClock, guessReady, pendingTwinSpot, pokedexDown, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
+import { adjustAim, aimTwin, answerGuess, answerQuiz, callClock, callReady, cancelCall, pressArrow, canPickDecoy, createGame, currentPlayer, type GameConfig, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, guessClock, guessReady, pendingTwinSpot, pokedexDown, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -18,6 +18,7 @@ import { SfxPlayer } from './audio/sfx';
 import { takePlayRef, takeRoomCode } from './net/links';
 import { netLog, netLogText } from './net/log';
 import { PUBLIC_LOBBY } from './net/lobby';
+import { quickPresence } from './net/channel';
 import { AUTO_REJOIN_MS, latestSeat, loadSeats } from './net/seat';
 import { FIREBASE_DATABASE_URL } from './net/config';
 import { sealerFor } from './net/seal';
@@ -123,8 +124,8 @@ const tape = new MatchTape();
  * A fresh match on the battlefield (local, online, watched, or just the backdrop behind the menus).
  * `played`: it's played on this phone (hotseat, or online), so it's recorded.
  */
-function startMatch(seed: number, chosen: PlayerConfig[], played = false): GameState {
-  state = createGame({ seed, players: chosen, first });
+function startMatch(seed: number, chosen: PlayerConfig[], played = false, firstHere: GameConfig['first'] = first): GameState {
+  state = createGame({ seed, players: chosen, first: firstHere });
   playing = chosen;
   hud.setRanks(chosen.map((p) => ratings.rank(p.key)));
   if (played) tape.start(seed, chosen);
@@ -170,15 +171,14 @@ function celebrateOnMenus(): void {
 /** Signed in: this player's stats key (their rank goes by it; set with sign-in, below). */
 let myStatsKey: string | null = null;
 // ---- Online: two phones, one each, through a Firebase room (`online.session`: null in a local, hotseat, game). ----
+if (params.hereMs) quickPresence(params.hereMs);
 const online = new OnlineScreen({
   // Online you're you: your name, and the character you last played online.
   // (Never one that's locked online, such as a beta or one not unlocked: characters/access.ts.)
   pick: () => ({ name: yourName(), characterId: openOnline(loadCharacter() ?? setup.players()[0]!.characterId, progress.access()), ...(myStatsKey ? { key: myStatsKey } : {}) }),
   dbUrl,
   lobby: params.lobby || PUBLIC_LOBBY,
-  relay: params.lostMs !== null ? { pingMs: 250, lostMs: params.lostMs } : undefined,
   syncSeats: () => account.seatSync?.sync() ?? Promise.resolve(),
-  rankOf: (key) => ratings.rank(key),
   // A rated match just ended here: show its rating movement over the game-over card, then its XP.
   ranked: (opponent, score, turns) => {
     const change = ratings.played(opponent, score);
@@ -189,16 +189,16 @@ const online = new OnlineScreen({
   unlocks: { access: () => progress.access(), tokens: () => progress.tokens(), unlock: (id) => xpScreen.unlockNow(id) },
 });
 /** An online match (or one being watched) starts: off the menus and into it. */
-function startOnline(seed: number, chosen: PlayerConfig[], played = false): GameState {
+function startOnline(seed: number, chosen: PlayerConfig[], played = false, firstHere?: number): GameState {
   online.hide();
   hideMenus();
-  return startMatch(seed, chosen, played);
+  return startMatch(seed, chosen, played, firstHere ?? first);
 }
 online.onConnected = (s) => {
   // Both phones build the same game from the same seed; the session keeps them in step.
-  s.onStart = (seed, chosen) => {
+  s.onStart = (seed, chosen, firstHere) => {
     void goFullscreen();
-    return startOnline(seed, chosen, true);
+    return startOnline(seed, chosen, true, firstHere);
   };
   s.on('shot', (shot) => tape.shot(shot));
 };
@@ -208,11 +208,8 @@ online.onSpectate = (sp) => {
 };
 const viewing = new ViewingBar({ leave: () => online.close(), replay: () => online.replay });
 byId('net-menu').addEventListener('click', () => online.matchMenu());
-// Start a match: the host, or a guest who joined an open game while its host was away. Players are [host, guest].
-online.onHostStart = (s) => {
-  const picks = s.isHost ? [s.localPick!, s.remotePick!] : [s.remotePick!, s.localPick!];
-  s.start(randomSeed(), matchPlayers(picks));
-};
+// Start a match (the guest does, as it joins an open game). Players are [host, guest].
+online.startMatch = (s, picks) => s.start(randomSeed(), matchPlayers(picks));
 online.onClosed = () => {
   // Back to the landing screen, with a fresh battlefield behind it.
   startMatch(randomSeed(), setup.players());
@@ -463,7 +460,7 @@ function runFrame(now: number): void {
   // Who's looking, for what's hidden (Sly): online, this phone's seat; a spectator, nobody's; else everyone's.
   renderer.viewer = online.spectator ? -1 : net && !net.ended ? net.localSeat : null;
   renderer.draw(state, dt);
-  hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.ended ? { localSeat: net.localSeat, syncing: net.awaitingSync } : null;
+  hud.online = online.spectator ? { localSeat: -1, syncing: false } : net && !net.ended ? { localSeat: net.localSeat, syncing: net.awaitingSync, live: !net.peerAway } : null;
   viewing.update({ spectating: !!online.spectator, replay, online: !!net && !net.ended });
   if (state.phase === 'gameover') tape.end(state);
   gameOver.update(replay ? 'replay' : online.spectator ? 'watching' : net ? 'online' : 'hotseat', !!tape.replay);

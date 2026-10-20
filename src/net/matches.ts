@@ -1,4 +1,5 @@
 import { characterName } from '../characters/roster';
+import { seatHere, type SeatEntry } from './channel';
 import { gameStatus, loadRoomRecord, opponentName, type GameStatus } from './record';
 import { endOfSnapshot, reportMatch } from './results';
 import { roomRef } from './rooms';
@@ -10,10 +11,12 @@ import { bySeat, forgetSeat, loadSeats, seatOf, type Seat } from './seat';
 /** One of this phone's matches, and how it stands. */
 export interface MatchSummary {
   seat: Seat;
-  status: GameStatus | 'lobby' | 'open';
+  status: GameStatus | 'open';
   opponent: string;
   /** Who's playing which character ("tones vs kie"), yours first. */
   detail: string;
+  /** The other player has the match open right now. */
+  live?: boolean;
 }
 
 /**
@@ -29,18 +32,21 @@ export async function matchesOf(db: Rtdb): Promise<MatchSummary[]> {
         const stored = rec && 'game' in rec ? rec.game : null;
         if (!stored) {
           const room = await roomRef(db, seat.code);
-          if (!(await db.get(`${room.path}/host`))) return (forgetSeat(seat.code), null);
-          return { seat, status: 'lobby', opponent: '…', detail: 'your match' };
+          if (!(await db.get(`${room.path}/host`))) forgetSeat(seat.code);
+          return null;
         }
         const seatNo = seatOf(seat.role);
         const status = gameStatus(stored, seatNo);
+        const room = await roomRef(db, seat.code);
+        const theirs = await db.get<SeatEntry>(`${room.path}/${seat.role === 'host' ? 'guest' : 'host'}`).catch(() => null);
         // Finished: file this phone's results for the stats (once), even if it's never opened again.
         if (status === 'won' || status === 'lost' || status === 'draw') {
-          void roomRef(db, seat.code).then((room) => reportMatch(db, room.sealer.topic, seatNo, stored.rec.setup, endOfSnapshot(stored.rec.snap)));
+          void reportMatch(db, room.sealer.topic, seatNo, stored.rec.setup, endOfSnapshot(stored.rec.snap));
         }
         const [me, them] = bySeat(stored.rec.setup.players, seatNo);
         const detail = me && them ? `${characterName(me.characterId)} vs ${characterName(them.characterId)} · your match` : 'your match';
-        return { seat, status, opponent: opponentName(stored, seatNo), detail };
+        const live = (status === 'your-turn' || status === 'their-turn') && seatHere(theirs);
+        return { seat, status, opponent: opponentName(stored, seatNo), detail, ...(live ? { live } : {}) };
       } catch {
         return null; // can't tell right now: leave it be
       }

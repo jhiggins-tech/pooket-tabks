@@ -8,9 +8,9 @@ import { seal, unseal, type Sealer } from './seal';
  * the shape and that `ts` isn't in the future).
  */
 
-/** Seal `value` and write it at `path`, stamped with the server's time. */
-export async function putSealed(db: Rtdb, path: string, sealer: Sealer, value: unknown): Promise<void> {
-  await db.put(path, { m: toB64(await seal(sealer, value)), ts: SERVER_TIME });
+/** Seal `value` and write it at `path`, stamped with the server's time (and `plain`: anything the rules need to see). */
+export async function putSealed(db: Rtdb, path: string, sealer: Sealer, value: unknown, plain: Record<string, number> = {}): Promise<void> {
+  await db.put(path, { m: toB64(await seal(sealer, value)), ts: SERVER_TIME, ...plain });
 }
 
 /** An entry as read from the database (or a stream): its value and when it was written, or null if it isn't one of ours. */

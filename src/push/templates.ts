@@ -31,7 +31,7 @@ export function render(type: unknown, ref: unknown): Rendered | null {
     case 'your-turn':
       return { title: '🎯 Your turn!', body: 'Your move in Pooket Tabks. Tap to play.', url };
     case 'joined':
-      return { title: '🎮 Someone joined your game', body: 'Your game in Pooket Tabks has started. Tap to play.', url };
+      return { title: '🎮 Someone joined your game!', body: 'They’ve had the first go in Pooket Tabks: your move. Tap to play.', url };
   }
 }
 

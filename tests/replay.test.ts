@@ -6,7 +6,7 @@ import { Rtdb } from '../src/net/rtdb';
 import { loadReplay, loadReplays, REPLAY_KEEP_MS, ReplayPlayer, ReplayRecorder } from '../src/net/replay';
 import { toB64 } from '../src/net/b64';
 import { seal, sealerFor } from '../src/net/seal';
-import { OLDEST_RULES, RULES, WIRE } from '../src/net/version';
+import { OLDEST_RULES, REPLAY_WIRE, RULES } from '../src/net/version';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 import { connectedPair, runPhones } from './support/net';
 import { settled, untilAsync } from './support/wait';
@@ -22,12 +22,12 @@ beforeAll(async () => {
 afterAll(() => server.close());
 
 const PLAYERS: PlayerConfig[] = [
-  { name: 'A', characterId: 'larinovsky', colour: '#f00' },
-  { name: 'B', characterId: 'kcaj', colour: '#00f' },
+  { name: 'A', characterId: 'kcaj', colour: '#f00' },
+  { name: 'B', characterId: 'larinovsky', colour: '#00f' },
 ];
-const onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players, first: 0 });
+const onStart = (seed: number, players: PlayerConfig[], first = 1) => createGame({ seed, players, first });
 
-/** Two phones over a loopback, each recording replays into the fake database (as on the Games list `lobby`). */
+/** Two phones in a room in memory, each recording replays into the fake database (as on the Games list `lobby`); the guest starts it. */
 function connected(lobby: string, publicReplay = true) {
   return connectedPair({
     seed: 4321,
@@ -35,7 +35,7 @@ function connected(lobby: string, publicReplay = true) {
     onStart,
     setup: (s, role) => {
       s.store = new ReplayRecorder(db, lobby);
-      if (role === 'host') s.publicReplay = publicReplay;
+      if (role === 'guest') s.publicReplay = publicReplay;
     },
   });
 }
@@ -45,25 +45,25 @@ describe('replays', () => {
     const lobby = `replays-${++lobbyN}`;
     const { a, b } = await connected(lobby);
     const [A, B] = [a.game!, b.game!];
-    // Turn 1: larinovsky's bonus move, then a shot. Turn 2: kcaj shoots. Then kcaj resigns.
-    selectTier(A, 3);
-    expect(a.fire()).toBe(true);
-    setAim(A, 60, 40);
-    expect(a.fire()).toBe(true);
-    await runPhones([a, b], settled(b, 2));
+    // Turn 1: larinovsky's bonus move, then a shot (the guest goes first). Turn 2: kcaj shoots. Then kcaj resigns.
+    selectTier(B, 3);
+    expect(b.fire()).toBe(true);
     setAim(B, 120, 40);
     expect(b.fire()).toBe(true);
-    await runPhones([a, b], settled(a, 3));
-    b.resign();
-    await runPhones([a, b], () => A.phase === 'gameover');
+    await runPhones([a, b], settled(a, 2));
+    setAim(A, 60, 40);
+    expect(a.fire()).toBe(true);
+    await runPhones([a, b], settled(b, 3));
+    a.resign();
+    await runPhones([a, b], () => B.phase === 'gameover');
 
     await untilAsync(async () => (await loadReplays(db, lobby)).length === 1);
     const [listing] = await loadReplays(db, lobby);
-    expect(listing).toMatchObject({ seed: 4321, players: PLAYERS, over: { winner: 0, endReason: 'resigned', turns: 3 } });
+    expect(listing).toMatchObject({ seed: 4321, players: PLAYERS, over: { winner: 1, endReason: 'resigned', turns: 3 } });
     let replay = await loadReplay(db, listing!);
     await untilAsync(async () => (replay = await loadReplay(db, listing!)).end !== null);
-    expect(replay.shots.map((s) => [s.turn, s.owner])).toEqual([[1, 0], [1, 0], [2, 1]]);
-    expect(replay.shots[0]!.snap.players).toMatchObject([{ ammo: [5, 3, 1, 1] }, {}]); // the bonus move first
+    expect(replay.shots.map((s) => [s.turn, s.owner])).toEqual([[1, 1], [1, 1], [2, 0]]);
+    expect(replay.shots[0]!.snap.players).toMatchObject([{}, { ammo: [5, 3, 1, 1] }]); // the bonus move first
 
     // Played back: every shot, then how it ended.
     const player = new ReplayPlayer(replay);
@@ -81,8 +81,8 @@ describe('replays', () => {
     expect(player.finished).toBe(true);
     expect(shots).toBe(2); // (the bonus move isn't a flying shot)
     expect(player.game!.phase).toBe('gameover');
-    expect(player.game!.winner?.name).toBe('A');
-    expect(player.game!.players.map((p) => p.hp)).toEqual(A.players.map((p) => p.hp));
+    expect(player.game!.winner?.name).toBe('B');
+    expect(player.game!.players.map((p) => p.hp)).toEqual(B.players.map((p) => p.hp));
 
     // Watch again: from the top.
     player.restart();
@@ -96,10 +96,10 @@ describe('replays', () => {
     const replays = () => Object.keys((server.tree().replays as object | undefined) ?? {}).length;
     const before = replays();
     const { a, b } = await connected(lobby, false);
-    setAim(a.game!, 60, 40);
-    a.fire();
-    await runPhones([a, b], settled(b, 2));
-    b.resign();
+    setAim(b.game!, 120, 40);
+    b.fire();
+    await runPhones([a, b], settled(a, 2));
+    a.resign();
     await new Promise((r) => setTimeout(r, 100));
     expect(replays()).toBe(before);
     expect(await db.get(`replayList/${(await sealerFor('replays', lobby)).topic}`)).toBeNull();
@@ -129,9 +129,9 @@ describe('replays', () => {
     const put = async (key: string, listing: Record<string, unknown>) =>
       db.put(`replayList/${sealer.topic}/${key}`, { m: toB64(await seal(sealer, listing)), ts: Date.now() });
     const over = { winner: 0, endReason: null, turns: 4 };
-    await put('ok', { id: 'ok', v: WIRE, rules: RULES, seed: 1, players: PLAYERS, over });
-    await put('old', { id: 'old', v: WIRE, rules: OLDEST_RULES - 1, seed: 1, players: PLAYERS, over });
-    await put('newer', { id: 'newer', v: WIRE + 1, rules: RULES, seed: 1, players: PLAYERS, over });
+    await put('ok', { id: 'ok', v: REPLAY_WIRE, rules: RULES, seed: 1, players: PLAYERS, over });
+    await put('old', { id: 'old', v: REPLAY_WIRE, rules: OLDEST_RULES - 1, seed: 1, players: PLAYERS, over });
+    await put('newer', { id: 'newer', v: REPLAY_WIRE + 1, rules: RULES, seed: 1, players: PLAYERS, over });
     await put('unversioned', { id: 'unversioned', seed: 1, players: PLAYERS, over });
     expect((await loadReplays(db, lobby)).map((r) => r.id)).toEqual(['ok']);
   });

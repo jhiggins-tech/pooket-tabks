@@ -42,7 +42,8 @@ export class ViewPublisher {
   }
 }
 
-const AIM_EVERY_MS = 250;
+/** (The other player's phone follows the aim too: often enough to look smooth, one write at a time.) */
+const AIM_EVERY_MS = 100;
 
 /** Watch a room's spectator feed. Resolves once watching (with the room, for checking in); `onEnd` when the room closes. */
 export async function watchRoom(db: Rtdb, code: string, onView: (v: ViewMsg) => void, onEnd: () => void): Promise<{ stop: () => void; room: RoomRef }> {

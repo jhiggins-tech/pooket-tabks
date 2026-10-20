@@ -7,7 +7,7 @@ import { type Rtdb } from './rtdb';
 import { type Sealer, sealerFor } from './seal';
 import { putState } from './follow';
 import { upgradeSnapshot, type Snapshot } from './snapshot';
-import { compat, WIRE } from './version';
+import { compat, REPLAY_WIRE } from './version';
 import { openSealed, putSealed } from './sealed';
 import { SerialQueue } from './writer';
 
@@ -47,10 +47,13 @@ export interface ReplayListing {
   ts: number;
 }
 
+/** A shot in a replay (as in the record; a hotseat match's own recording has no move numbers). */
+export type ReplayShot = Omit<ShotRecord, 'seq'> & { seq?: number };
+
 /** Everything needed to watch a match again. */
 export interface Replay {
   listing: ReplayListing;
-  shots: ShotRecord[];
+  shots: ReplayShot[];
   end: { snap: Snapshot; terrain: string } | null;
 }
 
@@ -62,7 +65,7 @@ const replaySealer = (id: string) => sealerFor('replay', id);
 const listSealer = (lobby: string) => sealerFor('replays', lobby);
 
 /** Where a shot goes: by turn, then by the shooter's rounds (a turn can have a bonus move or a steal first). */
-export function shotKey(shot: ShotRecord): string {
+export function shotKey(shot: ReplayShot): string {
   const shooter = (shot.snap.players as { ammo: number[] }[] | undefined)?.[shot.owner];
   return `s${shot.turn}_${shooter?.ammo.join('-') ?? ''}`;
 }
@@ -82,7 +85,7 @@ export class ReplayRecorder implements GameStore {
     const id = rec.setup.replay;
     if (!id) return;
     const over = rec.snap.phase === 'gameover';
-    if (!rec.last && !rec.flying && !over) this.once(`${id}/listing`, () => this.list(rec, id));
+    if (!rec.moves.length && !rec.flying && !over) this.once(`${id}/listing`, () => this.list(rec, id));
     // (Each shot is in the record as it's fired, by the phone that fired it.)
     const shot = rec.flying;
     if (shot) this.once(`${id}/${shotKey(shot)}`, () => this.put(id, shotKey(shot), shot));
@@ -112,7 +115,7 @@ export class ReplayRecorder implements GameStore {
 
   private async list(rec: GameRecord, id: string): Promise<void> {
     const snap = rec.snap as Snapshot & Pick<GameState, 'phase' | 'endReason'>;
-    const listing: Omit<ReplayListing, 'ts'> = { id, v: WIRE, rules: rec.setup.rules, seed: rec.setup.seed, players: rec.setup.players };
+    const listing: Omit<ReplayListing, 'ts'> = { id, v: REPLAY_WIRE, rules: rec.setup.rules, seed: rec.setup.seed, players: rec.setup.players };
     if (snap.phase === 'gameover') listing.over = { winner: snap.winner, endReason: snap.endReason, turns: snap.turn };
     const [lobby, sealer] = await Promise.all([listSealer(this.lobby), replaySealer(id)]);
     await putSealed(this.db, `replayList/${lobby.topic}/${sealer.topic}`, lobby, listing);
@@ -139,7 +142,7 @@ export async function loadReplays(db: Rtdb, lobbyName: string, now = Date.now())
   );
   return out
     // Finished, and playable on this build (a replay from older rules than it can carry on isn't shown).
-    .filter((r): r is ReplayListing => !!r?.over && compat(r.v, r.rules) === 'ok')
+    .filter((r): r is ReplayListing => !!r?.over && compat(r.v, r.rules, r.rules, REPLAY_WIRE) === 'ok')
     .sort((a, b) => b.ts - a.ts)
     .slice(0, LIST_MAX);
 }
@@ -154,7 +157,7 @@ export async function loadReplay(db: Rtdb, listing: ReplayListing): Promise<Repl
       return entry ? { key, ts: entry.ts, value: entry.value } : null;
     }),
   );
-  const shots: { shot: ShotRecord; ts: number }[] = [];
+  const shots: { shot: ReplayShot; ts: number }[] = [];
   let end: Replay['end'] = null;
   for (const e of entries) {
     if (!e) continue;
@@ -162,7 +165,7 @@ export async function loadReplay(db: Rtdb, listing: ReplayListing): Promise<Repl
       end = e.value as NonNullable<Replay['end']>;
       upgradeSnapshot(end.snap);
     } else {
-      const shot = e.value as ShotRecord;
+      const shot = e.value as ReplayShot;
       upgradeSnapshot(shot.snap);
       shots.push({ shot, ts: e.ts });
     }

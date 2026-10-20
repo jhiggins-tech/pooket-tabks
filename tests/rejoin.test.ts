@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createGame, setAim } from '../src/game/game';
 import type { PlayerConfig } from '../src/game/state';
-import { HostedRoom, joinRoom, rejoinRoom } from '../src/net/rooms';
+import { RoomChannel } from '../src/net/channel';
+import { HostedRoom, joinRoom, rejoinRoom, type RoomRef } from '../src/net/rooms';
 import { Rtdb } from '../src/net/rtdb';
 import { AUTO_REJOIN_MS, findSeat, forgetSeat, GAMES_KEY, latestSeat, loadSeats, SEAT_EXPIRY_MS, saveSeat, touchSeat, updateSeat } from '../src/net/seat';
-import { loadRecord, RecordStore } from '../src/net/record';
+import { loadRecord } from '../src/net/record';
 import { NetSession } from '../src/net/session';
-import { sealerFor } from '../src/net/seal';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
 import { expectSameMatch, runPhones, type Phone } from './support/net';
 import { until, untilAsync } from './support/wait';
@@ -20,179 +20,126 @@ beforeEach(async () => {
 afterEach(async () => {
   await server.close();
 });
-const fast = { pingMs: 100, lostMs: 500 };
-const onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players });
+const onStart = (seed: number, players: PlayerConfig[], first: number) => createGame({ seed, players, first });
 const PLAYERS: PlayerConfig[] = [
   { name: 'H', characterId: 'kcaj', colour: '#fc0' },
   { name: 'G', characterId: 'tones', colour: '#f55' },
 ];
 
+/** A session on a seat in a room, through the fake Firebase. */
+function session(room: RoomRef, role: 'host' | 'guest'): NetSession {
+  const s = new NetSession(new RoomChannel(room, role), role);
+  s.onStart = onStart;
+  return s;
+}
+
+/** The host opens a game; the guest joins it and starts the match; the host, still there, goes into it. */
 async function match() {
-  const room = await HostedRoom.open(db);
-  const hostSide = room.waitForGuest(fast);
-  const guest = new NetSession(await joinRoom(db, room.code, fast, 'guest-id'), 'guest');
-  const host = new NetSession(await hostSide, 'host');
-  for (const s of [host, guest]) s.onStart = onStart;
-  host.setPick({ name: 'H', characterId: 'kcaj' });
-  guest.setPick({ name: 'G', characterId: 'tones' });
-  await until(() => host.ready && guest.ready);
-  return { room, host, guest };
+  const hosted = await HostedRoom.open(db, { host: { name: 'H', characterId: 'kcaj' }, listed: false });
+  const started = hosted.waitForMatch();
+  const { room, offer } = await joinRoom(db, hosted.code, 'guest-id');
+  expect(offer.host.name).toBe('H');
+  const guest = session(room, 'guest');
+  guest.start(99, PLAYERS);
+  const host = session(hosted.ref, 'host');
+  host.open((await started).rec);
+  return { hosted, host, guest };
 }
 
-/** Step whichever phones are running until `done` (in real time: the relay goes through the fake Firebase). */
+/** Step whichever phones are running until `done` (in real time: it all goes through the fake Firebase). */
 const run = (phones: Phone[], done: () => boolean, ms = 15_000) => runPhones(phones, done, { ms });
-/** The guest's phone dies (no goodbye) and comes back as a brand new session on the same seat. */
-async function guestComesBack(code: string, old: NetSession, whileAway: () => Promise<void> = async () => {}) {
-  (old as unknown as { transport: { close(): void } }).transport.close();
-  await whileAway();
-  const back = new NetSession(await rejoinRoom(db, code, 'guest', 'guest-id', fast), 'guest');
-  back.onStart = onStart;
-  let resumed: boolean | null = null;
-  back.on('resumed', (inMatch) => (resumed = inMatch));
-  back.rejoin();
-  return { back, resumed: () => resumed };
-}
 
-describe('rejoining a match', { timeout: 60_000 }, () => {
-  it('a phone that drops out mid-match comes back to the same game and plays on', async () => {
-    const { room, host, guest } = await match();
-    const away: boolean[] = [];
-    host.on('peerAway', (a) => away.push(a));
-    host.start(99, PLAYERS);
-    await until(() => !!guest.game);
+describe('a match through Firebase', { timeout: 60_000 }, () => {
+  it('the joiner starts it and goes first; the host sees each move play out live, and plays on', async () => {
+    const { host, guest } = await match();
     const H = host.game!;
-    // The host takes a turn, both in sync.
-    setAim(H, 60, 60);
-    host.fire();
-    await run([[host, H], [guest, guest.game]], () => guest.canAct() && H.phase === 'aiming' && guest.game!.phase === 'aiming');
-
-    // The guest's phone vanishes; the host notices, and waits.
-    const { back, resumed } = await guestComesBack(room.code, guest, () => run([[host, H]], () => away.length > 0));
-    expect(away).toEqual([true]);
-    expect(host.peerAway).toBe(true);
-    expect(back.canAct()).toBe(false); // not until it's caught up
-    await run([[host, H], [back, back.game]], () => resumed() !== null);
-    expect(resumed()).toBe(true);
-    expect(away).toEqual([true, false]);
-    const G = back.game!;
+    const G = guest.game!;
     expectSameMatch(H, G);
-    expect(back.localPick?.name).toBe('G');
-    expect(back.remotePick?.name).toBe('H');
-
-    // And it's the guest's turn, so it plays on.
-    expect(back.canAct()).toBe(true);
-    setAim(G, 120, 55);
-    expect(back.fire()).toBe(true);
-    await run([[host, H], [back, G]], () => host.canAct() && H.turn === G.turn && H.phase === 'aiming' && G.phase === 'aiming');
-    expectSameMatch(H, G);
-    host.leave();
-  });
-
-  it('dropping out mid-shot: the other phone plays the shot out and its result stands', async () => {
-    const { room, host, guest } = await match();
-    host.start(99, [PLAYERS[1]!, PLAYERS[0]!].map((p, i) => ({ ...p, name: i ? 'G' : 'H' })));
-    await until(() => !!guest.game);
-    const H = host.game!;
-    // Host's turn first; pass it to the guest.
-    setAim(H, 60, 60);
-    host.fire();
-    const G0 = guest.game!;
-    await run([[host, H], [guest, G0]], () => guest.canAct() && G0.phase === 'aiming' && H.phase === 'aiming');
-    // The guest fires, and its phone dies before the result goes out.
-    setAim(G0, 120, 60);
+    expect(guest.canAct()).toBe(true);
+    await run([[host, H], [guest, G]], () => !host.peerAway && !guest.peerAway); // (the live dots)
+    setAim(G, 120, 60);
     guest.fire();
-    await new Promise((r) => setTimeout(r, 300));
-    const { back, resumed } = await guestComesBack(room.code, guest);
-    await run([[host, H], [back, back.game]], () => resumed() !== null);
-    expect(resumed()).toBe(true);
-    const G = back.game!;
+    await run([[host, H], [guest, G]], () => host.canAct() && H.phase === 'aiming' && G.phase === 'aiming' && H.turn === G.turn);
     expectSameMatch(H, G);
-    expect(H.phase).toBe('aiming');
-    expect(H.turn).toBe(3); // the guest's shot played out on the host
-    expect(host.canAct()).toBe(true); // and the host isn't left waiting for a result that'll never come
-    host.leave();
+    setAim(H, 60, 55);
+    expect(host.fire()).toBe(true);
+    await run([[host, H], [guest, G]], () => guest.canAct() && H.turn === G.turn && H.phase === 'aiming' && G.phase === 'aiming');
+    expectSameMatch(H, G);
+    host.away();
+    guest.away();
   });
 
-  it('dropping out in the lobby comes back to the lobby', async () => {
-    const { room, host, guest } = await match();
-    const { back, resumed } = await guestComesBack(room.code, guest);
-    await run([[host, null], [back, null]], () => resumed() !== null);
-    expect(resumed()).toBe(false);
-    expect(back.game).toBeNull();
-    expect(back.remotePick?.name).toBe('H');
-    host.leave();
-  });
-
-  it('a room the host has closed can’t be rejoined', async () => {
-    const { room, host } = await match();
-    host.leave();
-    await until(() => !server.tree().rooms, 5000);
-    await expect(rejoinRoom(db, room.code, 'guest', 'guest-id')).rejects.toThrow(/has ended/);
-  });
-});
-
-describe('turn by turn (both phones leave between turns)', { timeout: 60_000 }, () => {
-  /** A session whose record goes to the room, like the app's. */
-  const withRecord = async (s: NetSession, code: string) => {
-    const sealer = await sealerFor('room', code);
-    s.store = new RecordStore({ db, path: `rooms/${sealer.topic}`, sealer });
-    return s;
-  };
-
-  /** The room's record, once it has got to `turn`. */
-  const recordAt = async (code: string, turn: number) => {
-    let stored = await loadRecord(db, code);
-    await untilAsync(async () => (stored = await loadRecord(db, code))?.rec.snap.turn === turn);
-    expect(stored?.rec.snap.turn).toBe(turn);
-    return stored!;
-  };
-
-  it('take your turn and leave; later the other phone comes back, sees it, takes theirs, and so on', async () => {
-    const { room, host, guest } = await match();
-    await withRecord(host, room.code);
-    await withRecord(guest, room.code);
-    host.start(77, PLAYERS);
-    await until(() => !!guest.game);
-    guest.away(); // the guest goes back to the menu
-    const H = host.game!;
-    await run([[host, H]], () => host.peerAway);
-    setAim(H, 60, 60);
-    host.fire();
-    await run([[host, H]], () => H.turn === 2 && H.phase === 'aiming');
-    let stored = await recordAt(room.code, 2);
-    host.away(); // and the host goes too; the room stays
+  it('take your turn and leave; the other comes back later, is shown it, takes theirs, and so on', async () => {
+    const { hosted, host, guest } = await match();
+    host.away(); // the host goes back to the menu
+    const G = guest.game!;
+    await run([[guest, G]], () => guest.peerAway);
+    setAim(G, 120, 60);
+    guest.fire();
+    await run([[guest, G]], () => G.turn === 2 && G.phase === 'aiming');
+    await untilAsync(async () => (await loadRecord(db, hosted.code))?.rec.snap.turn === 2);
+    guest.away();
     await new Promise((r) => setTimeout(r, 300));
     expect(server.tree().rooms).toBeTruthy();
 
-    // The guest opens the game: nobody's there, so it goes by the record (and watches the host's shot).
-    const t = await rejoinRoom(db, room.code, 'guest', 'guest-id', fast);
-    const back = await withRecord(new NetSession(t, 'guest'), room.code);
-    back.onStart = onStart;
-    back.rejoin({ rec: stored!.rec, replay: true });
+    // The host opens the game: the guest's go again, then its own.
+    const room = await rejoinRoom(db, hosted.code, 'host', hosted.id);
+    const back = session(room, 'host');
+    back.open((await loadRecord(db, hosted.code))!.rec, host.seen);
+    expect(back.replaying).toBe(true);
     await run([[back, back.game]], () => back.canAct(), 20_000);
-    expectSameMatch(H, back.game!);
-    const G = back.game!;
-    setAim(G, 120, 55);
+    expectSameMatch(G, back.game!);
+    const H = back.game!;
+    setAim(H, 60, 55);
     back.fire();
-    await run([[back, G]], () => G.turn === 3 && G.phase === 'aiming');
+    await run([[back, H]], () => H.turn === 3 && H.phase === 'aiming');
     back.away();
 
-    // The host comes back to its turn.
-    stored = await recordAt(room.code, 3);
-    const t2 = await rejoinRoom(db, room.code, 'host', room.id, fast);
-    const again = await withRecord(new NetSession(t2, 'host'), room.code);
-    again.onStart = onStart;
-    again.rejoin({ rec: stored!.rec, replay: true });
+    // The guest comes back to its turn.
+    await untilAsync(async () => (await loadRecord(db, hosted.code))?.rec.snap.turn === 3);
+    const again = session(await rejoinRoom(db, hosted.code, 'guest', 'guest-id'), 'guest');
+    again.open((await loadRecord(db, hosted.code))!.rec, guest.seen);
     await run([[again, again.game]], () => again.canAct(), 20_000);
-    expectSameMatch(G, again.game!);
+    expectSameMatch(H, again.game!);
+  });
+
+  it('dropping out mid-shot: the other phone plays the shot out and its result stands', async () => {
+    const { host, guest } = await match();
+    const H = host.game!;
+    const G = guest.game!;
+    await run([[host, H], [guest, G]], () => !host.peerAway);
+    setAim(G, 120, 60);
+    guest.fire();
+    await new Promise((r) => setTimeout(r, 300));
+    guest.away(); // gone mid-shot (it said so: its seat isn't here any more)
+    await run([[host, H]], () => host.canAct());
+    expect(H.turn).toBe(2); // the guest's shot played out on the host
+    await new Promise((r) => setTimeout(r, 300));
+  });
+
+  it('a record that isn’t newer than the one there is refused', async () => {
+    const { hosted } = await match();
+    const path = `${hosted.ref.path}/game`;
+    await until(() => (server.at(path) as { n?: number } | null)?.n === 1);
+    await expect(db.put(path, { m: 'x', ts: Date.now(), n: 1 })).rejects.toThrow(/denied/i);
+    await db.put(path, { m: 'x', ts: Date.now(), n: 2 });
+  });
+
+  it('a room the host has cancelled can’t be rejoined', async () => {
+    const hosted = await HostedRoom.open(db, { host: { name: 'H', characterId: 'kcaj' }, listed: false });
+    hosted.cancel();
+    await until(() => !server.tree().rooms, 5000);
+    await expect(rejoinRoom(db, hosted.code, 'guest', 'guest-id')).rejects.toThrow(/has ended/);
   });
 
   it("a room with a match in it isn't taken over by a new host, until the match is four days old", async () => {
-    const { room } = await match();
-    const sealer = await sealerFor('room', room.code);
-    const path = `rooms/${sealer.topic}`;
+    const { hosted, host, guest } = await match();
+    host.away();
+    guest.away();
+    await new Promise((r) => setTimeout(r, 200));
+    const path = hosted.ref.path;
     const hourAgo = Date.now() - 2 * 3_600_000;
-    await db.put(`${path}/host`, { id: room.id, ts: hourAgo });
+    await db.put(`${path}/host`, { id: hosted.id, ts: hourAgo });
     await db.put(`${path}/game`, { m: 'x', ts: Date.now() });
     await expect(db.put(`${path}/host`, { id: 'someone-else', ts: Date.now() })).rejects.toThrow(/denied/i);
     await db.put(`${path}/game`, { m: 'x', ts: Date.now() - 5 * 24 * 3_600_000 });

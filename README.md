@@ -17,10 +17,11 @@ phones anywhere with a 4-letter room code (others can watch).
 - **Move:** hold ◀ ▶ before you fire. One tank of fuel lasts the whole match (ciarra hops instead).
 - **FIRE.** Last tank standing wins; if everyone runs out of ammo, most HP wins.
 - **Two phones:** in the Game browser, 📶 Host a game shows a room code and a link; the other phone picks
-  the game from the browser's table (or types the code, or opens the link). Any live match can be
-  watched from the same table. Matches go turn by turn when you're not both there: take your turn, go
-  back to the menu, and the other player takes theirs later (your matches head the table; a dot on the
-  landing screen counts the turns waiting for you; 3 days a turn).
+  the game from the browser's table (or types the code, or opens the link), which starts the match with
+  the joiner's go first. Any live match can be watched from the same table. Matches go turn by turn: take
+  your turn, go back to the menu, and the other player takes theirs later (your matches head the table; a dot on the
+  landing screen counts the turns waiting for you; 3 days a turn). A green dot says the other player is in
+  the match right now, and coming back to a match replays the moves you missed.
 
 [FEATURES.md](FEATURES.md) lists everything shipped and what's queued; [CLAUDE.md](CLAUDE.md) has the
 architecture and recipes for adding weapons, mechanics and characters.
@@ -37,7 +38,7 @@ src/
   render/      canvas renderer (letterboxed, DPR-aware) with draw/ mirroring game/, sprites, DOM HUD
   input/       touch controls
   audio/       8-bit synth, sound effects and chiptunes
-  net/         online play through Firebase: rooms, relay, match session, spectating, rejoining, replays
+  net/         online play through Firebase: rooms, the match record and session, spectating, rejoining, replays
   push/        push notifications: subscribing, the templates (shared with notifier/), the open page's alerts
   stats/       match summaries, adding them up, ranks and ratings (shared with notifier/)
   ui/          landing, setup, profile, info, what's new, stats, online screens

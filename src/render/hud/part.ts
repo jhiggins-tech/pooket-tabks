@@ -14,10 +14,20 @@ export interface HudContext {
   readonly picking: number | null;
   /** Online, and it isn't this phone's turn (or it's waiting for the other's result): the controls step aside. */
   readonly remote: boolean;
-  /** Set in an online match: which seat is this phone's, and whether it's waiting for the other's result. */
-  readonly online: { localSeat: number; syncing: boolean } | null;
+  /**
+   * Set in an online match: which seat is this phone's, whether it's waiting for the other's result, and
+   * whether the other player has the match open right now (`live`: the green dot by their name).
+   */
+  readonly online: Online | null;
   /** Each player's rank in the match on screen (null: not ranked, or not signed in), by player id. */
   readonly ranks: readonly (Rank | null)[];
+}
+
+/** An online match, as the HUD sees it (spectators: `localSeat` -1). */
+export interface Online {
+  localSeat: number;
+  syncing: boolean;
+  live?: boolean;
 }
 
 /** A piece of the HUD: `update` every frame, `reset` to draw it afresh next time. */

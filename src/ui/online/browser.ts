@@ -38,7 +38,6 @@ const MINE_LABEL: Record<MatchSummary['status'], [string, string]> = {
   draw: ['A draw', 'done'],
   old: ['Older version', 'done'],
   newer: ['Reload to play', 'mine'],
-  lobby: ['Not started', 'done'],
   open: ['Waiting for a player', 'waiting'],
 };
 
@@ -70,9 +69,14 @@ export function gameBrowser(db: Rtdb, lobby: Sealer, lobbyName: string, scope: S
           m.status === 'open'
             ? `↩ ${adverts.find((g) => g.room === m.seat.code)?.gameName || 'Your game'} [your game]`
             : `↩ You vs ${m.opponent}`;
-        return gameRow('mine', m.seat.code, title, m.detail, MINE_LABEL[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () =>
-          go.rejoin(m.seat),
-        );
+        const row = gameRow('mine', m.seat.code, title, m.detail, MINE_LABEL[m.status], m.status === 'your-turn' ? ['Play', 'go'] : ['Open', ''], () => go.rejoin(m.seat));
+        if (m.live) {
+          // They have the match open right now.
+          const dot = el('span', 'live-dot');
+          dot.title = `${m.opponent} is here`;
+          row.querySelector('.games-name')?.prepend(dot);
+        }
+        return row;
       }),
       ...waiting.map((g) => gameRow('open', g.room, g.gameName || `${g.name}'s game`, getCharacter(g.characterId).name, ['Needs a player', 'waiting'], ['Join', 'go'], () => go.join(g.room, g.name))),
       ...playing.map((g) =>

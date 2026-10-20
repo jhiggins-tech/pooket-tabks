@@ -1,60 +1,49 @@
+import { RoomChannel, type MatchChannel } from '../../net/channel';
 import type { Listing } from '../../net/lobby';
 import { netLog } from '../../net/log';
 import { announceDevice, notifySeat } from '../../net/push';
-import { RecordStore } from '../../net/record';
-import { RelayTransport } from '../../net/relay';
 import { ReplayRecorder } from '../../net/replay';
 import { endOfGame, reportMatch } from '../../net/results';
 import { watchSeat, type RoomRef } from '../../net/rooms';
 import { bySeat, forgetSeat, saveSeat, touchSeat, updateSeat, type Seat } from '../../net/seat';
 import { NetSession, type Pick } from '../../net/session';
-import type { Transport } from '../../net/transport';
-import { ViewPublisher } from '../../net/view';
 import { Scope } from './scope';
 
 /**
- * One match on this phone, from connecting to leaving it (`OnlineScreen` has at most one, `MatchSlot`):
+ * One match on this phone, from opening it to leaving it (`OnlineScreen` has at most one, `MatchSlot`):
  * its session and seat, and everything that goes with them while it's on (kept in its own Scope): the
- * seat's check-ins, standing aside if the player opens it on another phone (`watchSeat`), the spectator
- * feed, the record and replay, who's watching, its place on the Games list, "your turn" notifications and
- * filing the results. `end(how)` is the one way out: what happens to the seat and the session depends on
- * how it ends (ENDS), and everything else stops. DOM-free (the screens follow the session's events).
+ * seat kept fresh here, standing aside if the player opens it on another phone (`watchSeat`), the replay,
+ * who's watching, its place on the Games list, "your turn" notifications and filing the results.
+ * `end(how)` is the one way out: what happens to the seat and the session depends on how it ends (ENDS),
+ * and everything else stops. DOM-free (the screens follow the session's events).
  */
 
 /** How a match ends on this phone (see ENDS). */
 export type MatchEnd =
-  /** Not caught up yet, or an update's needed: away, the seat as it is. */
+  /** An update's needed (or it never opened): away, the seat as it is. */
   | 'away'
-  /** Back to the menu mid-match: away, the seat marked left (and the turn seen). */
+  /** Back to the menu mid-match: away, the seat marked left (and the moves seen). */
   | 'left'
   /** Back to the menu from a match that's over: away, the seat forgotten. */
   | 'done'
-  /** Leaving in the lobby, before it started: goodbye (that's the end of the room), the seat forgotten. */
-  | 'leave'
   /** The player opened it on their other phone: stand aside without a word, the seat marked left. */
   | 'stand-down'
-  /** The other phone left before it started, or the room went (the session has ended): the seat forgotten. */
-  | 'lost'
-  /** A guest who went quiet in the lobby (a link preview): let the pipe go; the seat and the listing stay (the host waits again). */
-  | 'drop';
+  /** The room went (the session has ended): the seat forgotten. */
+  | 'lost';
 
-/** For each way a match ends: the seat, the session, and the Games list entry. */
-const ENDS: Record<MatchEnd, { seat: 'keep' | 'left' | 'left-seen' | 'forget'; session: 'away' | 'leave' | 'stand-down' | 'detach' | null; listing: 'stop' | 'keep' }> = {
-  away: { seat: 'keep', session: 'away', listing: 'stop' },
-  left: { seat: 'left-seen', session: 'away', listing: 'stop' },
-  done: { seat: 'forget', session: 'away', listing: 'stop' },
-  leave: { seat: 'forget', session: 'leave', listing: 'stop' },
-  'stand-down': { seat: 'left', session: 'stand-down', listing: 'stop' },
-  lost: { seat: 'forget', session: null, listing: 'stop' },
-  drop: { seat: 'keep', session: 'detach', listing: 'keep' },
+/** For each way a match ends: the seat, and the session. */
+const ENDS: Record<MatchEnd, { seat: 'keep' | 'left' | 'left-seen' | 'forget'; session: 'away' | 'stand-down' | null }> = {
+  away: { seat: 'keep', session: 'away' },
+  left: { seat: 'left-seen', session: 'away' },
+  done: { seat: 'forget', session: 'away' },
+  'stand-down': { seat: 'left', session: 'stand-down' },
+  lost: { seat: 'forget', session: null },
 };
 
 /** Going back to the menu (or into another match): how this one ends, by where it is. */
 export function leaving(s: NetSession): MatchEnd {
-  if (s.ended || s.isRejoining) return 'away'; // (not caught up yet: the match is still there to go back to)
-  if (s.game && s.game.phase !== 'gameover') return 'left';
-  if (s.game) return 'done';
-  return 'leave';
+  if (s.ended || !s.game) return 'away';
+  return s.game.phase === 'gameover' ? 'done' : 'left';
 }
 
 export interface MatchLinkOptions {
@@ -72,7 +61,7 @@ export interface MatchLinkOptions {
   ranked?: (opponent: string, score: 1 | 0.5 | 0, turns: number) => void;
 }
 
-/** How often a match being played checks in on its seat (still playing, and the turn seen). */
+/** How often a match being played checks in on its seat here (still playing, and the moves seen). */
 const SEAT_EVERY_MS = 20_000;
 
 export class MatchLink {
@@ -87,34 +76,31 @@ export class MatchLink {
   private turnSeen: { key: string; current: number; told: boolean } | null = null;
 
   constructor(
-    private readonly peer: Transport,
+    channel: MatchChannel,
     seat: Omit<Seat, 'ts'>,
     private readonly opts: MatchLinkOptions,
   ) {
-    const s = new NetSession(peer, seat.role);
+    const s = new NetSession(channel, seat.role);
     this.session = s;
-    // Remembered as our seat (so this phone can rejoin if it drops out), and kept fresh while playing.
+    // Remembered as our seat (so this phone can go back to it), and kept fresh while playing.
     this.seat = { code: seat.code, role: seat.role, id: seat.id, listed: seat.listed };
     saveSeat(this.seat);
     const timer = setInterval(() => {
       touchSeat(seat.code);
-      if (s.game?.phase === 'aiming') updateSeat(seat.code, { seen: s.game.turn });
+      if (s.game && !s.replaying) updateSeat(seat.code, { seen: s.seen });
     }, SEAT_EVERY_MS);
     this.scope.onEnd(() => clearInterval(timer));
-    if (peer instanceof RelayTransport) {
-      // Publish the spectator feed for anyone watching, and keep the match's record.
-      const pub = new ViewPublisher(peer.room);
-      s.on('view', (v) => pub.push(v));
-      // And a public match's replay (the host's game on the Games list; the guest's, if it starts one).
-      const record = new RecordStore(peer.room);
-      const replay = new ReplayRecorder(peer.room.db, opts.lobby);
-      s.store = { save: (rec) => (record.save(rec), replay.save(rec)) };
-      s.publicReplay = !!seat.listed;
-      this.room = peer.room;
-      if (opts.audience) this.scope.onEnd(opts.audience(peer.room));
-      announceDevice(peer.room, seat.role, seat.id);
+    s.publicReplay = !!seat.listed;
+    if (channel instanceof RoomChannel) {
+      const room = channel.room;
+      // A public match's replay (the host's game on the Games list), whichever phone moves.
+      const replay = new ReplayRecorder(room.db, opts.lobby);
+      s.store = replay;
+      this.room = room;
+      if (opts.audience) this.scope.onEnd(opts.audience(room));
+      announceDevice(room, seat.role, seat.id);
       // This player opening the match on another phone: that one plays, this one stands aside.
-      const taken = watchSeat(peer.room, seat.role, seat.id, () => opts.taken?.(this));
+      const taken = watchSeat(room, seat.role, seat.id, () => opts.taken?.(this));
       this.scope.onEnd(() => taken.close());
     }
   }
@@ -133,13 +119,11 @@ export class MatchLink {
     const e = ENDS[how];
     if (e.seat === 'forget') forgetSeat(code);
     else if (e.seat === 'left') updateSeat(code, { left: true }); // (no rejoining straight away on a reload here)
-    else if (e.seat === 'left-seen') updateSeat(code, { left: true, ...(s.game ? { seen: s.game.turn } : {}) });
+    else if (e.seat === 'left-seen') updateSeat(code, { left: true, ...(s.game && !s.replaying ? { seen: s.seen } : {}) });
     if (e.session === 'away') s.away();
-    else if (e.session === 'leave') s.leave();
     else if (e.session === 'stand-down') s.standDown();
-    else if (e.session === 'detach') this.peer.detach?.();
     this.scope.end();
-    if (e.listing === 'stop') this.listing?.stop();
+    this.listing?.stop();
     this.listing = null;
     this.turnSeen = null;
   }
@@ -153,7 +137,7 @@ export class MatchLink {
 
   /**
    * The turn has passed from us to them and they're not here: notify them (once a turn; if they only go
-   * quiet later in it, then).
+   * later in it, then). The host's first turn (the guest has just joined and had theirs): "someone joined".
    */
   private tellTheirTurn(): void {
     const s = this.session;
@@ -166,7 +150,8 @@ export class MatchLink {
     }
     if (this.turnSeen.told || g.current === s.localSeat || !s.peerAway) return;
     this.turnSeen.told = true;
-    void notifySeat(this.room, s.isHost ? 'guest' : 'host', 'your-turn');
+    const joined = !s.isHost && s.matchSetup.first === s.localSeat && g.turn === 2;
+    void notifySeat(this.room, s.isHost ? 'guest' : 'host', joined ? 'joined' : 'your-turn');
   }
 
   /** The match has ended here: file this phone's results for the stats (once per match; net/results.ts). */
@@ -199,9 +184,9 @@ export class MatchSlot {
     return this.current;
   }
 
-  open(peer: Transport, seat: Omit<Seat, 'ts'>, opts: MatchLinkOptions): MatchLink {
+  open(channel: MatchChannel, seat: Omit<Seat, 'ts'>, opts: MatchLinkOptions): MatchLink {
     this.close();
-    this.current = new MatchLink(peer, seat, opts);
+    this.current = new MatchLink(channel, seat, opts);
     return this.current;
   }
 

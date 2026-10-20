@@ -25,6 +25,19 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **Online netcode rework: turn by turn only** (owner, 20 Oct; What's new 58; online protocol 8, so matches
+  started before can't carry on). The live/turn-by-turn split, the "Connected!" lobby, Start battle and the
+  message pipe between phones (`relay.ts`, `transport.ts`) are gone. **The record is the match**
+  (`net/record.ts`): each phone follows `rooms/T/game` and writes it on its own turn, numbered (`n`; the
+  rules refuse a write that isn't newer, so a stale phone can't overwrite a newer move). **Joining starts the
+  match** and **the joiner has the first go** (`MatchSetup.first`); the host's first handover sends the
+  "someone joined" notification. **Live dot**: each phone checks in on its seat every 20 s while the match
+  is open (`net/channel.ts`, `seatHere`), a green dot by the opponent's name in the match and in My games.
+  **Missed moves**: the record keeps the run of one player's moves since the turn passed (`moves`, each with
+  a `seq`), and opening a match replays every one this phone hasn't seen (the seat's `seen`), with ⏭ Skip.
+  A shot left in flight by a phone that vanished is played out and recorded by the other. No exact `RULES`
+  match between phones any more: a record from a newer build asks this phone to reload. Needed a rules
+  re-publish (the record number).
 - **Stratagems for everyone's pods** (owner, 20 Oct; rules 42; a testing push while he's in beta: no What's
   new release). shotdownboyz has all 11 stratagems every match (no more drawing 4). **Anyone** can drive into
   a pod: a weapon drop takes their tier 1's place (rounds kept), Resupply heals 30% of full health and, for
@@ -603,7 +616,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
 - **Spectator mode**: join a match that's already under way (type its code, open its link, or tap it
   under "Live now" in the Games list) to watch it live, view only: aim, shots and
   results as they happen, with a 👁 Watching · Leave button. Joining mid-match catches straight up.
-- **Turn by turn (async online play)**: an online match is live while both phones are there and turn by
+- **Turn by turn (async online play)** (since replaced: see the netcode rework above): an online match is live while both phones are there and turn by
   turn when they aren't (no separate mode). ☰ in a match: Back to menu (the match waits), 📣 Nudge, 🏳
   Resign (tap twice). The other phone's banner says so: "X isn't here. Take your turn: they'll see it when
   they're back", or "It's X's turn, and they're not here. The game waits" with Nudge (shares the game's

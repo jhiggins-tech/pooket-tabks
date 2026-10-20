@@ -1,39 +1,44 @@
-/** Shared scaffolding for networked-match tests: two phones over a loopback, running phones along, comparing their matches. */
+/** Shared scaffolding for networked-match tests: two phones in a room in memory, running phones along, comparing their matches. */
 import { expect } from 'vitest';
 import { FIXED_DT } from '../../src/game/constants';
 import { step } from '../../src/game/game';
 import type { GameState, PlayerConfig } from '../../src/game/state';
-import { NetSession } from '../../src/net/session';
+import { memoryRoom } from '../../src/net/channel';
+import { NetSession, type ViewMsg } from '../../src/net/session';
 import { takeSnapshot } from '../../src/net/snapshot';
-import { loopback } from '../../src/net/transport';
 import { flush } from './wait';
 
+/** A room in memory (src/net/channel.ts `memoryRoom`). */
+export type MemoryRoom = ReturnType<typeof memoryRoom>;
+
 /**
- * Two phones over a loopback, in a match that has started: the host and the guest pick `players[0]` and
- * `players[1]` (their names and characters), and the host starts on `seed` with `players`. `setup` runs on
- * each session first (a store, a listener).
+ * Two phones in a match that has started, both with it open: the guest joined and started it on `seed`
+ * with `players` ([host, guest]; the guest has the first go), and the host opened it from the record.
+ * `setup` runs on each session first (a store, a listener); `onView` gets the spectator feed.
  */
 export async function connectedPair(opts: {
   seed: number;
   players: PlayerConfig[];
-  onStart: (seed: number, players: PlayerConfig[]) => GameState;
+  onStart: (seed: number, players: PlayerConfig[], first: number) => GameState;
   setup?: (s: NetSession, role: 'host' | 'guest') => void;
-}): Promise<{ a: NetSession; b: NetSession; A: GameState; B: GameState }> {
-  const [ta, tb] = loopback();
-  const a = new NetSession(ta, 'host');
-  const b = new NetSession(tb, 'guest');
-  for (const [s, role] of [[a, 'host'], [b, 'guest']] as const) {
-    s.onStart = opts.onStart;
-    opts.setup?.(s, role);
-  }
-  const [host, guest] = opts.players as [PlayerConfig, PlayerConfig];
-  a.setPick({ name: host.name, characterId: host.characterId });
-  b.setPick({ name: guest.name, characterId: guest.characterId });
+  onView?: (v: ViewMsg) => void;
+}): Promise<{ a: NetSession; b: NetSession; A: GameState; B: GameState; room: MemoryRoom }> {
+  const room = memoryRoom({ onView: opts.onView });
+  const b = phone(room, 'guest', opts.onStart, opts.setup);
+  b.start(opts.seed, opts.players);
   await flush();
-  expect(a.ready && b.ready).toBe(true);
-  a.start(opts.seed, opts.players);
+  const a = phone(room, 'host', opts.onStart, opts.setup);
+  a.open(room.rec!);
   await flush();
-  return { a, b, A: a.game!, B: b.game! };
+  return { a, b, A: a.game!, B: b.game!, room };
+}
+
+/** A phone's session in a room (not in a match yet: `start` it, or `open` it from the record). */
+export function phone(room: MemoryRoom, role: 'host' | 'guest', onStart: (seed: number, players: PlayerConfig[], first: number) => GameState, setup?: (s: NetSession, role: 'host' | 'guest') => void): NetSession {
+  const s = new NetSession(room.channel(role), role);
+  s.onStart = onStart;
+  setup?.(s, role);
+  return s;
 }
 
 /**
@@ -44,7 +49,7 @@ export type Phone = NetSession | [NetSession, GameState | null];
 
 /**
  * Tick the phones (and step their matches) until `done`, or fail. `{ seconds }` (the default: 60) counts
- * game time and lets queued promises run between ticks (for a loopback); `{ ms }` counts real time and
+ * game time and lets queued promises run between ticks (in memory); `{ ms }` counts real time and
  * yields to the event loop between ticks (for the fake Firebase).
  */
 export async function runPhones(phones: Phone[], done: () => boolean, limit: { seconds: number } | { ms: number } = { seconds: 60 }): Promise<void> {

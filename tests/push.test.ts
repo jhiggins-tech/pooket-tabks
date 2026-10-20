@@ -38,7 +38,7 @@ const outbox = () => Object.values((server.tree().outbox as Record<string, Recor
 
 describe('notifications, the database side', () => {
   it("the templates say what's what, and refuse anything else", () => {
-    expect(render('joined', 'a'.repeat(24))).toMatchObject({ title: '🎮 Someone joined your game', url: `./#play=${'a'.repeat(24)}` });
+    expect(render('joined', 'a'.repeat(24))).toMatchObject({ title: '🎮 Someone joined your game!', url: `./#play=${'a'.repeat(24)}` });
     expect(render('your-turn', 'FROG')).toBeNull(); // a room code is never a ref
     expect(render('pwned', 'a'.repeat(24))).toBeNull();
   });

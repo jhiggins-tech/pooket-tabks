@@ -29,9 +29,10 @@
         },
         "game": {
           ".write": true,
-          ".validate": "newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 600000 && newData.child('ts').isNumber() && newData.child('ts').val() <= now",
+          ".validate": "newData.hasChildren(['m', 'ts']) && newData.child('m').isString() && newData.child('m').val().length < 600000 && newData.child('ts').isNumber() && newData.child('ts').val() <= now && (!newData.child('n').exists() || !data.child('n').exists() || newData.child('n').val() > data.child('n').val() || (newData.child('n').val() === 0 && data.child('n').val() === 0))",
           "m": { ".validate": true },
           "ts": { ".validate": true },
+          "n": { ".validate": "newData.isNumber() && newData.val() >= 0" },
           "$other": { ".validate": false }
         },
         "devices": {

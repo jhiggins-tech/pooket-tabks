@@ -1,10 +1,10 @@
 /**
  * A stand-in for the Firebase Realtime Database REST API, for tests: JSON tree at `/<path>.json`
  * (GET/PUT/POST/PATCH/DELETE), Server-Sent Events streaming with `put` events, push keys, server
- * timestamps, CORS, and the seat rules from `firebase/database.rules.json` that matter (first host /
- * first guest wins). Also a stand-in for Google sign-in and Firebase Auth (see `tokenLifetime`):
- * "Google" credentials are `fake:NAME` (account uid `uid-NAME`), and `users/<uid>/…` needs that account's
- * token as `?auth=`, as the rules say.
+ * timestamps, CORS, and the rules from `firebase/database.rules.json` that matter (first host / first
+ * guest wins; a room's record only ever replaced by a newer one). Also a stand-in for Google sign-in and
+ * Firebase Auth (see `tokenLifetime`): "Google" credentials are `fake:NAME` (account uid `uid-NAME`), and
+ * `users/<uid>/…` needs that account's token as `?auth=`, as the rules say.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 
@@ -108,10 +108,18 @@ export async function startRtdb(): Promise<FakeRtdb> {
 
   /**
    * The seat rules: a host or guest seat, once taken, can't be taken by someone else (unless the host is
-   * an hour stale and the room has no match record from the last four days).
+   * an hour stale and the room has no match record from the last four days). And the record's: a write
+   * that isn't newer than the one there is refused.
    */
   const allowed = (segs: string[], value: Json): boolean => {
     if (segs[0] !== 'rooms' || segs.length !== 3 || value === null) return true;
+    if (segs[2] === 'game') {
+      // A numbered record only replaces an older one (open offers, numbered 0, replace each other).
+      const n = (value as { n?: unknown }).n;
+      const was = (getAt(segs) as { n?: unknown } | null)?.n;
+      return typeof n !== 'number' || typeof was !== 'number' || n > was || (n === 0 && was === 0);
+    }
+    if (segs[2] !== 'host' && segs[2] !== 'guest') return true;
     const existing = getAt(segs) as { id?: string; ts?: number } | null;
     if (!existing) return true;
     if ((value as { id?: string }).id === existing.id) return true;

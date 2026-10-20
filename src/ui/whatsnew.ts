@@ -20,6 +20,17 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 58,
+    title: 'Online, simpler',
+    items: [
+      'No more waiting in a lobby: join someone’s game and it starts straight away, with you taking the first go. The host gets a notification that it’s their move.',
+      'Every online match is turn by turn now. Take your go whenever you like; when you’re both in the match at once you watch each other’s turns as they happen.',
+      'A green dot by your opponent’s name means they’re in the match right now (in the match and in your games in the Game browser).',
+      'Coming back to a match replays every move you missed, not just the last one. Tap ⏭ Skip to go straight to how things stand.',
+      'Matches started before this update can’t carry on, sorry!',
+    ],
+  },
+  {
     version: 57,
     title: '🦊 doctorfox is here',
     items: [

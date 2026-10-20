@@ -1,16 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createGame, currentPlayer, setAim } from '../src/game/game';
+import { createGame } from '../src/game/game';
 import type { PlayerConfig } from '../src/game/state';
 import { toB64 } from '../src/net/b64';
 import { Listing, lobbySealer, watchLobby, type Advert } from '../src/net/lobby';
-import { RelayTransport } from '../src/net/relay';
+import { RoomChannel, seatHere, type SeatEntry } from '../src/net/channel';
 import { loadRecord, loadRoomRecord } from '../src/net/record';
-import { HostedRoom, joinRoom, newRoomCode, normaliseRoomCode, rejoinRoom, roomHost } from '../src/net/rooms';
+import { HostedRoom, joinRoom, newRoomCode, normaliseRoomCode, rejoinRoom } from '../src/net/rooms';
 import { seal, sealerFor } from '../src/net/seal';
 import { Rtdb } from '../src/net/rtdb';
 import { NetSession } from '../src/net/session';
 import { startRtdb, type FakeRtdb } from './support/rtdb';
-import { expectSameMatch, runPhones } from './support/net';
 import { until } from './support/wait';
 
 let server: FakeRtdb;
@@ -32,41 +31,39 @@ describe('room codes', () => {
   });
 });
 
+const JACK = { host: { name: 'Jack', characterId: 'tones' }, listed: true };
+
 describe('rooms through Firebase', () => {
-  it('a joiner with the code reaches the host; messages flow both ways, in order', async () => {
-    const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest();
-    const guest = await joinRoom(db, room.code);
-    const host = await hostSide;
-    const atHost: unknown[] = [];
-    const atGuest: unknown[] = [];
-    host.onMessage = (m) => atHost.push(m);
-    guest.onMessage = (m) => atGuest.push(m);
-    for (let i = 0; i < 25; i++) guest.send({ n: i }); // a burst: batched, but still in order
-    host.send({ hello: 'guest' });
-    await until(() => atHost.length === 25 && atGuest.length === 1);
-    expect(atHost).toEqual(Array.from({ length: 25 }, (_, i) => ({ n: i })));
-    expect(atGuest).toEqual([{ hello: 'guest' }]);
+  it('a joiner with the code gets the guest seat and the host’s offer; the host hears once the match starts', async () => {
+    const room = await HostedRoom.open(db, JACK);
+    const started = room.waitForMatch();
+    const { room: ref, offer, hostId } = await joinRoom(db, room.code, 'g');
+    expect(offer).toEqual(JACK);
+    expect(hostId).toBe(room.id);
+    const guest = new NetSession(new RoomChannel(ref, 'guest'), 'guest');
+    guest.onStart = (seed: number, players: PlayerConfig[], first: number) => createGame({ seed, players, first });
+    guest.start(5, [
+      { name: 'Jack', characterId: 'tones', colour: '#f00' },
+      { name: 'G', characterId: 'kcaj', colour: '#00f' },
+    ]);
+    const stored = await started;
+    expect(stored.rec.setup).toMatchObject({ seed: 5, first: 1 });
     // The database only ever held ciphertext, under a hashed path.
     const dump = JSON.stringify(server.tree());
     expect(dump).not.toContain(room.code);
-    expect(dump).not.toContain('hello');
-    // Read messages get deleted.
-    await until(() => !JSON.stringify(server.tree()).includes('g2h'), 4000);
-    host.close();
-    guest.close();
+    expect(dump).not.toContain('Jack');
+    guest.away();
   });
 
-  it('a third phone is told the game is full; a wrong code is explained', async () => {
-    const room = await HostedRoom.open(db);
-    void room.waitForGuest();
+  it('a third phone is told the game is full (and so is anyone once the match has started); a wrong code is explained', async () => {
+    const room = await HostedRoom.open(db, JACK);
     await joinRoom(db, room.code);
     await expect(joinRoom(db, room.code)).rejects.toThrow(/two players/);
     await expect(joinRoom(db, 'ZZZZ')).rejects.toThrow(/No game with code ZZZZ/);
   });
 
   it("an open game can be joined with its host away (and a room that isn't open can't)", async () => {
-    const open = await HostedRoom.open(db, { host: { name: 'Jack', characterId: 'tones' }, listed: true });
+    const open = await HostedRoom.open(db, JACK);
     open.stop(); // the host goes back to the menu
     const closed = await HostedRoom.open(db);
     closed.stop();
@@ -75,29 +72,29 @@ describe('rooms through Firebase', () => {
       const sealer = await sealerFor('room', r.code);
       await db.put(`rooms/${sealer.topic}/host`, { id: r.id, ts: stale }); // long gone
     }
-    expect(await roomHost(db, open.code)).toEqual({ id: open.id, here: false });
-    expect(await loadRoomRecord(db, open.code)).toMatchObject({ offer: { host: { name: 'Jack', characterId: 'tones' }, listed: true } });
+    expect(await loadRoomRecord(db, open.code)).toMatchObject({ offer: JACK });
     expect(await loadRecord(db, open.code)).toBeNull(); // not a match yet
-    const t = await joinRoom(db, open.code, undefined, 'first');
-    await expect(joinRoom(db, open.code, undefined, 'second')).rejects.toThrow(/two players/);
+    await joinRoom(db, open.code, 'first');
+    await expect(joinRoom(db, open.code, 'second')).rejects.toThrow(/two players/);
     await expect(joinRoom(db, closed.code)).rejects.toThrow(/No game/);
-    t.close();
   });
 
-  it('the host can go back to its open game (nobody joined yet) and wait on', async () => {
-    const room = await HostedRoom.open(db, { host: { name: 'Jack', characterId: 'tones' }, listed: false });
+  it('the host can go back to its open game (nobody joined yet) and wait on; the offer can change meanwhile', async () => {
+    const room = await HostedRoom.open(db, JACK);
     room.stop();
     const again = await HostedRoom.reclaim(db, room.code, room.id);
-    expect((await roomHost(db, room.code))?.here).toBe(true);
-    const hostSide = again.waitForGuest();
-    const guest = await joinRoom(db, room.code);
-    const host = await hostSide;
-    const got: unknown[] = [];
-    host.onMessage = (m) => got.push(m);
-    guest.send({ hi: 1 });
-    await until(() => got.length === 1);
-    host.close();
-    guest.close();
+    await again.offer({ ...JACK, listed: false, gameName: 'Rematch' });
+    expect(await loadRoomRecord(db, room.code)).toMatchObject({ offer: { listed: false, gameName: 'Rematch' } });
+    const started = again.waitForMatch();
+    const { room: ref } = await joinRoom(db, room.code, 'g');
+    const guest = new NetSession(new RoomChannel(ref, 'guest'), 'guest');
+    guest.onStart = (seed: number, players: PlayerConfig[], first: number) => createGame({ seed, players, first });
+    guest.start(5, [
+      { name: 'Jack', characterId: 'tones', colour: '#f00' },
+      { name: 'G', characterId: 'kcaj', colour: '#00f' },
+    ]);
+    expect((await started).rec.n).toBe(1);
+    guest.away();
   });
 
   it("says so when the server can't be reached, rather than blaming the codes", async () => {
@@ -105,136 +102,43 @@ describe('rooms through Firebase', () => {
   });
 
   it('when the host cancels, the room is gone', async () => {
-    const room = await HostedRoom.open(db);
+    const room = await HostedRoom.open(db, JACK);
     room.cancel();
     await until(() => JSON.stringify(server.tree()) === '{}');
     await expect(joinRoom(db, room.code)).rejects.toThrow(/No game/);
   });
 
-  it('notices when the other phone goes quiet, and when it comes back on a new connection', async () => {
-    const fast = { pingMs: 100, lostMs: 600 };
-    const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest(fast);
-    const guest = await joinRoom(db, room.code, fast, 'guest-1');
-    const host = await hostSide;
-    const quiet: boolean[] = [];
-    let closed = false;
-    host.onQuiet = (q) => quiet.push(q);
-    host.onClose = () => (closed = true);
-    const atHost: unknown[] = [];
-    host.onMessage = (m) => atHost.push(m);
-    guest.send({ n: 1 });
-    await until(() => atHost.length === 1);
-    await new Promise((r) => setTimeout(r, 400));
-    expect(quiet).toEqual([]); // pings keep it alive
-    guest.close(); // the guest phone vanishes (no goodbye)
-    host.send({ missed: true }); // sent while they're away: stale by the time they're back
-    await until(() => quiet.length === 1, 3000);
-    expect(quiet).toEqual([true]);
-    expect(closed).toBe(false); // the match waits for them
-
-    // Back on a new connection (a reload): it has its seat back, and both ways work again.
-    const again = await rejoinRoom(db, room.code, 'guest', 'guest-1', fast);
-    const atGuest: unknown[] = [];
-    again.onMessage = (m) => atGuest.push(m);
-    again.send({ n: 2 });
-    await until(() => quiet.length === 2);
-    expect(quiet).toEqual([true, false]);
-    await until(() => atHost.length === 2);
-    expect(atHost).toEqual([{ n: 1 }, { n: 2 }]);
-    host.restart(); // what the session does for a rejoined phone
-    host.send({ hello: 'again' });
-    await until(() => atGuest.length === 1);
-    expect(atGuest).toEqual([{ hello: 'again' }]);
-    // Someone else can't take the seat meanwhile.
+  it('someone else can’t take a seat that’s been claimed', async () => {
+    const room = await HostedRoom.open(db, JACK);
+    await joinRoom(db, room.code, 'guest-1');
+    await rejoinRoom(db, room.code, 'guest', 'guest-1');
     await expect(rejoinRoom(db, room.code, 'guest', 'impostor')).rejects.toThrow(/taken your seat/);
-    host.close();
-    again.close();
   });
 
-  it('a host can free the guest seat (a ghost that joined and vanished) and a real player can then join', async () => {
-    const room = await HostedRoom.open(db);
-    const first = room.waitForGuest();
-    const ghost = await joinRoom(db, room.code, undefined, 'ghost-id');
-    const hostToGhost = await first;
-    hostToGhost.detach();
-    ghost.close();
-    await room.reopen();
-    const second = room.waitForGuest();
-    const real = await joinRoom(db, room.code, undefined, 'real-id');
-    const host = await second;
-    const got: unknown[] = [];
-    host.onMessage = (m) => got.push(m);
-    // Something the ghost sent that only lands now (it was on its way when the seat was freed).
-    const sealer = await sealerFor('room', room.code);
-    const late = new RelayTransport({ db, path: `rooms/${sealer.topic}`, sealer }, 'guest', { me: 'ghost-id' }).start();
-    late.send({ k: 'hello', from: 'the ghost' });
-    await until(() => server.requests.filter((r) => r.method === 'POST').length >= 1);
-    real.send({ n: 1 });
-    await until(() => got.length >= 1);
-    await new Promise((r) => setTimeout(r, 300));
-    expect(got).toEqual([{ n: 1 }]); // only the real player
-    late.close();
-    host.close();
-    real.close();
+  it('who’s here: a phone with the match open checks in on its seat; leaving says so', async () => {
+    const room = await HostedRoom.open(db, JACK);
+    const { room: ref } = await joinRoom(db, room.code, 'g');
+    room.stop();
+    const host = new RoomChannel(ref, 'host');
+    const seen: boolean[] = [];
+    host.onPresence = (here) => seen.push(here);
+    host.start();
+    const guest = new RoomChannel(ref, 'guest');
+    guest.start();
+    await until(() => seen.at(-1) === true);
+    guest.close(true);
+    await until(() => seen.at(-1) === false);
+    expect(seatHere(server.at(`${ref.path}/guest`) as SeatEntry)).toBe(false);
+    host.close(true);
   });
 
-  it('a last message sent just before closing still gets through (even with another send in flight)', async () => {
-    const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest();
-    const guest = await joinRoom(db, room.code);
-    const host = await hostSide;
-    const got: unknown[] = [];
-    host.onMessage = (m) => got.push(m);
-    server.latency = 300; // so the first message is still on its way when the phone closes
-    guest.send({ n: 1 });
-    await until(() => server.requests.some((r) => r.method === 'POST' && r.path.endsWith('g2h')), 2000);
-    guest.send({ k: 'bye' });
-    guest.close();
-    await until(() => got.length === 2, 4000);
-    expect(got).toEqual([{ n: 1 }, { k: 'bye' }]);
-    host.close();
-  });
-
-  it('a quiet phone that never comes back: the other side learns the room has closed', async () => {
-    const fast = { pingMs: 100, lostMs: 400 };
-    const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest(fast);
-    const guest = await joinRoom(db, room.code, fast);
-    const host = await hostSide;
-    let closed = false;
-    guest.onClose = () => (closed = true);
-    host.close(); // closes the room (a moment later)
-    await until(() => closed, 8000);
-    await expect(rejoinRoom(db, room.code, 'guest', 'whoever')).rejects.toThrow(/has ended/);
-  });
-
-  it('plays a networked match over the relay, both phones in sync', { timeout: 30_000 }, async () => {
-    const room = await HostedRoom.open(db);
-    const hostSide = room.waitForGuest();
-    const a = new NetSession(await joinRoom(db, room.code), 'guest');
-    const b = new NetSession(await hostSide, 'host');
-    const [host, guest] = [b, a];
-    for (const s of [host, guest]) s.onStart = (seed: number, players: PlayerConfig[]) => createGame({ seed, players });
-    host.setPick({ name: 'H', characterId: 'kcaj' });
-    guest.setPick({ name: 'G', characterId: 'tones' });
-    await until(() => host.ready && guest.ready);
-    host.start(99, [
-      { name: 'H', characterId: 'kcaj', colour: '#fc0' },
-      { name: 'G', characterId: 'tones', colour: '#f55' },
-    ]);
-    await until(() => !!guest.game);
-    const [H, G] = [host.game!, guest.game!];
-    for (let turn = 0; turn < 2; turn++) {
-      const [me, S] = H.current === 0 ? [host, H] : [guest, G];
-      setAim(S, S.current === 0 ? 60 : 120, 60);
-      expect(me.fire()).toBe(true);
-      const next = S.current === 0 ? guest : host;
-      await runPhones([[host, H], [guest, G]], () => next.canAct() && H.turn === G.turn && H.phase === 'aiming' && G.phase === 'aiming', { ms: 15_000 });
-      expectSameMatch(H, G);
-    }
-    expect(currentPlayer(H).name).toBe('H');
-    host.leave();
+  it('whether a seat is here: a recent check-in (by the clock, or seen to arrive), and not left', () => {
+    const now = 1_000_000;
+    expect(seatHere(null, now)).toBe(false);
+    expect(seatHere({ id: 'x', ts: now - 10_000 }, now)).toBe(true);
+    expect(seatHere({ id: 'x', ts: now - 10_000, out: true }, now)).toBe(false);
+    expect(seatHere({ id: 'x', ts: now - 120_000 }, now)).toBe(false);
+    expect(seatHere({ id: 'x', ts: now - 120_000 }, now, now - 5_000)).toBe(true); // (this phone's clock is off)
   });
 });
 

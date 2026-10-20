@@ -95,6 +95,20 @@ select option {
 .chip .name {
   color: var(--c);
 }
+/* Online: the other player has the match open (by their name in the match, and in the Game browser). */
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: #3ddc6a;
+  box-shadow: 0 0 6px #3ddc6a;
+  vertical-align: 1px;
+}
+.live-dot[hidden] {
+  display: none;
+}
 .chip .tank {
   margin-top: -3px;
   font-size: 11px;

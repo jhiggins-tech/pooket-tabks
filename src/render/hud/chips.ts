@@ -1,6 +1,7 @@
 /**
  * The HUD's name chips: a chip per player with their name, rank insignia, status badges, the tank they
- * picked under it, and one health bar (two once Twins has split it). Built when the players or their number of bars change, then kept and
+ * picked under it, and one health bar (two once Twins has split it). Online, the other player's chip has
+ * a green dot while they have the match open (`live`). Built when the players or their number of bars change, then kept and
  * patched, so the health bars animate.
  */
 import type { GameState, Player } from '../../game/state';
@@ -12,6 +13,8 @@ import { Key, type HudContext, type Part } from './part';
 
 interface Chip {
   el: HTMLElement;
+  /** The other player's "here" dot (online only). */
+  live: HTMLElement | null;
   fills: HTMLElement[];
   badges: HTMLElement;
   badgeKey: string;
@@ -24,12 +27,19 @@ export function chips(): Part {
   const shown = new Key();
   let chips: Chip[] = [];
 
-  const build = (state: GameState, { ranks }: HudContext) => {
+  const build = (state: GameState, { ranks, online }: HudContext) => {
     shown.reset();
     chips = state.players.map((pl, i) => {
       const chip = el('div', 'chip');
       chip.style.setProperty('--c', pl.colour);
-      const name = el('span', 'name', pl.name);
+      const name = el('span', 'name');
+      const live = online && online.localSeat >= 0 && i !== online.localSeat ? el('span', 'live-dot') : null;
+      if (live) {
+        live.title = `${pl.name} is here`;
+        live.setAttribute('aria-label', live.title);
+        name.append(live);
+      }
+      name.append(pl.name);
       const rank = ranks[i];
       if (rank) name.append(insignia(rank));
       const badges = el('span');
@@ -44,14 +54,15 @@ export function chips(): Part {
         return fill;
       });
       chip.append(name, tank, bar);
-      return { el: chip, fills, badges, badgeKey: '' };
+      return { el: chip, live, fills, badges, badgeKey: '' };
     });
     playersEl.replaceChildren(...chips.map((c) => c.el));
   };
 
-  const patch = (state: GameState, current: Player) =>
+  const patch = (state: GameState, current: Player, live: boolean) =>
     state.players.forEach((pl, i) => {
       const chip = chips[i]!;
+      if (chip.live) chip.live.hidden = !live;
       chip.el.classList.toggle('active', pl === current && state.phase !== 'gameover');
       chip.el.classList.toggle('dead', !pl.alive);
       const full = pl.twin ? pl.maxHp / 2 : pl.maxHp;
@@ -67,12 +78,13 @@ export function chips(): Part {
 
   return {
     update(state, ctx) {
-      if (shape.changed(state.players.map((pl, i) => `${pl.name}|${pl.characterId}|${pl.colour}|${pl.twin ? 2 : 1}|${ctx.ranks[i]?.id ?? ''}`).join('/'))) build(state, ctx);
+      if (shape.changed(`${ctx.online?.localSeat ?? ''}:` + state.players.map((pl, i) => `${pl.name}|${pl.characterId}|${pl.colour}|${pl.twin ? 2 : 1}|${ctx.ranks[i]?.id ?? ''}`).join('/'))) build(state, ctx);
       const current = ctx.p;
       const key = state.players
         .map((pl) => `${pl.hp}/${pl.twin?.hp}/${pl.maxHp}/${pl.alive}/${pl === current && state.phase !== 'gameover'}/${badgeKey(pl)}`)
         .join('|');
-      if (shown.changed(key)) patch(state, current);
+      const live = !!ctx.online?.live;
+      if (shown.changed(`${live}|${key}`)) patch(state, current, live);
     },
     reset() {
       shape.reset();
