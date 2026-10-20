@@ -10,6 +10,11 @@ import { spriteReady } from '../sprites';
 export function drawProjectiles(d: Draw, state: GameState): void {
   const { ctx } = d;
   for (const pr of state.projectiles) {
+    if (pr.wait !== undefined) continue; // (still in the barrel)
+    if (projectileWeapon(pr.weaponId).straight) {
+      drawStreak(d, pr);
+      continue;
+    }
     if (pr.tracer !== undefined) {
       drawTracer(d, pr);
       continue;
@@ -53,6 +58,34 @@ function drawTracer(d: Draw, pr: Projectile): void {
   ctx.beginPath();
   ctx.arc(pr.x, pr.y, 1.6, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+/** A straight round (the Autocannon Sentry's): a long glowing tracer streak behind it, along its line. */
+function drawStreak(d: Draw, pr: Projectile): void {
+  const { ctx } = d;
+  const colour = projectileWeapon(pr.weaponId).colour ?? '#fde68a';
+  const v = Math.hypot(pr.vx, pr.vy) || 1;
+  const len = Math.min(26, pr.age * v);
+  const tx = pr.x - (pr.vx / v) * len;
+  const ty = pr.y - (pr.vy / v) * len;
+  ctx.save();
+  ctx.lineCap = 'round';
+  const g = ctx.createLinearGradient(tx, ty, pr.x, pr.y);
+  g.addColorStop(0, withAlpha(colour, 0));
+  g.addColorStop(1, withAlpha(colour, 0.9));
+  ctx.strokeStyle = g;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(pr.x, pr.y);
+  ctx.stroke();
+  ctx.strokeStyle = '#fffbeb';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(pr.x - (pr.vx / v) * len * 0.4, pr.y - (pr.vy / v) * len * 0.4);
+  ctx.lineTo(pr.x, pr.y);
+  ctx.stroke();
   ctx.restore();
 }
 

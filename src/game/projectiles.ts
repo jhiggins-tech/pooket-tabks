@@ -129,6 +129,11 @@ export function volleyOffsets(weapon: Projectiles): number[] {
 export function stepProjectile(state: GameState, pr: Projectile, dt: number): boolean {
   const { terrain } = state;
   const weapon = projectileWeapon(pr.weaponId);
+  if (pr.wait !== undefined) {
+    pr.wait -= dt;
+    if (pr.wait > 0) return false;
+    delete pr.wait;
+  }
   pr.age += dt;
   const tracer = pr.tracer !== undefined;
   // A stratagem beacon calls its stratagem in where it lands, rather than going off.
@@ -139,7 +144,7 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
   }
   if (pr.walkDir !== 0) return stepWalker(state, pr, weapon, dt);
   if (weapon.homing && !tracer) steerHoming(state, pr, weapon.homing, dt);
-  if (!pr.homing || weapon.homing?.soft) pr.vy += GRAVITY * dt;
+  if ((!pr.homing || weapon.homing?.soft) && !weapon.straight) pr.vy += GRAVITY * dt;
   const nx = pr.x + pr.vx * dt;
   const ny = pr.y + pr.vy * dt;
 

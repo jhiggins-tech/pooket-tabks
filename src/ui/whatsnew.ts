@@ -20,6 +20,15 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 60,
+    title: 'Bigger sentries',
+    items: [
+      'shotdownboyz’s sentries now stand two or three times the size of a tank, and unfold as they land.',
+      'The Tesla Tower discharges in a crackling sphere of static: every tank inside it gets hit.',
+      'The Autocannon Sentry fires short bursts of tracer rounds dead straight at the nearest enemy, no arc. Hills in the way soak them up.',
+    ],
+  },
+  {
     version: 59,
     title: '🪖 shotdownboyz is here',
     items: [

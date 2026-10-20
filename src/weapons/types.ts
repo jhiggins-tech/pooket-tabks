@@ -195,6 +195,8 @@ export interface ProjectileSpec extends BlastSpec {
    * flying straight at them (ShotDownBoyz's missiles).
    */
   homing?: { radius: number; turnRate: number; minSpeed: number; soft?: boolean };
+  /** No gravity: it flies dead straight, drawn as a long tracer streak (the Autocannon Sentry's rounds). */
+  straight?: true;
   /** Draw the projectile as a sprite pointing along its flight path; default is a plain shell. */
   sprite?: SpriteId;
   /** A mix of looks: round n of a burst (or shot n of a volley) is drawn with `spriteVariants[n % length]`. */

@@ -26,8 +26,8 @@ import { allTargets, applyHit, explode, forEachTargetPos, gone, muzzle, scaled, 
  *   one round straight down. Both hurt anyone close, him included.
  * - a turret: a sentry drops (`state.sentries`) and fires each time anyone fires (`fireSentries`, from
  *   game.ts `fire`, like a marathon runner's legs), until its `shots` are gone. Only the Autocannon aims
- *   itself; the rockets go roughly at the enemy and tilt toward one close by; the Tesla zaps every tank in
- *   reach, his too.
+ *   itself (a short burst of tracers, dead straight); the rockets go roughly at the enemy and tilt toward
+ *   one close by; the Tesla discharges in a sphere and hits every tank inside it, his too.
  * - a weapon or Resupply: a pod drops like a giant spike (it hurts any tank it lands on, his own too), the
  *   crate rises out of it, and it waits there (`state.crates`) until anyone drives into it (`pickUpCrates`):
  *   a weapon takes that player's tier 1's place (its rounds stay); Resupply heals `RESUPPLY_HEAL` of full
@@ -49,10 +49,15 @@ const POD_SPEED = 650;
 const CRATE_REACH = TANK_HALF_WIDTH + 6;
 /** What Resupply heals, as a share of full health. */
 export const RESUPPLY_HEAL = 0.3;
-/** The Tesla Tower's reach (px from its coil). */
-export const TESLA_RANGE = 80;
-/** How high a sentry's gun (or coil) is off the ground. */
-export const SENTRY_HEIGHT = 14;
+/** The Tesla Tower's reach (px from its coil): every tank inside the sphere is hit. */
+export const TESLA_RANGE = 90;
+/** How high a sentry's gun (or coil) is off the ground: they stand two to three times a tank's size. */
+export const SENTRY_HEIGHT = 34;
+/** The Autocannon Sentry's burst: rounds, seconds between them, their speed (px/s) and spread (degrees either way). */
+const AUTOCANNON_ROUNDS = 5;
+const AUTOCANNON_GAP = 0.09;
+const AUTOCANNON_SPEED = 900;
+const AUTOCANNON_SPREAD = 1.5;
 /** How far off a Rocket Sentry's launch can be (a fraction of the speed that would land it on them). */
 const ROCKET_SLOP = 0.12;
 
@@ -292,31 +297,41 @@ function fireSentry(state: GameState, s: Sentry): boolean {
   if (def.category !== 'turret') return false;
   const gunY = s.y - SENTRY_HEIGHT;
   if (def.sentry === 'tesla') {
+    // It discharges in a sphere (drawn by the renderer as it sees its rounds go down): everything inside is hit.
     const zap = weaponOf('tesla-zap', 'ballistic');
-    let any = false;
     for (const t of allTargets(state)) {
       if (gone(t)) continue;
       const at = targetPos(t);
       if (Math.hypot(at.x - s.x, at.y - TANK_BODY_HEIGHT / 2 - gunY) > TESLA_RANGE) continue;
-      any = true;
-      state.beams.push({ x1: s.x, y1: gunY, x2: at.x, y2: at.y - TANK_BODY_HEIGHT / 2, colour: zap.colour ?? '#7dd3fc', hitTank: true, age: 0, duration: 0.45 });
       applyHit(state, t, zap, s.ownerId, scaled(state, s.ownerId, zap.damage), zap.colour);
     }
     sound(state, 'zap');
-    if (!any) state.beams.push({ x1: s.x, y1: gunY, x2: s.x, y2: gunY - 18, colour: zap.colour ?? '#7dd3fc', hitTank: false, age: 0, duration: 0.3 });
     return true;
   }
   const mark = nearestEnemy(state, s.x, gunY, s.ownerId);
   if (!mark) return false;
-  const rocket = def.sentry === 'rocket';
-  const weaponId = rocket ? 'sentry-rocket' : 'autocannon-shell';
-  const v = launchAt(s.x, gunY, mark.x, mark.y, rocket ? [60, 70, 80] : [35, 50, 65]);
+  if (def.sentry === 'autocannon') {
+    // A short burst dead straight at them, no drop: ground in the way takes the hits.
+    const aim = Math.atan2(-(mark.y - gunY), mark.x - s.x);
+    s.aim = (aim * 180) / Math.PI;
+    const muzzleX = s.x + Math.cos(aim) * 14;
+    const muzzleY = gunY - Math.sin(aim) * 14;
+    for (let i = 0; i < AUTOCANNON_ROUNDS; i++) {
+      const a = aim + (randRange(state.rng, -AUTOCANNON_SPREAD, AUTOCANNON_SPREAD) * Math.PI) / 180;
+      const vx = Math.cos(a) * AUTOCANNON_SPEED;
+      const vy = -Math.sin(a) * AUTOCANNON_SPEED;
+      state.projectiles.push({ x: muzzleX, y: muzzleY, vx, vy, weaponId: 'autocannon-shell', ownerId: s.ownerId, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0, ...(i > 0 ? { wait: i * AUTOCANNON_GAP } : {}) });
+    }
+    sound(state, 'sentry-shell', 'autocannon-shell');
+    return true;
+  }
+  const v = launchAt(s.x, gunY, mark.x, mark.y, [60, 70, 80]);
   if (!v) return false;
-  // The rockets go roughly their way (their homing does the rest); the autocannon's spot on.
-  const k = rocket ? 1 + randRange(state.rng, -ROCKET_SLOP, ROCKET_SLOP) : 1;
+  // The rockets go roughly their way (their homing does the rest).
+  const k = 1 + randRange(state.rng, -ROCKET_SLOP, ROCKET_SLOP);
   s.aim = (Math.atan2(-v.vy, v.vx) * 180) / Math.PI;
-  state.projectiles.push({ x: s.x, y: gunY, vx: v.vx * k, vy: v.vy * k, weaponId, ownerId: s.ownerId, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 });
-  sound(state, rocket ? 'sentry-rocket' : 'sentry-shell', weaponId);
+  state.projectiles.push({ x: s.x, y: gunY, vx: v.vx * k, vy: v.vy * k, weaponId: 'sentry-rocket', ownerId: s.ownerId, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 });
+  sound(state, 'sentry-rocket', 'sentry-rocket');
   return true;
 }
 

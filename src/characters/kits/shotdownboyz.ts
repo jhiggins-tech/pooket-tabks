@@ -140,14 +140,17 @@ export const sentryRocket = {
   colour: '#fb923c',
 } satisfies WeaponDef;
 
-/** The Autocannon Sentry's shells: the one stratagem that aims itself. */
+/** The Autocannon Sentry's rounds: the one stratagem that aims itself. */
 export const autocannonShell = {
   id: 'autocannon-shell',
   name: 'Autocannon Sentry',
   shortName: 'Autocannon',
-  info: 'Stratagem: a sentry that works out the arc to the nearest enemy and lobs a shell at them every turn (anyone’s), three times.',
-  blastRadius: 14,
-  damage: 20,
+  info: 'Stratagem: a sentry that fires a short burst of tracer rounds dead straight at the nearest enemy every turn (anyone’s), three times. Ground in the way takes the hits.',
+  blastRadius: 5,
+  damage: 5,
+  straight: true,
+  trail: false,
+  colour: '#fde68a',
 } satisfies WeaponDef;
 
 /** The Tesla Tower's zap: every tank close by, his own included. */
@@ -155,7 +158,7 @@ export const teslaZap = {
   id: 'tesla-zap',
   name: 'Tesla Tower',
   shortName: 'Tesla',
-  info: 'Stratagem: a tower that zaps every tank close to it every turn (anyone’s), three times, his own included.',
+  info: 'Stratagem: a Tesla coil that discharges in a crackling sphere every turn (anyone’s), three times: every tank inside it is hit, his own included.',
   blastRadius: 0,
   damage: 16,
   colour: '#7dd3fc',

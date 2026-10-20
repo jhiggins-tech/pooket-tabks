@@ -1,4 +1,5 @@
-import { BEACON_TIME, LASER_TIME, SENTRY_HEIGHT } from '../../game/game';
+import { BEACON_TIME, LASER_TIME, SENTRY_HEIGHT, TESLA_RANGE } from '../../game/game';
+import { TANK_BODY_HEIGHT } from '../../game/constants';
 import type { Crate, GameState, Sentry, StratagemDrop } from '../../game/state';
 import { stratagemOf, type StratagemDef } from '../../weapons/stratagems';
 import type { Draw } from './context';
@@ -192,49 +193,75 @@ function drawCrate(d: Draw, c: Crate, state: GameState): void {
   ctx.restore();
 }
 
+/** Sentries are drawn at this scale (their shapes are laid out small): two to three times a tank. */
+const SENTRY_SCALE = SENTRY_HEIGHT / 14;
+/** How long a sentry takes to unfold, and how long the Tesla's discharge shows (s). */
+const UNFOLD = 0.8;
+const DISCHARGE = 0.7;
+
 /**
- * A sentry: a tripod and a turret head in its owner's colour, with its gun (a rocket pod, an autocannon
- * barrel, or the Tesla's coil and sparks), and a light for each round it has left.
+ * A sentry: a base plate, a tripod that unfolds and a turret head in its owner's colour, with its gun (a
+ * rocket pod, an autocannon barrel, or the Tesla's coil and its crackling sphere), and a light for each
+ * round it has left. It unfolds when first drawn; the Tesla discharges when its rounds go down.
  */
 function drawSentry(d: Draw, s: Sentry, state: GameState): void {
   const { ctx } = d;
   const def = stratagemOf(s.stratagem);
   if (def.category !== 'turret') return;
+  let seen = d.sentries.get(s.id);
+  if (!seen) d.sentries.set(s.id, (seen = { seen: d.time, shots: s.shots, fired: -Infinity }));
+  if (s.shots < seen.shots) seen.fired = d.time;
+  seen.shots = s.shots;
   const colour = state.players[s.ownerId]?.colour ?? '#f87171';
-  const up = Math.min(1, s.age / 0.5);
-  const h = SENTRY_HEIGHT * up;
+  const t = Math.min(1, (d.time - seen.seen) / UNFOLD);
+  const up = 1 - (1 - t) ** 3;
+  const h = 14 * up;
+  const spread = 3 + 5 * up;
+  if (def.sentry === 'tesla') drawSphere(d, s, state, d.time - seen.fired);
   ctx.save();
   ctx.translate(s.x, s.y);
-  // Tripod.
+  ctx.scale(SENTRY_SCALE, SENTRY_SCALE);
+  ctx.lineJoin = 'round';
+  // Base plate and tripod.
+  ctx.fillStyle = '#374151';
+  ctx.fillRect(-spread - 1.5, -1, 2 * spread + 3, 1.6);
   ctx.strokeStyle = '#4b5563';
-  ctx.lineWidth = 1.6;
+  ctx.lineWidth = 1.1;
   ctx.beginPath();
-  ctx.moveTo(-6, 0);
+  ctx.moveTo(-spread, 0);
   ctx.lineTo(0, -h + 4);
-  ctx.lineTo(6, 0);
+  ctx.lineTo(spread, 0);
   ctx.moveTo(0, 0);
   ctx.lineTo(0, -h + 4);
   ctx.stroke();
   if (def.sentry === 'tesla') {
     // A coil with copper rings and a crackling ball on top.
-    ctx.fillStyle = '#b45309';
-    for (let i = 0; i < 3; i++) ctx.fillRect(-3.5 + i * 0.5, -h + 4 - i * 3.2, 7 - i, 2);
-    const g = ctx.createRadialGradient(0, -h - 2, 0, 0, -h - 2, 6);
+    ctx.fillStyle = '#78350f';
+    ctx.fillRect(-1, -h + 1, 2, h - 1);
+    ctx.fillStyle = '#d97706';
+    for (let i = 0; i < 4; i++) ctx.fillRect(-3.5 + i * 0.5, -h + 7 - i * 2.2, 7 - i, 1.2);
+    const r = 3 + Math.sin(d.time * 20) * 0.4;
+    const g = ctx.createRadialGradient(0, -h, 0, 0, -h, r * 1.8);
     g.addColorStop(0, '#f0f9ff');
+    g.addColorStop(0.45, '#7dd3fc');
     g.addColorStop(1, 'rgba(125,211,252,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(0, -h - 2, 5 + Math.sin(d.time * 20) * 1, 0, Math.PI * 2);
+    ctx.arc(0, -h, r * 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#e0f2fe';
+    ctx.beginPath();
+    ctx.arc(0, -h, r * 0.8, 0, Math.PI * 2);
     ctx.fill();
   } else {
     // The head, turned toward where it last fired.
     ctx.save();
-    ctx.translate(0, -h + 3);
+    ctx.translate(0, -h);
     ctx.fillStyle = colour;
     ctx.strokeStyle = '#111827';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 0.6;
     ctx.beginPath();
-    ctx.roundRect(-5, -4, 10, 7, 2);
+    ctx.roundRect(-5, -3.5, 10, 7, 2);
     ctx.fill();
     ctx.stroke();
     ctx.rotate((-s.aim * Math.PI) / 180);
@@ -242,13 +269,119 @@ function drawSentry(d: Draw, s: Sentry, state: GameState): void {
     if (def.sentry === 'rocket') {
       ctx.fillRect(1, -4, 9, 3.5);
       ctx.fillRect(1, 0.5, 9, 3.5);
-    } else ctx.fillRect(2, -1.2, 13, 2.4);
+      ctx.fillStyle = '#fb923c';
+      ctx.fillRect(9, -3.3, 1, 2);
+      ctx.fillRect(9, 1.2, 1, 2);
+    } else {
+      ctx.fillRect(2, -1.2, 4, 2.4);
+      ctx.fillRect(5, -0.7, 9 * up, 1.4);
+      ctx.fillRect(12.5 * up, -1, 1.6, 2);
+    }
     ctx.restore();
   }
   // Rounds left.
   for (let i = 0; i < def.shots; i++) {
-    ctx.fillStyle = i < s.shots ? '#a3e635' : '#374151';
-    ctx.fillRect(-5 + i * 4, 2, 2.5, 2);
+    ctx.fillStyle = i < s.shots ? '#a3e635' : '#111827';
+    ctx.fillRect(-4.2 + i * 3.2, -0.7, 2.2, 1);
+  }
+  ctx.restore();
+}
+
+/** A cosmetic random number in [0, 1) for this frame's arcs (changes every 1/30 s). */
+function flick(d: Draw, i: number): number {
+  const x = Math.sin(i * 12.9898 + Math.floor(d.time * 30) * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** A jagged bolt of static from (x1, y1) to (x2, y2). */
+function bolt(d: Draw, x1: number, y1: number, x2: number, y2: number, seed: number, jag: number): void {
+  const { ctx } = d;
+  const n = 7;
+  const nx = -(y2 - y1);
+  const ny = x2 - x1;
+  const len = Math.hypot(nx, ny) || 1;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  for (let k = 1; k < n; k++) {
+    const f = k / n;
+    const off = (flick(d, seed * 13 + k) - 0.5) * 2 * jag;
+    ctx.lineTo(x1 + (x2 - x1) * f + (nx / len) * off, y1 + (y2 - y1) * f + (ny / len) * off);
+  }
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+/**
+ * The Tesla Tower's reach: a sphere of static round its ball. Idle, a faint dashed edge and a couple of
+ * sparks; for a moment after it fires, the whole sphere lights up, its edge crackling, bolts out to it
+ * from the ball and into every tank inside.
+ */
+function drawSphere(d: Draw, s: Sentry, state: GameState, since: number): void {
+  const { ctx } = d;
+  const cx = s.x;
+  const cy = s.y - SENTRY_HEIGHT;
+  const R = TESLA_RANGE;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (since >= DISCHARGE) {
+    ctx.strokeStyle = 'rgba(125,211,252,0.22)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 6]);
+    ctx.lineDashOffset = -d.time * 8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(224,242,254,0.8)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 2; i++) {
+      if (flick(d, 50 + i) < 0.4) continue;
+      const a = flick(d, 60 + i) * Math.PI * 2;
+      const r = 10 + flick(d, 70 + i) * 10;
+      bolt(d, cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r, 80 + i, 3);
+    }
+    ctx.restore();
+    return;
+  }
+  const k = 1 - since / DISCHARGE;
+  // The sphere itself.
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+  g.addColorStop(0, `rgba(224,242,254,${0.35 * k})`);
+  g.addColorStop(0.7, `rgba(125,211,252,${0.12 * k})`);
+  g.addColorStop(1, `rgba(56,189,248,${0.3 * k})`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fill();
+  // Its crackling edge.
+  ctx.strokeStyle = `rgba(186,230,253,${0.9 * k})`;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  const n = 48;
+  for (let i = 0; i <= n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const r = R + (flick(d, i % n) - 0.5) * 7;
+    if (i === 0) ctx.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    else ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  ctx.stroke();
+  // Bolts out to the edge, and into every tank inside.
+  ctx.shadowColor = '#7dd3fc';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = `rgba(240,249,255,${k})`;
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2 + flick(d, 100 + i) * 0.7;
+    bolt(d, cx, cy, cx + Math.cos(a) * R, cy + Math.sin(a) * R, 200 + i, 9);
+  }
+  ctx.lineWidth = 2.2;
+  for (const p of state.players) {
+    if (!p.alive) continue;
+    for (const b of p.twin ? [p, p.twin] : [p]) {
+      const ty = b.y - TANK_BODY_HEIGHT / 2;
+      if (Math.hypot(b.x - cx, ty - cy) <= R) bolt(d, cx, cy, b.x, ty, 300 + p.id * 2 + (b === p ? 0 : 1), 7);
+    }
   }
   ctx.restore();
 }

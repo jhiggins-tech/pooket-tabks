@@ -1125,6 +1125,31 @@ test("ShotDownBoyz's Stratagem: the d-pad, a combo keyed by taps and keys, a bea
   });
   await page.waitForTimeout(900);
   await page.screenshot({ path: 'test-results/stratagem-crate.png' });
+  // Sentries, two or three times a tank's size, unfolding; then the Tesla discharges and the Autocannon fires.
+  await page.evaluate(() => {
+    const s = window.__pooket.state;
+    const kie = s.players[1]!;
+    const at = (x: number) => ({ x, y: s.terrain.surfaceY(x) });
+    s.sentries.push({ id: 991, ownerId: 0, stratagem: 'tesla-tower', ...at(kie.x - 50), shots: 3, aim: 0, age: 0 });
+    s.sentries.push({ id: 992, ownerId: 0, stratagem: 'autocannon-sentry', ...at(kie.x - 260), shots: 3, aim: 0, age: 0 });
+    s.sentries.push({ id: 993, ownerId: 0, stratagem: 'rocket-sentry', ...at(kie.x - 360), shots: 3, aim: 45, age: 0 });
+  });
+  await page.waitForTimeout(1000);
+  await page.evaluate(() => {
+    const s = window.__pooket.state;
+    const kie = s.players[1]!;
+    s.sentries.find((x) => x.id === 991)!.shots = 2;
+    const gun = s.sentries.find((x) => x.id === 992)!;
+    const gy = gun.y - 34;
+    const a = Math.atan2(-(kie.y - 4 - gy), kie.x - gun.x);
+    gun.aim = (a * 180) / Math.PI;
+    for (let i = 0; i < 3; i++) {
+      const d = 40 + i * 30;
+      s.projectiles.push({ x: gun.x + Math.cos(a) * d, y: gy - Math.sin(a) * d, vx: Math.cos(a) * 1e-3, vy: -Math.sin(a) * 1e-3, weaponId: 'autocannon-shell', ownerId: 0, trail: [], bounces: 0, age: 1, walkDir: 0, walkTime: 0 });
+    }
+  });
+  await page.waitForTimeout(150);
+  await page.screenshot({ path: 'test-results/stratagem-sentries.png' });
 });
 
 test("ShotDownBoyz's Prepper digs him in and builds a brick bunker with a slit along his aim", async ({ page }) => {

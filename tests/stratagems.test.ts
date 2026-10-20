@@ -189,6 +189,27 @@ describe('what comes down', () => {
     expect(g.sentries).toHaveLength(0);
   });
 
+  it('the Autocannon fires a short burst of rounds dead straight at the nearest enemy, no drop', () => {
+    const g = match();
+    const kie = g.players[1]!;
+    callIn(g, 'autocannon-sentry', 500);
+    const boyz = g.players[0]!;
+    boyz.angle = 90;
+    boyz.power = 5;
+    fire(g);
+    const rounds = g.projectiles.filter((pr) => pr.weaponId === 'autocannon-shell');
+    expect(rounds).toHaveLength(5);
+    expect(rounds.filter((pr) => pr.wait === undefined)).toHaveLength(1);
+    const first = rounds[0]!;
+    const vy = first.vy;
+    step(g, 0.05);
+    expect(first.vy).toBe(vy); // (no gravity)
+    expect(Math.sign(first.vx)).toBe(Math.sign(kie.x - 500));
+    const hp = kie.hp;
+    untilAiming(g);
+    expect(kie.hp).toBeLessThan(hp);
+  });
+
   it('the Tesla Tower zaps every tank close by, his own included', () => {
     const g = match();
     const [boyz, kie] = g.players as [GameState['players'][0], GameState['players'][0]];

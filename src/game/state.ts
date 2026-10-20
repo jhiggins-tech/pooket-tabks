@@ -477,6 +477,8 @@ export interface Projectile {
   tracer?: number;
   /** A stratagem beacon: what it calls in where it lands (game/stratagems.ts). */
   stratagem?: string;
+  /** Seconds before it leaves the muzzle (a sentry's burst, fired all at once): until then it waits, unseen. */
+  wait?: number;
 }
 
 export interface Beam {

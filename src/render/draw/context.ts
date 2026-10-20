@@ -16,6 +16,8 @@ export interface Draw {
   hoop: { h: Hoop; since: number; last: number } | null;
   /** ShotDownBoyz's stratagem crates, by id: when (`time`) each was first drawn, to rise out of its spike (draw/stratagems.ts). */
   crates: Map<number, number>;
+  /** ShotDownBoyz's sentries, by id: when (`time`) each was first drawn (to unfold), and its rounds and when it last fired as drawn (the Tesla's discharge). */
+  sentries: Map<number, { seen: number; shots: number; fired: number }>;
   /** Who's looking, for what's hidden from whom (Sly: draw/sly.ts): a player id (online, this phone's seat), -1 nobody's (a spectator), null everyone's (a shared phone). */
   viewer: number | null;
 }

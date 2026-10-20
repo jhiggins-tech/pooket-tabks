@@ -25,6 +25,12 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **shotdownboyz's turrets, bigger and louder** (owner, 20 Oct; rules 43; What's new 60). Sentries now stand
+  two to three times a tank's size (`SENTRY_HEIGHT` 34, was 14) and unfold as they land. The **Tesla Tower**
+  is a coil with a sphere of static round it (reach 90, was 80): a faint dashed edge while it waits, and when it
+  fires the whole sphere crackles, with bolts into every tank inside. The **Autocannon Sentry** fires a short
+  burst dead straight at the nearest enemy, no drop: 5 tracer rounds of 5 (was one lobbed shell of 20), with a
+  little spread; ground in the way takes the hits (`ProjectileSpec.straight`, `Projectile.wait`).
 - **shotdownboyz out of beta** (owner, 20 Oct; What's new 59, the roll-up of his beta pushes). `beta` comes
   off his kit: no banner on the info screen, no "(beta)" in the pickers, and online he's unlocked with XP like
   the others. The release introduces him: the Pistol, Stratagem (all 11, pods anyone can pick up, Resupply's
@@ -234,6 +240,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **Autocannon Sentry: a straight burst** (owner, 20 Oct; rules 43): 5 rounds of 5 dead straight (up to 25),
+  was one lobbed 20. **Tesla Tower** reach 90, was 80 (measured from its coil, now higher up).
 - **Hoop Dreamz's slam dunk hits harder** (owner, 16 Oct; rules 26): 70 damage, was 45. A make is tricky,
   so it's worth more; a loose ball is still 15.
 - **Fixes** (audit, owner-approved, 7 Oct; rules 21). torikloud's twin fired Sonic Boom along the main tank's

@@ -558,10 +558,12 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
   'sentry-up': (s) => s.tone({ at: 0.2, dur: 0.35, from: 200, to: 700, duty: 0.25, steps: 8, vol: 0.08 }),
   // A sentry's rocket: fwoosh.
   'sentry-rocket': (s) => s.noise({ dur: 0.4, rate: 0.5, to: 1.3, vol: 0.13 }),
-  // A sentry's autocannon: a heavy thunk.
+  // A sentry's autocannon: a rattle of heavy thunks, one per round of the burst.
   'sentry-shell': (s) => {
-    s.tone({ dur: 0.1, from: 300, to: 90, duty: 0.5, vol: 0.16 });
-    s.noise({ dur: 0.08, rate: 0.7, vol: 0.12 });
+    for (let i = 0; i < 5; i++) {
+      s.tone({ at: i * 0.09, dur: 0.07, from: 320, to: 90, duty: 0.5, vol: 0.14 });
+      s.noise({ at: i * 0.09, dur: 0.06, rate: 0.7, vol: 0.1 });
+    }
   },
   // The Tesla Tower: crackling electricity.
   zap: (s) => {
