@@ -20,6 +20,18 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 59,
+    title: '🪖 shotdownboyz is here',
+    items: [
+      'shotdownboyz is out of beta, with a bulldozer on the front: the Digger (bonus move, once a turn) drives him straight through hills, carving a tunnel. When his fuel runs out, a jerry can of diesel in reserve fills it up next turn.',
+      'Pistol: one weak bullet on an arc. It’s always there.',
+      'Stratagem: punch a Helldivers combo into the d-pad in 10 seconds (or W A S D) and throw the beacon. Down comes an Orbital Laser or a Railcannon Strike, a Rocket, Tesla or Autocannon sentry that fires every turn, a weapon pod, or a Resupply. Each one re-arms for a few turns once it’s used.',
+      'Drop pods hurt whoever they land on, and anyone can drive into one: a weapon pod swaps out your first weapon, a Resupply heals 30% and refuels you.',
+      'Prepper: he digs in behind a brick bunker, open only in a slit where he’s aiming. Blast your way in, or dig your way out.',
+      'Play him online too: unlock him with XP like the others.',
+    ],
+  },
+  {
     version: 58,
     title: 'Online, simpler',
     items: [

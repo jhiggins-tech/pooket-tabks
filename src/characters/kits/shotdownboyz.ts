@@ -199,9 +199,8 @@ export const shotdownboyz = kit(
   {
     id: 'shotdownboyz',
     name: 'shotdownboyz',
-    blurb: 'Beta: a Pistol, Helldivers stratagems called in on a d-pad, the Prepper bunker, a front-mounted bulldozer, and the Digger bonus move. When his fuel runs out, a jerry can of diesel in reserve refills it next turn.',
+    blurb: 'A Pistol, Helldivers stratagems called in on a d-pad, the Prepper bunker, a front-mounted bulldozer, and the Digger bonus move. When his fuel runs out, a jerry can of diesel in reserve refills it next turn.',
     colours: ['#f87171', '#fb7185', '#ef4444'],
-    beta: true,
   },
   [pistol, stratagem, prepper, activateDigger],
   [wasp, spear, quasar, grenadePistol, smg, beacon, orbitalLaser, railcannon, sentryRocket, autocannonShell, teslaZap, supplyPod],

@@ -7,7 +7,7 @@ import { upcoming, UPCOMING } from '../src/characters/upcoming';
 describe('roster', () => {
   it('has the ten selectable characters (kiwicore and ShotDownBoyz in beta)', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox', 'shotdownboyz']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore', 'shotdownboyz']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore']);
   });
 
   it("kiwicore's beta loadout: the béretta M2, Band Aid and a stand-in shot; he wears a flat cap", () => {
@@ -24,11 +24,11 @@ describe('roster', () => {
     expect(getCharacter('doctorfox').movement).toBe('arwing');
   });
 
-  it("ShotDownBoyz's beta loadout: the Pistol, Stratagem, Prepper and an unlimited once-a-turn digger bonus", () => {
+  it("ShotDownBoyz's loadout (out of beta): the Pistol, Stratagem, Prepper and an unlimited once-a-turn digger bonus", () => {
     const boyz = getCharacter('shotdownboyz');
     expect(boyz.loadout).toEqual(['pistol', 'stratagem', 'prepper', 'activate-digger']);
     expect(getWeapon('stratagem').kind).toBe('stratagem');
-    expect(boyz.beta).toBe(true);
+    expect(boyz.beta).toBeUndefined();
     expect(getWeapon('activate-digger').kind).toBe('digger');
   });
 
@@ -55,9 +55,9 @@ describe('roster', () => {
     expect(upcoming('tones')).toBeUndefined();
     // Teased moves (work in progress), by slot.
     expect(upcoming('garyoldmancorp')).toBeUndefined(); // playable now
-    expect(upcoming('kiwicore')).toBeUndefined(); // playable in beta
+    expect(upcoming('kiwicore')).toBeUndefined(); // playable
     expect(upcoming('doctorfox')).toBeUndefined(); // playable
-    expect(upcoming('shotdownboyz')).toBeUndefined(); // playable in beta
+    expect(upcoming('shotdownboyz')).toBeUndefined(); // playable
     expect(upcoming('lankcity')!.teasers!.map((t) => t.name)).toEqual(['HARD disk drive', 'lizard walk']);
     expect(upcoming('odsey')!.teasers).toBeUndefined();
   });

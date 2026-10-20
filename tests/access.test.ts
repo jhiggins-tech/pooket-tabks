@@ -22,12 +22,13 @@ describe('who can play which character online', () => {
     expect(onlineLock('kiwicore', signedIn('kiwicore'))).toBe('beta');
     expect(onlineLock('garyoldmancorp', signedIn())).toBe('locked'); // out of beta: unlocked like the rest
     expect(onlineLock('doctorfox', signedIn())).toBe('locked');
+    expect(onlineLock('shotdownboyz', signedIn())).toBe('locked');
     expect(LOCK_TEXT.locked.long('ciarra')).toBe('Unlock ciarra with an unlock token: you earn one every 600 XP from online matches (+200 a win, +100 a loss).');
   });
 
   it('what a token could unlock: the locked ones, not betas, not what they have', () => {
-    expect(unlockable(signedIn())).toEqual(['torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'doctorfox']);
-    expect(unlockable(signedIn('ciarra'))).toEqual(['torikloud', 'larinovsky', 'garyoldmancorp', 'doctorfox']);
+    expect(unlockable(signedIn())).toEqual(['torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'doctorfox', 'shotdownboyz']);
+    expect(unlockable(signedIn('ciarra'))).toEqual(['torikloud', 'larinovsky', 'garyoldmancorp', 'doctorfox', 'shotdownboyz']);
     expect(unlockable(GUEST)).toEqual([]);
   });
 
