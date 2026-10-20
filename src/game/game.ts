@@ -134,7 +134,7 @@ export function createGame(cfg: GameConfig): GameState {
       pokemon: null,
       scooterCrash: 0,
       hidden: false,
-      stratagems: drawStratagems(cfg.seed, i).map((id) => ({ id, rearm: 0 })),
+      stratagems: drawStratagems().map((id) => ({ id, rearm: 0 })),
     };
   });
 

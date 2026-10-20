@@ -2770,14 +2770,13 @@ body[data-online='true'] #net-menu {
 .strat-col:last-child {
   align-items: flex-end;
 }
-.strat-col:last-child .strat-card {
-  align-items: flex-start;
-}
 .strat-card {
   width: min(210px, 100%);
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
   gap: 2px;
   padding: 5px 9px;
   border-radius: 10px;

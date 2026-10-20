@@ -333,12 +333,11 @@ export interface BunkerSpec {
 }
 
 /**
- * Stratagem: `offered` stratagems a match (and Resupply), `time` s to key one's combo; a supply or weapon
- * pod that lands on a tank does `podDamage` (game/stratagems.ts).
+ * Stratagem: `time` s to key a stratagem's combo; a supply or weapon pod that lands on a tank does
+ * `podDamage` (game/stratagems.ts).
  */
 export interface StratagemSpec {
   time: number;
-  offered: number;
   podDamage: number;
 }
 

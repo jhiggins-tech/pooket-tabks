@@ -25,12 +25,18 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **Stratagems for everyone's pods** (owner, 20 Oct; rules 42; a testing push while he's in beta: no What's
+  new release). shotdownboyz has all 11 stratagems every match (no more drawing 4). **Anyone** can drive into
+  a pod: a weapon drop takes their tier 1's place (rounds kept), Resupply heals 30% of full health and, for
+  anyone but him, fills their fuel (he still gets the diesel can and rounds). Pods hurt whoever they land on,
+  friend or foe (8). Weapon and supply pods now come down like a giant spike driven into the ground, then the
+  crate rises out of it to sit on its flat top (`render/draw/stratagems.ts`).
 - **shotdownboyz's Pistol (tier 1) and Stratagem (tier 2)** (owner, 19 Oct, from the stratagem table approved
   in the project's stratagem thread, `stratagems/stratagems.md`; rules 40; a testing push while he's in beta:
   no What's new release). The **Pistol** replaces Beta Shot: one weak bullet on an arc (12). **Stratagem**
   replaces Beta Bomb, Helldivers 2 style (`game/stratagems.ts`, the table in `weapons/stratagems.ts`, a new
   `stratagem` kind and `calling` phase, streamed in previews like 007). Each match he gets 4 of the 10
-  stratagems (drawn from the seed) and Resupply. FIRE brings up a d-pad in the middle with his stratagems on
+  stratagems (drawn from the seed) and Resupply (since rules 42: all of them). FIRE brings up a d-pad in the middle with his stratagems on
   cards either side, each with its real HD2 combo; he has 10 s to key one (taps, or W A S D / arrow keys).
   Cards that no longer fit grey out, a wrong arrow wipes the input (and shakes the panel), a finished combo
   throws a beacon along his aim; out of time, it's called off with nothing spent. Where the beacon lands its

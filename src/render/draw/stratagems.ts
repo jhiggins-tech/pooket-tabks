@@ -52,7 +52,10 @@ function drawDrop(d: Draw, drop: StratagemDrop): void {
   ctx.restore();
 
   if (def.category === 'ordnance' && def.strike === 'laser' && drop.t >= BEACON_TIME) drawLaser(d, drop);
-  if (drop.podY !== null) drawPod(d, drop.x, drop.podY, colour, true);
+  if (drop.podY === null) return;
+  // A turret comes down in a plain pod; weapons and supplies as a giant spike that drives into the ground.
+  if (def.category === 'turret') drawPod(d, drop.x, drop.podY, colour, true);
+  else drawSpike(d, drop.x, drop.podY - SPIKE_UP, colour, true);
 }
 
 /** The Orbital Laser: a searing red beam from the top of the sky to where it's burning, glowing at the foot. */
@@ -104,19 +107,87 @@ function drawPod(d: Draw, x: number, y: number, colour: string, falling: boolean
   ctx.restore();
 }
 
-/** A pod on the ground, its light pulsing so it's easy to spot (his to pick up). */
+/** How much of a landed spike sticks up out of the ground (px): its flat top is where the crate rests. */
+const SPIKE_UP = 12;
+/** How long the crate takes to rise out of the spike once it's landed (s). */
+const CRATE_RISE = 0.7;
+
+/**
+ * A supply spike: a steel shaft with a flat top (a band in its colour round it) and a long point. Falling,
+ * it's drawn whole with fire streaming off it (`top` is its flat top, the point well below); landed, only
+ * the top `SPIKE_UP` px stick out of the ground, with a crack of dirt round it.
+ */
+function drawSpike(d: Draw, x: number, top: number, colour: string, falling: boolean): void {
+  const { ctx } = d;
+  const ground = top + SPIKE_UP;
+  ctx.save();
+  if (falling) {
+    const g = ctx.createLinearGradient(0, top - 70, 0, top);
+    g.addColorStop(0, 'rgba(251,146,60,0)');
+    g.addColorStop(1, 'rgba(253,224,71,0.85)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 5, top - 70, 10, 70);
+  }
+  const shaft = ctx.createLinearGradient(x - 7, 0, x + 7, 0);
+  shaft.addColorStop(0, '#4b5563');
+  shaft.addColorStop(0.45, '#d1d5db');
+  shaft.addColorStop(1, '#374151');
+  ctx.fillStyle = shaft;
+  ctx.strokeStyle = '#111827';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  if (falling) {
+    // The whole spike: shaft down to the ground line, then the point below it.
+    ctx.moveTo(x - 7, top);
+    ctx.lineTo(x + 7, top);
+    ctx.lineTo(x + 6, ground);
+    ctx.lineTo(x, ground + 28);
+    ctx.lineTo(x - 6, ground);
+  } else {
+    ctx.moveTo(x - 7, top);
+    ctx.lineTo(x + 7, top);
+    ctx.lineTo(x + 6, ground);
+    ctx.lineTo(x - 6, ground);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = colour;
+  ctx.fillRect(x - 6.5, top + 3, 13, 2.5);
+  if (!falling) {
+    // Dirt cracked up round where it went in.
+    ctx.fillStyle = '#5b3a1e';
+    for (const [dx, h] of [[-10, 2], [-8, 3], [8, 3], [10, 2]] as const) ctx.fillRect(x + dx - 1, ground - h, 2.5, h);
+  }
+  ctx.restore();
+}
+
+/** A crate on its spike, risen out of it, its light pulsing so it's easy to spot (anyone can drive into it). */
 function drawCrate(d: Draw, c: Crate, state: GameState): void {
   const def = stratagemOf(c.stratagem);
   const colour = hue(def);
-  drawPod(d, c.x, c.y, colour, false);
+  const top = c.y - SPIKE_UP;
+  drawSpike(d, c.x, top, colour, false);
+  // Rising out of the spike's top: clipped to above it until it's all the way up.
+  const since = d.crates.get(c.id) ?? d.time;
+  d.crates.set(c.id, since);
+  const k = Math.min(1, (d.time - since) / CRATE_RISE);
+  const rise = 1 - (1 - k) ** 3;
   const { ctx } = d;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(c.x - 20, top - 40, 40, 40);
+  ctx.clip();
+  drawPod(d, c.x, top + 14 * (1 - rise), colour, false);
+  ctx.restore();
+  if (k < 1) return;
   const pulse = 0.5 + 0.5 * Math.sin(d.time * 4 + c.id);
   ctx.save();
   ctx.globalAlpha = 0.35 + 0.4 * pulse;
   ctx.strokeStyle = state.players[c.ownerId]?.colour ?? colour;
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.arc(c.x, c.y - 7, 10 + 2 * pulse, 0, Math.PI * 2);
+  ctx.arc(c.x, top - 7, 10 + 2 * pulse, 0, Math.PI * 2);
   ctx.stroke();
   ctx.restore();
 }

@@ -21,9 +21,9 @@ export const stratagem = {
   name: 'Stratagem',
   shortName: 'Stratagem',
   info:
-    'FIRE, then key a stratagem’s combo on the d-pad (or W A S D) within 10 seconds, and a beacon flies along your aim. Where it lands: an Orbital Laser or Railcannon Strike; a Rocket, Tesla or Autocannon sentry that fires every turn, three times; or a pod to drive into, with a new tier 1 (W.A.S.P., Spear, Quasar, Grenade Pistol, SMG) or a Resupply. Each match brings four of them and Resupply; each one used re-arms for a few of your turns. Too close and it hurts you too.',
+    'FIRE, then key a stratagem’s combo on the d-pad (or W A S D) within 10 seconds, and a beacon flies along your aim. Where it lands: an Orbital Laser or Railcannon Strike; a Rocket, Tesla or Autocannon sentry that fires every turn, three times; or a pod to drive into, with a new tier 1 (W.A.S.P., Spear, Quasar, Grenade Pistol, SMG) or a Resupply. Every one is there every match; each one used re-arms for a few of your turns. Too close and it hurts you too, and anyone can drive into a pod: a weapon replaces their tier 1, and Resupply heals 30% (and refuels).',
   kind: 'stratagem',
-  stratagem: { time: 10, offered: 4, podDamage: 8 },
+  stratagem: { time: 10, podDamage: 8 },
 } satisfies WeaponDef;
 
 // ---- Weapon drops: each takes the Pistol's place when he drives into its pod. ----

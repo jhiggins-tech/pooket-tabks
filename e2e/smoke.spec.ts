@@ -1092,8 +1092,7 @@ test("ShotDownBoyz's Stratagem: the d-pad, a combo keyed by taps and keys, a bea
   await startHotseat(page, { seed: 77, p1: 'shotdownboyz', p2: 'kie', query: 'debug' });
   await page.evaluate(() => {
     const p = window.__pooket.state.players[0]!;
-    p.stratagems = ['orbital-laser', 'rocket-sentry', 'tesla-tower', 'smg', 'resupply'].map((id) => ({ id, rearm: 0 }));
-    p.stratagems[1]!.rearm = 3;
+    p.stratagems.find((s) => s.id === 'rocket-sentry')!.rearm = 3;
     p.angle = 90;
     p.power = 30;
   });
@@ -1102,12 +1101,12 @@ test("ShotDownBoyz's Stratagem: the d-pad, a combo keyed by taps and keys, a bea
   await page.locator('#fire').tap();
   const panel = page.locator('#stratagems');
   await expect(panel).toBeVisible();
-  await expect(panel.locator('.strat-card')).toHaveCount(5);
+  await expect(panel.locator('.strat-card')).toHaveCount(11);
   await expect(panel.locator('.strat-card.rearming')).toHaveText(/RE-ARMING · 3 turns left/);
-  // ▼ ▼ on the d-pad: only SMG's combo starts that way, and Resupply's.
+  // ▼ ▼ on the d-pad: only the W.A.S.P., Spear, Quasar and Resupply combos start that way.
   await panel.getByRole('button', { name: 'Down' }).tap();
   await panel.getByRole('button', { name: 'Down' }).tap();
-  await expect(panel.locator('.strat-card.out')).toHaveCount(3);
+  await expect(panel.locator('.strat-card.out')).toHaveCount(6);
   await page.screenshot({ path: 'test-results/stratagem-dpad.png' });
   // Then ▲ ▶ on the keyboard: Resupply.
   await page.keyboard.press('w');
@@ -1119,6 +1118,13 @@ test("ShotDownBoyz's Stratagem: the d-pad, a combo keyed by taps and keys, a bea
   // It came down beside him: picked up, a second jerry can by the gauge.
   expect(await page.evaluate(() => window.__pooket.state.players[0]!.dieselCans)).toBe(2);
   expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[1])).toBe(3);
+  // A crate on its spike, waiting for anyone to drive into it.
+  await page.evaluate(() => {
+    const s = window.__pooket.state;
+    s.crates.push({ id: 999, ownerId: 0, stratagem: 'spear', x: 640, y: s.terrain.surfaceY(640) });
+  });
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: 'test-results/stratagem-crate.png' });
 });
 
 test("ShotDownBoyz's Prepper digs him in and builds a brick bunker with a slit along his aim", async ({ page }) => {

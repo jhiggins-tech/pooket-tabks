@@ -3,18 +3,17 @@ import { AMMO_PER_TIER } from '../characters/roster';
 import { kindOf, weaponOf } from '../weapons/registry';
 import { STRATAGEMS, stratagemOf, type Arrow, type StratagemDef } from '../weapons/stratagems';
 import type { WeaponOf } from '../weapons/types';
-import { GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH, TANK_HIT_RADIUS } from './constants';
-import { settleTanks, tankCentre } from './bodies';
+import { FUEL_PER_MATCH, GRAVITY, MAX_SPEED, TANK_BODY_HEIGHT, TANK_HALF_WIDTH, TANK_HIT_RADIUS } from './constants';
+import { bodiesOf, settleTanks, tankCentre } from './bodies';
 import { sound, spawnFloater } from './fx';
 import { canUseSlot, slotAt, weaponForTier } from './loadout';
 import type { Stepper } from './mechanics';
-import type { Call, GameState, Player, Projectile, Sentry, StratagemDrop } from './state';
+import type { Call, GameState, Player, Projectile, Sentry, StratagemDrop, TankBody } from './state';
 import { allTargets, applyHit, explode, forEachTargetPos, gone, muzzle, scaled, targetAt, targetPos } from './tanks';
-import { hash } from './util';
 
 /**
- * ShotDownBoyz's Stratagem, Helldivers style. Each match he gets `offered` of the stratagems in
- * weapons/stratagems.ts (drawn from the seed: `drawStratagems`) and Resupply. FIRE brings up the d-pad
+ * ShotDownBoyz's Stratagem, Helldivers style. Every match he has all the stratagems in
+ * weapons/stratagems.ts (`drawStratagems`). FIRE brings up the d-pad
  * (`startCall`: phase `calling`), and he keys a combo (`pressArrow`, ▲▼◀▶ or W A S D): stratagems whose
  * combo no longer fits grey out, an arrow that fits none wipes the input, and the one whose combo is
  * finished is picked. Like 007 (bond.ts) it's this phone's input: his phone runs the clock (`callClock`) and
@@ -29,9 +28,11 @@ import { hash } from './util';
  *   game.ts `fire`, like a marathon runner's legs), until its `shots` are gone. Only the Autocannon aims
  *   itself; the rockets go roughly at the enemy and tilt toward one close by; the Tesla zaps every tank in
  *   reach, his too.
- * - a weapon or Resupply: a pod drops (it hurts a tank it lands on) and waits on the ground (`state.crates`)
- *   until he drives into it (`pickUpCrates`): a weapon takes his tier 1's place (its rounds stay); Resupply
- *   is a diesel can in reserve, 3 tier 1 rounds and 1 tier 2 round (not past full).
+ * - a weapon or Resupply: a pod drops like a giant spike (it hurts any tank it lands on, his own too), the
+ *   crate rises out of it, and it waits there (`state.crates`) until anyone drives into it (`pickUpCrates`):
+ *   a weapon takes that player's tier 1's place (its rounds stay); Resupply heals `RESUPPLY_HEAL` of full
+ *   health, and gives him a diesel can in reserve, 3 tier 1 rounds and 1 tier 2 round (not past full),
+ *   or anyone else a full tank of fuel.
  */
 
 /** Seconds the beacon's light shows before what it called in arrives. */
@@ -46,6 +47,8 @@ const RAIL_SHOW = 0.5;
 /** How fast a pod falls (px/s), and how close to it a tank has to drive to pick it up. */
 const POD_SPEED = 650;
 const CRATE_REACH = TANK_HALF_WIDTH + 6;
+/** What Resupply heals, as a share of full health. */
+export const RESUPPLY_HEAL = 0.3;
 /** The Tesla Tower's reach (px from its coil). */
 export const TESLA_RANGE = 80;
 /** How high a sentry's gun (or coil) is off the ground. */
@@ -58,15 +61,9 @@ export function isStratagem(p: Player, tier: number): boolean {
   return p.loadout[tier] !== undefined && kindOf(weaponForTier(p, tier)) === 'stratagem';
 }
 
-/**
- * The stratagems player `playerId` gets this match: the Stratagem's `offered` of them, shuffled from the
- * seed (hashed, leaving the gameplay RNG alone, as game.ts firstPlayer does), then Resupply.
- */
-export function drawStratagems(seed: number, playerId: number, offered = weaponOf('stratagem', 'stratagem').stratagem.offered): string[] {
-  const pool = STRATAGEMS.filter((s) => s.category !== 'supply').map((s) => s.id);
-  const keyed = pool.map((id, i) => ({ id, k: hash(seed * 0.001 + playerId * 7.31 + i * 1.618) }));
-  keyed.sort((a, b) => a.k - b.k || (a.id < b.id ? -1 : 1));
-  return [...keyed.slice(0, offered).map((x) => x.id), 'resupply'];
+/** The stratagems a player has each match: all of them, in the table's order. */
+export function drawStratagems(): string[] {
+  return STRATAGEMS.map((s) => s.id);
 }
 
 /** His stratagems that are ready (not re-arming). */
@@ -366,25 +363,37 @@ export const sentryStepper: Stepper = {
 export function pickUpCrates(state: GameState): void {
   if (state.crates.length === 0) return;
   state.crates = state.crates.filter((c) => {
-    const p = state.players[c.ownerId];
-    if (!p?.alive || Math.abs(p.x - c.x) > CRATE_REACH || Math.abs(p.y - c.y) > TANK_BODY_HEIGHT + 8) return true;
-    pickUp(state, p, stratagemOf(c.stratagem));
-    return false;
+    // Anyone's tank (main or twin) can take it; whoever's turn it is gets first go.
+    const n = state.players.length;
+    for (let k = 0; k < n; k++) {
+      const p = state.players[(state.current + k) % n]!;
+      if (!p.alive) continue;
+      const tank = bodiesOf(p).find((b) => Math.abs(b.x - c.x) <= CRATE_REACH && Math.abs(b.y - c.y) <= TANK_BODY_HEIGHT + 8);
+      if (!tank) continue;
+      pickUp(state, p, tank, stratagemOf(c.stratagem));
+      return false;
+    }
+    return true;
   });
 }
 
-function pickUp(state: GameState, p: Player, def: StratagemDef): void {
-  const c = tankCentre(p);
+function pickUp(state: GameState, p: Player, tank: TankBody, def: StratagemDef): void {
+  const c = tankCentre(tank);
   sound(state, 'pickup');
   if (def.category === 'weapon') {
     p.loadout[0] = def.weaponId;
     spawnFloater(state, c.x, c.y - 24, `${def.name.toUpperCase()}!`, '#93c5fd');
     return;
   }
-  // Resupply: a jerry can in reserve, and rounds for the first two tiers, never past full.
-  p.dieselCans++;
-  for (const [tier, n] of [[0, 3], [1, 1]] as const) p.ammo[tier] = Math.min(AMMO_PER_TIER[tier] ?? 0, (p.ammo[tier] ?? 0) + n);
-  spawnFloater(state, c.x, c.y - 24, 'RESUPPLIED! +DIESEL', '#86efac');
+  // Resupply: health for the tank that took it; ShotDownBoyz a jerry can in reserve and rounds for his
+  // first two tiers (never past full), anyone else a full tank of fuel.
+  const heal = Math.min(p.maxHp - tank.hp, Math.round(p.maxHp * RESUPPLY_HEAL));
+  if (heal > 0) tank.hp += heal;
+  if (p.characterId === 'shotdownboyz') {
+    p.dieselCans++;
+    for (const [tier, n] of [[0, 3], [1, 1]] as const) p.ammo[tier] = Math.min(AMMO_PER_TIER[tier] ?? 0, (p.ammo[tier] ?? 0) + n);
+  } else p.fuel = FUEL_PER_MATCH;
+  spawnFloater(state, c.x, c.y - 24, `RESUPPLIED! ${heal > 0 ? `+${heal} ` : ''}${p.characterId === 'shotdownboyz' ? '+DIESEL' : 'FUEL FULL'}`, '#86efac');
 }
 
 /**

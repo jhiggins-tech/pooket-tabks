@@ -40,7 +40,7 @@ export const STRATAGEMS: readonly StratagemDef[] = [
   { id: 'quasar', name: 'Quasar Cannon', shortName: 'Quasar', combo: 'DDULR', cooldown: 3, category: 'weapon', weaponId: 'quasar', blurb: 'Drive into the pod: a laser bolt that flies dead straight replaces the Pistol.' },
   { id: 'grenade-pistol', name: 'Grenade Pistol', shortName: 'Gren. Pistol', combo: 'DLULD', cooldown: 3, category: 'weapon', weaponId: 'grenade-pistol', blurb: 'Drive into the pod: a grenade that bounces once replaces the Pistol.' },
   { id: 'smg', name: 'Submachine Gun', shortName: 'SMG', combo: 'DLDUR', cooldown: 3, category: 'weapon', weaponId: 'smg', blurb: 'Drive into the pod: a spray of weak bullets replaces the Pistol.' },
-  { id: 'resupply', name: 'Resupply', shortName: 'Resupply', combo: 'DDUR', cooldown: 4, category: 'supply', blurb: 'Drive into the pod: a diesel can in reserve, 3 Pistol rounds and 1 Stratagem round (not past full).' },
+  { id: 'resupply', name: 'Resupply', shortName: 'Resupply', combo: 'DDUR', cooldown: 4, category: 'supply', blurb: 'Drive into the pod: 30% health back, and a diesel can in reserve, 3 Pistol rounds and 1 Stratagem round (not past full); anyone else who takes it gets a full tank of fuel.' },
 ];
 
 /** A stratagem by id (an unknown id is a bug: it throws). */

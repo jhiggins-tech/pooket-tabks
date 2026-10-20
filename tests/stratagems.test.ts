@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AMMO_PER_TIER } from '../src/characters/roster';
-import { FIXED_DT } from '../src/game/constants';
+import { FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
 import { callClock, canUseSlot, currentPlayer, fire, pressArrow, selectTier, step } from '../src/game/game';
 import { cancelCall, drawStratagems, launchAt } from '../src/game/stratagems';
 import type { GameState } from '../src/game/state';
@@ -47,15 +47,10 @@ describe('the stratagems', () => {
     expect(stratagemOf('resupply').combo).toBe('DDUR');
   });
 
-  it('draws four a match from the seed, the same on every phone, and Resupply', () => {
-    const a = drawStratagems(77, 0);
-    expect(a).toHaveLength(5);
-    expect(a.at(-1)).toBe('resupply');
-    expect(new Set(a).size).toBe(5);
-    expect(drawStratagems(77, 0)).toEqual(a);
-    const seen = new Set<string>();
-    for (let seed = 1; seed <= 40; seed++) for (const id of drawStratagems(seed, 0)) seen.add(id);
-    expect(seen.size).toBe(STRATAGEMS.length);
+  it('are all there every match', () => {
+    expect(drawStratagems()).toEqual(STRATAGEMS.map((s) => s.id));
+    const g = testGame({ seed: 77, players });
+    expect(g.players[0]!.stratagems.map((s) => s.id)).toEqual(STRATAGEMS.map((s) => s.id));
   });
 });
 
@@ -208,12 +203,27 @@ describe('what comes down', () => {
     expect(boyz.hp).toBeLessThan(boyz.maxHp);
   });
 
-  it('a weapon pod hurts a tank it lands on; driving into it swaps it in for the Pistol, rounds and all', () => {
+  it('a weapon pod hurts whoever it lands on, and they get it: it takes their tier 1’s place', () => {
     const g = match();
-    const [boyz, kie] = g.players as [GameState['players'][0], GameState['players'][0]];
+    const kie = g.players[1]!;
+    const rounds = kie.ammo[0];
     callIn(g, 'smg', 800);
     expect(kie.hp).toBe(kie.maxHp - 8);
-    expect(g.crates).toHaveLength(1); // only his to pick up
+    expect(g.crates).toHaveLength(0);
+    expect(kie.loadout[0]).toBe('smg');
+    expect(kie.ammo[0]).toBe(rounds);
+
+    const own = match();
+    callIn(own, 'spear', 300);
+    expect(own.players[0]!.hp).toBe(own.players[0]!.maxHp - 8);
+    expect(own.players[0]!.loadout[0]).toBe('spear');
+  });
+
+  it('driving into a weapon pod swaps it in for the Pistol, rounds and all', () => {
+    const g = match();
+    const boyz = g.players[0]!;
+    callIn(g, 'smg', 600);
+    expect(g.crates).toHaveLength(1);
     g.crates[0]!.x = 330;
     boyz.ammo[0] = 2;
     hold(g, 1, 2);
@@ -228,12 +238,28 @@ describe('what comes down', () => {
     callIn(g, 'resupply', 320);
     boyz.ammo[0] = 1;
     boyz.ammo[1] = AMMO_PER_TIER[1]!;
+    boyz.hp = 50;
     const cans = boyz.dieselCans;
     hold(g, 1, 0.5);
+    expect(boyz.hp).toBe(50 + Math.round(boyz.maxHp * 0.3));
     expect(boyz.dieselCans).toBe(cans + 1);
     expect(boyz.ammo[0]).toBe(4);
     expect(boyz.ammo[1]).toBe(AMMO_PER_TIER[1]);
     expect(boyz.loadout[0]).toBe('pistol');
+  });
+
+  it('anyone can drive into a Resupply: 30% health back (not past full) and a full tank of fuel', () => {
+    const g = match();
+    const kie = g.players[1]!;
+    callIn(g, 'resupply', 780);
+    g.current = 1;
+    kie.fuel = 10;
+    kie.hp = kie.maxHp - 10;
+    hold(g, -1, 0.3);
+    expect(g.crates).toHaveLength(0);
+    expect(kie.hp).toBe(kie.maxHp);
+    expect(kie.fuel).toBeGreaterThan(FUEL_PER_MATCH - 10); // (topped up mid-drive)
+    expect(kie.dieselCans).toBe(0);
   });
 
   it('a beacon thrown straight up comes down beside him and calls it in there', () => {

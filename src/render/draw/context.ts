@@ -14,6 +14,8 @@ export interface Draw {
   exhausts: Map<number, Exhaust>;
   /** Hoop Dreamz's hoop as last drawn: where, since when (`time`) it's been showing, and when it was last there (draw/hoop.ts). */
   hoop: { h: Hoop; since: number; last: number } | null;
+  /** ShotDownBoyz's stratagem crates, by id: when (`time`) each was first drawn, to rise out of its spike (draw/stratagems.ts). */
+  crates: Map<number, number>;
   /** Who's looking, for what's hidden from whom (Sly: draw/sly.ts): a player id (online, this phone's seat), -1 nobody's (a spectator), null everyone's (a shared phone). */
   viewer: number | null;
 }

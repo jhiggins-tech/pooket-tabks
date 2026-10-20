@@ -118,7 +118,7 @@ export class Renderer {
     private readonly worldH: number,
   ) {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
-    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), exhausts: new Map(), hoop: null, viewer: null };
+    this.d = { ctx: this.ctx, time: 0, sprites: loadSprites(), rides: new Map(), exhausts: new Map(), crates: new Map(), hoop: null, viewer: null };
     this.terrainCanvas.width = worldW;
     this.terrainCanvas.height = worldH;
     this.terrainCtx = this.terrainCanvas.getContext('2d')!;
