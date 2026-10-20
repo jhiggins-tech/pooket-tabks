@@ -20,6 +20,15 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 61,
+    title: 'Stratagem weapons, sharper',
+    items: [
+      'shotdownboyz’s missiles look like missiles now, with a flame and a smoke trail. The Grenade Pistol fires a proper grenade, and the SMG fires bullets.',
+      'The Spear goes for the top attack: right over an enemy, it stops dead, fires its motor up, then comes slamming straight down on them.',
+      'The Grenade Pistol’s grenade bounces three times before it goes off (it was once).',
+    ],
+  },
+  {
     version: 60,
     title: 'Bigger sentries',
     items: [

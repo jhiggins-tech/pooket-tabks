@@ -143,8 +143,9 @@ export function stepProjectile(state: GameState, pr: Projectile, dt: number): bo
     return true;
   }
   if (pr.walkDir !== 0) return stepWalker(state, pr, weapon, dt);
-  if (weapon.homing && !tracer) steerHoming(state, pr, weapon.homing, dt);
-  if ((!pr.homing || weapon.homing?.soft) && !weapon.straight) pr.vy += GRAVITY * dt;
+  if (weapon.topAttack && !tracer) topAttack(state, pr, weapon.topAttack);
+  if (weapon.homing && !tracer && !pr.attack) steerHoming(state, pr, weapon.homing, dt);
+  if ((!pr.homing || weapon.homing?.soft || pr.attack === 'pop') && !weapon.straight && pr.attack !== 'slam') pr.vy += GRAVITY * dt;
   const nx = pr.x + pr.vx * dt;
   const ny = pr.y + pr.vy * dt;
 
@@ -239,6 +240,32 @@ function bounce(state: GameState, pr: Projectile, weapon: Projectiles, hitX: num
   pr.x = freeX + n.x * 0.5;
   pr.y = freeY + n.y * 0.5;
   pr.bounces++;
+}
+
+/**
+ * A top attack (the Spear): right over an enemy (and well above them), it stops dead and fires its motor
+ * up; at the top of that, it turns and comes slamming straight down.
+ */
+function topAttack(state: GameState, pr: Projectile, spec: NonNullable<Projectiles['topAttack']>): void {
+  if (pr.attack === 'pop') {
+    if (pr.vy < 0) return;
+    pr.attack = 'slam';
+    pr.vx = 0;
+    pr.vy = spec.slam;
+    sound(state, 'slam', pr.weaponId);
+    return;
+  }
+  if (pr.attack === 'slam') return;
+  let over = false;
+  forEachTargetPos(state, (x, y, owner) => {
+    if (owner !== pr.ownerId && Math.abs(x - pr.x) <= spec.reach && y - pr.y >= spec.above) over = true;
+  }, true);
+  if (!over) return;
+  pr.attack = 'pop';
+  pr.homing = false;
+  pr.vx = 0;
+  pr.vy = -spec.pop;
+  sound(state, 'pop-up', pr.weaponId);
 }
 
 /** Homing: lock on to the nearest enemy within range (that can be seen: not one hidden by Sly), then turn towards it (keeping up speed). */

@@ -664,6 +664,13 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     if (e.weaponId === 'mr-bean') s.tone({ dur: 0.04, from: midi(88), to: midi(95), duty: 0.25, vol: 0.05 });
     else arp(s, [76, 79, 83, 88], 0.045, { dur: 0.08, duty: 0.25, vol: 0.12 });
   },
+  // The Spear right over its target: its motor kicks it up (a rising roar)...
+  'pop-up': (s) => {
+    s.noise({ dur: 0.35, rate: 0.6, to: 1.6, vol: 0.14 });
+    s.tone({ dur: 0.3, from: 180, to: 520, duty: 0.25, vol: 0.06 });
+  },
+  // ...and it comes screaming down.
+  slam: (s) => s.tone({ dur: 0.3, from: 1600, to: 300, duty: 0.125, vol: 0.09 }),
   // ---- The sonic boom's bird (game/fx.ts). ----
   // Koo-koo-kaa-kaa-kaa.
   kookaburra: (s) => {

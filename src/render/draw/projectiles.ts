@@ -19,8 +19,15 @@ export function drawProjectiles(d: Draw, state: GameState): void {
       drawTracer(d, pr);
       continue;
     }
-    if (projectileWeapon(pr.weaponId).plasma) {
+    const weapon = projectileWeapon(pr.weaponId);
+    if (weapon.plasma) {
       drawPlasma(d, pr);
+      continue;
+    }
+    if (weapon.look) {
+      if (weapon.look.kind === 'missile') drawMissile(d, pr, weapon.look.size, weapon.colour ?? '#e5e7eb');
+      else if (weapon.look.kind === 'grenade') drawGrenade(d, pr);
+      else drawBullet(d, pr);
       continue;
     }
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
@@ -86,6 +93,130 @@ function drawStreak(d: Draw, pr: Projectile): void {
   ctx.moveTo(pr.x - (pr.vx / v) * len * 0.4, pr.y - (pr.vy / v) * len * 0.4);
   ctx.lineTo(pr.x, pr.y);
   ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * A missile (ShotDownBoyz's W.A.S.P., Spear and sentry rockets): a grey body `size` px long pointing along
+ * its flight, a band and fins in its colour, a flickering flame out of the back and a trail of smoke puffs
+ * that grow and fade. The Spear popping up gets a bigger flame.
+ */
+function drawMissile(d: Draw, pr: Projectile, size: number, colour: string): void {
+  const { ctx } = d;
+  // Smoke: every other point of its path, older puffs bigger and fainter.
+  const n = pr.trail.length;
+  for (let i = 0; i < n; i += 2) {
+    const k = 1 - i / n; // (0 newest .. 1 oldest)
+    const p = pr.trail[n - 1 - i]!;
+    ctx.fillStyle = `rgba(203,213,225,${0.4 * (1 - k)})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 1.5 + size * 0.15 + size * 0.35 * k, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const a = Math.atan2(pr.vy, pr.vx);
+  const L = size;
+  const W = Math.max(2, size * 0.22);
+  ctx.save();
+  ctx.translate(pr.x, pr.y);
+  ctx.rotate(a);
+  // Flame.
+  const boost = pr.attack === 'pop' ? 1.8 : 1;
+  const f = (0.6 + 0.4 * Math.abs(Math.sin(d.time * 47 + pr.age * 31))) * boost;
+  glow(ctx, -L / 2 - L * 0.25 * f, 0, L * 0.45 * f, [
+    [0, 'rgba(255,255,255,0.95)'],
+    [0.3, 'rgba(253,224,71,0.85)'],
+    [0.7, 'rgba(249,115,22,0.45)'],
+    [1, 'rgba(249,115,22,0)'],
+  ]);
+  // Fins, body, band and nose.
+  ctx.fillStyle = colour;
+  ctx.beginPath();
+  ctx.moveTo(-L / 2, -W * 1.1);
+  ctx.lineTo(-L / 2 + L * 0.28, -W / 2);
+  ctx.lineTo(-L / 2 + L * 0.28, W / 2);
+  ctx.lineTo(-L / 2, W * 1.1);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#d1d5db';
+  ctx.strokeStyle = '#1f2937';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-L / 2, -W / 2);
+  ctx.lineTo(L / 2 - W, -W / 2);
+  ctx.quadraticCurveTo(L / 2 + W * 0.4, 0, L / 2 - W, W / 2);
+  ctx.lineTo(-L / 2, W / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = colour;
+  ctx.fillRect(L * 0.05, -W / 2, L * 0.14, W);
+  ctx.restore();
+}
+
+/** The Grenade Pistol's grenade: a ribbed olive egg with a lever, tumbling end over end. */
+function drawGrenade(d: Draw, pr: Projectile): void {
+  const { ctx } = d;
+  ctx.save();
+  ctx.translate(pr.x, pr.y);
+  ctx.rotate(pr.age * 9 * (pr.vx < 0 ? -1 : 1));
+  ctx.fillStyle = '#4d7c0f';
+  ctx.strokeStyle = '#1a2e05';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.ellipse(0, 0.5, 4.2, 5.2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(26,46,5,0.7)';
+  ctx.lineWidth = 0.6;
+  for (const y of [-1.2, 1, 3]) {
+    ctx.beginPath();
+    ctx.moveTo(-3.3, y);
+    ctx.lineTo(3.3, y);
+    ctx.stroke();
+  }
+  // The fuse head, its lever and the ring.
+  ctx.fillStyle = '#9ca3af';
+  ctx.fillRect(-1.6, -5.4, 3.2, 1.8);
+  ctx.fillRect(1.2, -5.2, 1.1, 5.5);
+  ctx.strokeStyle = '#e5e7eb';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.arc(-2.6, -5.2, 1.3, 0, Math.PI * 2);
+  ctx.stroke();
+  // A blinking light: it's live.
+  if (Math.sin(d.time * 18) > 0) {
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(0, 0.5, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/** A bullet (the SMG's): a little brass slug along its flight, with a faint streak behind. */
+function drawBullet(d: Draw, pr: Projectile): void {
+  const { ctx } = d;
+  const a = Math.atan2(pr.vy, pr.vx);
+  ctx.save();
+  ctx.translate(pr.x, pr.y);
+  ctx.rotate(a);
+  const g = ctx.createLinearGradient(-14, 0, 0, 0);
+  g.addColorStop(0, 'rgba(254,243,199,0)');
+  g.addColorStop(1, 'rgba(254,243,199,0.6)');
+  ctx.strokeStyle = g;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(-14, 0);
+  ctx.lineTo(-2, 0);
+  ctx.stroke();
+  ctx.fillStyle = '#d97706';
+  ctx.fillRect(-2.5, -1.1, 3, 2.2);
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath();
+  ctx.moveTo(0.5, -1.1);
+  ctx.quadraticCurveTo(3, 0, 0.5, 1.1);
+  ctx.closePath();
+  ctx.fill();
   ctx.restore();
 }
 

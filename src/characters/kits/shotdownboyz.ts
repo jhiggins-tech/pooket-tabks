@@ -39,6 +39,7 @@ export const wasp = {
   burst: { count: 4, interval: 0.14, powerJitter: 0.04, aimJitterDeg: 3 },
   homing: { radius: 70, turnRate: 80, minSpeed: 200, soft: true },
   colour: '#fbbf24',
+  look: { kind: 'missile', size: 11 },
 } satisfies WeaponDef;
 
 /** A heavy missile that curves toward an enemy close by. */
@@ -46,11 +47,13 @@ export const spear = {
   id: 'spear',
   name: 'Spear',
   shortName: 'Spear',
-  info: 'A stratagem’s weapon drop: a heavy anti-tank missile that curves toward an enemy it passes close to.',
+  info: 'A stratagem’s weapon drop: a heavy anti-tank missile that curves toward an enemy it passes close to. Right over one, it stops dead, fires its motor up, then comes slamming straight down on them.',
   blastRadius: 22,
   damage: 50,
   homing: { radius: 110, turnRate: 60, minSpeed: 220, soft: true },
+  topAttack: { reach: 8, above: 40, pop: 230, slam: 760 },
   colour: '#a3e635',
+  look: { kind: 'missile', size: 20 },
 } satisfies WeaponDef;
 
 /** A laser bolt, dead straight. */
@@ -65,16 +68,18 @@ export const quasar = {
   colour: '#60a5fa',
 } satisfies WeaponDef;
 
-/** A grenade that bounces once. */
+/** A grenade that bounces three times. */
 export const grenadePistol = {
   id: 'grenade-pistol',
   name: 'Grenade Pistol',
   shortName: 'Gren. Pistol',
-  info: 'A stratagem’s weapon drop: one grenade on an arc that bounces once, then goes off. Good for tanks behind cover.',
+  info: 'A stratagem’s weapon drop: one grenade on an arc that bounces three times, then goes off. Good for tanks behind cover.',
   blastRadius: 20,
   damage: 32,
-  bounces: 1,
-  restitution: 0.45,
+  bounces: 3,
+  restitution: 0.5,
+  trail: false,
+  look: { kind: 'grenade' },
 } satisfies WeaponDef;
 
 /** A spray of weak bullets. */
@@ -88,6 +93,7 @@ export const smg = {
   flat: true,
   volley: { count: 5, spreadDeg: 6 },
   trail: false,
+  look: { kind: 'bullet' },
 } satisfies WeaponDef;
 
 // ---- What the stratagems hit with (never in a slot: game/stratagems.ts uses them). ----
@@ -138,6 +144,7 @@ export const sentryRocket = {
   damage: 24,
   homing: { radius: 80, turnRate: 90, minSpeed: 220, soft: true },
   colour: '#fb923c',
+  look: { kind: 'missile', size: 14 },
 } satisfies WeaponDef;
 
 /** The Autocannon Sentry's rounds: the one stratagem that aims itself. */

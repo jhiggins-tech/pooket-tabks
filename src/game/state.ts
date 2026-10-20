@@ -477,6 +477,8 @@ export interface Projectile {
   tracer?: number;
   /** A stratagem beacon: what it calls in where it lands (game/stratagems.ts). */
   stratagem?: string;
+  /** A top attack (the Spear's): popping up over its target, then slamming down. */
+  attack?: 'pop' | 'slam';
   /** Seconds before it leaves the muzzle (a sentry's burst, fired all at once): until then it waits, unseen. */
   wait?: number;
 }
@@ -745,6 +747,8 @@ export type SfxCue =
   | 'refund'
   | 'scammed'
   | 'lock-on'
+  | 'pop-up'
+  | 'slam'
   | 'splashback'
   | 'yolk'
   | 'slurp'

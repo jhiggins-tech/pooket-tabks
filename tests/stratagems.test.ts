@@ -4,7 +4,7 @@ import { FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
 import { callClock, canUseSlot, currentPlayer, fire, pressArrow, selectTier, step } from '../src/game/game';
 import { cancelCall, drawStratagems, launchAt } from '../src/game/stratagems';
 import type { GameState } from '../src/game/state';
-import { getWeapon } from '../src/weapons/registry';
+import { getWeapon, weaponOf } from '../src/weapons/registry';
 import { STRATAGEMS, stratagemOf, type Arrow } from '../src/weapons/stratagems';
 import { FLAT_Y, hold, passTurn, stepUntil, testGame, untilAiming, untilNextTurn, whileFlying } from './support/game';
 
@@ -299,6 +299,34 @@ describe('what comes down', () => {
     // It came down right by him: picked up as it landed.
     expect(g.crates).toHaveLength(0);
     expect(p.dieselCans).toBe(2);
+  });
+});
+
+describe('the weapon drops', () => {
+  it('the Spear, right over an enemy, pops up and slams straight down on them', () => {
+    const g = match();
+    const kie = g.players[1]!;
+    kie.x = 600;
+    kie.y = FLAT_Y;
+    g.phase = 'flying';
+    const pr = { x: 560, y: FLAT_Y - 150, vx: 300, vy: 0, weaponId: 'spear', ownerId: 0, trail: [], bounces: 0, age: 0, walkDir: 0, walkTime: 0 } as GameState['projectiles'][0];
+    g.projectiles.push(pr);
+    stepUntil(g, () => pr.attack !== undefined, 2);
+    expect(pr.attack).toBe('pop');
+    expect(pr.vx).toBe(0);
+    expect(pr.vy).toBeLessThan(0);
+    const top = pr.y;
+    stepUntil(g, () => pr.attack === 'slam', 2);
+    expect(pr.y).toBeLessThan(top); // (it went up first)
+    expect(pr.vx).toBe(0);
+    const hp = kie.hp;
+    untilAiming(g);
+    expect(Math.abs(pr.x - kie.x)).toBeLessThanOrEqual(8);
+    expect(kie.hp).toBeLessThan(hp - 25);
+  });
+
+  it('the Grenade Pistol’s grenade bounces three times before it goes off', () => {
+    expect(weaponOf('grenade-pistol', 'ballistic').bounces).toBe(3);
   });
 });
 

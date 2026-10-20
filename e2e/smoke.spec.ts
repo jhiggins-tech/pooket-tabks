@@ -1150,6 +1150,20 @@ test("ShotDownBoyz's Stratagem: the d-pad, a combo keyed by taps and keys, a bea
   });
   await page.waitForTimeout(150);
   await page.screenshot({ path: 'test-results/stratagem-sentries.png' });
+  // The weapon drops' looks: the missiles (W.A.S.P., Spear, sentry rocket) with their smoke, the grenade, an SMG bullet.
+  await page.evaluate(() => {
+    const s = window.__pooket.state;
+    s.projectiles = [];
+    const kinds = ['wasp', 'spear', 'sentry-rocket', 'grenade-pistol', 'smg'];
+    kinds.forEach((weaponId, i) => {
+      const x = 300 + i * 70;
+      const y = 150;
+      const trail = Array.from({ length: 40 }, (_, k) => ({ x: x - (40 - k) * 1.5, y: y + (40 - k) * 0.6 }));
+      s.projectiles.push({ x, y, vx: 0.01, vy: -0.004, weaponId, ownerId: 0, trail, bounces: 0, age: 1, walkDir: 0, walkTime: 0 });
+    });
+  });
+  await page.waitForTimeout(100);
+  await page.screenshot({ path: 'test-results/stratagem-weapons.png' });
 });
 
 test("ShotDownBoyz's Prepper digs him in and builds a brick bunker with a slit along his aim", async ({ page }) => {

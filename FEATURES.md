@@ -25,6 +25,14 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **shotdownboyz's weapon drops: their own looks, the Spear's top attack, a bouncier grenade** (owner, 20 Oct;
+  rules 44; What's new 61). Missiles are drawn as missiles (`ProjectileSpec.look`, drawn in code in
+  `render/draw/projectiles.ts`): a grey body banded in the weapon's colour, fins, a flickering flame and a trail
+  of smoke puffs (W.A.S.P. 11 px, sentry rockets 14, the Spear 20). The Grenade Pistol's grenade is a ribbed
+  olive egg with a lever and a blinking light, tumbling, and **bounces 3 times** (was once; restitution 0.5).
+  SMG rounds are brass bullets with a streak. **The Spear's top attack** (`topAttack`): once it's within 8 px
+  of right over an enemy and 40 px or more above them, it stops dead, fires its motor up (230 px/s, homing
+  off), and from the top of that slams straight down at 760 px/s.
 - **shotdownboyz's turrets, bigger and louder** (owner, 20 Oct; rules 43; What's new 60). Sentries now stand
   two to three times a tank's size (`SENTRY_HEIGHT` 34, was 14) and unfold as they land. The **Tesla Tower**
   is a coil with a sphere of static round it (reach 90, was 80): a faint dashed edge while it waits, and when it
@@ -240,6 +248,7 @@ The running features list and work queue. Newest shipped items first; the **Queu
   listing advertising after you've left.
 
 ### Balance
+- **Grenade Pistol bounces 3 times** (owner, 20 Oct; rules 44), was once.
 - **Autocannon Sentry: a straight burst** (owner, 20 Oct; rules 43): 5 rounds of 5 dead straight (up to 25),
   was one lobbed 20. **Tesla Tower** reach 90, was 80 (measured from its coil, now higher up).
 - **Hoop Dreamz's slam dunk hits harder** (owner, 16 Oct; rules 26): 70 damage, was 45. A make is tricky,

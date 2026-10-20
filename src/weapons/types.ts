@@ -213,6 +213,17 @@ export interface ProjectileSpec extends BlastSpec {
   tracers?: { count: number; stepDeg: number };
   /** Drawn as a glowing ball of plasma in the weapon's colour (rather than a sprite or a shell). */
   plasma?: boolean;
+  /**
+   * Drawn in code (render/draw/projectiles.ts) rather than as a sprite or a shell: a missile `size` px long
+   * (banded in the weapon's colour) with a flame and a smoke trail, a tumbling grenade, or a brass bullet.
+   */
+  look?: { kind: 'missile'; size: number } | { kind: 'grenade' } | { kind: 'bullet' };
+  /**
+   * A top attack (the Spear): once it's within `reach` px either side of right over an enemy, at least
+   * `above` px over them, it stops dead, fires its motor up at `pop` px/s, and from the top of that comes
+   * slamming straight down at `slam` px/s.
+   */
+  topAttack?: { reach: number; above: number; pop: number; slam: number };
 }
 
 /**
