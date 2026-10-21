@@ -37,7 +37,7 @@ export const wasp = {
   blastRadius: 12,
   damage: 14,
   burst: { count: 4, interval: 0.14, powerJitter: 0.04, aimJitterDeg: 3 },
-  homing: { radius: 70, turnRate: 80, minSpeed: 200, soft: true },
+  homing: { radius: 70, turnRate: 100, minSpeed: 200, soft: true },
   colour: '#fbbf24',
   look: { kind: 'missile', size: 11 },
 } satisfies WeaponDef;
