@@ -2201,6 +2201,17 @@ body[data-online='true'] #net-menu {
   display: none;
 }
 
+.build-info {
+  position: fixed;
+  bottom: 4px;
+  right: 8px;
+  font-size: 11px;
+  font-family: monospace;
+  opacity: 0.45;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 /* ---------- Coming soon (upcoming characters: pickers and the info screen) ---------- */
 .coming-soon-banner {
   align-self: flex-start;

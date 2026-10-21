@@ -78,6 +78,17 @@ const landing = new Landing({
   },
   changeName: () => void namePrompt.ask(yourName()).then(setUsername),
 });
+
+// Build version info on the landing screen
+{
+  const el = byId('build-info');
+  if (el) {
+    const date = new Date(__BUILD_TIME__);
+    const ts = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      + ' ' + date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    el.textContent = `${__BUILD_VERSION__} · ${ts}`;
+  }
+}
 byId('hotseat-back').addEventListener('click', () => {
   setup.hide();
   showLanding();
