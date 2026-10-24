@@ -5,7 +5,7 @@
  * the focus dot) and the lens's focus ring. The viewfinder itself is the battlefield, drawn by the renderer
  * through the frame (render/canvas.ts); over it, the light's grade, the white balance's tint, the grain, the
  * thirds grid and the AF points. After a shot, playback (its grades, damage and a tip) or, at the end, the
- * showcase: the best photo's grades stacking up one by one, the damage counting up and the big reveal. The controls are this phone's only while it's his turn here (input/controls.ts takes them);
+ * showcase, out of the camera and over the battlefield: the best photo's grades stacking up one by one, the damage counting up and the big reveal. The controls are this phone's only while it's his turn here (input/controls.ts takes them);
  * watching, they're the same screen, untouchable, with a LIVE badge. Once it's fired, the best photo
  * shows as a print while it develops.
  */
@@ -37,9 +37,7 @@ export function camera(): Part {
   let photos = -1;
   const count = el('span', 'cam-count');
   frame.append(count);
-  const showcase = el('div', 'cam-showcase');
-  showcase.hidden = true;
-  root.append(showcase);
+  const showcase = byId('camera-showcase');
   const viewfinder = keyed(
     (state, ctx) => {
       const c = state.camera;
@@ -49,7 +47,7 @@ export function camera(): Part {
     },
     (state, ctx) => {
       const c = state.camera;
-      const on = !!c && c.outro === null && state.phase === 'shooting';
+      const on = !!c && c.outro === null && c.view !== 'card' && state.phase === 'shooting';
       root.hidden = !on;
       if (!c || !on) {
         photos = -1;
@@ -195,7 +193,9 @@ export function camera(): Part {
       grades.append(...tiles);
       const keep = el('button', 'cam-sc-keep');
       keep.dataset.cam = 'keep';
-      showcase.replaceChildren(el('p', 'cam-sc-title', `MEMORY CARD · BEST OF ${Math.min(shots, c.photos.length)}`), shotsRow, grades, total, tags, keep);
+      const head = el('div', 'cam-sc-head');
+      head.append(el('p', 'cam-sc-title', `MEMORY CARD · BEST OF ${Math.min(shots, c.photos.length)}`), shotsRow);
+      showcase.replaceChildren(head, grades, total, tags, keep);
       showcase.classList.toggle('perfect', best.perfect);
     },
   );

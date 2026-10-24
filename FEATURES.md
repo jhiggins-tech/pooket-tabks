@@ -450,6 +450,10 @@ The running features list and work queue. Newest shipped items first; the **Queu
   grade, the damage counting up (a coin counter) and the big reveal (a sad trombone for nothing, a fanfare
   for a hit, a jackpot with sun rays for a Perfect Shot); `Camera.reveal`, `REVEAL`. Keep skips it, then
   fires. The other phone and spectators see and hear it all too (`followCamera`).
+  **Out of the camera, and one-handed** (owner, 24 Oct): the showcase is a card docked over the battlefield
+  (the camera body closes, the view lifted so whoever's in the photo is above it), and every control is on
+  the right grip (the mode dial and buttons, the LCD, dials and shutter, the focus ring under them), with the
+  viewfinder on the left.
   To try out (owner feedback wanted): the damage curve, the 20 s clock, how the dials feel on a phone.
 - **kiwicore's Band Aid** (owner, 7 Oct; rules 23; beta, a testing push). His tier 2 (replacing the
   stand-in Beta Mortar, and the "throwdown" teaser): a Dance Dance Revolution style rhythm minigame

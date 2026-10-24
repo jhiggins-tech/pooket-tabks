@@ -60,7 +60,7 @@ export { PHASE_FOCUS, PHASE_RANGE, boomPhaseArcs, boomRadii } from './sonic';
 export { STEAL_HOLD, STEAL_SPIN, heistIndex } from './steal';
 export { streamDuration, streamPressure } from './stream';
 export type { Target } from './tanks';
-export { currentPlayer, explode, muzzle, offence, tankCentre, targetAt, targetPos } from './tanks';
+export { currentPlayer, explode, muzzle, offence, tankCentre, targetAt, targetOf, targetPos } from './tanks';
 export { normalizeAngle } from './util';
 
 export interface GameConfig {

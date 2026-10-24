@@ -23,12 +23,15 @@ const TAP_TURN = 0.12;
 
 export function bindCamera(h: CameraHandlers): void {
   const root = byId('camera');
-  root.addEventListener('click', (e) => {
+  const press = (e: MouseEvent) => {
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-cam]');
     if (!btn || btn.disabled || !h.can()) return;
     const [k, fn] = btn.dataset.cam!.split(':') as [CameraAction['k'], string | undefined];
     h.act(k === 'fn' ? { k, fn: fn as 'iso' | 'wb' } : ({ k } as CameraAction));
-  });
+  };
+  root.addEventListener('click', press);
+  // The showcase is out of the camera, over the battlefield: its button too.
+  byId('camera-showcase').addEventListener('click', press);
 
   const ring = root.querySelector<HTMLInputElement>('.cam-ring-input')!;
   ring.addEventListener('input', () => {

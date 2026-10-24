@@ -67,22 +67,6 @@
         <p class="strat-result"></p>
       </div>
       <div id="camera" hidden>
-        <div class="cam-grip left">
-          <button class="cam-mode" data-cam="mode" aria-label="Mode dial">
-            <span class="cam-mode-ring"><span>P</span><span>Tv</span><span>Av</span><span>M</span></span>
-            <span class="cam-mode-hub"></span>
-          </button>
-          <span class="cam-mode-mark" aria-hidden="true"></span>
-          <div class="cam-buttons">
-            <span class="cam-btn"><button data-cam="fn:wb" aria-label="White balance">☀</button>WB</span>
-            <span class="cam-btn"><button data-cam="fn:iso" aria-label="ISO">◎</button>ISO</span>
-            <span class="cam-btn"><button data-cam="flash" aria-label="Flash">ϟ</button>FLASH</span>
-            <span class="cam-btn"><button data-cam="lens" class="cam-lens" aria-label="Swap lens"></button>LENS</span>
-            <span class="cam-btn"><button data-cam="afmf" class="cam-afmf" aria-label="AF or MF"><span>AF</span><span>MF</span></button>AF / MF</span>
-            <span class="cam-btn"><button data-cam="afon" aria-label="Focus on the centre point">✱</button>AF-ON</span>
-          </div>
-          <p class="cam-help"></p>
-        </div>
         <div class="cam-middle">
           <div class="cam-vf-box">
             <div class="cam-frame" id="camera-vf">
@@ -102,29 +86,47 @@
             <span class="cam-meter"><span class="cam-meter-scale">-2 · 1 · 0 · 1 · +2</span><i></i></span>
             <span class="cam-i-iso"></span><span class="cam-i-flash"></span><span class="cam-i-dot">●</span>
           </div>
+          <p class="cam-help"></p>
+        </div>
+        <div class="cam-grip">
+          <div class="cam-col">
+            <button class="cam-mode" data-cam="mode" aria-label="Mode dial">
+              <span class="cam-mode-ring"><span>P</span><span>Tv</span><span>Av</span><span>M</span></span>
+              <span class="cam-mode-hub"></span>
+            </button>
+            <span class="cam-mode-mark" aria-hidden="true"></span>
+            <div class="cam-buttons">
+              <span class="cam-btn"><button data-cam="fn:wb" aria-label="White balance">☀</button>WB</span>
+              <span class="cam-btn"><button data-cam="fn:iso" aria-label="ISO">◎</button>ISO</span>
+              <span class="cam-btn"><button data-cam="flash" aria-label="Flash">ϟ</button>FLASH</span>
+              <span class="cam-btn"><button data-cam="lens" class="cam-lens" aria-label="Swap lens"></button>LENS</span>
+              <span class="cam-btn"><button data-cam="afmf" class="cam-afmf" aria-label="AF or MF"><span>AF</span><span>MF</span></button>AF / MF</span>
+              <span class="cam-btn"><button data-cam="afon" aria-label="Focus on the centre point">✱</button>AF-ON</span>
+            </div>
+          </div>
+          <div class="cam-col">
+            <div class="cam-lcd">
+              <p><span class="cam-l-tv"></span><span class="cam-l-av"></span></p>
+              <p><span class="cam-l-iso"></span><span class="cam-l-wb"></span></p>
+              <p><span class="cam-l-mode"></span><span class="cam-l-shots"></span></p>
+            </div>
+            <div class="cam-dial main" data-dial="main" role="slider" aria-label="Main dial" tabindex="0"><span>◀</span><span>▶</span></div>
+            <small class="cam-dial-role main"></small>
+            <button class="cam-shutter" data-cam="shutter" aria-label="Shutter"></button>
+            <div class="cam-quick">
+              <div class="cam-dial quick" data-dial="quick" role="slider" aria-label="Quick control dial" tabindex="0"></div>
+              <button class="cam-set" data-cam="set" aria-label="Set">SET</button>
+            </div>
+            <small class="cam-dial-role quick"></small>
+          </div>
           <div class="cam-ring">
             <span class="cam-ring-label">FOCUS<b></b></span>
             <span class="cam-ring-body">
-              <span class="cam-ring-scale" aria-hidden="true"><i style="left:0%">0.45m</i><i style="left:14.8%">1</i><i style="left:27.6%">2</i><i style="left:44.5%">5</i><i style="left:57.4%">10</i><i style="left:100%">∞</i></span>
+              <span class="cam-ring-scale" aria-hidden="true"><i style="left:0%">.45m</i><i style="left:27.6%">2</i><i style="left:44.5%">5</i><i style="left:57.4%">10</i><i style="left:100%">∞</i></span>
               <input type="range" class="cam-ring-input" min="0" max="100" step="0.5" aria-label="Focus ring" />
             </span>
             <span class="cam-ring-note"></span>
           </div>
-        </div>
-        <div class="cam-grip right">
-          <div class="cam-lcd">
-            <p><span class="cam-l-tv"></span><span class="cam-l-av"></span></p>
-            <p><span class="cam-l-iso"></span><span class="cam-l-wb"></span></p>
-            <p><span class="cam-l-mode"></span><span class="cam-l-shots"></span></p>
-          </div>
-          <div class="cam-dial main" data-dial="main" role="slider" aria-label="Main dial" tabindex="0"><span>◀</span><span>▶</span></div>
-          <small class="cam-dial-role main"></small>
-          <button class="cam-shutter" data-cam="shutter" aria-label="Shutter"></button>
-          <div class="cam-quick">
-            <div class="cam-dial quick" data-dial="quick" role="slider" aria-label="Quick control dial" tabindex="0"></div>
-            <button class="cam-set" data-cam="set" aria-label="Set">SET</button>
-          </div>
-          <small class="cam-dial-role quick"></small>
         </div>
         <div class="cam-playback" hidden>
           <p class="cam-pb-title"><b></b><span></span></p>
@@ -134,6 +136,7 @@
           <div class="cam-pb-actions"><button data-cam="next" class="primary"></button><button data-cam="keep"></button></div>
         </div>
       </div>
+      <div id="camera-showcase" class="cam-showcase" hidden></div>
       <div id="camera-print" hidden aria-live="polite"><b></b><span></span></div>
       <div class="top-mid">
         <button id="info-open" aria-label="Info: how to play and weapons">i</button>

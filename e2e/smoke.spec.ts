@@ -553,7 +553,7 @@ test("kiwicore's Long Exposure: a camera, three shots on the card, and the best 
   expect(damage).toBeGreaterThan(30);
   // Keep the best: the showcase, the grades stacking up, the damage counting up, the big reveal.
   await page.locator('#camera .cam-playback [data-cam="keep"]').tap();
-  const showcase = page.locator('#camera .cam-showcase');
+  const showcase = page.locator('#camera-showcase');
   await expect(showcase).toBeVisible();
   await expect(showcase.locator('.cam-sc-title')).toHaveText('MEMORY CARD · BEST OF 2');
   await expect(showcase.locator('.cam-sc-chip')).toHaveCount(2);

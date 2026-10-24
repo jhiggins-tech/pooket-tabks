@@ -1,5 +1,5 @@
 import type { Terrain } from '../core/terrain';
-import { BARREL, frameCentre, frameOf, meter } from '../game/game';
+import { BARREL, bestPhoto, frameCentre, frameOf, meter, targetOf, targetPos } from '../game/game';
 import { SCENES } from '../weapons/camera';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
@@ -207,11 +207,22 @@ export class Renderer {
   /**
    * Long Exposure: the screen is the camera's viewfinder (render/hud/camera.ts's frame, `#camera-vf`), and
    * the frame shows exactly what the camera sees (game/camera.ts `frameOf`, `frameCentre`: the hand shake
-   * included), the photo's blur, brightness and the light's colour on it. Returns whether it's up.
+   * included), the photo's blur, brightness and the light's colour on it. Once the card's done, out of the
+   * camera: the battlefield, lifted so whoever's in the best photo is above the showcase (and its print).
+   * Returns whether it's up.
    */
   private lookThrough(state: GameState): boolean {
     const c = state.camera;
-    const box = c && c.outro === null && state.phase === 'shooting' ? document.getElementById('camera-vf')?.getBoundingClientRect() : null;
+    if (c && (c.view === 'card' || c.outro !== null)) {
+      if (this.canvas.style.filter) this.canvas.style.filter = '';
+      const best = bestPhoto(c);
+      const t = best?.mark ? targetOf(state, best.mark) : null;
+      const at = t ? targetPos(t) : state.players[c.playerId]!;
+      this.zoom = 1;
+      this.view = { k: this.scale, ox: this.offsetX, oy: Math.min(this.offsetY, this.canvas.height * 0.3 - at.y * this.scale) };
+      return true;
+    }
+    const box = c && c.outro === null && c.view !== 'card' && state.phase === 'shooting' ? document.getElementById('camera-vf')?.getBoundingClientRect() : null;
     if (!c || !box || box.width === 0) {
       if (this.canvas.style.filter) this.canvas.style.filter = '';
       return false;

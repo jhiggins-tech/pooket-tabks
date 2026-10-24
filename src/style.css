@@ -2910,23 +2910,22 @@ body[data-online='true'] #net-menu {
 }
 
 /* ---------- kiwicore's Long Exposure: the camera body round the viewfinder (render/hud/camera.ts) ---------- */
-body[data-phase='shooting'] #players,
-body[data-phase='shooting'] #turn-banner,
-body[data-phase='shooting'] .hint {
+body:has(#camera:not([hidden])) #players,
+body:has(#camera:not([hidden])) #turn-banner,
+body:has(#camera:not([hidden])) .hint {
   visibility: hidden;
 }
-body[data-phase='shooting'] .top-mid {
+body:has(#camera:not([hidden])) .top-mid {
   z-index: 8;
   opacity: 0.75;
 }
 #camera {
-  --grip-l: calc(146px + env(safe-area-inset-left));
-  --grip-r: calc(146px + env(safe-area-inset-right));
+  --grip: calc(262px + env(safe-area-inset-right));
   --lime: #a3e635;
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-columns: var(--grip-l) minmax(0, 1fr) var(--grip-r);
+  grid-template-columns: minmax(0, 1fr) var(--grip);
   z-index: 6;
   pointer-events: auto;
   user-select: none;
@@ -2939,24 +2938,27 @@ body[data-phase='shooting'] .top-mid {
 #camera [hidden] {
   display: none !important;
 }
+/* Every control on the right grip, for the right thumb: the mode dial and buttons, then the LCD, dials and
+   shutter, and the focus ring under them. */
 .cam-grip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(4px, env(safe-area-inset-bottom)) 8px;
+  background: #141414;
+  border-left: 1px solid #262626;
+  min-height: 0;
+  overflow: hidden;
+}
+.cam-col {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
-  background: #141414;
+  justify-content: space-between;
+  gap: 4px;
   min-height: 0;
-  overflow: hidden;
-}
-.cam-grip.left {
-  padding-left: max(10px, env(safe-area-inset-left));
-  border-right: 1px solid #262626;
-}
-.cam-grip.right {
-  padding-right: max(10px, env(safe-area-inset-right));
-  border-left: 1px solid #262626;
 }
 #camera button {
   font: inherit;
@@ -2977,8 +2979,8 @@ body[data-phase='shooting'] .top-mid {
 .cam-mode {
   position: relative;
   flex: none;
-  width: 92px;
-  height: 92px;
+  width: 80px;
+  height: 80px;
   border-radius: 50% !important;
   padding: 0;
   background: repeating-conic-gradient(#2c2c2c 0deg 4deg, #1c1c1c 4deg 8deg) !important;
@@ -2998,7 +3000,7 @@ body[data-phase='shooting'] .top-mid {
   font-size: 14px;
   font-weight: 700;
   color: #9a9a9a;
-  transform: translate(-50%, -50%) rotate(calc(var(--i) * 50deg)) translateY(-32px);
+  transform: translate(-50%, -50%) rotate(calc(var(--i) * 50deg)) translateY(-28px);
 }
 .cam-mode-ring span:nth-child(1) { --i: 0; }
 .cam-mode-ring span:nth-child(2) { --i: 1; }
@@ -3020,8 +3022,8 @@ body[data-phase='shooting'] .top-mid {
 }
 .cam-mode-mark {
   position: absolute;
-  top: max(1px, calc(env(safe-area-inset-top) - 7px));
-  left: calc(50% + env(safe-area-inset-left) / 2 - 4px);
+  top: -6px;
+  left: calc(50% - 4px);
   border: 4px solid transparent;
   border-top: 7px solid #f5f5f5;
 }
@@ -3081,11 +3083,16 @@ body[data-phase='shooting'] .top-mid {
   color: #5a5a5a;
 }
 .cam-help {
-  margin: auto 0 0;
+  flex: none;
+  margin: 0;
+  padding: 2px 12px 3px;
+  background: #000;
   font-size: 11px;
-  line-height: 1.3;
   color: #bdbdbd;
   text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The viewfinder: a hole in the body onto the battlefield (the renderer draws the frame into it). */
@@ -3106,7 +3113,7 @@ body[data-phase='shooting'] .top-mid {
 .cam-frame {
   position: relative;
   flex: none;
-  width: min(100%, calc((100dvh - 80px) * 1.85));
+  width: min(100%, calc((100dvh - 46px) * 1.85));
   aspect-ratio: 1.85;
   box-shadow: 0 0 0 100vmax #000;
   cursor: grab;
@@ -3270,17 +3277,18 @@ body[data-phase='shooting'] .top-mid {
 
 /* The lens's focus ring. */
 .cam-ring {
-  flex: none;
-  height: 56px;
+  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 14px max(0px, env(safe-area-inset-bottom));
-  background: #161616;
+  gap: 8px;
+  padding-top: 4px;
   border-top: 1px solid #2a2a2a;
 }
+.cam-ring-note {
+  display: none;
+}
 .cam-ring-label {
-  width: 52px;
+  width: 46px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: #cfcfcf;
@@ -3365,13 +3373,13 @@ body[data-phase='shooting'] .top-mid {
 .cam-lcd {
   flex: none;
   width: 100%;
-  padding: 5px 8px;
+  padding: 4px 6px;
   border-radius: 6px;
   background: #aab595;
   box-shadow: inset 0 0 0 2px #0d0d0d, inset 0 3px 6px rgba(0, 0, 0, 0.35);
   color: #18200f;
   font-family: ui-monospace, monospace;
-  font-size: 12px;
+  font-size: 11px;
 }
 .cam-lcd p {
   display: flex;
@@ -3466,15 +3474,17 @@ body[data-phase='shooting'] .top-mid {
   font-weight: 700;
   letter-spacing: 0.06em;
 }
-@media (max-height: 390px) {
-  .cam-mode { width: 78px; height: 78px; }
-  .cam-mode-ring span { transform: translate(-50%, -50%) rotate(calc(var(--i) * 50deg)) translateY(-27px); font-size: 12px; }
-  .cam-btn button { width: 40px; height: 40px; }
-  .cam-buttons { gap: 4px 12px; }
-  .cam-lcd p:first-child { font-size: 16px; }
-  .cam-shutter { width: 54px; height: 54px; }
-  .cam-quick { width: 96px; height: 96px; }
-  .cam-dial.quick::after { inset: 15px; }
+@media (max-height: 380px) {
+  .cam-mode { width: 70px; height: 70px; }
+  .cam-mode-ring span { transform: translate(-50%, -50%) rotate(calc(var(--i) * 50deg)) translateY(-24px); font-size: 12px; }
+  .cam-mode-hub { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+  .cam-btn button { width: 38px; height: 38px; }
+  .cam-buttons { gap: 2px 10px; }
+  .cam-lcd p:first-child { font-size: 15px; }
+  .cam-shutter { width: 48px; height: 48px; }
+  .cam-quick { width: 84px; height: 84px; }
+  .cam-dial.quick::after { inset: 14px; }
+  .cam-set { width: 38px; height: 38px; margin: -19px 0 0 -19px; }
 }
 
 /* Playback after a shot, and the card at the end. */
@@ -3692,18 +3702,40 @@ body[data-phase='shooting'] .top-mid {
 }
 
 /* The showcase once the card's done: the best photo's grades stacking up, then the big reveal. */
+/* Out of the camera: a card over the battlefield, which shows again round it. */
 .cam-showcase {
+  --lime: #a3e635;
   position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 6;
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: 'title title' 'grades total' 'tags keep';
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: max(10px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  background: radial-gradient(ellipse at 50% 55%, rgba(40, 30, 70, 0.92), rgba(6, 6, 10, 0.97) 70%);
+  justify-items: center;
+  gap: 6px 16px;
+  max-width: calc(100% - 24px);
+  padding: 8px 16px 10px;
+  border-radius: 18px;
+  background: radial-gradient(ellipse at 50% 55%, rgba(40, 30, 70, 0.9), rgba(6, 6, 10, 0.9) 75%);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  color: #f2f2f2;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
   overflow: hidden;
+  animation: cam-sc-in 0.35s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.cam-showcase[hidden] {
+  display: none;
+}
+@keyframes cam-sc-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(40px) scale(0.8);
+  }
 }
 .cam-showcase.big.perfect::before {
   content: '';
@@ -3893,14 +3925,18 @@ body[data-phase='shooting'] .top-mid {
 }
 .cam-sc-tags .capped { color: #fbbf24; }
 .cam-sc-tags .blind { color: #93c5fd; }
-#camera .cam-sc-keep {
+.cam-sc-keep {
   min-width: 220px;
   min-height: 44px;
   border-radius: 10px;
+  font: inherit;
   font-size: 15px;
   font-weight: 700;
+  color: #f5f5f5;
+  background: #1f1f1f;
+  border: 1px solid #3a3a3a;
 }
-#camera .cam-sc-keep.primary {
+.cam-sc-keep.primary {
   background: var(--lime);
   color: #0b0b0b;
   border: 0;
@@ -3913,4 +3949,31 @@ body[data-phase='shooting'] .top-mid {
   .cam-sc-overall { width: 78px; height: 78px; }
   .cam-sc-overall b { font-size: 36px; }
   .cam-sc-damage b { font-size: 52px; }
+}
+
+/* The showcase's layout: the title and shots on top, the grades, then the overall grade and damage beside
+   them, the tags and the button under. Compact, so the battlefield shows above it. */
+.cam-sc-head { grid-area: title; display: flex; align-items: center; gap: 12px; }
+.cam-sc-grades { grid-area: grades; }
+.cam-sc-total { grid-area: total; }
+.cam-sc-tags { grid-area: tags; }
+.cam-sc-keep { grid-area: keep; }
+.cam-showcase .cam-sc-tile { width: 62px; height: 60px; }
+.cam-showcase .cam-sc-tile small { font-size: 9px; }
+.cam-showcase .cam-sc-tile b { font-size: 26px; }
+.cam-showcase .cam-sc-overall { width: 66px; height: 66px; }
+.cam-showcase .cam-sc-overall b { font-size: 32px; }
+.cam-showcase .cam-sc-damage { min-width: 80px; }
+.cam-showcase .cam-sc-damage b { font-size: 46px; }
+.cam-showcase .cam-sc-total { gap: 10px; }
+.cam-showcase .cam-sc-keep { min-width: 0; width: 100%; min-height: 40px; }
+.cam-showcase .cam-sc-grades { gap: 6px; }
+/* The thumb controls stay out of the way while he shoots. */
+body[data-phase='shooting'] .pad,
+body[data-phase='shooting'] .drive {
+  visibility: hidden;
+}
+.cam-grip .cam-col:first-child {
+  justify-content: flex-start;
+  gap: 14px;
 }
