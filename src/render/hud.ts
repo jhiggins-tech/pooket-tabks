@@ -2,6 +2,7 @@ import { currentPlayer, decoyPickLeft } from '../game/game';
 import type { GameState } from '../game/state';
 import type { Rank } from '../stats/ranks';
 import type { GameOverCard } from '../ui/gameover';
+import { camera } from './hud/camera';
 import { chips } from './hud/chips';
 import { coffee } from './hud/coffee';
 import { heist } from './hud/heist';
@@ -36,7 +37,7 @@ export class Hud {
   /** `gameOver`: the game over card, shown when a match ends (ui/gameover.ts). */
   constructor(gameOver: GameOverCard) {
     this.gameOver = gameOverCard(gameOver);
-    this.parts = [readouts(), status(), this.chips, weapons(), heist(), coffee(), quiz(), pokemon(), stratagems(), this.banner, this.gameOver];
+    this.parts = [readouts(), status(), this.chips, weapons(), heist(), coffee(), quiz(), pokemon(), stratagems(), camera(), this.banner, this.gameOver];
   }
 
   /** The players' ranks in this match (null: not ranked, or not signed in). */

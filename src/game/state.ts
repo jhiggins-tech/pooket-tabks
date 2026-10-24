@@ -62,6 +62,8 @@ export interface Player extends TankBody {
   tattoo: { multiplier: number; turnsLeft: number } | null;
   /** Pinned by Sew: pending until this player's next turn starts, when they can't drive or hop; then gone. */
   pinned: { active: boolean } | null;
+  /** Blinded by Long Exposure's flash: pending until this player's next turn starts, when they get no aim guide; then gone. */
+  blinded: { active: boolean } | null;
   /** A frog hop in progress (ciarra's movement). */
   hop: Hop | null;
   /** doctorfox's Arwing in the air (his movement): taking off, flying or landing. */
@@ -299,6 +301,63 @@ export interface Guess {
   done: boolean;
   /** Seconds since it was fired (the answer shown), null before. */
   outro: number | null;
+}
+
+/**
+ * kiwicore's Long Exposure in play (game/camera.ts): the camera's settings, where it's pointed, and the
+ * memory card. The settings are indexes into weapons/camera.ts's tables.
+ */
+export interface Camera {
+  playerId: number;
+  weaponId: string;
+  /** The light (`SCENES`). */
+  scene: number;
+  mode: number;
+  lens: number;
+  /** The aperture and shutter set (in Tv, Av and P the camera picks the other: camera.ts `exposureOf`). */
+  ap: number;
+  sh: number;
+  iso: number;
+  wb: number;
+  /** WB or ISO pressed: the dials set that, until SET (or pressed again). */
+  fn: 'iso' | 'wb' | null;
+  flash: boolean;
+  /** The lens's switch: AF (AF-ON focuses on what's under the centre point) or MF (the ring). */
+  af: boolean;
+  /** The focus ring, 0 (closest) to 100 (infinity). */
+  ring: number;
+  /** Where it's pointed (world px): the frame's centre, bar the hand shake. */
+  x: number;
+  y: number;
+  /** Seconds it's been up (the hand shake's clock). */
+  t: number;
+  /** Seconds left for this shot. */
+  left: number;
+  /** Shooting, looking at the photo just taken, or the card at the end (every photo, the best counts). */
+  view: 'aim' | 'review' | 'card';
+  photos: Photo[];
+  /** The card's finished: it's fired. */
+  done: boolean;
+  /** Seconds since it was fired (the best photo developing), null before. */
+  outro: number | null;
+}
+
+/** A photo on Long Exposure's card: how it scored (camera.ts `FACTORS`, 0.4 to 1 each) and what it'll do. */
+export interface Photo {
+  scores: number[];
+  damage: number;
+  perfect: boolean;
+  /** The mode's cap held it back. */
+  capped: boolean;
+  flash: boolean;
+  /** The clock ran out and the shutter fired itself. */
+  auto: boolean;
+  /** Who's in it (null: no enemy in the frame). */
+  mark: TargetMark | null;
+  /** Its settings, as playback shows them. */
+  settings: string;
+  /** What would have made it better. */
+  tip: string;
 }
 
 /** ShotDownBoyz's Stratagem in play: the d-pad up, the arrows keyed so far, and how it's going. */
@@ -803,6 +862,14 @@ export type SfxCue =
   | 'sentry-shell'
   | 'zap'
   | 'pickup'
+  | 'camera-up'
+  | 'camera-click'
+  | 'camera-af'
+  | 'camera-shutter'
+  | 'camera-flash'
+  | 'camera-hit'
+  | 'camera-perfect'
+  | 'blinded'
   | 'gameover';
 
 export interface Sfx {
@@ -824,8 +891,10 @@ export interface Sfx {
  * Who's That Pokémon?, a bonus move (his phone's input too); answered, it's fired, the answer shows, and
  * the turn carries on (back to `aiming`). `calling`: ShotDownBoyz's Stratagem, a combo to key on the d-pad
  * (his phone's input too); finished, it's fired (the beacon); out of time, it's back to `aiming`.
+ * `shooting`: kiwicore's Long Exposure, a camera and three shots (his phone's input too); the card done,
+ * it's fired, and the shot is the best photo developing and its damage.
  */
-export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'guessing' | 'calling' | 'flying' | 'settling' | 'gameover';
+export type Phase = 'aiming' | 'stealing' | 'coffee' | 'drumming' | 'sneaking' | 'quizzing' | 'guessing' | 'calling' | 'shooting' | 'flying' | 'settling' | 'gameover';
 
 /**
  * Diced Coffee's spinner: a wheel with a full cream slice (the chance it fails) and a lactose free one,
@@ -917,6 +986,8 @@ export interface GameState {
   guess: Guess | null;
   /** ShotDownBoyz's Stratagem: the d-pad, while he keys a combo. */
   call: Call | null;
+  /** kiwicore's Long Exposure: the camera, while he shoots and while the best photo develops. */
+  camera: Camera | null;
   /** Stratagems coming down where their beacons landed. */
   drops: StratagemDrop[];
   /** ShotDownBoyz's sentries on the field (they stay, turn after turn, until their rounds are gone). */

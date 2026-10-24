@@ -67,6 +67,14 @@ const LOOKS: StatusLook[] = [
     badges: (pl) => (pl.pinned ? [{ title: 'Pinned: can’t move next turn' }] : []),
   },
   {
+    cls: 'blinded',
+    icon: '📸',
+    name: 'Blinded',
+    weapon: 'long-exposure',
+    info: () => 'caught in a flash photo: no aim guide on their next turn.',
+    badges: (pl) => (pl.blinded ? [{ title: 'Blinded by a flash: no aim guide next turn' }] : []),
+  },
+  {
     cls: 'sly',
     icon: '🌫',
     name: 'Hidden',
@@ -105,7 +113,7 @@ const LOOKS: StatusLook[] = [
 ];
 
 /** The info screen's list, in its own order. */
-const INFO_ORDER = ['burn', 'cooked', 'tattoo', 'pinned', 'scam', 'again', 'sly'];
+const INFO_ORDER = ['burn', 'cooked', 'tattoo', 'pinned', 'blinded', 'scam', 'again', 'sly'];
 
 /** A player's badges, in order (none once they're out). */
 export function badgesOf(pl: Player): Badge[] {

@@ -503,6 +503,68 @@ test("kiwicore's Band Aid: a drum kit, notes to tap on the beat anywhere, and th
   expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[1])).toBe(2);
 });
 
+test("kiwicore's Long Exposure: a camera, three shots on the card, and the best photo lands", async ({ page }) => {
+  test.setTimeout(45_000);
+  await startHotseat(page, { seed: 777, p1: 'kiwicore', p2: 'kcaj', query: 'debug' });
+  await page.locator('#weapons .weapon').nth(2).tap();
+  await expect(page.locator('#hint')).toHaveText('Long Exposure: FIRE, then get the perfect shot (three on the card)');
+  await page.locator('#fire').tap();
+  await page.waitForFunction(() => window.__pooket.state.phase === 'shooting');
+  await expect(page.locator('#camera')).toBeVisible();
+  await expect(page.locator('#camera .cam-l-mode')).toContainText('M');
+  await page.screenshot({ path: 'test-results/long-exposure-scrambled.png' });
+  // The controls: the mode dial goes round, ISO takes over the dials until SET, a notch of the main dial.
+  await page.locator('#camera .cam-mode').tap();
+  await expect(page.locator('#camera .cam-l-mode')).toContainText('P');
+  for (let i = 0; i < 3; i++) await page.locator('#camera .cam-mode').tap();
+  await page.locator('#camera [data-cam="fn:iso"]').tap();
+  await expect(page.locator('#camera .cam-dial-role.main')).toContainText('ISO');
+  const iso = await page.evaluate(() => window.__pooket.state.camera!.iso);
+  const dial = (await page.locator('#camera .cam-dial.main').boundingBox())!;
+  await page.mouse.click(dial.x + dial.width - 6, dial.y + dial.height / 2);
+  expect(await page.evaluate(() => window.__pooket.state.camera!.iso)).toBe(Math.min(6, iso + 1));
+  await page.locator('#camera .cam-set').tap();
+  await expect(page.locator('#camera .cam-dial-role.main')).toContainText('SHUTTER');
+  // Shot 1, as it is: nothing in the frame.
+  await page.locator('#camera .cam-shutter').tap();
+  await expect(page.locator('#camera .cam-playback')).toBeVisible();
+  await expect(page.locator('#camera .cam-pb-title')).toContainText('SHOT 1 OF 3');
+  await page.screenshot({ path: 'test-results/long-exposure-playback.png' });
+  await page.locator('#camera [data-cam="next"]').tap();
+  await expect(page.locator('#camera .cam-playback')).toBeHidden();
+  // Shot 2: lined up by hand (sunny 16 on the 200mm, Daylight, focused on kcaj, on a third).
+  await page.evaluate(() => {
+    const s = window.__pooket.state;
+    const c = s.camera!;
+    const me = s.players[0]!;
+    const k = s.players[1]!;
+    Object.assign(c, { scene: 1, mode: 3, lens: 2, ap: 5, sh: 4, iso: 0, wb: 2, af: false, flash: false });
+    const w = 14000 / 200;
+    const h = w / 1.85;
+    c.ring = Math.min(100, (Math.log(Math.hypot(k.x - me.x, k.y - me.y) / 10 / 0.45) / Math.log(222)) * 100);
+    c.x = k.x + w / 6;
+    c.y = k.y - 4 + h / 6;
+  });
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'test-results/long-exposure-viewfinder.png' });
+  await page.locator('#camera .cam-shutter').tap();
+  await expect(page.locator('#camera .cam-pb-title')).toContainText('SHOT 2 OF 3');
+  const damage = await page.evaluate(() => window.__pooket.state.camera!.photos[1]!.damage);
+  expect(damage).toBeGreaterThan(30);
+  // Keep the best: the card, then fire it.
+  await page.locator('#camera [data-cam="keep"]').tap();
+  await expect(page.locator('#camera .cam-pb-title')).toContainText('MEMORY CARD');
+  await expect(page.locator('#camera .cam-pb-shot')).toHaveCount(2);
+  await page.screenshot({ path: 'test-results/long-exposure-card.png' });
+  await page.locator('#camera [data-cam="keep"]').tap();
+  await expect(page.locator('#camera')).toBeHidden();
+  await expect(page.locator('#camera-print')).toBeVisible();
+  await page.screenshot({ path: 'test-results/long-exposure-print.png' });
+  await expect(page.locator('body')).toHaveAttribute('data-turn', '2', { timeout: 10_000 });
+  expect(await page.evaluate(() => window.__pooket.state.players[1]!.hp)).toBe(100 - damage);
+  expect(await page.evaluate(() => window.__pooket.state.players[0]!.ammo[2])).toBe(0);
+});
+
 test("garyoldmancorp's scooter: much faster than driving, and a wall is a crash", async ({ page }) => {
   await startHotseat(page, { seed: 777, p1: 'garyoldmancorp', query: 'debug' });
   const me = () => page.evaluate(() => ({ ...window.__pooket.state.players[0]! }));
@@ -1006,8 +1068,8 @@ test('upcoming characters: in the pickers and the info screen with a Coming soon
   await expect(page.locator('.info-card').last().locator('.info-tags')).toHaveText('Bonus moveOnce a turnNo aiming');
   // kiwicore is playable, in beta.
   await page.getByRole('tab', { name: 'kiwicore', exact: true }).tap();
-  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: stand-in moves for now');
-  await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Band Aid', 'Beta Bomb']);
+  await expect(page.locator('.info-character .beta-banner')).toHaveText('Beta: still being tuned');
+  await expect(page.locator('.info-card h3')).toHaveText(['béretta M2', 'Band Aid', 'Long Exposure']);
   // And doctorfox.
   await page.getByRole('tab', { name: 'doctorfox', exact: true }).tap();
   await expect(page.locator('.info-character .beta-banner')).toHaveCount(0);

@@ -16,6 +16,7 @@ import type { GameState, Player, TankBody } from './state';
  * | tattoo (Tattoo Gun) | `tattoo` | the player | their next `tattoo.turns` turns (takes × `multiplier` damage) |
  * | pinned (Sew) | `pin` | the player | their next turn (no driving or hopping) |
  * | hidden (Sly) | (the move itself: sly.ts) | the player | until their next turn starts, or a hit (`reveal`) |
+ * | blinded (Long Exposure's flash) | (a flash photo of them: camera.ts, `blind`) | the player | their next turn (no aim guide) |
  *
  * (Women in Scam is a bonus move's own business: scam.ts. Soak and toxin are damage on its way: tanks.ts.)
  * How they look is render/draw/tank.ts (on the tank) and ui/status-looks.ts (badges by the name, info lines).
@@ -50,6 +51,14 @@ export function afflict(state: GameState, p: Player, tank: TankBody, weapon: Wea
   }
 }
 
+/** Long Exposure's flash went off in their face: no aim guide on their next turn (camera.ts). */
+export function blind(state: GameState, p: Player, tank: TankBody): void {
+  if (!p.alive) return;
+  p.blinded = { active: false };
+  label(state, tank, 'BLINDED', '#fde68a');
+  sound(state, 'blinded');
+}
+
 /** The colour of a burn from a weapon with none of its own. */
 export const BURN_COLOUR = '#ff3df2';
 
@@ -61,6 +70,7 @@ function label(state: GameState, at: { x: number; y: number }, text: string, col
 export function turnEnding(ending: Player): void {
   if (ending.cooked?.active) ending.cooked = null;
   if (ending.pinned?.active) ending.pinned = null;
+  if (ending.blinded?.active) ending.blinded = null;
   if (ending.tattoo && --ending.tattoo.turnsLeft <= 0) ending.tattoo = null;
 }
 
@@ -69,6 +79,7 @@ export function turnStarting(up: Player): void {
   up.hidden = false;
   if (up.cooked) up.cooked.active = true;
   if (up.pinned) up.pinned.active = true;
+  if (up.blinded) up.blinded.active = true;
 }
 
 /** Damage multiplier for everything a player fires: halved (etc.) while they're cooked. */
@@ -85,6 +96,11 @@ export function vulnerable(p: Player, amount: number): number {
 /** Pinned players can't drive or hop this turn. */
 export function canMove(p: Player): boolean {
   return !p.pinned?.active;
+}
+
+/** Blinded players get no aim guide this turn (they still aim: the readouts are there). */
+export function seesAim(p: Player): boolean {
+  return !p.blinded?.active;
 }
 
 /** Scale an amount by the shooter's offence and round it (a real amount never rounds down to 0). */

@@ -72,6 +72,8 @@ export function canFire(state: GameState): boolean {
   if (state.phase === 'quizzing') return !!state.quiz?.done;
   // A Stratagem once a combo's finished (game/stratagems.ts).
   if (state.phase === 'calling') return !!state.call?.picked;
+  // Long Exposure is fired once the memory card's done (game/camera.ts).
+  if (state.phase === 'shooting') return !!state.camera?.done;
   // Who's That Pokémon? likewise (game/pokemon.ts); once fired, the answer's showing.
   if (state.phase === 'guessing') return !!state.guess?.done && state.guess.outro === null;
   if (state.phase !== 'aiming') return false;

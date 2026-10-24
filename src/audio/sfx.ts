@@ -224,10 +224,10 @@ export const FIRE_SOUNDS: Record<string, Recipe> = {
     s.noise({ dur: 1.1, rate: 1.7, to: 0.4, vol: 0.16, env: [[0, 1], [1, 0]] });
     for (const n of [52, 59, 64]) s.tone({ dur: 0.7, from: midi(n), duty: 0.125, vibrato: [7, 6], vol: 0.07, env: [[0, 1], [0.6, 0.6], [1, 0]] });
   },
-  // kiwicore's stand-in shot (beta): a big plain boom.
-  'kiwi-bomb': (s) => {
-    s.tone({ dur: 0.35, from: 900, to: 90, duty: 0.5, steps: 14, vol: 0.18 });
-    s.noise({ dur: 0.22, rate: 0.3, vol: 0.22 });
+  // kiwicore's Long Exposure is fired when the card's done: the film advance lever, ratcheting on.
+  'long-exposure': (s) => {
+    for (let i = 0; i < 5; i++) s.noise({ at: i * 0.05, dur: 0.02, rate: 1.7, vol: 0.09 });
+    s.tone({ at: 0.27, dur: 0.05, from: 1300, to: 900, duty: 0.125, vol: 0.06 });
   },
   // Calculated: a plasma lob, a warbling sci-fi throb, and the tracers' thin zips either side.
   calculated: (s) => {
@@ -477,6 +477,43 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     for (let i = 0; i < 14; i++) s.tone({ at: i * 0.045, dur: 0.04, from: 200 + ((i * 733) % 2400), duty: i % 2 ? 0.125 : 0.5, vol: 0.08 });
     s.noise({ at: 0.1, dur: 0.6, rate: 1.9, to: 0.4, vol: 0.09 });
   },
+  // ---- Long Exposure (game/camera.ts). ----
+  // The camera comes up: the power switch's little beep-beep and the lens whirring out.
+  'camera-up': (s) => {
+    arp(s, [93, 93], 0.09, { duty: 0.25, vol: 0.07, dur: 0.05 });
+    s.tone({ at: 0.2, dur: 0.3, from: 300, to: 650, duty: 0.125, vibrato: [40, 30], vol: 0.04 });
+  },
+  // A notch of a dial: a dry little click.
+  'camera-click': (s) => s.noise({ dur: 0.012, rate: 1.9, vol: 0.07 }),
+  // AF-ON: the focus motor's buzz, and the in-focus double beep.
+  'camera-af': (s) => {
+    s.tone({ dur: 0.14, from: 180, to: 260, duty: 0.125, vibrato: [60, 20], vol: 0.04 });
+    arp(s, [100, 100], 0.07, { at: 0.16, duty: 0.5, vol: 0.06, dur: 0.04 });
+  },
+  // The shutter: the mirror slapping up and down, ka-chunk.
+  'camera-shutter': (s) => {
+    s.noise({ dur: 0.03, rate: 1.4, vol: 0.18 });
+    s.noise({ at: 0.06, dur: 0.05, rate: 0.9, vol: 0.14 });
+  },
+  // With the flash: the capacitor's whine dropping, then the shutter.
+  'camera-flash': (s) => {
+    s.tone({ dur: 0.12, from: 5200, to: 2600, wave: 'triangle', vol: 0.05 });
+    s.noise({ at: 0.1, dur: 0.03, rate: 1.4, vol: 0.18 });
+    s.noise({ at: 0.16, dur: 0.05, rate: 0.9, vol: 0.14 });
+  },
+  // The best photo lands: a camera-store till's cha-ching.
+  'camera-hit': (s) => {
+    s.noise({ dur: 0.08, rate: 1.1, vol: 0.12 });
+    arp(s, [84, 91], 0.08, { at: 0.06, duty: 0.25, vol: 0.12, dur: 0.18 });
+  },
+  // A Perfect Shot: the crowd at a gallery opening, a bright fanfare.
+  'camera-perfect': (s) => {
+    arp(s, [72, 76, 79, 84, 88], 0.06, { duty: 0.25, vol: 0.11, dur: 0.1 });
+    s.tone({ at: 0.32, dur: 0.6, from: midi(91), duty: 0.25, vibrato: [6, 5], vol: 0.11 });
+    s.noise({ at: 0.3, dur: 0.6, rate: 1.5, to: 0.8, vol: 0.05 });
+  },
+  // Blinded: a dazzled "bwoing" wobbling down.
+  blinded: (s) => s.tone({ dur: 0.45, from: 1800, to: 500, wave: 'triangle', vibrato: [12, 80], vol: 0.11 }),
   // ---- Air Strike (game/airstrike.ts). ----
   // Kira! The glint on the horizon: a bright high sparkle.
   kira: (s) => {

@@ -4,8 +4,8 @@ import { kit } from '../kit';
 /**
  * kiwicore, in beta: the béretta M2 is his real tier 1 (his flat cap, thrown like a boomerang:
  * game/boomerang.ts; he wears it when it isn't flying); tier 2 is Band
- * Aid, a rhythm minigame that heals (game/drums.ts); tier 3 is a stand-in (a plain ballistic shell) until
- * his own move is ready.
+ * Aid, a rhythm minigame that heals (game/drums.ts); tier 3 is Long Exposure, a camera sim
+ * (game/camera.ts, its tables in weapons/camera.ts).
  */
 
 /** Tier 1: the flat cap off his head, out along the aim and round and home, through hills. */
@@ -47,24 +47,30 @@ export const bandAid = {
   colour: '#86efac',
 } satisfies WeaponDef;
 
-/** Tier 3 stand-in: a big shell. */
-export const kiwiBomb = {
-  id: 'kiwi-bomb',
-  name: 'Beta Bomb',
-  shortName: 'Beta Bomb',
-  info: 'A stand-in while kiwicore is in beta: one big shell, up to 70 damage and a big crater.',
-  blastRadius: 40,
-  damage: 70,
+/**
+ * Tier 3: a camera (game/camera.ts). Three shots on the card, 20 s each, the camera scrambled to start;
+ * the best photo does 10 to 70 (77 for a Perfect Shot, in M: the easier modes cap it), and a flash photo
+ * blinds them for their next turn.
+ */
+export const longExposure = {
+  id: 'long-exposure',
+  name: 'Long Exposure',
+  shortName: 'Long Exposure',
+  info:
+    'Raise the camera: the screen becomes its viewfinder, and it starts in a mess. Find the enemy, then get the shot under control with real controls: the mode dial, aperture and shutter on the two dials, ISO and white balance, three lenses, the flash, and the focus ring (or AF-ON). Three shots on the card, 20 seconds each (at zero it fires itself). The best photo lands: 10 for anything with an enemy in it, up to 70 for a sharp, well exposed, true-coloured shot on a rule-of-thirds point, 77 for a Perfect Shot. P, Tv and Av do some of it for you, but cap it (35, 60, 60). A flash photo blinds them: no aim guide on their next turn.',
+  kind: 'camera',
+  camera: { shots: 3, shotTime: 20, floor: 10, range: 60, perfect: 7 },
+  colour: '#f5f5f4',
 } satisfies WeaponDef;
 
 export const kiwicore = kit(
   {
     id: 'kiwicore',
     name: 'kiwicore',
-    blurb: 'Beta: the béretta M2, a flat cap thrown like a boomerang; Band Aid, drumming on the beat to heal; and a stand-in shot for now.',
+    blurb: 'Beta: the béretta M2, a flat cap thrown like a boomerang; Band Aid, drumming on the beat to heal; and Long Exposure, a camera and three shots to get the perfect one.',
     colours: ['#84cc16', '#a3e635', '#65a30d'],
     hat: 'flat-cap',
     beta: true,
   },
-  [berettaM2, bandAid, kiwiBomb],
+  [berettaM2, bandAid, longExposure],
 );

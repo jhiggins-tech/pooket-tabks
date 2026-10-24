@@ -109,6 +109,9 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
     p.dieselCans ??= p.dieselAvailable ? 1 : 0;
     delete p.dieselAvailable;
   }
+  // Rules 45: kiwicore's Long Exposure, and its flash's blinding.
+  snap.camera ??= null;
+  for (const p of (snap.players as { blinded?: unknown }[] | undefined) ?? []) p.blinded ??= null;
   return snap;
 }
 

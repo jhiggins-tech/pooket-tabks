@@ -71,7 +71,10 @@ what it's for; weapons are documented where they're defined.
   the same way, then back to `aiming`; `pokemon.ts`, the names in `weapons/pokedex.ts`, pictures fetched
   while playing by `render/pokemon-picture.ts`), and `calling` (shotdownboyz's Stratagem: a Helldivers combo on a
   d-pad between FIRE and the beacon, the same way; `stratagems.ts`, the table in `weapons/stratagems.ts`;
-  sentries and pods stay on the field across turns). `fire()` (gated by `canFire`) spends
+  sentries and pods stay on the field across turns), and `shooting` (kiwicore's Long Exposure: a camera sim between FIRE
+  and the shot, the same way; `camera.ts`, the tables in `weapons/camera.ts`; the viewfinder is the battlefield,
+  `Renderer.lookThrough`, the camera body `render/hud/camera.ts`, its controls `input/camera.ts`; a flash
+  blinds: `Player.blinded`, no aim guide). `fire()` (gated by `canFire`) spends
   the round and calls the weapon kind's entry in `FIRE` (free actions and bonus moves: `FREE_ACTIONS`, and
   the turn carries on); `state.lastShot` is the turn's shot; `step()` runs `STEPPERS` while flying
   (`runSteppers`) and settles once none is busy (`settleTurn`); `endTurn()` runs statuses, holograms, refunds,
@@ -87,7 +90,7 @@ what it's for; weapons are documented where they're defined.
 - **Mechanics** (`mechanics.ts`): `FIRE` maps each shot kind to how it goes off (the type insists on one
   per kind); `STEPPERS` lists what plays out during a shot, **in tick order** (the order is part of the
   simulation). Each mechanic's module (`stream`, `jetpack`, `gunk`, `walkers`, `sonic`, `sew`, `boomerang`,
-  `drums`, `bond`, `airstrike`, `hoop`, `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules, and
+  `drums`, `bond`, `camera`, `airstrike`, `hoop`, `runner`, `nap`, `steal`, `scam`, `coffee`, `projectiles`, `copies`) owns its fire function, steppers and rules, and
   says what it does in its header.
 - **Tanks and damage** (`tanks.ts`, `bodies.ts`): hit-testing goes through `targetAt()` / `Target` (a tank,
   a twin or a hologram); use `targetPos` / `targetOwner` / `soakTarget` / `tankBodies` rather than switching

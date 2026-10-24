@@ -1,5 +1,6 @@
 import type { Terrain } from '../core/terrain';
-import { BARREL } from '../game/game';
+import { BARREL, frameCentre, frameOf, meter } from '../game/game';
+import { SCENES } from '../weapons/camera';
 import type { GameState } from '../game/state';
 import type { Draw } from './draw/context';
 import { drawAirStrike } from './draw/airstrike';
@@ -172,6 +173,7 @@ export class Renderer {
    * it's on is drawn where it was, brought part of the way to the middle.
    */
   private follow(state: GameState, dt: number): void {
+    if (this.lookThrough(state)) return;
     const k = state.drums;
     const p = k && state.players[k.playerId];
     const b = state.barrel;
@@ -200,6 +202,32 @@ export class Renderer {
     this.zoom += (want - this.zoom) * Math.min(1, dt * 6);
     if (Math.abs(this.zoom - want) < 0.002) this.zoom = want;
     this.aim();
+  }
+
+  /**
+   * Long Exposure: the screen is the camera's viewfinder (render/hud/camera.ts's frame, `#camera-vf`), and
+   * the frame shows exactly what the camera sees (game/camera.ts `frameOf`, `frameCentre`: the hand shake
+   * included), the photo's blur, brightness and the light's colour on it. Returns whether it's up.
+   */
+  private lookThrough(state: GameState): boolean {
+    const c = state.camera;
+    const box = c && c.outro === null && state.phase === 'shooting' ? document.getElementById('camera-vf')?.getBoundingClientRect() : null;
+    if (!c || !box || box.width === 0) {
+      if (this.canvas.style.filter) this.canvas.style.filter = '';
+      return false;
+    }
+    const frame = frameOf(c);
+    const at = frameCentre(c);
+    const k = (box.width * this.dpr) / frame.w;
+    this.zoom = 1;
+    this.view = { k, ox: (box.left + box.width / 2) * this.dpr - at.x * k, oy: (box.top + box.height / 2) * this.dpr - at.y * k };
+    const m = meter(state, c);
+    const lit = c.flash && m.err > 0 ? Math.max(0, m.err - 2) : m.err;
+    const blur = (1 - m.look) * 9 + Math.max(0, m.slow) * 1.6;
+    const bright = Math.min(3.2, Math.max(0.12, 2 ** -lit)) * SCENES[c.scene]!.brightness;
+    const contrast = lit < 0 ? Math.max(0.6, 1 + lit * 0.15) : 1;
+    this.canvas.style.filter = `blur(${blur.toFixed(2)}px) brightness(${bright.toFixed(3)}) contrast(${contrast.toFixed(3)})`;
+    return true;
   }
 
   /** The world → screen transform for the current zoom and focus. */

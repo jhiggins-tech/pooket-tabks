@@ -1,7 +1,7 @@
 import { getCharacter } from '../../characters/roster';
 import { weaponOf } from '../../weapons/registry';
 import { BARREL_LENGTH, TANK_BODY_HEIGHT, TANK_HALF_WIDTH } from '../../game/constants';
-import { canDriveNow, canPickDecoy, capSpot, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, tankCentre, wearsCap } from '../../game/game';
+import { canDriveNow, canPickDecoy, capSpot, currentPlayer, HOLOGRAM_PHASE_IN, hologramsOf, isAimless, isSpewing, muzzle, pendingTwinSpot, seesAim, tankCentre, wearsCap } from '../../game/game';
 import type { Burn, GameState, Player } from '../../game/state';
 import { glow, noise, withAlpha } from './colour';
 import type { Draw } from './context';
@@ -112,6 +112,17 @@ export function drawTank(d: Draw, owner: Player, state: GameState, at?: TankCopy
     ctx.moveTo(p.x + 2, p.y - 3.5);
     ctx.lineTo(p.x + 8, p.y - 3.5);
     ctx.stroke();
+  }
+  if (owner.blinded && owner.alive && !at) {
+    // Blinded: dazzle stars round the turret, twinkling.
+    ctx.fillStyle = '#fde68a';
+    for (let i = 0; i < 3; i++) {
+      const a = d.time * 2.4 + (i * Math.PI * 2) / 3;
+      const r = 0.8 + 0.6 * Math.abs(Math.sin(d.time * 5 + i));
+      ctx.beginPath();
+      ctx.arc(p.x + Math.cos(a) * 9, p.y - TANK_BODY_HEIGHT - 4 + Math.sin(a) * 3, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   if (p.pinned && p.alive) {
     // Pinned: pink cross-stitches over the hull.
@@ -317,7 +328,8 @@ export function drawAim(d: Draw, state: GameState): void {
   const p = currentPlayer(state);
   const spot = pendingTwinSpot(state);
   if (spot !== null) drawTwinGhost(d, state, p, spot);
-  if (state.phase !== 'aiming' || isAimless(state) || p.flight) return;
+  // (Blinded by Long Exposure's flash: no guide this turn.)
+  if (state.phase !== 'aiming' || isAimless(state) || p.flight || !seesAim(p)) return;
   if (p.twin) drawAimGuide(d, { ...p, x: p.twin.x, y: p.twin.y, angle: p.twin.angle, power: p.twin.power }, !p.aimTwin);
   drawAimGuide(d, p, !!p.twin && p.aimTwin);
 }

@@ -10,6 +10,7 @@ import { FUEL_PER_MATCH, MAX_HP, TANK_HALF_WIDTH, WORLD_H, WORLD_W } from './con
 import { settleTurn, tankBody } from './bodies';
 import { coffeeDone, finishCoffee, stepCoffee } from './coffee';
 import { startQuiz } from './bond';
+import { startCamera } from './camera';
 import { startGuess, stepGuess } from './pokemon';
 import { startDrums } from './drums';
 import { startSneak, stepSmokes } from './sly';
@@ -33,7 +34,7 @@ import { drawStratagems, fireSentries, rearmStratagems, startCall } from './stra
  * their own module), the fixed-step simulation and the turn state machine
  * (aiming → flying → settling → aiming | gameover; plus stealing, kie's Steal roulette, and coffee, Diced
  * Coffee's spinner: both back to aiming, or from coffee to settling when it spilt or nothing's left to
- * fire; and drumming, Band Aid, sneaking, Sly, quizzing, 007, and calling, a Stratagem: all between FIRE and the shot; and guessing, Who's That Pokémon?, a bonus move). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
+ * fire; and drumming, Band Aid, sneaking, Sly, quizzing, 007, and calling, a Stratagem, and shooting, Long Exposure: all between FIRE and the shot; and guessing, Who's That Pokémon?, a bonus move). Pure logic, no DOM. The public API is re-exported here, so the rest of the game imports from
  * './game'.
  */
 export { boomerangPoint, CAP_REST, capSpot, wearsCap } from './boomerang';
@@ -44,6 +45,8 @@ export { STRIKE, STRIKE_BEAT, horizonOf, laserTime, shipAt, strikeClock } from '
 export { GUESS_OUTRO, answerGuess, followGuess, guessClock, guessedRight, guessLeft, guessReady, isPokemon, missingNoNext, pokedexDown, startGuess } from './pokemon';
 export { BEACON_TIME, LASER_TIME, SENTRY_HEIGHT, TESLA_RANGE, callClock, callLeft, callReady, cancelCall, candidates, followCall, isStratagem, pressArrow, readyStratagems, startCall } from './stratagems';
 export { BARREL, QUIZ_OUTRO, answerQuiz, answeredRight, followQuiz, isBond, quizClock, quizLeft, quizReady, rightAnswer, startQuiz } from './bond';
+export { DEVELOP, FACTORS, bestPhoto, cameraClock, cameraInput, cameraReady, dialRole, exposureOf, followCamera, frameCentre, frameOf, isCamera, meter, ringFor, ringMetres, sceneOf, startCamera, type CameraAction } from './camera';
+export { seesAim } from './statuses';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';
 export { isSpewing } from './gunk';
@@ -116,6 +119,7 @@ export function createGame(cfg: GameConfig): GameState {
       cooked: null,
       tattoo: null,
       pinned: null,
+      blinded: null,
       hop: null,
       flight: null,
       twin: null,
@@ -152,6 +156,7 @@ export function createGame(cfg: GameConfig): GameState {
     quiz: null,
     guess: null,
     call: null,
+    camera: null,
     drops: [],
     sentries: [],
     crates: [],
@@ -276,6 +281,11 @@ export function fire(state: GameState): boolean {
   // Stratagem: FIRE puts the d-pad up; it's fired for real (the beacon) once a combo's finished.
   if (kind === 'stratagem' && state.phase === 'aiming') {
     startCall(state);
+    return false;
+  }
+  // Long Exposure: FIRE raises the camera; it's fired for real once the memory card's done.
+  if (kind === 'camera' && state.phase === 'aiming') {
+    startCamera(state);
     return false;
   }
   // Who's That Pokémon?: FIRE puts the silhouette up; it's fired for real once it's answered.

@@ -2,6 +2,7 @@ import type { ShotKind, WeaponKind } from '../weapons/kinds';
 import type { WeaponOf } from '../weapons/types';
 import { fireAirStrike, strikeStepper } from './airstrike';
 import { barrelStepper, fireBond, quizStepper } from './bond';
+import { cameraStepper, fireCamera } from './camera';
 import { boomerangStepper, throwBoomerang } from './boomerang';
 import { drumStepper, playDrums } from './drums';
 import { decoyPickStepper, fireDecoys, hologramBlastStepper, originsOf, spawnTwin } from './copies';
@@ -78,6 +79,7 @@ export const FIRE: { [K in ShotKind]: FireFn<K> } = {
   drum: playDrums,
   sly: fireSly,
   bond: fireBond,
+  camera: fireCamera,
   airstrike: fireAirStrike,
   runner: fireRunner,
   spew: fireSpew,
@@ -103,6 +105,7 @@ export const STEPPERS: Stepper[] = [
   drumStepper,
   quizStepper,
   barrelStepper,
+  cameraStepper,
   strikeStepper,
   runnerStepper,
   napStepper,

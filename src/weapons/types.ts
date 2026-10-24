@@ -317,6 +317,18 @@ export interface AirStrikeSpec {
 }
 
 /**
+ * Camera (Long Exposure: game/camera.ts): a memory card of `shots` photos, `shotTime` s each; a photo does
+ * `floor + range × its score` damage, `perfect` more for a Perfect Shot, up to the mode's cap.
+ */
+export interface CameraSpec {
+  shots: number;
+  shotTime: number;
+  floor: number;
+  range: number;
+  perfect: number;
+}
+
+/**
  * Runner: jogs at `speed` px/s towards the nearest enemy, `leg` px each time anyone fires, over any hill;
  * on reaching a tank it hits for `damage` (blast `radius`). Any blast that catches it knocks it out.
  */
@@ -381,6 +393,7 @@ export type WeaponDef = WeaponBase &
     | { kind: 'drum'; drum: DrumSpec }
     | { kind: 'sly'; sly: SlySpec }
     | { kind: 'bond'; bond: BondSpec }
+    | { kind: 'camera'; camera: CameraSpec }
     /** The strafing run, and the bomb's blast. */
     | ({ kind: 'airstrike'; airstrike: AirStrikeSpec } & BlastSpec)
     | { kind: 'runner'; runner: RunnerSpec }

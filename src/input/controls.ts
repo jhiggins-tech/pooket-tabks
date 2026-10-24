@@ -1,4 +1,5 @@
 import { byId } from '../ui/dom';
+import { bindCamera, type CameraHandlers } from './camera';
 import type { Arrow } from '../weapons/stratagems';
 
 export interface ControlHandlers {
@@ -35,6 +36,8 @@ export interface ControlHandlers {
   canCall(): boolean;
   /** A Stratagem's arrow (the d-pad, W A S D or the arrow keys). */
   arrow(a: Arrow): void;
+  /** Long Exposure's camera (input/camera.ts). */
+  camera: CameraHandlers;
 }
 
 /** The keys that key a stratagem's arrows. */
@@ -164,6 +167,9 @@ export function bindControls(canvas: HTMLCanvasElement, h: ControlHandlers): voi
     const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-answer]');
     if (btn && !btn.disabled && h.canGuess()) h.guess(Number(btn.dataset.answer));
   });
+
+  // Long Exposure's camera body (render/hud/camera.ts).
+  bindCamera(h.camera);
 
   // A Stratagem's d-pad (render/hud/stratagems.ts): on the finger coming down, for quick combos.
   byId('stratagems').addEventListener('pointerdown', (e) => {

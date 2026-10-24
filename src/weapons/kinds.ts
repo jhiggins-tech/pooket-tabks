@@ -56,6 +56,11 @@ export const KINDS = {
    */
   bond: { aims: false, turn: 'shot' },
   /**
+   * A camera (kiwicore's Long Exposure): FIRE raises it (the `shooting` phase: game/camera.ts), three shots
+   * on the memory card, fired once it's done, and the best photo's damage lands on whoever's in it.
+   */
+  camera: { aims: false, turn: 'shot' },
+  /**
    * doctorfox's Air Strike: no aiming. Three Arwings come in from the horizon over the enemy nearest him,
    * strafe them with lasers and finish with a bomb (game/airstrike.ts).
    */

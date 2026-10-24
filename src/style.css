@@ -2908,3 +2908,752 @@ body[data-online='true'] #net-menu {
   width: 9px;
   height: 11px;
 }
+
+/* ---------- kiwicore's Long Exposure: the camera body round the viewfinder (render/hud/camera.ts) ---------- */
+body[data-phase='shooting'] #players,
+body[data-phase='shooting'] #turn-banner,
+body[data-phase='shooting'] .hint {
+  visibility: hidden;
+}
+body[data-phase='shooting'] .top-mid {
+  z-index: 8;
+  opacity: 0.75;
+}
+#camera {
+  --grip-l: calc(146px + env(safe-area-inset-left));
+  --grip-r: calc(146px + env(safe-area-inset-right));
+  --lime: #a3e635;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--grip-l) minmax(0, 1fr) var(--grip-r);
+  z-index: 6;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  color: #f2f2f2;
+  font-size: 11px;
+}
+#camera[hidden],
+#camera [hidden] {
+  display: none !important;
+}
+.cam-grip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
+  background: #141414;
+  min-height: 0;
+  overflow: hidden;
+}
+.cam-grip.left {
+  padding-left: max(10px, env(safe-area-inset-left));
+  border-right: 1px solid #262626;
+}
+.cam-grip.right {
+  padding-right: max(10px, env(safe-area-inset-right));
+  border-left: 1px solid #262626;
+}
+#camera button {
+  font: inherit;
+  color: #f5f5f5;
+  background: #1f1f1f;
+  border: 1px solid #3a3a3a;
+  cursor: pointer;
+}
+#camera button.on {
+  background: var(--lime);
+  color: #0b0b0b;
+}
+#camera button:disabled {
+  cursor: default;
+}
+
+/* The mode dial: P, Tv, Av, M round it, turned so the one in use is at the index mark. */
+.cam-mode {
+  position: relative;
+  flex: none;
+  width: 92px;
+  height: 92px;
+  border-radius: 50% !important;
+  padding: 0;
+  background: repeating-conic-gradient(#2c2c2c 0deg 4deg, #1c1c1c 4deg 8deg) !important;
+  box-shadow: inset 0 0 0 10px #232323, 0 2px 0 #000;
+  border: 0 !important;
+}
+.cam-mode-ring {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.2s;
+  transform: rotate(var(--dial, 0deg));
+}
+.cam-mode-ring span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: 14px;
+  font-weight: 700;
+  color: #9a9a9a;
+  transform: translate(-50%, -50%) rotate(calc(var(--i) * 50deg)) translateY(-32px);
+}
+.cam-mode-ring span:nth-child(1) { --i: 0; }
+.cam-mode-ring span:nth-child(2) { --i: 1; }
+.cam-mode-ring span:nth-child(3) { --i: 2; }
+.cam-mode-ring span:nth-child(4) { --i: 3; }
+.cam-mode-ring span.on {
+  color: #fff;
+}
+.cam-mode-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  margin: -16px 0 0 -16px;
+  border-radius: 50%;
+  background: #101010;
+  box-shadow: inset 0 1px 0 #333;
+}
+.cam-mode-mark {
+  position: absolute;
+  top: max(1px, calc(env(safe-area-inset-top) - 7px));
+  left: calc(50% + env(safe-area-inset-left) / 2 - 4px);
+  border: 4px solid transparent;
+  border-top: 7px solid #f5f5f5;
+}
+.cam-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 14px;
+}
+.cam-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #e5e5e5;
+}
+.cam-btn button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 19px !important;
+  font-weight: 700;
+  line-height: 1;
+}
+.cam-btn button.cam-lens,
+.cam-btn button.cam-afmf {
+  border-radius: 10px;
+  font-size: 13px !important;
+}
+.cam-lens small {
+  display: block;
+  font-size: 9px;
+  color: #cfcfcf;
+}
+.cam-lens.on small {
+  color: inherit;
+}
+.cam-afmf {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 3px;
+}
+.cam-afmf span {
+  font-size: 10px;
+  border-radius: 4px;
+  color: #8a8a8a;
+}
+#camera:not(.af) .cam-afmf span:last-child,
+#camera.af .cam-afmf span:first-child {
+  background: #f5f5f5;
+  color: #111;
+}
+#camera:not(.af) [data-cam='afon'] {
+  color: #5a5a5a;
+}
+.cam-help {
+  margin: auto 0 0;
+  font-size: 11px;
+  line-height: 1.3;
+  color: #bdbdbd;
+  text-align: center;
+}
+
+/* The viewfinder: a hole in the body onto the battlefield (the renderer draws the frame into it). */
+.cam-middle {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.cam-vf-box {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.cam-frame {
+  position: relative;
+  flex: none;
+  width: min(100%, calc((100dvh - 80px) * 1.85));
+  aspect-ratio: 1.85;
+  box-shadow: 0 0 0 100vmax #000;
+  cursor: grab;
+  touch-action: none;
+  overflow: hidden;
+}
+.cam-frame > * {
+  position: absolute;
+  pointer-events: none;
+}
+.cam-grade,
+.cam-tint,
+.cam-grain,
+.cam-thirds,
+.cam-blink {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cam-grade {
+  background: var(--grade);
+  opacity: var(--grade-a, 0);
+  mix-blend-mode: overlay;
+}
+.cam-tint {
+  background: var(--tint);
+  opacity: var(--tint-a, 0);
+  mix-blend-mode: color;
+}
+.cam-grain {
+  opacity: var(--grain, 0);
+  mix-blend-mode: overlay;
+}
+.cam-thirds {
+  --line: rgba(255, 255, 255, 0.32);
+  background:
+    linear-gradient(to right, transparent calc(33.33% - 0.5px), var(--line) 0 calc(33.33% + 0.5px), transparent 0 calc(66.67% - 0.5px), var(--line) 0 calc(66.67% + 0.5px), transparent 0),
+    linear-gradient(to bottom, transparent calc(33.33% - 0.5px), var(--line) 0 calc(33.33% + 0.5px), transparent 0 calc(66.67% - 0.5px), var(--line) 0 calc(66.67% + 0.5px), transparent 0);
+}
+.cam-af {
+  inset: 0;
+}
+.cam-af i {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  transform: translate(-50%, -50%);
+  border: 1.5px solid rgba(0, 0, 0, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.cam-af i:nth-child(1) { left: 50%; top: 50%; }
+.cam-af i:nth-child(2) { left: 29%; top: 50%; }
+.cam-af i:nth-child(3) { left: 71%; top: 50%; }
+.cam-af i:nth-child(4) { left: 50%; top: 31%; }
+.cam-af i:nth-child(5) { left: 50%; top: 69%; }
+.cam-af i:nth-child(6) { left: 39%; top: 40%; }
+.cam-af i:nth-child(7) { left: 61%; top: 40%; }
+.cam-af i:nth-child(8) { left: 39%; top: 60%; }
+.cam-af i:nth-child(9) { left: 61%; top: 60%; }
+#camera.af .cam-af i:nth-child(1) {
+  border-color: #ff2a2a;
+}
+.cam-tag {
+  top: 8px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  font-size: 12px;
+  font-weight: 600;
+}
+.cam-scene {
+  left: 8px;
+}
+.cam-left {
+  right: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+}
+.cam-left.low {
+  background: #dc2626;
+}
+.cam-live {
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.cam-live::before {
+  content: '● ';
+  color: #ef4444;
+}
+.cam-live:empty {
+  display: none;
+}
+.cam-blink {
+  background: #000;
+  opacity: 0;
+}
+.cam-frame.blink .cam-blink {
+  animation: cam-blink 0.18s ease-out;
+}
+.cam-frame.flash .cam-blink {
+  background: #fff;
+}
+@keyframes cam-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The viewfinder's info line, green on black. */
+.cam-info {
+  flex: none;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 12px;
+  background: #000;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  color: #7cfc6a;
+  white-space: nowrap;
+}
+.cam-meter {
+  position: relative;
+  width: 132px;
+  height: 20px;
+}
+.cam-meter-scale {
+  display: block;
+  font-size: 10px;
+  line-height: 12px;
+  text-align: center;
+}
+.cam-meter i {
+  position: absolute;
+  top: 12px;
+  left: var(--needle, 50%);
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-top: 0;
+  border-bottom: 6px solid #7cfc6a;
+}
+.cam-i-dot {
+  color: #1f3d1b;
+}
+.cam-i-dot.on {
+  color: #7cfc6a;
+}
+
+/* The lens's focus ring. */
+.cam-ring {
+  flex: none;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px max(0px, env(safe-area-inset-bottom));
+  background: #161616;
+  border-top: 1px solid #2a2a2a;
+}
+.cam-ring-label {
+  width: 52px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #cfcfcf;
+}
+.cam-ring-label b {
+  display: block;
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: #f5f5f5;
+}
+.cam-ring-body {
+  position: relative;
+  flex: 1;
+}
+.cam-ring-scale {
+  position: relative;
+  display: block;
+  height: 14px;
+  font-family: ui-monospace, monospace;
+  color: #e5e5e5;
+}
+.cam-ring-scale i {
+  position: absolute;
+  font-style: normal;
+  transform: translateX(-50%);
+}
+.cam-ring-scale i:first-child {
+  transform: none;
+}
+.cam-ring-scale i:last-child {
+  transform: translateX(-100%);
+}
+.cam-ring-input {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  background: transparent;
+  touch-action: none;
+}
+.cam-ring-input::-webkit-slider-runnable-track {
+  height: 22px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(90deg, #2b2b2b 0 3px, #121212 3px 6px);
+  border: 1px solid #3a3a3a;
+}
+.cam-ring-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 8px;
+  height: 30px;
+  margin-top: -5px;
+  border-radius: 2px;
+  background: #f5f5f5;
+  box-shadow: 0 0 0 2px #000;
+}
+.cam-ring-input::-moz-range-track {
+  height: 22px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(90deg, #2b2b2b 0 3px, #121212 3px 6px);
+  border: 1px solid #3a3a3a;
+}
+.cam-ring-input::-moz-range-thumb {
+  width: 8px;
+  height: 30px;
+  border: 0;
+  border-radius: 2px;
+  background: #f5f5f5;
+}
+.cam-ring-input:disabled {
+  opacity: 0.35;
+}
+.cam-ring-note {
+  width: 60px;
+  text-align: right;
+  color: #cfcfcf;
+}
+
+/* The right grip: the top LCD, the main dial, the shutter, the quick control dial. */
+.cam-lcd {
+  flex: none;
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #aab595;
+  box-shadow: inset 0 0 0 2px #0d0d0d, inset 0 3px 6px rgba(0, 0, 0, 0.35);
+  color: #18200f;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.cam-lcd p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+  margin: 0 0 3px;
+}
+.cam-lcd p:first-child {
+  font-size: 19px;
+}
+.cam-lcd p:last-child {
+  margin: 0;
+}
+.cam-lcd .on {
+  padding: 0 2px;
+  background: #18200f;
+  color: #aab595;
+}
+.cam-dial {
+  touch-action: none;
+  cursor: ew-resize;
+}
+.cam-dial.main {
+  flex: none;
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px;
+  border-radius: 17px;
+  background: repeating-linear-gradient(90deg, #303030 0 3px, #161616 3px 7px);
+  background-position: calc(var(--turned, 0) * 3px) 0;
+  box-shadow: inset 0 0 0 1px #3d3d3d, inset 0 6px 8px rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+}
+.cam-dial-role {
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #cfcfcf;
+  margin-top: -3px;
+}
+.cam-shutter {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50% !important;
+  border: 0 !important;
+  background: radial-gradient(circle at 40% 35%, #4a4a4a, #1a1a1a 70%) !important;
+  box-shadow: 0 0 0 4px #262626, 0 0 0 5px #3d3d3d, 0 3px 0 #000;
+  margin: 4px 0;
+}
+.cam-shutter:active {
+  transform: translateY(2px);
+}
+.cam-quick {
+  position: relative;
+  flex: none;
+  width: 116px;
+  height: 116px;
+}
+.cam-dial.quick {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(#2e2e2e 0deg 5deg, #191919 5deg 10deg);
+  box-shadow: inset 0 0 0 1px #3d3d3d, 0 2px 0 #000;
+  transform: rotate(calc(var(--turned, 0) * 15deg));
+  transition: transform 0.12s;
+  cursor: grab;
+}
+.cam-dial.quick::after {
+  content: '';
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  background: #1b1b1b;
+  box-shadow: inset 0 0 0 1px #2f2f2f;
+}
+.cam-set {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+@media (max-height: 390px) {
+  .cam-mode { width: 78px; height: 78px; }
+  .cam-mode-ring span { transform: translate(-50%, -50%) rotate(calc(var(--i) * 50deg)) translateY(-27px); font-size: 12px; }
+  .cam-btn button { width: 40px; height: 40px; }
+  .cam-buttons { gap: 4px 12px; }
+  .cam-lcd p:first-child { font-size: 16px; }
+  .cam-shutter { width: 54px; height: 54px; }
+  .cam-quick { width: 96px; height: 96px; }
+  .cam-dial.quick::after { inset: 15px; }
+}
+
+/* Playback after a shot, and the card at the end. */
+.cam-playback {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 62%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) 14px;
+  background: #0e0e0e;
+  border-left: 1px solid #2a2a2a;
+  font-size: 13px;
+}
+.cam-pb-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+.cam-pb-title b {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: #cfcfcf;
+}
+.cam-pb-title span {
+  font-family: ui-monospace, monospace;
+  font-size: 10.5px;
+  color: #cfcfcf;
+  text-align: right;
+}
+.cam-pb-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cam-pb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 17px;
+}
+.cam-pb-name {
+  width: 96px;
+  flex: none;
+  color: #e5e5e5;
+}
+.cam-pb-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: #262626;
+  overflow: hidden;
+}
+.cam-pb-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.cam-pb-bar i.great { background: var(--lime); }
+.cam-pb-bar i.good { background: #facc15; }
+.cam-pb-bar i.poor { background: #f97316; }
+.cam-pb-row b {
+  width: 26px;
+  text-align: right;
+}
+.cam-pb-shot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #181818;
+}
+.cam-pb-shot.best {
+  background: #1f2a10;
+  box-shadow: inset 0 0 0 1px var(--lime);
+}
+.cam-pb-shot small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: #bdbdbd;
+}
+.cam-pb-shot .big {
+  width: 30px;
+  text-align: right;
+  font-size: 19px;
+}
+.cam-pb-damage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cam-pb-damage > b {
+  font-size: 42px;
+  line-height: 1;
+}
+.cam-pb-damage > b.great { color: var(--lime); }
+.cam-pb-damage > b.good { color: #facc15; }
+.cam-pb-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #cfcfcf;
+}
+.cam-pb-tags .perfect {
+  align-self: flex-start;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #facc15;
+  color: #111;
+  font-weight: 700;
+}
+.cam-pb-tags .capped { color: #fbbf24; }
+.cam-pb-tags .blind { color: #93c5fd; }
+.cam-pb-tip {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #d4d4d4;
+}
+.cam-pb-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+.cam-pb-actions button {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 14px !important;
+  font-weight: 700;
+}
+.cam-pb-actions button.primary {
+  background: var(--lime);
+  color: #0b0b0b;
+  border: 0;
+}
+
+/* Fired: the best photo as a print, developing. */
+#camera-print {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 16px 18px;
+  border-radius: 3px;
+  background: #fafaf9;
+  color: #111;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  animation: cam-develop 1.4s ease-out;
+  z-index: 6;
+}
+#camera-print[hidden] {
+  display: none;
+}
+#camera-print b {
+  font-size: 26px;
+}
+#camera-print span {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+@keyframes cam-develop {
+  from {
+    filter: brightness(0.25) sepia(1);
+  }
+}

@@ -1,6 +1,6 @@
-import { currentPlayer, followCall, followDrums, followGuess, followQuiz, followSneak } from '../game/game';
+import { currentPlayer, followCall, followCamera, followDrums, followGuess, followQuiz, followSneak } from '../game/game';
 import { repaintBunkers } from '../game/bunker';
-import type { Call, DrumSet, Flight, GameState, Guess, Hop, Quiz, Sneak } from '../game/state';
+import type { Call, Camera, DrumSet, Flight, GameState, Guess, Hop, Quiz, Sneak } from '../game/state';
 import { applySnapshot, decodeSolid, type Snapshot } from './snapshot';
 
 /**
@@ -42,6 +42,8 @@ export interface Preview {
   guess?: Guess | null;
   /** ShotDownBoyz's Stratagem while he keys a combo (the `calling` phase is his phone's input too). */
   call?: Call | null;
+  /** kiwicore's Long Exposure while he shoots (the `shooting` phase is his phone's input too: the same viewfinder here). */
+  camera?: Camera | null;
 }
 
 /** The current player's aim and position, as a preview. */
@@ -54,10 +56,11 @@ export function previewOf(s: GameState): Preview {
   // (Only while he picks: once it's fired, each phone plays the answer out itself.)
   const guess = s.phase === 'guessing' && s.guess?.outro === null ? s.guess : null;
   const call = s.phase === 'calling' ? s.call : null;
-  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, flight: p.flight, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums, sneak, quiz, guess, call };
+  const camera = s.phase === 'shooting' ? s.camera : null;
+  return { k: 'preview', turn: s.turn, x: p.x, y: p.y, fuel: p.fuel, angle: p.angle, power: p.power, tier: p.selectedTier, hop: p.hop, flight: p.flight, twin, aimTwin: p.aimTwin, twinSpot: p.twinSpot, hp: p.hp, drums, sneak, quiz, guess, call, camera };
 }
 
-/** Show the current player aiming (or drumming Band Aid, sneaking off under Sly, answering 007's question, naming a Pokémon, or keying a stratagem) as the preview says (if it's for this turn, before they fire). */
+/** Show the current player aiming (or drumming Band Aid, sneaking off under Sly, answering 007's question, naming a Pokémon, keying a stratagem, or shooting Long Exposure) as the preview says (if it's for this turn, before they fire). */
 export function applyPreview(s: GameState, v: Preview): void {
   if (v.turn !== s.turn || !LIVE.has(s.phase)) return;
   if (v.drums) followDrums(s, v.drums);
@@ -65,6 +68,7 @@ export function applyPreview(s: GameState, v: Preview): void {
   if (v.quiz) followQuiz(s, v.quiz);
   followGuess(s, v.guess ?? null);
   followCall(s, v.call ?? null);
+  if (v.camera) followCamera(s, v.camera);
   const p = currentPlayer(s);
   Object.assign(p, { x: v.x, y: v.y, fuel: v.fuel, angle: v.angle, power: v.power, selectedTier: v.tier, hop: v.hop, flight: v.flight ?? null, aimTwin: v.aimTwin ?? false, twinSpot: v.twinSpot ?? null });
   if (p.twin && v.twin) {
@@ -75,7 +79,7 @@ export function applyPreview(s: GameState, v: Preview): void {
 }
 
 /** The phases that are the current player's input, streamed in previews (net/session.ts streams them). */
-export const LIVE: ReadonlySet<GameState['phase']> = new Set(['aiming', 'drumming', 'sneaking', 'quizzing', 'guessing', 'calling']);
+export const LIVE: ReadonlySet<GameState['phase']> = new Set(['aiming', 'drumming', 'sneaking', 'quizzing', 'guessing', 'calling', 'shooting']);
 
 /** Snap the game to a snapshot and its terrain. */
 export function putState(s: GameState, snap: Snapshot, terrain: string): void {

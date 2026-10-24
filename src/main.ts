@@ -7,7 +7,7 @@ import './style.css';
 import { randomSeed } from './core/rng';
 import { FIXED_DT, WORLD_H, WORLD_W } from './game/constants';
 import { getCharacter, matchPlayers } from './characters/roster';
-import { adjustAim, aimTwin, answerGuess, answerQuiz, callClock, callReady, cancelCall, pressArrow, canPickDecoy, createGame, currentPlayer, type GameConfig, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, guessClock, guessReady, pendingTwinSpot, pokedexDown, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
+import { adjustAim, aimTwin, answerGuess, cameraClock, cameraInput, cameraReady, answerQuiz, callClock, callReady, cancelCall, pressArrow, canPickDecoy, createGame, currentPlayer, type GameConfig, drive, drumClock, drumsReady, drumTap, finishDecoyPick, fire, guessClock, guessReady, pendingTwinSpot, pokedexDown, quizClock, quizReady, selectTier, setAim, sneakClock, sneakReady, step, strikeClock } from './game/game';
 import type { GameState, PlayerConfig } from './game/state';
 import { bindControls } from './input/controls';
 import { Renderer } from './render/canvas';
@@ -357,6 +357,12 @@ bindControls(canvas, {
   guess: (i) => answerGuess(state, i),
   canCall: () => state.phase === 'calling' && localCanAct(),
   arrow: (a) => pressArrow(state, a),
+  camera: {
+    can: () => state.phase === 'shooting' && localCanAct(),
+    act: (a) => cameraInput(state, a),
+    // Dragging the view one way looks the other.
+    pan: (dx, dy) => cameraInput(state, { k: 'pan', dx: -dx / renderer.cssScale, dy: -dy / renderer.cssScale }),
+  },
 });
 
 /** Fire for whoever's turn it is on this phone (online, through the session, which tells the other phone). */
@@ -441,6 +447,7 @@ function runFrame(now: number): void {
       sneakClock(state, FIXED_DT);
       quizClock(state, FIXED_DT);
       callClock(state, FIXED_DT);
+      cameraClock(state, FIXED_DT);
       // Who's That Pokémon?'s clock starts once the picture's in.
       if (state.guess && pictureStatus(state.guess.dex) === 'ok') guessClock(state, FIXED_DT);
     }
@@ -458,6 +465,8 @@ function runFrame(now: number): void {
     if (state.call?.picked) fireNow();
     else cancelCall(state);
   }
+  // Long Exposure's card is done: fire it, the same way.
+  if (cameraReady(state) && localCanAct()) fireNow();
   // Who's That Pokémon?, the same way; or its picture won't come, and it's called off (nothing spent).
   if (guessReady(state) && localCanAct()) fireNow();
   if (state.phase === 'guessing' && state.guess && !state.guess.done && localCanAct() && pictureStatus(state.guess.dex) === 'error') pokedexDown(state);
