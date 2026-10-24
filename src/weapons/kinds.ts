@@ -81,8 +81,8 @@ export const KINDS = {
   steal: { aims: false, turn: 'free' },
   /** Women in Scam: an enemy hit on the firer next turn earns them a round of the weapon that did it. */
   scam: { aims: false, turn: 'bonus', per: 'match' },
-  /** ShotDownBoyz: enter horizontal terrain-digging mode for this turn. */
-  digger: { aims: false, turn: 'bonus', per: 'turn' },
+  /** ShotDownBoyz: enter horizontal terrain-digging mode for this turn (its round is never spent, so it's no shot). */
+  digger: { aims: false, turn: 'bonus', per: 'turn', keepsInPlay: false },
   /** Diced Coffee: a spinner; a win skips the next enemy turn (go again), a loss spills it for good. */
   coffee: { aims: false, turn: 'bonus', per: 'turn', keepsInPlay: false },
   /**

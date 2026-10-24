@@ -244,6 +244,21 @@ export function hasAmmo(p: Player): boolean {
 export { canFire, canUseSlot, slotAt, weaponForTier, type SlotKind } from './loadout';
 
 /**
+ * The current player is aiming with nothing to fire (a match saved before the Digger stopped keeping
+ * ShotDownBoyz in play, rules 48): their turn passes, and the match ends if nobody has anything. Returns
+ * whether it did. Called online by the phone whose turn it is (NetSession); hotseat matches aren't kept.
+ */
+export function passEmptyTurn(state: GameState): boolean {
+  if (state.phase !== 'aiming') return false;
+  const p = currentPlayer(state);
+  if (!p.alive || hasAmmo(p) || p.hop || p.flight) return false;
+  const c = tankCentre(p);
+  spawnFloater(state, c.x, c.y - 18, 'OUT OF ROUNDS', '#fca5a5');
+  endTurn(state);
+  return true;
+}
+
+/**
  * Choose which tier the current player fires next. Returns false if it can't be used now (canUseSlot: no
  * rounds left; Yolk Sucker: nothing to even out; Diced Coffee: already had one this turn).
  */

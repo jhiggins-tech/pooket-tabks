@@ -258,3 +258,24 @@ describe('networked match', { timeout: 30_000 }, () => {
     expect(a.canAct()).toBe(true);
   });
 });
+
+describe('a turn with nothing to fire', () => {
+  it('is passed on by the phone whose turn it is, into the record (a match stuck on the Digger)', async () => {
+    const { a, b, A, B, room } = await connected('kie', 'shotdownboyz');
+    // How a match saved before rules 48 could stand: the guest's turn, with only the Digger left.
+    for (const g of [A, B]) g.players[1]!.ammo = [0, 0, 0, 1];
+    expect(B.current).toBe(1);
+    for (let i = 0; i < 20 && A.current !== 0; i++) {
+      step(A, FIXED_DT);
+      step(B, FIXED_DT);
+      a.tick(FIXED_DT);
+      b.tick(FIXED_DT);
+      await flush();
+    }
+    expect(B.current).toBe(0);
+    expect(A.current).toBe(0);
+    expect(room.rec!.snap.turn).toBe(B.turn);
+    expect(a.canAct()).toBe(true);
+    expect(b.canAct()).toBe(false);
+  });
+});

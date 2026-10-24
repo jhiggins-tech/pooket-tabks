@@ -20,6 +20,14 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 64,
+    title: 'Digger fix',
+    items: [
+      'shotdownboyz’s Digger no longer keeps him in the match once his shots are gone: he sits out, and when nobody has anything left the match ends (most health wins).',
+      'A match stuck on his turn with only the Digger left carries on as soon as he opens it.',
+    ],
+  },
+  {
     version: 63,
     title: 'Long Exposure, smoother',
     items: [

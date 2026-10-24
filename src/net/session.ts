@@ -1,4 +1,4 @@
-import { concede, finishDecoyPick, fire } from '../game/game';
+import { concede, finishDecoyPick, fire, passEmptyTurn } from '../game/game';
 import type { GameState, PlayerConfig } from '../game/state';
 import { Emitter } from '../core/emitter';
 import type { MatchChannel } from './channel';
@@ -311,6 +311,14 @@ export class NetSession {
     this.streamAim(s, dt);
     this.playOn(s, dt);
     this.settle(s, dt);
+    this.passIfEmpty(s);
+  }
+
+  /** Our turn with nothing to fire (a match from before rules 48: the Digger kept ShotDownBoyz in): pass it on, into the record. */
+  private passIfEmpty(s: GameState): void {
+    if (!this.canAct() || this.flying || this.shots.shot || !passEmptyTurn(s)) return;
+    netLog(`session: nothing to fire, passing the turn (now ${s.phase === 'gameover' ? 'over' : `turn ${s.turn}`})`);
+    this.save('sync');
   }
 
   /** Give up the match: the other player wins. */

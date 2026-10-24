@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRIVE_SPEED, FIXED_DT, FUEL_PER_MATCH } from '../src/game/constants';
-import { currentPlayer, fire, selectTier } from '../src/game/game';
+import { currentPlayer, fire, hasAmmo, passEmptyTurn, selectTier } from '../src/game/game';
 import { canMove } from '../src/game/statuses';
 import { repaintBunkers, slitOf } from '../src/game/bunker';
 import type { GameState } from '../src/game/state';
@@ -235,5 +235,37 @@ describe("ShotDownBoyz's Prepper", () => {
     g.terrain.pixels[i] = 90;
     repaintBunkers(g);
     expect(g.terrain.pixels[i]).toBe(red);
+  });
+});
+
+describe("ShotDownBoyz's Digger and the end of the match", () => {
+  it('doesn’t keep him taking turns once his shots are spent: he sits out, and the match ends', () => {
+    const g = match();
+    const [boyz, kie] = g.players;
+    boyz!.ammo = [0, 0, 0, 1];
+    expect(hasAmmo(boyz!)).toBe(false);
+    passTurn(g);
+    expect(currentPlayer(g)).toBe(kie);
+    kie!.ammo = kie!.ammo.map(() => 0);
+    boyz!.hp = 40;
+    passTurn(g);
+    expect(g.phase).toBe('gameover');
+    expect(g.winner).toBe(kie);
+  });
+
+  it('passes a turn left with nothing to fire (a match saved while the Digger kept him in)', () => {
+    const g = match();
+    const [boyz, kie] = g.players;
+    expect(passEmptyTurn(g)).toBe(false);
+    boyz!.ammo = [0, 0, 0, 1];
+    const turn = g.turn;
+    expect(passEmptyTurn(g)).toBe(true);
+    expect(currentPlayer(g)).toBe(kie);
+    expect(g.turn).toBe(turn + 1);
+    expect(g.phase).toBe('aiming');
+    // With nobody left with anything, it's over.
+    kie!.ammo = kie!.ammo.map(() => 0);
+    expect(passEmptyTurn(g)).toBe(true);
+    expect(g.phase).toBe('gameover');
   });
 });

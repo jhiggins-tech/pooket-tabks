@@ -25,6 +25,11 @@ The running features list and work queue. Newest shipped items first; the **Queu
 
 ## Shipped
 
+- **Fix: the Digger kept shotdownboyz in the match** (owner's report, 24 Oct; rules 48; What's new 64). Its
+  round is never spent, so with every shot gone he still counted as having something to fire: he kept getting
+  turns he couldn't end, and a match where both were out never finished. The digger kind is now
+  `keepsInPlay: false` (like Diced Coffee). A match already stuck that way (his turn, nothing but the Digger)
+  passes the turn on as soon as his phone opens it (`passEmptyTurn`, NetSession `passIfEmpty`).
 - **kiwicore is out of beta** (owner, 24 Oct; What's new 62). With Long Exposure his kit is all his own:
   playable online like the rest (unlocked with a token), no Beta banner. The release rolls up his beta
   testing pushes: the béretta M2, Band Aid and Long Exposure.
