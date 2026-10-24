@@ -483,6 +483,64 @@ export const CUE_SOUNDS: Record<Exclude<SfxCue, 'fire' | 'round' | 'tune'>, Reci
     arp(s, [93, 93], 0.09, { duty: 0.25, vol: 0.07, dur: 0.05 });
     s.tone({ at: 0.2, dur: 0.3, from: 300, to: 650, duty: 0.125, vibrato: [40, 30], vol: 0.04 });
   },
+  // Ten seconds left: the self-timer's single pip.
+  'camera-pip': (s) => s.tone({ dur: 0.07, from: midi(93), duty: 0.5, vol: 0.09 }),
+  // 3, 2, 1 (size): the self-timer beeping faster and higher, and 1 a double.
+  'camera-count': (s, e) => {
+    const n = e.size ?? 3;
+    s.tone({ dur: 0.09, from: midi(n === 1 ? 98 : n === 2 ? 95 : 93), duty: 0.5, vol: 0.11 });
+    if (n === 1) s.tone({ at: 0.12, dur: 0.09, from: midi(98), duty: 0.5, vol: 0.11 });
+  },
+  // A grade lands in the showcase: a gacha pull (size: the step × 5 + the grade, 0 D to 4 A+; step 6 is the
+  // overall grade). Each step's a tone higher; the better the grade, the rarer it sounds, and A+ is the
+  // sparkly ultra rare.
+  'camera-grade': (s, e) => {
+    const size = e.size ?? 0;
+    const step = Math.floor(size / 5);
+    const rank = size % 5;
+    const overall = step >= 6;
+    const root = 67 + step * 2;
+    s.noise({ dur: 0.05, rate: 1.3, vol: 0.08 }); // the card slapping down
+    if (rank === 0) {
+      s.tone({ dur: 0.18, from: midi(root - 12), to: midi(root - 17), duty: 0.5, vol: 0.12 });
+      return;
+    }
+    const runs = [[0], [0, 7], [0, 4, 7], [0, 4, 7, 12]][rank - 1]!;
+    arp(s, runs.map((n) => root + n), overall ? 0.07 : 0.05, { at: 0.02, duty: 0.25, vol: overall ? 0.13 : 0.1, dur: 0.09 });
+    if (overall) arp(s, runs.map((n) => root - 12 + n), 0.07, { at: 0.02, wave: 'triangle', vol: 0.12, dur: 0.12 });
+    if (rank === 4) {
+      // Ultra rare: a whoosh up, a shimmering top note, and glitter.
+      s.tone({ dur: 0.2, from: 400, to: 2400, duty: 0.125, vol: 0.05 });
+      s.tone({ at: 0.22, dur: overall ? 0.7 : 0.45, from: midi(root + 24), wave: 'triangle', vibrato: [14, 30], vol: 0.08 });
+      for (let i = 0; i < 6; i++) s.tone({ at: 0.24 + i * 0.06, dur: 0.04, from: midi(root + 26 + ((i * 5) % 9)), wave: 'triangle', vol: 0.05 });
+    }
+  },
+  // The damage counting up: a coin counter's ratchet, rising.
+  'camera-tally': (s) => {
+    for (let i = 0; i < 18; i++) s.tone({ at: i * 0.05, dur: 0.025, from: midi(76 + Math.floor(i / 2)), duty: 0.125, vol: 0.06 });
+  },
+  // The big reveal (size: 0 nothing in it, 1 a hit, 2 a big one, 3 a Perfect Shot).
+  'camera-reveal': (s, e) => {
+    const tier = e.size ?? 1;
+    if (tier === 0) {
+      // A sad trombone.
+      arp(s, [62, 61, 60], 0.22, { wave: 'triangle', vol: 0.12, dur: 0.2 });
+      s.tone({ at: 0.66, dur: 0.6, from: midi(59), to: midi(57), wave: 'triangle', vibrato: [6, 8], vol: 0.12 });
+      return;
+    }
+    s.noise({ dur: 0.3, rate: 0.5, vol: 0.16 }); // the boom
+    s.tone({ dur: 0.25, from: 180, to: 50, duty: 0.5, vol: 0.16 });
+    const fanfare = tier === 1 ? [72, 79] : tier === 2 ? [72, 76, 79, 84] : [72, 76, 79, 84, 88, 91];
+    arp(s, fanfare, 0.07, { at: 0.08, duty: 0.25, vol: 0.13, dur: 0.12 });
+    const end = 0.08 + fanfare.length * 0.07;
+    s.tone({ at: end, dur: tier === 3 ? 1.1 : 0.5, from: midi(fanfare.at(-1)! + (tier === 3 ? 5 : 0)), duty: 0.25, vibrato: [6, 6], vol: 0.12 });
+    if (tier >= 2) s.tone({ at: end, dur: 0.6, from: midi(fanfare.at(-1)! - 12), wave: 'triangle', vol: 0.12 });
+    if (tier === 3) {
+      // Jackpot: coins showering.
+      for (let i = 0; i < 14; i++) s.tone({ at: end + 0.05 + i * 0.07, dur: 0.05, from: midi(96 + ((i * 7) % 12)), wave: 'triangle', vol: 0.05 });
+      s.noise({ at: end, dur: 1.1, rate: 1.6, to: 0.9, vol: 0.04 });
+    }
+  },
   // A notch of a dial: a dry little click.
   'camera-click': (s) => s.noise({ dur: 0.012, rate: 1.9, vol: 0.07 }),
   // AF-ON: the focus motor's buzz, and the in-focus double beep.

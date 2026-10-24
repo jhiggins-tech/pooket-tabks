@@ -46,6 +46,29 @@ import { clamp } from './util';
 /** How long the best photo shows once it's fired (s), and when its damage lands. */
 export const DEVELOP = { hit: 1.6, end: 2.6 } as const;
 
+/**
+ * The showcase once the card's done (seconds since it went up, `Camera.reveal`): the best photo's six
+ * grades land one by one (`grade(i)`), then its overall grade, the damage counts up, and the big reveal.
+ * Keep fires it only after `end` (before, it skips to the end).
+ */
+export const REVEAL = { first: 0.5, gap: 0.45, overall: 3.3, count: 3.7, counted: 4.6, big: 4.8, end: 5.4 } as const;
+/** When the best photo's grade `i` (its `FACTORS` order) lands in the showcase. */
+export const gradeAt = (i: number): number => REVEAL.first + i * REVEAL.gap;
+
+/** The clock's warnings: a pip with `WARN` seconds left, then a count of 3, 2, 1. */
+export const WARN = 10;
+const COUNT = [3, 2, 1] as const;
+
+/** A photo's grade as a number (0: D … 4: A+) and its letter. */
+export function gradeRank(v: number): number {
+  return v >= 0.95 ? 4 : v >= 0.85 ? 3 : v >= 0.7 ? 2 : v >= 0.55 ? 1 : 0;
+}
+export const GRADES = ['D', 'C', 'B', 'A', 'A+'] as const;
+/** A photo's overall score (the geometric mean of its factors). */
+export function overallOf(p: Photo): number {
+  return p.scores.reduce((a, b) => a * b, 1) ** (1 / p.scores.length);
+}
+
 /** The six factors, in the order a photo's `scores` keep them. */
 export const FACTORS = ['Exposure', 'Focus', 'Sharpness', 'Noise', 'White balance', 'Composition'] as const;
 
@@ -98,6 +121,7 @@ export function startCamera(state: GameState): boolean {
     t: 0,
     left: w.camera.shotTime,
     view: 'aim',
+    reveal: 0,
     photos: [],
     done: false,
     outro: null,
@@ -344,10 +368,44 @@ function tipFor(c: Camera, m: ReturnType<typeof meter>): string {
 /** His phone: the clocks run, and at zero the shutter fires by itself. */
 export function cameraClock(state: GameState, dt: number): void {
   const c = state.camera;
-  if (state.phase !== 'shooting' || !c || c.done || c.view !== 'aim') return;
+  if (state.phase !== 'shooting' || !c || c.done) return;
+  if (c.view === 'card') {
+    const was = c.reveal;
+    c.reveal = Math.min(REVEAL.end, c.reveal + dt);
+    revealCues(state, c, was);
+    return;
+  }
+  if (c.view !== 'aim') return;
+  const was = c.left;
   c.t += dt;
   c.left = Math.max(0, c.left - dt);
+  clockCues(state, c, was);
   if (c.left <= 0) shoot(state, c, true);
+}
+
+/** The clock's warnings as it goes from `was` to `c.left`: the pip, then 3, 2, 1. */
+function clockCues(state: GameState, c: Camera, was: number): void {
+  if (was > WARN && c.left <= WARN) sound(state, 'camera-pip', c.weaponId);
+  for (const n of COUNT) if (was > n && c.left <= n) sound(state, 'camera-count', c.weaponId, n);
+}
+
+/**
+ * The showcase's sounds as it goes from `was` to `c.reveal`: each grade landing (a gacha pull: the better
+ * the grade, the rarer it sounds, and each a step higher; size: the step × 5 + the grade), the overall
+ * grade, the count-up, the big reveal (size: 0 nothing, 1 a hit, 2 a big one, 3 a Perfect Shot). Skipped
+ * ahead, only the reveal.
+ */
+function revealCues(state: GameState, c: Camera, was: number): void {
+  const best = bestPhoto(c);
+  if (!best) return;
+  const now = c.reveal;
+  const crossed = (at: number) => was < at && now >= at;
+  if (now - was <= 0.5) {
+    best.scores.forEach((v, i) => crossed(gradeAt(i)) && sound(state, 'camera-grade', c.weaponId, i * 5 + gradeRank(v)));
+    if (crossed(REVEAL.overall)) sound(state, 'camera-grade', c.weaponId, 6 * 5 + gradeRank(overallOf(best)));
+    if (crossed(REVEAL.count) && best.damage > 0) sound(state, 'camera-tally', c.weaponId);
+  }
+  if (crossed(REVEAL.big)) sound(state, 'camera-reveal', c.weaponId, best.damage <= 0 ? 0 : best.perfect ? 3 : best.damage >= 60 ? 2 : 1);
 }
 
 function shoot(state: GameState, c: Camera, auto: boolean): void {
@@ -369,8 +427,12 @@ export function cameraInput(state: GameState, a: CameraAction): void {
       c.view = 'aim';
       c.left = w.camera.shotTime;
     } else if (a.k === 'keep') {
-      if (c.view === 'card') c.done = true;
-      else c.view = 'card';
+      if (c.view !== 'card') c.view = 'card';
+      else if (c.reveal < REVEAL.end) {
+        const was = c.reveal;
+        c.reveal = REVEAL.end;
+        revealCues(state, c, was);
+      } else c.done = true;
     }
     return;
   }
@@ -458,9 +520,16 @@ export function bestPhoto(c: Camera): Photo | null {
 
 /** Another phone's Long Exposure, as its previews show it (net/follow.ts): the same viewfinder here. */
 export function followCamera(state: GameState, next: Camera): void {
-  if (state.phase !== 'shooting' || !state.camera) sound(state, 'camera-up', next.weaponId);
+  const was = state.phase === 'shooting' ? state.camera : null;
+  if (!was) sound(state, 'camera-up', next.weaponId);
   state.camera = next;
   state.phase = 'shooting';
+  if (!was || was.playerId !== next.playerId) return;
+  // The same sounds here as on his phone: the shutter, the clock's warnings and the showcase.
+  const shot = next.photos.length > was.photos.length ? next.photos.at(-1)! : null;
+  if (shot) sound(state, shot.flash ? 'camera-flash' : 'camera-shutter', next.weaponId);
+  else if (next.view === 'aim' && was.view === 'aim') clockCues(state, next, was.left);
+  if (next.view === 'card') revealCues(state, next, was.view === 'card' ? was.reveal : 0);
 }
 
 /** Fired (game.ts `fire`, once the card's done): the best photo develops, then its damage lands. */

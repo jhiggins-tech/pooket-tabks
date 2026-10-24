@@ -551,12 +551,21 @@ test("kiwicore's Long Exposure: a camera, three shots on the card, and the best 
   await expect(page.locator('#camera .cam-pb-title')).toContainText('SHOT 2 OF 3');
   const damage = await page.evaluate(() => window.__pooket.state.camera!.photos[1]!.damage);
   expect(damage).toBeGreaterThan(30);
-  // Keep the best: the card, then fire it.
-  await page.locator('#camera [data-cam="keep"]').tap();
-  await expect(page.locator('#camera .cam-pb-title')).toContainText('MEMORY CARD');
-  await expect(page.locator('#camera .cam-pb-shot')).toHaveCount(2);
-  await page.screenshot({ path: 'test-results/long-exposure-card.png' });
-  await page.locator('#camera [data-cam="keep"]').tap();
+  // Keep the best: the showcase, the grades stacking up, the damage counting up, the big reveal.
+  await page.locator('#camera .cam-playback [data-cam="keep"]').tap();
+  const showcase = page.locator('#camera .cam-showcase');
+  await expect(showcase).toBeVisible();
+  await expect(showcase.locator('.cam-sc-title')).toHaveText('MEMORY CARD · BEST OF 2');
+  await expect(showcase.locator('.cam-sc-chip')).toHaveCount(2);
+  await expect(showcase.locator('.cam-sc-tile')).toHaveCount(6);
+  await expect(showcase.locator('.cam-sc-keep')).toHaveText('Skip ▸▸');
+  await page.waitForFunction(() => window.__pooket.state.camera!.reveal > 1.6);
+  await page.screenshot({ path: 'test-results/long-exposure-showcase-grades.png' });
+  await expect(showcase).toHaveClass(/big/, { timeout: 8_000 });
+  await expect(showcase.locator('.cam-sc-damage b')).toHaveText(String(damage));
+  await expect(showcase.locator('.cam-sc-keep')).toHaveText(`Fire it: ${damage}`);
+  await page.screenshot({ path: 'test-results/long-exposure-showcase.png' });
+  await showcase.locator('.cam-sc-keep').tap();
   await expect(page.locator('#camera')).toBeHidden();
   await expect(page.locator('#camera-print')).toBeVisible();
   await page.screenshot({ path: 'test-results/long-exposure-print.png' });

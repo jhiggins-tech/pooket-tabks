@@ -335,6 +335,8 @@ export interface Camera {
   left: number;
   /** Shooting, looking at the photo just taken, or the card at the end (every photo, the best counts). */
   view: 'aim' | 'review' | 'card';
+  /** Seconds the card's been up: its showcase (camera.ts `REVEAL`). */
+  reveal: number;
   photos: Photo[];
   /** The card's finished: it's fired. */
   done: boolean;
@@ -863,6 +865,11 @@ export type SfxCue =
   | 'zap'
   | 'pickup'
   | 'camera-up'
+  | 'camera-pip'
+  | 'camera-count'
+  | 'camera-grade'
+  | 'camera-tally'
+  | 'camera-reveal'
   | 'camera-click'
   | 'camera-af'
   | 'camera-shutter'

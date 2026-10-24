@@ -8,6 +8,9 @@ import {
   cameraReady,
   canFire,
   DEVELOP,
+  gradeAt,
+  gradeRank,
+  REVEAL,
   dialRole,
   exposureOf,
   fire,
@@ -90,6 +93,7 @@ function shootCard(g: GameState, between?: (i: number) => void): void {
     if (i < 2) act(g, { k: 'next' });
   }
   expect(g.camera!.view).toBe('card');
+  act(g, { k: 'keep' }); // skips the showcase
   act(g, { k: 'keep' });
   expect(cameraReady(g)).toBe(true);
 }
@@ -221,6 +225,8 @@ describe("kiwicore's Long Exposure", () => {
     act(g, { k: 'keep' });
     expect(g.camera!.view).toBe('card');
     act(g, { k: 'keep' });
+    expect(g.camera!.reveal).toBe(REVEAL.end);
+    act(g, { k: 'keep' });
     expect(cameraReady(g)).toBe(true);
     expect(g.camera!.photos).toHaveLength(1);
   });
@@ -238,6 +244,48 @@ describe("kiwicore's Long Exposure", () => {
     expect(g.camera!.photos).toHaveLength(1);
     act(g, { k: 'next' });
     expect(g.camera!.left).toBe(20);
+  });
+
+  it('the clock warns: a pip at 10 s, then 3, 2, 1', () => {
+    const g = game();
+    raise(g);
+    g.sfx.length = 0;
+    for (let t = 0; t < 19.9; t += 0.05) cameraClock(g, 0.05);
+    const warnings = g.sfx.filter((e) => e.cue === 'camera-pip' || e.cue === 'camera-count').map((e) => (e.cue === 'camera-pip' ? 'pip' : e.size));
+    expect(warnings).toEqual(['pip', 3, 2, 1]);
+  });
+
+  it('the showcase: the best photo’s grades land one by one with their gacha sounds, then the count-up and the big reveal', () => {
+    const g = game();
+    raise(g);
+    nail(g);
+    act(g, { k: 'shutter' });
+    act(g, { k: 'keep' });
+    expect(g.camera!.view).toBe('card');
+    expect(g.camera!.reveal).toBe(0);
+    g.sfx.length = 0;
+    // Keep does nothing to the card till it's over (it skips).
+    expect(cameraReady(g)).toBe(false);
+    for (let t = 0; t < REVEAL.end + 1; t += 0.05) cameraClock(g, 0.05);
+    expect(g.camera!.reveal).toBe(REVEAL.end);
+    const grades = g.sfx.filter((e) => e.cue === 'camera-grade').map((e) => e.size);
+    const best = g.camera!.photos[0]!;
+    expect(grades).toEqual([...best.scores.map((v, i) => i * 5 + gradeRank(v)), 30 + 4]);
+    expect(g.sfx.map((e) => e.cue)).toEqual(expect.arrayContaining(['camera-tally', 'camera-reveal']));
+    expect(g.sfx.find((e) => e.cue === 'camera-reveal')!.size).toBe(3); // a Perfect Shot
+    expect(gradeAt(5)).toBeLessThan(REVEAL.overall);
+    act(g, { k: 'keep' });
+    expect(cameraReady(g)).toBe(true);
+  });
+
+  it('skipping the showcase plays just the reveal', () => {
+    const g = game();
+    raise(g);
+    act(g, { k: 'shutter' });
+    act(g, { k: 'keep' });
+    g.sfx.length = 0;
+    act(g, { k: 'keep' });
+    expect(g.sfx.map((e) => [e.cue, e.size])).toEqual([['camera-reveal', 0]]); // nothing in it
   });
 
   it('the easier modes cap what a photo does: P 35, Tv and Av 60, M 77', () => {
@@ -349,5 +397,24 @@ describe("kiwicore's Long Exposure", () => {
     applyPreview(there, previewOf(g));
     expect(there.phase).toBe('shooting');
     expect(there.camera).toEqual(g.camera);
+  });
+
+  it('other phones hear it too: the shutter, the clock’s warnings and the showcase', () => {
+    const g = game();
+    const there = game();
+    raise(g);
+    applyPreview(there, structuredClone(previewOf(g)));
+    there.sfx.length = 0;
+    cameraClock(g, 10.5);
+    applyPreview(there, structuredClone(previewOf(g)));
+    expect(there.sfx.map((e) => e.cue)).toEqual(['camera-pip']);
+    act(g, { k: 'shutter' });
+    act(g, { k: 'keep' });
+    applyPreview(there, structuredClone(previewOf(g)));
+    for (const dt of [0.3, 0.3]) {
+      cameraClock(g, dt);
+      applyPreview(there, structuredClone(previewOf(g)));
+    }
+    expect(there.sfx.map((e) => e.cue)).toEqual(['camera-pip', 'camera-shutter', 'camera-grade']);
   });
 });

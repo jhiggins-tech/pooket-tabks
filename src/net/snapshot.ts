@@ -112,6 +112,8 @@ export function upgradeSnapshot(snap: Snapshot): Snapshot {
   // Rules 45: kiwicore's Long Exposure, and its flash's blinding.
   snap.camera ??= null;
   for (const p of (snap.players as { blinded?: unknown }[] | undefined) ?? []) p.blinded ??= null;
+  // Rules 46: Long Exposure's showcase.
+  if (snap.camera) (snap.camera as { reveal?: number }).reveal ??= 0;
   return snap;
 }
 

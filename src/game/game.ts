@@ -45,7 +45,7 @@ export { STRIKE, STRIKE_BEAT, horizonOf, laserTime, shipAt, strikeClock } from '
 export { GUESS_OUTRO, answerGuess, followGuess, guessClock, guessedRight, guessLeft, guessReady, isPokemon, missingNoNext, pokedexDown, startGuess } from './pokemon';
 export { BEACON_TIME, LASER_TIME, SENTRY_HEIGHT, TESLA_RANGE, callClock, callLeft, callReady, cancelCall, candidates, followCall, isStratagem, pressArrow, readyStratagems, startCall } from './stratagems';
 export { BARREL, QUIZ_OUTRO, answerQuiz, answeredRight, followQuiz, isBond, quizClock, quizLeft, quizReady, rightAnswer, startQuiz } from './bond';
-export { DEVELOP, FACTORS, bestPhoto, cameraClock, cameraInput, cameraReady, dialRole, exposureOf, followCamera, frameCentre, frameOf, isCamera, meter, ringFor, ringMetres, sceneOf, startCamera, type CameraAction } from './camera';
+export { DEVELOP, FACTORS, GRADES, REVEAL, WARN, bestPhoto, gradeAt, gradeRank, overallOf, cameraClock, cameraInput, cameraReady, dialRole, exposureOf, followCamera, frameCentre, frameOf, isCamera, meter, ringFor, ringMetres, sceneOf, startCamera, type CameraAction } from './camera';
 export { seesAim } from './statuses';
 export { COFFEE_SIP, COFFEE_SPIN, canDrinkCoffee, coffeeFailChance, coffeeSpun, isCoffee } from './coffee';
 export { DECOY_PICK_TIME, HOLOGRAM_BLAST_TIME, HOLOGRAM_PHASE_IN, YOLK_SUCKER, canPickDecoy, canSuckYolk, decoyPickLeft, finishDecoyPick, hologramAt, hologramsOf, pendingTwinSpot, placeTwin, toggleSwapTarget, twinSpotOk, yolkTier } from './copies';

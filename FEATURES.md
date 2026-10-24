@@ -443,6 +443,13 @@ The running features list and work queue. Newest shipped items first; the **Queu
   the frame: nothing. The **flash** fills in two stops of a dark photo (exposure capped at B) and
   **blinds** whoever it hits: no aim guide on their next turn (a new status). Online, the shooting is his
   phone's input (the `shooting` phase), and the other phone and spectators see the same viewfinder live.
+  **The clock warns** (owner, 24 Oct): a pip at 10 s (the badge flashes red), then a self-timer's 3, 2, 1
+  (beeping higher, and big in the viewfinder). **The showcase** (owner, 24 Oct; rules 46): when the card's
+  done (the third shot, or Keep best), the best photo's six grades flip in one by one with gacha sounds
+  (each a step higher, the better the grade the rarer it sounds, A+ a sparkly ultra rare), then its overall
+  grade, the damage counting up (a coin counter) and the big reveal (a sad trombone for nothing, a fanfare
+  for a hit, a jackpot with sun rays for a Perfect Shot); `Camera.reveal`, `REVEAL`. Keep skips it, then
+  fires. The other phone and spectators see and hear it all too (`followCamera`).
   To try out (owner feedback wanted): the damage curve, the 20 s clock, how the dials feel on a phone.
 - **kiwicore's Band Aid** (owner, 7 Oct; rules 23; beta, a testing push). His tier 2 (replacing the
   stand-in Beta Mortar, and the "throwdown" teaser): a Dance Dance Revolution style rhythm minigame
