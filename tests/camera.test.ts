@@ -11,6 +11,7 @@ import {
   gradeAt,
   gradeRank,
   REVEAL,
+  REVIEW_TIME,
   dialRole,
   exposureOf,
   fire,
@@ -90,7 +91,8 @@ function shootCard(g: GameState, between?: (i: number) => void): void {
   for (let i = 0; i < 3; i++) {
     between?.(i);
     act(g, { k: 'shutter' });
-    if (i < 2) act(g, { k: 'next' });
+    expect(g.camera!.view).toBe('review'); // the last one's too
+    act(g, { k: 'next' });
   }
   expect(g.camera!.view).toBe('card');
   act(g, { k: 'keep' }); // skips the showcase
@@ -214,6 +216,23 @@ describe("kiwicore's Long Exposure", () => {
     fire(g);
     untilAiming(g);
     expect(kcaj.hp).toBe(MAX_HP - dmg);
+  });
+
+  it('playback moves on by itself after 5 s: to the next shot, and after the last, the card', () => {
+    const g = game();
+    raise(g);
+    for (let i = 0; i < 3; i++) {
+      act(g, { k: 'shutter' });
+      const c = g.camera!;
+      expect(c.view).toBe('review');
+      expect(c.left).toBe(REVIEW_TIME);
+      cameraClock(g, REVIEW_TIME - 0.1);
+      expect(c.view).toBe('review');
+      cameraClock(g, 0.2);
+      expect(c.view).toBe(i < 2 ? 'aim' : 'card');
+      if (i < 2) expect(c.left).toBe(20);
+    }
+    expect(REVIEW_TIME).toBe(5);
   });
 
   it('keep best early skips the rest of the card', () => {

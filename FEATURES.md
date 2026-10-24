@@ -453,6 +453,8 @@ The running features list and work queue. Newest shipped items first; the **Queu
   grade, the damage counting up (a coin counter) and the big reveal (a sad trombone for nothing, a fanfare
   for a hit, a jackpot with sun rays for a Perfect Shot); `Camera.reveal`, `REVEAL`. Keep skips it, then
   fires. The other phone and spectators see and hear it all too (`followCamera`).
+  **Playback on a timer** (owner, 24 Oct; rules 47): each photo's playback, the third's too, moves on by
+  itself after 5 s (`REVIEW_TIME`): to the next shot, or after the last, the showcase.
   **Out of the camera** (owner, 24 Oct): the showcase is a card docked over the battlefield (the camera body
   closes, the view lifted so whoever's in the photo is above it). (Every control on the right grip was
   tried and undone: the owner preferred the two grips.)

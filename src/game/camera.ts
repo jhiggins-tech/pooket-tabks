@@ -55,6 +55,9 @@ export const REVEAL = { first: 0.5, gap: 0.45, overall: 3.3, count: 3.7, counted
 /** When the best photo's grade `i` (its `FACTORS` order) lands in the showcase. */
 export const gradeAt = (i: number): number => REVEAL.first + i * REVEAL.gap;
 
+/** How long playback shows a photo before it moves on by itself (s): to the next shot, or after the last, the card. */
+export const REVIEW_TIME = 5;
+
 /** The clock's warnings: a pip with `WARN` seconds left, then a count of 3, 2, 1. */
 export const WARN = 10;
 const COUNT = [3, 2, 1] as const;
@@ -375,6 +378,11 @@ export function cameraClock(state: GameState, dt: number): void {
     revealCues(state, c, was);
     return;
   }
+  if (c.view === 'review') {
+    c.left = Math.max(0, c.left - dt);
+    if (c.left <= 0) moveOn(c);
+    return;
+  }
   if (c.view !== 'aim') return;
   const was = c.left;
   c.t += dt;
@@ -408,11 +416,24 @@ function revealCues(state: GameState, c: Camera, was: number): void {
   if (crossed(REVEAL.big)) sound(state, 'camera-reveal', c.weaponId, best.damage <= 0 ? 0 : best.perfect ? 3 : best.damage >= 60 ? 2 : 1);
 }
 
+/** Done looking at a photo: the next shot, or with the card full, the card. */
+function moveOn(c: Camera): void {
+  const w = weaponOf(c.weaponId, 'camera');
+  if (c.photos.length >= w.camera.shots) {
+    c.view = 'card';
+    return;
+  }
+  c.view = 'aim';
+  c.left = w.camera.shotTime;
+}
+
 function shoot(state: GameState, c: Camera, auto: boolean): void {
   const photo = takePhoto(state, c, auto);
   c.photos.push(photo);
   c.fn = null;
-  c.view = c.photos.length >= weaponOf(c.weaponId, 'camera').camera.shots ? 'card' : 'review';
+  // Playback, every photo (the last one's too, before the card), for `REVIEW_TIME`.
+  c.view = 'review';
+  c.left = REVIEW_TIME;
   sound(state, photo.flash ? 'camera-flash' : 'camera-shutter', c.weaponId);
 }
 
@@ -420,13 +441,10 @@ function shoot(state: GameState, c: Camera, auto: boolean): void {
 export function cameraInput(state: GameState, a: CameraAction): void {
   const c = state.camera;
   if (state.phase !== 'shooting' || !c || c.done) return;
-  const w = weaponOf(c.weaponId, 'camera');
   if (c.view !== 'aim') {
     // Looking at a photo: take the next, or keep the best so far (and the card at the end: done).
-    if (a.k === 'next' && c.view === 'review') {
-      c.view = 'aim';
-      c.left = w.camera.shotTime;
-    } else if (a.k === 'keep') {
+    if (a.k === 'next' && c.view === 'review') moveOn(c);
+    else if (a.k === 'keep') {
       if (c.view !== 'card') c.view = 'card';
       else if (c.reveal < REVEAL.end) {
         const was = c.reveal;

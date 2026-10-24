@@ -20,6 +20,14 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 63,
+    title: 'Long Exposure, smoother',
+    items: [
+      'After every shot, the third one too, you see its playback: the grades and the damage it would do.',
+      'Playback moves on by itself after 5 seconds, to the next shot or to the showcase.',
+    ],
+  },
+  {
     version: 62,
     title: '🥝 kiwicore is here',
     items: [

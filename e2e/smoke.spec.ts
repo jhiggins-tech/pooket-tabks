@@ -529,6 +529,7 @@ test("kiwicore's Long Exposure: a camera, three shots on the card, and the best 
   await page.locator('#camera .cam-shutter').tap();
   await expect(page.locator('#camera .cam-playback')).toBeVisible();
   await expect(page.locator('#camera .cam-pb-title')).toContainText('SHOT 1 OF 3');
+  await expect(page.locator('#camera [data-cam="next"]')).toContainText(/Next shot \(2 left\) · [1-5]s/);
   await page.screenshot({ path: 'test-results/long-exposure-playback.png' });
   await page.locator('#camera [data-cam="next"]').tap();
   await expect(page.locator('#camera .cam-playback')).toBeHidden();

@@ -15,7 +15,7 @@
 export const WIRE = 8;
 /** Replays' own format (replay.ts): it didn't change when the records did (wire 8), so older replays still play. */
 export const REPLAY_WIRE = 7;
-export const RULES = 46;
+export const RULES = 47;
 export const OLDEST_RULES = 7;
 
 /** How this build stands with something from another: fine, too old to carry on, or from a newer build (reload). */

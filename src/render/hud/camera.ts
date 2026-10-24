@@ -142,7 +142,11 @@ export function camera(): Part {
     rows.replaceChildren(...p.scores.map((v, i) => scoreRow(FACTORS[i]!, v)));
     damage(p);
     $('.cam-pb-tip').textContent = (p.auto ? 'Time ran out, so the shutter fired. ' : '') + p.tip;
-    next.textContent = `Next shot (${shots - c.photos.length} left)`;
+    // It moves on by itself when the playback timer runs out (camera.ts `REVIEW_TIME`).
+    const last = c.photos.length >= shots;
+    const secs = `${Math.ceil(c.left)}s`;
+    next.textContent = last ? `The memory card · ${secs}` : `Next shot (${shots - c.photos.length} left) · ${secs}`;
+    keep.hidden = last;
     keep.textContent = `Keep best: ${best?.damage ?? 0}`;
     for (const b of [next, keep]) b.disabled = remote;
   }
