@@ -2,7 +2,7 @@ import type { WeaponDef } from '../../weapons/types';
 import { kit } from '../kit';
 
 /**
- * kiwicore, in beta: the béretta M2 is his real tier 1 (his flat cap, thrown like a boomerang:
+ * kiwicore: the béretta M2 is his tier 1 (his flat cap, thrown like a boomerang:
  * game/boomerang.ts; he wears it when it isn't flying); tier 2 is Band
  * Aid, a rhythm minigame that heals (game/drums.ts); tier 3 is Long Exposure, a camera sim
  * (game/camera.ts, its tables in weapons/camera.ts).
@@ -67,10 +67,9 @@ export const kiwicore = kit(
   {
     id: 'kiwicore',
     name: 'kiwicore',
-    blurb: 'Beta: the béretta M2, a flat cap thrown like a boomerang; Band Aid, drumming on the beat to heal; and Long Exposure, a camera and three shots to get the perfect one.',
+    blurb: 'The béretta M2, a flat cap thrown like a boomerang; Band Aid, drumming on the beat to heal; and Long Exposure, a camera and three shots to get the perfect one.',
     colours: ['#84cc16', '#a3e635', '#65a30d'],
     hat: 'flat-cap',
-    beta: true,
   },
   [berettaM2, bandAid, longExposure],
 );

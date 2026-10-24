@@ -2,8 +2,8 @@
 
 Pooket Tabks: a Worms / Pocket Tanks style artillery game for **phone browsers only** (landscape, touch),
 hosted on GitHub Pages at https://jhiggins-tech.github.io/pooket-tabks/. Nine characters, each with a
-three-weapon kit (larinovsky, garyoldmancorp, doctorfox and shotdownboyz have a fourth: a bonus move; kiwicore is in
-beta, `CharacterDef.beta`); hotseat on one phone, or two phones online through Firebase (with
+three-weapon kit (larinovsky, garyoldmancorp, doctorfox and shotdownboyz have a fourth: a bonus move; none is in beta
+right now: `CharacterDef.beta` marks one); hotseat on one phone, or two phones online through Firebase (with
 spectators).
 
 ## Working rules
@@ -13,8 +13,7 @@ spectators).
 - `FEATURES.md` is the features list and work queue. Requests to "queue" something go there; shipping
   moves it to **Shipped** (and updates the character table). Balance changes get a **Balance** entry.
 - Anything players will notice gets a release in `src/ui/whatsnew.ts` (`CHANGELOG`, newest first, version
-  + 1; never edit a release that has already shipped). **Testing pushes** (betas, work in progress, like
-  kiwicore's) get no release: the owner calls a roll-up release when there's a batch, and it lists
+  + 1; never edit a release that has already shipped). **Testing pushes** (betas, work in progress) get no release: the owner calls a roll-up release when there's a batch, and it lists
   them then. (48 was withdrawn: the numbers skip it.)
 - **Hidden ranks**: 25 of the 33 ranks (everything but Bronze, Silver, Gold, Platinum, Diamond, Master,
   Grandmaster, Champion) are meant to be *discovered* by players: never name them (or describe their looks)

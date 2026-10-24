@@ -37,7 +37,7 @@ async function pickTank(page: Page, characterId?: string) {
  * The Game browser's rows: `mine` (this phone's matches), `open` (waiting for a player), `live` (under way or
  * finished), `replay` (past matches, ticked).
  */
-test('unlocks: what’s locked online (a guest has the starter set; betas are hotseat only), and testing with everything unlocked', async ({ browser }) => {
+test('unlocks: what’s locked online (a guest has the starter set), and testing with everything unlocked', async ({ browser }) => {
   const { host: page, q, errors, close } = await phones(browser, 'locks');
   // (Automated runs have everything unlocked unless they ask for the locks.)
   await page.goto(`./?${q}&locks`);
@@ -49,19 +49,13 @@ test('unlocks: what’s locked online (a guest has the starter set; betas are ho
   const option = (id: string) => page.getByLabel('Your tank').locator(`option[value="${id}"]`);
   await expect(option('kie')).toHaveText('kie');
   await expect(option('torikloud')).toHaveText('🔒 torikloud');
-  await expect(option('kiwicore')).toHaveText('🔒 kiwicore (beta, hotseat only)');
+  await expect(option('kiwicore')).toHaveText('🔒 kiwicore');
   // Not signed in: no XP, so the rest wait for signing in.
   await page.getByLabel('Your tank').selectOption('torikloud');
   await expect(page.locator('.tank-details .tank-lock')).toContainText('Sign in (on the first screen) to earn XP in online matches and unlock torikloud.');
   await expect(page.locator('#tank-go')).toHaveText('🔒 Sign in to unlock');
   await expect(page.locator('#tank-go')).toBeDisabled();
   await page.screenshot({ path: 'test-results/tank-locked-guest.png' });
-  // A beta is hotseat only, for everyone.
-  await page.getByLabel('Your tank').selectOption('kiwicore');
-  await expect(page.locator('.tank-details .tank-lock')).toHaveText('🔒 kiwicore is in beta: play them in Local hotseat for now.');
-  await expect(page.locator('#tank-go')).toHaveText('🔒 Beta: hotseat only');
-  await expect(page.locator('#tank-go')).toBeDisabled();
-  await page.screenshot({ path: 'test-results/beta-tank-locked.png' });
 
   // Testing: ?unlockall opens everything (remembered on this phone, and said on the first screen) …
   await page.goto(`./?${q}&locks&unlockall`);
@@ -70,7 +64,7 @@ test('unlocks: what’s locked online (a guest has the starter set; betas are ho
   await expect(page.locator('#unlock-all')).toBeVisible();
   await page.locator('#open-browser').tap();
   await page.locator('#online-host').tap();
-  await expect(page.getByLabel('Your tank').locator('option[value="kiwicore"]')).toHaveText('kiwicore (beta)');
+  await expect(page.getByLabel('Your tank').locator('option[value="kiwicore"]')).toHaveText('kiwicore');
   await page.getByLabel('Your tank').selectOption('kiwicore');
   await expect(page.locator('#tank-go')).toHaveText('Host with kiwicore');
   // … until ?unlockall=off.
@@ -166,7 +160,7 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
 
   // Ivy chooses torikloud: the padlock breaks open, and it's hers.
   await a.locator('#xp-choose').tap();
-  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒torikloud', '🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp', '🔒doctorfox', '🔒shotdownboyz']);
+  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒torikloud', '🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp', '🔒kiwicore', '🔒doctorfox', '🔒shotdownboyz']);
   await a.screenshot({ path: 'test-results/xp-choose.png' });
   await a.locator('#xp .xp-pick[data-character="torikloud"]').tap();
   await expect(a.locator('#xp')).toHaveAttribute('data-state', 'unlocked', { timeout: 10_000 });
@@ -175,7 +169,7 @@ test('XP: a rated match earns it (2× a win, 1× a loss), the bar fills, a full 
   await a.screenshot({ path: 'test-results/xp-unlocked.png' });
   expect(await db.at(`users/uid-ivy/unlocks/torikloud`)).toEqual({ ts: expect.any(Number) });
   // A token left: the choice again, without torikloud; she keeps it for later.
-  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp', '🔒doctorfox', '🔒shotdownboyz'], { timeout: 10_000 });
+  await expect(a.locator('#xp .xp-pick')).toHaveText(['🔒ciarra', '🔒larinovsky', '🔒garyoldmancorp', '🔒kiwicore', '🔒doctorfox', '🔒shotdownboyz'], { timeout: 10_000 });
   await a.locator('#xp-ok').tap();
   await expect(a.locator('#xp')).toBeHidden();
 

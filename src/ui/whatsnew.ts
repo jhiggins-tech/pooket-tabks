@@ -20,6 +20,18 @@ export interface Release {
  */
 export const CHANGELOG: Release[] = [
   {
+    version: 62,
+    title: '🥝 kiwicore is here',
+    items: [
+      'kiwicore is out of beta and playable online: unlock him with an unlock token.',
+      'béretta M2: he throws his flat cap like a boomerang. It flies through hills, out along your aim and back, hitting each enemy it passes on the way out and again on the way back.',
+      'Band Aid: a drum kit and a chiptune. Tap anywhere on the beat, and every hit heals him.',
+      'Long Exposure: raise a real camera. The screen becomes the viewfinder, and it starts in a mess: find the enemy, then set the mode, shutter, aperture, ISO, white balance, lens and focus. Three shots on the memory card, 20 seconds each, and the best one lands. A Perfect Shot (sharp, well exposed, true colours, on a rule-of-thirds point) does the most.',
+      'Then the showcase: your best photo’s grades flip in one by one, and the damage is revealed.',
+      'Use the flash and whoever’s in the photo is blinded: no aim guide on their next turn.',
+    ],
+  },
+  {
     version: 61,
     title: 'Stratagem weapons, sharper',
     items: [

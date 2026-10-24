@@ -5,12 +5,12 @@ import { isCharacterId } from '../src/characters/roster';
 import { upcoming, UPCOMING } from '../src/characters/upcoming';
 
 describe('roster', () => {
-  it('has the ten selectable characters (kiwicore and ShotDownBoyz in beta)', () => {
+  it('has the ten selectable characters, none in beta', () => {
     expect(ROSTER.map((c) => c.name)).toEqual(['tones2', 'kie', 'kcaj', 'torikloud', 'ciarra', 'larinovsky', 'garyoldmancorp', 'kiwicore', 'doctorfox', 'shotdownboyz']);
-    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual(['kiwicore']);
+    expect(ROSTER.filter((c) => c.beta).map((c) => c.id)).toEqual([]);
   });
 
-  it("kiwicore's beta loadout: the béretta M2, Band Aid and Long Exposure; he wears a flat cap", () => {
+  it("kiwicore's loadout (out of beta): the béretta M2, Band Aid and Long Exposure; he wears a flat cap", () => {
     expect(getCharacter('kiwicore').loadout).toEqual(['beretta-m2', 'band-aid', 'long-exposure']);
     expect(getWeapon('beretta-m2').kind).toBe('boomerang');
     expect(getWeapon('band-aid').kind).toBe('drum');
